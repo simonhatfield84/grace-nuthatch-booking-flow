@@ -19,6 +19,8 @@ const guestOptions = Array.from({length: 20}, (_, i) => i + 1);
 const leadTimeOptions = [1, 2, 4, 6, 12, 24, 48, 72];
 const cancellationOptions = [24, 48, 72];
 
+type MediaType = 'image' | 'video';
+
 const Services = () => {
   const [services, setServices] = useState([
     {
@@ -26,7 +28,7 @@ const Services = () => {
       title: "Dinner Service",
       description: "Evening dining experience with seasonal menu",
       mediaUrl: "/api/placeholder/400/200",
-      mediaType: "image" as const,
+      mediaType: "image" as MediaType,
       tags: ["dinner", "seasonal"],
       minGuests: 1,
       maxGuests: 8,
@@ -59,7 +61,7 @@ const Services = () => {
       title: "Afternoon Tea",
       description: "Traditional afternoon tea with homemade scones and cakes",
       mediaUrl: "/api/placeholder/400/200",
-      mediaType: "image" as const,
+      mediaType: "image" as MediaType,
       tags: ["tea", "traditional"],
       minGuests: 2,
       maxGuests: 6,
@@ -89,16 +91,16 @@ const Services = () => {
   ]);
 
   const [showServiceDialog, setShowServiceDialog] = useState(false);
-  const [editingService, setEditingService] = useState(null);
+  const [editingService, setEditingService] = useState<any>(null);
   const [showWindowDialog, setShowWindowDialog] = useState(false);
-  const [editingWindow, setEditingWindow] = useState(null);
-  const [currentServiceId, setCurrentServiceId] = useState(null);
+  const [editingWindow, setEditingWindow] = useState<any>(null);
+  const [currentServiceId, setCurrentServiceId] = useState<number | null>(null);
 
   const [newService, setNewService] = useState({
     title: "",
     description: "",
     mediaUrl: "",
-    mediaType: "image" as const,
+    mediaType: "image" as MediaType,
     tags: "",
     minGuests: 1,
     maxGuests: 8,
@@ -115,7 +117,7 @@ const Services = () => {
   });
 
   const [newWindow, setNewWindow] = useState({
-    days: [],
+    days: [] as string[],
     startTime: "",
     endTime: "",
     maxBookingsPerSlot: 10
@@ -160,7 +162,7 @@ const Services = () => {
     const updatedService = {
       ...editingService,
       tags: typeof editingService.tags === 'string' 
-        ? editingService.tags.split(",").map(tag => tag.trim()).filter(tag => tag)
+        ? editingService.tags.split(",").map((tag: string) => tag.trim()).filter((tag: string) => tag)
         : editingService.tags,
       secretSlug: editingService.isSecret 
         ? (editingService.secretSlug || generateSecretSlug())
@@ -199,7 +201,7 @@ const Services = () => {
       title: "",
       description: "",
       mediaUrl: "",
-      mediaType: "image",
+      mediaType: "image" as MediaType,
       tags: "",
       minGuests: 1,
       maxGuests: 8,
@@ -384,8 +386,8 @@ const Services = () => {
                   : setNewService({...newService, mediaUrl: url, mediaType: type})
                 }
                 onRemove={() => editingService
-                  ? setEditingService({...editingService, mediaUrl: "", mediaType: "image"})
-                  : setNewService({...newService, mediaUrl: "", mediaType: "image"})
+                  ? setEditingService({...editingService, mediaUrl: "", mediaType: "image" as MediaType})
+                  : setNewService({...newService, mediaUrl: "", mediaType: "image" as MediaType})
                 }
               />
 
