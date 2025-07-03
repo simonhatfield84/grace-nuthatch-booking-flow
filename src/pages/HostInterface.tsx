@@ -1,15 +1,22 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Clock, Users, Plus, MessageSquare, Phone, Mail } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Clock, Users, Plus, MessageSquare, Phone, Mail, Ban } from "lucide-react";
+import { WalkInDialog } from "@/components/WalkInDialog";
+import { BlockDialog } from "@/components/BlockDialog";
+import { ReservationPopup } from "@/components/ReservationPopup";
 
 const HostInterface = () => {
   const [selectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [currentTime] = useState(new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }));
+  const [draggedReservation, setDraggedReservation] = useState(null);
+  const [isResizing, setIsResizing] = useState(null);
+  const [selectedReservation, setSelectedReservation] = useState(null);
   
   // Time slots for the grid (15-minute intervals)
   const timeSlots = [
@@ -59,7 +66,7 @@ const HostInterface = () => {
     { id: 5, tableId: 4, startTime: "20:30", duration: 4, guest: "Lisa Davis", party: 4, service: "Dinner", status: "confirmed", phone: "+44 7700 900345", email: "lisa@email.com", notes: "Dietary requirements" },
   ]);
 
-  const [selectedReservation, setSelectedReservation] = useState(null);
+  const [blockedSlots, setBlockedSlots] = useState([]);
 
   const getReservationForTableAndTime = (tableId: number, time: string) => {
     return reservations.find(r => {
@@ -74,6 +81,12 @@ const HostInterface = () => {
 
   const isReservationStart = (reservation: any, time: string) => {
     return reservation.startTime === time;
+  };
+
+  const isReservationEnd = (reservation: any, time: string) => {
+    const startIndex = timeSlots.indexOf(reservation.startTime);
+    const timeIndex = timeSlots.indexOf(time);
+    return timeIndex === startIndex + reservation.duration - 1;
   };
 
   const getStatusColor = (status: string) => {
@@ -93,6 +106,28 @@ const HostInterface = () => {
     ));
   };
 
+  const handleReservationDragStart = (e: React.DragEvent, reservation: any) => {
+    setDraggedReservation(reservation);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleReservationDrop = (e: React.DragEvent, tableId: number, time: string) => {
+    e.preventDefault();
+    if (draggedReservation) {
+      setReservations(reservations.map(r => 
+        r.id === draggedReservation.id 
+          ? { ...r, tableId, startTime: time }
+          : r
+      ));
+      setDraggedReservation(null);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
   const getCurrentTimePosition = () => {
     const now = new Date();
     const currentHour = now.getHours();
@@ -110,6 +145,18 @@ const HostInterface = () => {
 
   const timeLinePosition = getCurrentTimePosition();
 
+  const isSlotBlocked = (tableId: number, time: string) => {
+    return blockedSlots.some(block => {
+      if (block.tableIds.includes(tableId) || block.tableIds.includes('all')) {
+        const timeIndex = timeSlots.indexOf(time);
+        const startIndex = timeSlots.indexOf(block.fromTime);
+        const endIndex = timeSlots.indexOf(block.toTime);
+        return timeIndex >= startIndex && timeIndex <= endIndex;
+      }
+      return false;
+    });
+  };
+
   return (
     <div className="min-h-screen bg-grace-dark text-grace-light p-4">
       <div className="max-w-7xl mx-auto space-y-4">
@@ -117,7 +164,6 @@ const HostInterface = () => {
         <div className="flex justify-between items-center">
           <div>
             <div className="grace-logo text-2xl font-bold mb-1">grace</div>
-            <h1 className="text-xl font-playfair font-bold">Host Interface</h1>
             <p className="text-sm text-grace-light/70">
               {new Date(selectedDate).toLocaleDateString('en-GB', { 
                 weekday: 'long', 
@@ -128,10 +174,18 @@ const HostInterface = () => {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" className="bg-grace-accent text-grace-light border-grace-accent hover:bg-grace-accent/90">
-              <Plus className="h-4 w-4 mr-2" strokeWidth={2} />
-              Walk-in
-            </Button>
+            <WalkInDialog 
+              tables={tables}
+              timeSlots={timeSlots}
+              reservations={reservations}
+              setReservations={setReservations}
+            />
+            <BlockDialog 
+              tables={tables}
+              timeSlots={timeSlots}
+              blockedSlots={blockedSlots}
+              setBlockedSlots={setBlockedSlots}
+            />
             <Button variant="outline" size="sm" className="bg-grace-secondary text-grace-light border-grace-secondary hover:bg-grace-secondary/90">
               <MessageSquare className="h-4 w-4 mr-2" strokeWidth={2} />
               Messages
@@ -175,24 +229,18 @@ const HostInterface = () => {
 
         {/* Reservation Grid - Compact and Scrollable */}
         <Card className="bg-grace-dark border-grace-accent/30">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-grace-light text-lg">Reservation Grid</CardTitle>
-            <CardDescription className="text-grace-light/70 text-sm">
-              Tap any cell to view details or add reservations
-            </CardDescription>
-          </CardHeader>
           <CardContent className="p-0">
             <div className="relative">
               {/* Fixed table column */}
               <div className="flex">
                 <div className="flex-shrink-0 w-16 bg-grace-dark border-r border-grace-accent/30">
                   {/* Header */}
-                  <div className="h-8 flex items-center justify-center text-xs font-medium text-grace-light/70 border-b border-grace-accent/30">
+                  <div className="h-6 flex items-center justify-center text-xs font-medium text-grace-light/70 border-b border-grace-accent/30">
                     Table
                   </div>
                   {/* Table rows */}
                   {tables.map(table => (
-                    <div key={table.id} className="h-10 flex items-center justify-center bg-grace-accent/20 border-b border-grace-accent/30 text-grace-light">
+                    <div key={table.id} className="h-8 flex items-center justify-center bg-grace-accent/20 border-b border-grace-accent/30 text-grace-light">
                       <div className="text-center">
                         <div className="text-xs font-bold">{table.label}</div>
                         <div className="text-xs text-grace-light/70">{table.seats}</div>
@@ -214,9 +262,9 @@ const HostInterface = () => {
                     
                     <div className="flex">
                       {/* Time header */}
-                      <div className="flex h-8 border-b border-grace-accent/30">
+                      <div className="flex h-6 border-b border-grace-accent/30">
                         {timeSlots.map(time => (
-                          <div key={time} className="w-16 flex-shrink-0 flex items-center justify-center text-xs font-medium text-grace-light/70 border-r border-grace-accent/30">
+                          <div key={time} className="w-12 flex-shrink-0 flex items-center justify-center text-xs font-medium text-grace-light/70 border-r border-grace-accent/30">
                             {time}
                           </div>
                         ))}
@@ -225,23 +273,47 @@ const HostInterface = () => {
 
                     {/* Table rows with time slots */}
                     {tables.map(table => (
-                      <div key={table.id} className="flex h-10 border-b border-grace-accent/30">
+                      <div key={table.id} className="flex h-8 border-b border-grace-accent/30">
                         {timeSlots.map(time => {
                           const reservation = getReservationForTableAndTime(table.id, time);
                           const isStart = reservation && isReservationStart(reservation, time);
+                          const isEnd = reservation && isReservationEnd(reservation, time);
+                          const isBlocked = isSlotBlocked(table.id, time);
+                          
                           return (
                             <div 
                               key={`${table.id}-${time}`}
-                              className={`w-16 flex-shrink-0 border-r border-grace-accent/30 cursor-pointer hover:bg-grace-accent/10 transition-colors flex items-center justify-center ${
-                                reservation ? getStatusColor(reservation.status) : 'bg-grace-dark'
+                              className={`w-12 flex-shrink-0 border-r border-grace-accent/30 cursor-pointer hover:bg-grace-accent/10 transition-colors flex items-center justify-center ${
+                                isBlocked 
+                                  ? 'bg-red-900/30 border-red-500/50' 
+                                  : reservation 
+                                    ? `${getStatusColor(reservation.status)} ${isStart ? 'rounded-l' : ''} ${isEnd ? 'rounded-r' : ''} ${!isStart && !isEnd ? 'border-l-0 border-r-0' : ''}` 
+                                    : 'bg-grace-dark hover:bg-grace-accent/10'
                               }`}
-                              onClick={() => reservation && setSelectedReservation(reservation)}
+                              draggable={!!reservation && isStart}
+                              onDragStart={(e) => reservation && isStart && handleReservationDragStart(e, reservation)}
+                              onDrop={(e) => handleReservationDrop(e, table.id, time)}
+                              onDragOver={handleDragOver}
                             >
                               {reservation && isStart && (
-                                <div className="text-xs text-center px-1">
-                                  <div className="font-medium truncate text-xs leading-tight">{reservation.guest.split(' ')[0]}</div>
-                                  <div className="text-xs opacity-75">{reservation.party}</div>
-                                </div>
+                                <Popover>
+                                  <PopoverTrigger asChild>
+                                    <div className="text-xs text-center px-1 w-full h-full flex flex-col justify-center cursor-pointer">
+                                      <div className="font-medium truncate text-xs leading-tight">{reservation.guest.split(' ')[0]}</div>
+                                      <div className="text-xs opacity-75">{reservation.party}</div>
+                                    </div>
+                                  </PopoverTrigger>
+                                  <PopoverContent className="w-80 bg-grace-dark border-grace-accent/30">
+                                    <ReservationPopup 
+                                      reservation={reservation}
+                                      table={tables.find(t => t.id === reservation.tableId)}
+                                      updateReservationStatus={updateReservationStatus}
+                                    />
+                                  </PopoverContent>
+                                </Popover>
+                              )}
+                              {isBlocked && !reservation && (
+                                <Ban className="h-3 w-3 text-red-400" />
                               )}
                             </div>
                           );
@@ -254,109 +326,6 @@ const HostInterface = () => {
             </div>
           </CardContent>
         </Card>
-
-        {/* Reservation Details Modal */}
-        {selectedReservation && (
-          <Card className="bg-grace-dark border-grace-accent/30">
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="text-grace-light">Reservation Details</CardTitle>
-                  <CardDescription className="text-grace-light/70">
-                    Table {tables.find(t => t.id === selectedReservation.tableId)?.label} • {selectedReservation.startTime} ({selectedReservation.duration * 15} mins)
-                  </CardDescription>
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => setSelectedReservation(null)}
-                  className="text-grace-light/70 hover:text-grace-light"
-                >
-                  ✕
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-4">
-                <Avatar>
-                  <AvatarFallback className="bg-grace-accent text-grace-light">
-                    {selectedReservation.guest.split(' ').map(n => n[0]).join('')}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <h3 className="font-medium text-grace-light">{selectedReservation.guest}</h3>
-                  <div className="flex items-center gap-4 text-sm text-grace-light/70">
-                    <span className="flex items-center gap-1">
-                      <Users className="h-4 w-4" strokeWidth={2} />
-                      {selectedReservation.party} guests
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-4 w-4" strokeWidth={2} />
-                      {selectedReservation.service}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-grace-light/70">
-                    <Phone className="h-4 w-4" strokeWidth={2} />
-                    <span>{selectedReservation.phone}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-grace-light/70">
-                    <Mail className="h-4 w-4" strokeWidth={2} />
-                    <span>{selectedReservation.email}</span>
-                  </div>
-                </div>
-                <div>
-                  <Badge className={getStatusColor(selectedReservation.status)}>
-                    {selectedReservation.status}
-                  </Badge>
-                </div>
-              </div>
-
-              {selectedReservation.notes && (
-                <div className="p-3 bg-grace-accent/10 rounded">
-                  <p className="text-sm text-grace-light">{selectedReservation.notes}</p>
-                </div>
-              )}
-
-              <div className="flex flex-wrap gap-2 pt-4">
-                <Button 
-                  size="sm"
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                  onClick={() => updateReservationStatus(selectedReservation.id, 'seated')}
-                >
-                  Seat Guests
-                </Button>
-                <Button 
-                  size="sm"
-                  className="bg-grace-accent hover:bg-grace-accent/90 text-grace-light"
-                  onClick={() => updateReservationStatus(selectedReservation.id, 'finished')}
-                >
-                  Mark Finished
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  className="border-grace-secondary text-grace-secondary hover:bg-grace-secondary hover:text-grace-light"
-                >
-                  <MessageSquare className="h-4 w-4 mr-2" strokeWidth={2} />
-                  Message
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  className="border-red-400 text-red-400 hover:bg-red-400 hover:text-white"
-                  onClick={() => updateReservationStatus(selectedReservation.id, 'cancelled')}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
     </div>
   );
