@@ -13,7 +13,7 @@ interface TableListProps {
   joinGroups: any[];
   onEditTable: (table: any) => void;
   onDeleteTable: (tableId: number) => void;
-  getJoinGroupName: (groupId: number | null) => string | null;
+  getJoinGroupNames: (groupIds: number[]) => string | null;
 }
 
 export const TableList = ({ 
@@ -22,7 +22,7 @@ export const TableList = ({
   joinGroups, 
   onEditTable, 
   onDeleteTable, 
-  getJoinGroupName 
+  getJoinGroupNames 
 }: TableListProps) => {
   const [seatFilter, setSeatFilter] = useState<string>("all");
 
@@ -82,7 +82,7 @@ export const TableList = ({
                     <TableHead>Table</TableHead>
                     <TableHead>Seats</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Join Group</TableHead>
+                    <TableHead>Join Groups</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -113,16 +113,29 @@ export const TableList = ({
                               {table.onlineBookable && (
                                 <Badge variant="secondary" className="text-xs">Online</Badge>
                               )}
-                              {table.joinGroup && (
+                              {table.joinGroups && table.joinGroups.length > 0 && (
                                 <Badge variant="outline" className="text-xs">
                                   <Link className="h-3 w-3 mr-1" />
-                                  Group
+                                  Groups ({table.joinGroups.length})
                                 </Badge>
                               )}
                             </div>
                           </TableCell>
                           <TableCell>
-                            {table.joinGroup ? getJoinGroupName(table.joinGroup) : "-"}
+                            <div className="flex flex-wrap gap-1">
+                              {table.joinGroups && table.joinGroups.length > 0 ? (
+                                table.joinGroups.map((groupId: number) => {
+                                  const group = joinGroups.find(g => g.id === groupId);
+                                  return group ? (
+                                    <Badge key={groupId} variant="outline" className="text-xs">
+                                      {group.name}
+                                    </Badge>
+                                  ) : null;
+                                })
+                              ) : (
+                                <span className="text-muted-foreground text-sm">-</span>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <div className="flex gap-2">

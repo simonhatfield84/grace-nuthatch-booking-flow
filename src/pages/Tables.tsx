@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,16 +12,17 @@ import { TableList } from "@/components/TableList";
 
 const Tables = () => {
   const [tables, setTables] = useState([
-    { id: 1, label: "T1", seats: 2, onlineBookable: true, priorityRank: 1, joinGroup: null, position: { x: 100, y: 100 } },
-    { id: 2, label: "T2", seats: 2, onlineBookable: true, priorityRank: 2, joinGroup: null, position: { x: 200, y: 100 } },
-    { id: 3, label: "T3", seats: 4, onlineBookable: true, priorityRank: 3, joinGroup: 1, position: { x: 100, y: 200 } },
-    { id: 4, label: "T4", seats: 4, onlineBookable: true, priorityRank: 4, joinGroup: 1, position: { x: 200, y: 200 } },
-    { id: 5, label: "T5", seats: 6, onlineBookable: true, priorityRank: 5, joinGroup: null, position: { x: 300, y: 150 } },
-    { id: 6, label: "T6", seats: 8, onlineBookable: false, priorityRank: 6, joinGroup: null, position: { x: 400, y: 150 } },
+    { id: 1, label: "T1", seats: 2, onlineBookable: true, priorityRank: 1, joinGroups: [], position: { x: 100, y: 100 } },
+    { id: 2, label: "T2", seats: 2, onlineBookable: true, priorityRank: 2, joinGroups: [1, 2], position: { x: 200, y: 100 } },
+    { id: 3, label: "T3", seats: 4, onlineBookable: true, priorityRank: 3, joinGroups: [1, 2], position: { x: 100, y: 200 } },
+    { id: 4, label: "T4", seats: 4, onlineBookable: true, priorityRank: 4, joinGroups: [1, 2], position: { x: 200, y: 200 } },
+    { id: 5, label: "T5", seats: 6, onlineBookable: true, priorityRank: 5, joinGroups: [], position: { x: 300, y: 150 } },
+    { id: 6, label: "T6", seats: 8, onlineBookable: false, priorityRank: 6, joinGroups: [], position: { x: 400, y: 150 } },
   ]);
 
   const [joinGroups, setJoinGroups] = useState([
-    { id: 1, name: "Center Tables", memberTableIds: [3, 4], maxCapacity: 8 }
+    { id: 1, name: "Center Tables", memberTableIds: [2, 3, 4], maxCapacity: 10 },
+    { id: 2, name: "Corner Setup", memberTableIds: [2, 3], maxCapacity: 6 }
   ]);
 
   const [showAddTableDialog, setShowAddTableDialog] = useState(false);
@@ -45,7 +47,7 @@ const Tables = () => {
     const table = {
       id: Date.now(),
       ...newTable,
-      joinGroup: null,
+      joinGroups: [],
       position: { x: 100 + tables.length * 50, y: 100 + tables.length * 30 }
     };
     setTables([...tables, table]);
@@ -94,10 +96,10 @@ const Tables = () => {
     };
     setJoinGroups([...joinGroups, group]);
     
-    // Update tables to include join group
+    // Update tables to include this join group in their joinGroups array
     setTables(tables.map(table => 
       newGroup.memberTableIds.includes(table.id) 
-        ? { ...table, joinGroup: group.id }
+        ? { ...table, joinGroups: [...table.joinGroups, group.id] }
         : table
     ));
     
@@ -116,12 +118,17 @@ const Tables = () => {
     
     setJoinGroups(joinGroups.map(g => g.id === editingGroup.id ? updatedGroup : g));
     
-    // Update tables
+    // Update tables to reflect new group membership
     setTables(tables.map(table => {
-      if (editingGroup.memberTableIds.includes(table.id)) {
-        return { ...table, joinGroup: editingGroup.id };
-      } else if (table.joinGroup === editingGroup.id) {
-        return { ...table, joinGroup: null };
+      const wasInGroup = table.joinGroups.includes(editingGroup.id);
+      const shouldBeInGroup = editingGroup.memberTableIds.includes(table.id);
+      
+      if (!wasInGroup && shouldBeInGroup) {
+        // Add to group
+        return { ...table, joinGroups: [...table.joinGroups, editingGroup.id] };
+      } else if (wasInGroup && !shouldBeInGroup) {
+        // Remove from group
+        return { ...table, joinGroups: table.joinGroups.filter(gId => gId !== editingGroup.id) };
       }
       return table;
     }));
@@ -132,9 +139,10 @@ const Tables = () => {
 
   const handleDeleteGroup = (groupId: number) => {
     setJoinGroups(joinGroups.filter(g => g.id !== groupId));
-    setTables(tables.map(table => 
-      table.joinGroup === groupId ? { ...table, joinGroup: null } : table
-    ));
+    setTables(tables.map(table => ({
+      ...table,
+      joinGroups: table.joinGroups.filter(gId => gId !== groupId)
+    })));
   };
 
   const handleEditGroup = (group: any) => {
@@ -151,13 +159,13 @@ const Tables = () => {
     setEditingGroup(null);
   };
 
-  const getJoinGroupName = (groupId: number | null) => {
-    if (!groupId) return null;
-    return joinGroups.find(g => g.id === groupId)?.name || `Group ${groupId}`;
+  const getJoinGroupNames = (groupIds: number[]) => {
+    if (!groupIds || groupIds.length === 0) return null;
+    return groupIds.map(id => joinGroups.find(g => g.id === id)?.name).filter(Boolean).join(", ");
   };
 
   const getAvailableTablesForGroup = () => {
-    return tables.filter(table => !table.joinGroup || table.joinGroup === editingGroup?.id);
+    return tables; // All tables can now be selected for any group
   };
 
   const totalSeats = tables.reduce((sum, table) => sum + table.seats, 0);
@@ -383,7 +391,7 @@ const Tables = () => {
         joinGroups={joinGroups}
         onEditTable={handleEditTable}
         onDeleteTable={handleDeleteTable}
-        getJoinGroupName={getJoinGroupName}
+        getJoinGroupNames={getJoinGroupNames}
       />
 
       {joinGroups.length > 0 && (
