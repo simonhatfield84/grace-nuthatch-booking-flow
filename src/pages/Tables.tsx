@@ -1,184 +1,67 @@
 
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Link, Edit, Trash2 } from "lucide-react";
+import { Plus, Link } from "lucide-react";
 import { TableList } from "@/components/TableList";
+import { TableStats } from "@/components/tables/TableStats";
+import { TableDialog } from "@/components/tables/TableDialog";
+import { GroupDialog } from "@/components/tables/GroupDialog";
+import { JoinGroupsList } from "@/components/tables/JoinGroupsList";
+import { useTableManagement } from "@/hooks/useTableManagement";
+import { useGroupManagement } from "@/hooks/useGroupManagement";
 
 const Tables = () => {
-  const [tables, setTables] = useState([
+  const initialTables = [
     { id: 1, label: "T1", seats: 2, onlineBookable: true, priorityRank: 1, joinGroups: [], position: { x: 100, y: 100 } },
     { id: 2, label: "T2", seats: 2, onlineBookable: true, priorityRank: 2, joinGroups: [1, 2], position: { x: 200, y: 100 } },
     { id: 3, label: "T3", seats: 4, onlineBookable: true, priorityRank: 3, joinGroups: [1, 2], position: { x: 100, y: 200 } },
     { id: 4, label: "T4", seats: 4, onlineBookable: true, priorityRank: 4, joinGroups: [1, 2], position: { x: 200, y: 200 } },
     { id: 5, label: "T5", seats: 6, onlineBookable: true, priorityRank: 5, joinGroups: [], position: { x: 300, y: 150 } },
     { id: 6, label: "T6", seats: 8, onlineBookable: false, priorityRank: 6, joinGroups: [], position: { x: 400, y: 150 } },
-  ]);
+  ];
 
-  const [joinGroups, setJoinGroups] = useState([
+  const initialJoinGroups = [
     { id: 1, name: "Center Tables", memberTableIds: [2, 3, 4], maxCapacity: 10 },
     { id: 2, name: "Corner Setup", memberTableIds: [2, 3], maxCapacity: 6 }
-  ]);
+  ];
+
+  const {
+    tables,
+    setTables,
+    editingTable,
+    setEditingTable,
+    newTable,
+    setNewTable,
+    handleAddTable,
+    handleUpdateTable,
+    handleDeleteTable,
+    handleEditTable,
+    resetTableForm
+  } = useTableManagement(initialTables);
+
+  const {
+    joinGroups,
+    editingGroup,
+    setEditingGroup,
+    newGroup,
+    setNewGroup,
+    handleAddGroup,
+    handleUpdateGroup,
+    handleDeleteGroup,
+    handleEditGroup,
+    resetGroupForm
+  } = useGroupManagement(initialJoinGroups, tables, setTables);
 
   const [showAddTableDialog, setShowAddTableDialog] = useState(false);
   const [showAddGroupDialog, setShowAddGroupDialog] = useState(false);
-  const [editingTable, setEditingTable] = useState(null);
-  const [editingGroup, setEditingGroup] = useState(null);
-
-  const [newTable, setNewTable] = useState({
-    label: "",
-    seats: 2,
-    onlineBookable: true,
-    priorityRank: tables.length + 1
-  });
-
-  const [newGroup, setNewGroup] = useState({
-    name: "",
-    memberTableIds: [],
-    maxCapacity: 0
-  });
-
-  const handleAddTable = () => {
-    const table = {
-      id: Date.now(),
-      ...newTable,
-      joinGroups: [],
-      position: { x: 100 + tables.length * 50, y: 100 + tables.length * 30 }
-    };
-    setTables([...tables, table]);
-    resetTableForm();
-    setShowAddTableDialog(false);
-  };
-
-  const handleUpdateTable = () => {
-    setTables(tables.map(t => t.id === editingTable.id ? { ...editingTable } : t));
-    setEditingTable(null);
-    setShowAddTableDialog(false);
-  };
-
-  const handleDeleteTable = (tableId: number) => {
-    setTables(tables.filter(t => t.id !== tableId));
-    // Remove from join groups
-    setJoinGroups(joinGroups.map(group => ({
-      ...group,
-      memberTableIds: group.memberTableIds.filter(id => id !== tableId)
-    })).filter(group => group.memberTableIds.length > 0));
-  };
-
-  const handleEditTable = (table: any) => {
-    setEditingTable(table);
-    setShowAddTableDialog(true);
-  };
-
-  const resetTableForm = () => {
-    setNewTable({
-      label: "",
-      seats: 2,
-      onlineBookable: true,
-      priorityRank: tables.length + 2
-    });
-    setEditingTable(null);
-  };
-
-  const handleAddGroup = () => {
-    const group = {
-      id: Date.now(),
-      ...newGroup,
-      maxCapacity: parseInt(newGroup.maxCapacity.toString()) || newGroup.memberTableIds.reduce((sum, id) => {
-        const table = tables.find(t => t.id === id);
-        return sum + (table?.seats || 0);
-      }, 0)
-    };
-    setJoinGroups([...joinGroups, group]);
-    
-    // Update tables to include this join group in their joinGroups array
-    setTables(tables.map(table => 
-      newGroup.memberTableIds.includes(table.id) 
-        ? { ...table, joinGroups: [...table.joinGroups, group.id] }
-        : table
-    ));
-    
-    resetGroupForm();
-    setShowAddGroupDialog(false);
-  };
-
-  const handleUpdateGroup = () => {
-    const updatedGroup = {
-      ...editingGroup,
-      maxCapacity: parseInt(editingGroup.maxCapacity.toString()) || editingGroup.memberTableIds.reduce((sum, id) => {
-        const table = tables.find(t => t.id === id);
-        return sum + (table?.seats || 0);
-      }, 0)
-    };
-    
-    setJoinGroups(joinGroups.map(g => g.id === editingGroup.id ? updatedGroup : g));
-    
-    // Update tables to reflect new group membership
-    setTables(tables.map(table => {
-      const wasInGroup = table.joinGroups.includes(editingGroup.id);
-      const shouldBeInGroup = editingGroup.memberTableIds.includes(table.id);
-      
-      if (!wasInGroup && shouldBeInGroup) {
-        // Add to group
-        return { ...table, joinGroups: [...table.joinGroups, editingGroup.id] };
-      } else if (wasInGroup && !shouldBeInGroup) {
-        // Remove from group
-        return { ...table, joinGroups: table.joinGroups.filter(gId => gId !== editingGroup.id) };
-      }
-      return table;
-    }));
-    
-    setEditingGroup(null);
-    setShowAddGroupDialog(false);
-  };
-
-  const handleDeleteGroup = (groupId: number) => {
-    setJoinGroups(joinGroups.filter(g => g.id !== groupId));
-    setTables(tables.map(table => ({
-      ...table,
-      joinGroups: table.joinGroups.filter(gId => gId !== groupId)
-    })));
-  };
-
-  const handleEditGroup = (group: any) => {
-    setEditingGroup(group);
-    setShowAddGroupDialog(true);
-  };
-
-  const resetGroupForm = () => {
-    setNewGroup({
-      name: "",
-      memberTableIds: [],
-      maxCapacity: 0
-    });
-    setEditingGroup(null);
-  };
 
   const getJoinGroupNames = (groupIds: number[]) => {
     if (!groupIds || groupIds.length === 0) return null;
     return groupIds.map(id => joinGroups.find(g => g.id === id)?.name).filter(Boolean).join(", ");
   };
 
-  const getAvailableTablesForGroup = () => {
-    return tables; // All tables can now be selected for any group
-  };
-
   const totalSeats = tables.reduce((sum, table) => sum + table.seats, 0);
   const onlineBookableSeats = tables.filter(t => t.onlineBookable).reduce((sum, table) => sum + table.seats, 0);
-
-  const currentFormData = editingTable || newTable;
-  const currentGroupData = editingGroup || newGroup;
-  
-  // Calculate suggested capacity for groups
-  const suggestedCapacity = currentGroupData.memberTableIds.reduce((sum, id) => {
-    const table = tables.find(t => t.id === id);
-    return sum + (table?.seats || 0);
-  }, 0);
 
   return (
     <div className="space-y-6">
@@ -199,192 +82,41 @@ const Tables = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Total Tables</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{tables.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Total Seats</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalSeats}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg">Online Bookable</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{onlineBookableSeats}</div>
-            <p className="text-xs text-muted-foreground">seats available online</p>
-          </CardContent>
-        </Card>
-      </div>
+      <TableStats
+        totalTables={tables.length}
+        totalSeats={totalSeats}
+        onlineBookableSeats={onlineBookableSeats}
+      />
 
-      {/* Add/Edit Table Dialog */}
-      <Dialog open={showAddTableDialog} onOpenChange={(open) => {
-        setShowAddTableDialog(open);
-        if (!open) resetTableForm();
-      }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editingTable ? 'Edit Table' : 'Add New Table'}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <Label htmlFor="label">Table Label</Label>
-                <Input
-                  id="label"
-                  value={currentFormData.label}
-                  onChange={(e) => editingTable 
-                    ? setEditingTable({...editingTable, label: e.target.value})
-                    : setNewTable({...newTable, label: e.target.value})
-                  }
-                  placeholder="e.g., T7"
-                />
-              </div>
-              <div>
-                <Label htmlFor="seats">Number of Seats</Label>
-                <Input
-                  id="seats"
-                  type="number"
-                  value={currentFormData.seats}
-                  onChange={(e) => editingTable
-                    ? setEditingTable({...editingTable, seats: parseInt(e.target.value)})
-                    : setNewTable({...newTable, seats: parseInt(e.target.value)})
-                  }
-                  min="1"
-                  max="20"
-                />
-              </div>
-              <div>
-                <Label htmlFor="priority">Priority Rank</Label>
-                <Input
-                  id="priority"
-                  type="number"
-                  value={currentFormData.priorityRank}
-                  onChange={(e) => editingTable
-                    ? setEditingTable({...editingTable, priorityRank: parseInt(e.target.value)})
-                    : setNewTable({...newTable, priorityRank: parseInt(e.target.value)})
-                  }
-                  min="1"
-                />
-              </div>
-            </div>
+      <TableDialog
+        isOpen={showAddTableDialog}
+        onOpenChange={(open) => {
+          setShowAddTableDialog(open);
+          if (!open) resetTableForm();
+        }}
+        editingTable={editingTable}
+        newTable={newTable}
+        setNewTable={setNewTable}
+        setEditingTable={setEditingTable}
+        onAddTable={handleAddTable}
+        onUpdateTable={handleUpdateTable}
+      />
 
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="bookable"
-                checked={currentFormData.onlineBookable}
-                onCheckedChange={(checked) => editingTable
-                  ? setEditingTable({...editingTable, onlineBookable: checked})
-                  : setNewTable({...newTable, onlineBookable: checked})
-                }
-              />
-              <Label htmlFor="bookable">Available for Online Booking</Label>
-            </div>
+      <GroupDialog
+        isOpen={showAddGroupDialog}
+        onOpenChange={(open) => {
+          setShowAddGroupDialog(open);
+          if (!open) resetGroupForm();
+        }}
+        editingGroup={editingGroup}
+        newGroup={newGroup}
+        setNewGroup={setNewGroup}
+        setEditingGroup={setEditingGroup}
+        onAddGroup={handleAddGroup}
+        onUpdateGroup={handleUpdateGroup}
+        tables={tables}
+      />
 
-            <div className="flex gap-2">
-              <Button onClick={editingTable ? handleUpdateTable : handleAddTable}>
-                {editingTable ? 'Update Table' : 'Add Table'}
-              </Button>
-              <Button variant="outline" onClick={() => setShowAddTableDialog(false)}>Cancel</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add/Edit Group Dialog */}
-      <Dialog open={showAddGroupDialog} onOpenChange={(open) => {
-        setShowAddGroupDialog(open);
-        if (!open) resetGroupForm();
-      }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editingGroup ? 'Edit Join Group' : 'Create Join Group'}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="groupName">Group Name</Label>
-              <Input
-                id="groupName"
-                value={currentGroupData.name}
-                onChange={(e) => editingGroup
-                  ? setEditingGroup({...editingGroup, name: e.target.value})
-                  : setNewGroup({...newGroup, name: e.target.value})
-                }
-                placeholder="e.g., Center Tables"
-              />
-            </div>
-
-            <div>
-              <Label>Select Tables</Label>
-              <div className="grid grid-cols-3 gap-2 max-h-32 overflow-y-auto border rounded p-2">
-                {getAvailableTablesForGroup().map(table => (
-                  <div key={table.id} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id={`group-table-${table.id}`}
-                      checked={currentGroupData.memberTableIds.includes(table.id)}
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        const newMemberIds = checked
-                          ? [...currentGroupData.memberTableIds, table.id]
-                          : currentGroupData.memberTableIds.filter(id => id !== table.id);
-                        
-                        if (editingGroup) {
-                          setEditingGroup({...editingGroup, memberTableIds: newMemberIds});
-                        } else {
-                          setNewGroup({...newGroup, memberTableIds: newMemberIds});
-                        }
-                      }}
-                    />
-                    <Label htmlFor={`group-table-${table.id}`} className="text-sm">
-                      {table.label} ({table.seats} seats)
-                    </Label>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="maxCapacity">Max Group Capacity</Label>
-              <Input
-                id="maxCapacity"
-                type="number"
-                value={currentGroupData.maxCapacity}
-                onChange={(e) => editingGroup
-                  ? setEditingGroup({...editingGroup, maxCapacity: parseInt(e.target.value) || 0})
-                  : setNewGroup({...newGroup, maxCapacity: parseInt(e.target.value) || 0})
-                }
-                placeholder={`Suggested: ${suggestedCapacity} seats`}
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Individual table capacity: {suggestedCapacity} seats
-              </p>
-            </div>
-
-            <div className="flex gap-2">
-              <Button 
-                onClick={editingGroup ? handleUpdateGroup : handleAddGroup}
-                disabled={!currentGroupData.name || currentGroupData.memberTableIds.length < 2}
-              >
-                {editingGroup ? 'Update Group' : 'Create Group'}
-              </Button>
-              <Button variant="outline" onClick={() => setShowAddGroupDialog(false)}>Cancel</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Table List Component */}
       <TableList
         tables={tables}
         setTables={setTables}
@@ -394,46 +126,12 @@ const Tables = () => {
         getJoinGroupNames={getJoinGroupNames}
       />
 
-      {joinGroups.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Join Groups</CardTitle>
-            <CardDescription>Tables that can be combined for larger parties</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {joinGroups.map((group) => (
-                <div key={group.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                  <div>
-                    <p className="font-medium">{group.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Tables: {group.memberTableIds.map(id => 
-                        tables.find(t => t.id === id)?.label
-                      ).join(", ")}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline">
-                      {group.maxCapacity} total seats
-                    </Badge>
-                    <Button variant="ghost" size="sm" onClick={() => handleEditGroup(group)}>
-                      <Edit className="h-3 w-3" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => handleDeleteGroup(group.id)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <JoinGroupsList
+        joinGroups={joinGroups}
+        tables={tables}
+        onEditGroup={handleEditGroup}
+        onDeleteGroup={handleDeleteGroup}
+      />
     </div>
   );
 };
