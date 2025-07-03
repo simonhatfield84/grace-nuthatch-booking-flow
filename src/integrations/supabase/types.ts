@@ -9,6 +9,48 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      booking_windows: {
+        Row: {
+          blackout_periods: Json | null
+          created_at: string
+          days: string[]
+          end_date: string | null
+          end_time: string
+          id: string
+          max_bookings_per_slot: number
+          service_id: string
+          start_date: string | null
+          start_time: string
+          updated_at: string
+        }
+        Insert: {
+          blackout_periods?: Json | null
+          created_at?: string
+          days?: string[]
+          end_date?: string | null
+          end_time: string
+          id?: string
+          max_bookings_per_slot?: number
+          service_id: string
+          start_date?: string | null
+          start_time: string
+          updated_at?: string
+        }
+        Update: {
+          blackout_periods?: Json | null
+          created_at?: string
+          days?: string[]
+          end_date?: string | null
+          end_time?: string
+          id?: string
+          max_bookings_per_slot?: number
+          service_id?: string
+          start_date?: string | null
+          start_time?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       service_tags: {
         Row: {
           created_at: string

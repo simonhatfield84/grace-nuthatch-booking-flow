@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,17 +8,18 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Plus, Calendar, Clock, Users, Edit, Trash2, Copy, Eye, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Calendar, Clock, Users, Edit, Trash2, Copy, Eye, ChevronDown, Settings } from "lucide-react";
 import { DurationRulesManager } from "@/components/services/DurationRulesManager";
 import { MediaUpload } from "@/components/services/MediaUpload";
 import { TermsEditor } from "@/components/services/TermsEditor";
 import { RichTextEditor } from "@/components/services/RichTextEditor";
 import { TagSelector } from "@/components/services/TagSelector";
+import { BookingWindowManager } from "@/components/services/BookingWindowManager";
 import { DurationRule } from "@/hooks/useServiceDurationRules";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 
 // Controlled input options
 const guestOptions = Array.from({length: 20}, (_, i) => i + 1);
@@ -36,6 +38,30 @@ const Services = () => {
       
       if (error) throw error;
       return data;
+    }
+  });
+
+  // Fetch booking windows for all services
+  const { data: allBookingWindows = [] } = useQuery({
+    queryKey: ['all-booking-windows'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('booking_windows')
+        .select('*')
+        .order('created_at');
+      
+      if (error) throw error;
+      
+      return data.map(window => ({
+        ...window,
+        start_date: window.start_date ? new Date(window.start_date) : null,
+        end_date: window.end_date ? new Date(window.end_date) : null,
+        blackout_periods: Array.isArray(window.blackout_periods) ? window.blackout_periods.map((bp: any) => ({
+          ...bp,
+          startDate: new Date(bp.startDate),
+          endDate: new Date(bp.endDate)
+        })) : []
+      }));
     }
   });
 
@@ -61,16 +87,7 @@ const Services = () => {
         { id: "1", minGuests: 1, maxGuests: 2, durationMinutes: 90 },
         { id: "2", minGuests: 3, maxGuests: 6, durationMinutes: 120 },
         { id: "3", minGuests: 7, maxGuests: 8, durationMinutes: 150 }
-      ] as DurationRule[],
-      windows: [
-        { 
-          id: 1,
-          days: ["tue", "wed", "thu", "fri", "sat"], 
-          startTime: "18:00", 
-          endTime: "21:30",
-          maxBookingsPerSlot: 10
-        }
-      ]
+      ] as DurationRule[]
     },
     {
       id: 2,
@@ -92,23 +109,13 @@ const Services = () => {
       durationRules: [
         { id: "1", minGuests: 2, maxGuests: 4, durationMinutes: 90 },
         { id: "2", minGuests: 5, maxGuests: 6, durationMinutes: 105 }
-      ] as DurationRule[],
-      windows: [
-        { 
-          id: 2,
-          days: ["sat", "sun"], 
-          startTime: "14:00", 
-          endTime: "16:30",
-          maxBookingsPerSlot: 6
-        }
-      ]
+      ] as DurationRule[]
     }
   ]);
 
   const [showServiceDialog, setShowServiceDialog] = useState(false);
   const [editingService, setEditingService] = useState<any>(null);
-  const [showWindowDialog, setShowWindowDialog] = useState(false);
-  const [editingWindow, setEditingWindow] = useState<any>(null);
+  const [showWindowManager, setShowWindowManager] = useState(false);
   const [currentServiceId, setCurrentServiceId] = useState<number | null>(null);
 
   const [newService, setNewService] = useState({
@@ -131,34 +138,14 @@ const Services = () => {
     durationRules: [] as DurationRule[]
   });
 
-  const [newWindow, setNewWindow] = useState({
-    days: [] as string[],
-    startTime: "",
-    endTime: "",
-    maxBookingsPerSlot: 10
-  });
-
-  const dayOptions = [
-    { value: "mon", label: "Monday" },
-    { value: "tue", label: "Tuesday" },
-    { value: "wed", label: "Wednesday" },
-    { value: "thu", label: "Thursday" },
-    { value: "fri", label: "Friday" },
-    { value: "sat", label: "Saturday" },
-    { value: "sun", label: "Sunday" }
-  ];
-
-  const timeSlots = [
-    "06:00", "06:30", "07:00", "07:30", "08:00", "08:30", "09:00", "09:30",
-    "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "13:30",
-    "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30",
-    "18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30",
-    "22:00", "22:30", "23:00", "23:30"
-  ];
-
   // Helper function to get tags for a service
   const getTagsForService = (tagIds: string[]) => {
     return allTags.filter(tag => tagIds.includes(tag.id));
+  };
+
+  // Helper function to get booking windows for a service
+  const getWindowsForService = (serviceId: number) => {
+    return allBookingWindows.filter(window => window.service_id === serviceId.toString());
   };
 
   const generateSecretSlug = () => {
@@ -173,8 +160,7 @@ const Services = () => {
     const service = {
       id: Date.now(),
       ...newService,
-      secretSlug: newService.isSecret ? generateSecretSlug() : null,
-      windows: []
+      secretSlug: newService.isSecret ? generateSecretSlug() : null
     };
     setServices([...services, service]);
     resetServiceForm();
@@ -239,80 +225,18 @@ const Services = () => {
     setEditingService(null);
   };
 
-  const handleAddWindow = () => {
-    const window = {
-      id: Date.now(),
-      ...newWindow
-    };
-    
-    setServices(services.map(service => 
-      service.id === currentServiceId 
-        ? { ...service, windows: [...service.windows, window] }
-        : service
-    ));
-    
-    resetWindowForm();
-    setShowWindowDialog(false);
-  };
-
-  const handleUpdateWindow = () => {
-    setServices(services.map(service => 
-      service.id === currentServiceId 
-        ? { 
-            ...service, 
-            windows: service.windows.map(w => w.id === editingWindow.id ? editingWindow : w)
-          }
-        : service
-    ));
-    
-    setEditingWindow(null);
-    setShowWindowDialog(false);
-  };
-
-  const handleDeleteWindow = (serviceId: number, windowId: number) => {
-    setServices(services.map(service => 
-      service.id === serviceId 
-        ? { ...service, windows: service.windows.filter(w => w.id !== windowId) }
-        : service
-    ));
-  };
-
-  const handleEditWindow = (serviceId: number, window: any) => {
-    setCurrentServiceId(serviceId);
-    setEditingWindow(window);
-    setShowWindowDialog(true);
-  };
-
-  const resetWindowForm = () => {
-    setNewWindow({
-      days: [],
-      startTime: "",
-      endTime: "",
-      maxBookingsPerSlot: 10
-    });
-    setEditingWindow(null);
-    setCurrentServiceId(null);
-  };
-
   const toggleServiceActive = (serviceId: number) => {
     setServices(services.map(service => 
       service.id === serviceId ? { ...service, active: !service.active } : service
     ));
   };
 
-  const handleDayToggle = (day: string, checked: boolean) => {
-    const currentData = editingWindow || newWindow;
-    const setter = editingWindow ? setEditingWindow : setNewWindow;
-    
-    if (checked) {
-      setter({ ...currentData, days: [...currentData.days, day] });
-    } else {
-      setter({ ...currentData, days: currentData.days.filter(d => d !== day) });
-    }
+  const handleManageWindows = (serviceId: number) => {
+    setCurrentServiceId(serviceId);
+    setShowWindowManager(true);
   };
 
   const currentFormData = editingService || newService;
-  const currentWindowData = editingWindow || newWindow;
 
   return (
     <div className="space-y-6">
@@ -606,105 +530,22 @@ const Services = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Window Dialog */}
-      <Dialog open={showWindowDialog} onOpenChange={(open) => {
-        setShowWindowDialog(open);
-        if (!open) resetWindowForm();
-      }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{editingWindow ? 'Edit Booking Window' : 'Add Booking Window'}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label>Days of Week</Label>
-              <div className="grid grid-cols-2 gap-2 mt-2">
-                {dayOptions.map(day => (
-                  <div key={day.value} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={`day-${day.value}`}
-                      checked={currentWindowData.days.includes(day.value)}
-                      onCheckedChange={(checked) => handleDayToggle(day.value, !!checked)}
-                    />
-                    <Label htmlFor={`day-${day.value}`} className="text-sm">
-                      {day.label}
-                    </Label>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="startTime">Start Time</Label>
-                <Select 
-                  value={currentWindowData.startTime} 
-                  onValueChange={(value) => editingWindow
-                    ? setEditingWindow({...editingWindow, startTime: value})
-                    : setNewWindow({...newWindow, startTime: value})
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select start time" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {timeSlots.map(time => (
-                      <SelectItem key={time} value={time}>{time}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="endTime">End Time</Label>
-                <Select 
-                  value={currentWindowData.endTime} 
-                  onValueChange={(value) => editingWindow
-                    ? setEditingWindow({...editingWindow, endTime: value})
-                    : setNewWindow({...newWindow, endTime: value})
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select end time" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {timeSlots.map(time => (
-                      <SelectItem key={time} value={time}>{time}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="maxBookings">Max Bookings Per Slot</Label>
-              <Input
-                id="maxBookings"
-                type="number"
-                value={currentWindowData.maxBookingsPerSlot}
-                onChange={(e) => editingWindow
-                  ? setEditingWindow({...editingWindow, maxBookingsPerSlot: parseInt(e.target.value)})
-                  : setNewWindow({...newWindow, maxBookingsPerSlot: parseInt(e.target.value)})
-                }
-                min="1"
-              />
-            </div>
-
-            <div className="flex gap-2">
-              <Button 
-                onClick={editingWindow ? handleUpdateWindow : handleAddWindow}
-                disabled={!currentWindowData.startTime || !currentWindowData.endTime || currentWindowData.days.length === 0}
-              >
-                {editingWindow ? 'Update Window' : 'Add Window'}
-              </Button>
-              <Button variant="outline" onClick={() => setShowWindowDialog(false)}>Cancel</Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Booking Window Manager */}
+      {currentServiceId && (
+        <BookingWindowManager
+          serviceId={currentServiceId.toString()}
+          open={showWindowManager}
+          onOpenChange={(open) => {
+            setShowWindowManager(open);
+            if (!open) setCurrentServiceId(null);
+          }}
+        />
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {services.map((service) => {
           const serviceTags = getTagsForService(service.tagIds);
+          const serviceWindows = getWindowsForService(service.id);
           
           return (
             <Card key={service.id} className={`overflow-hidden ${!service.active ? 'opacity-75' : ''}`}>
@@ -792,48 +633,43 @@ const Services = () => {
                   </Collapsible>
                 )}
 
-                {/* Booking Windows */}
+                {/* Enhanced Booking Windows Display */}
                 <div>
                   <div className="flex justify-between items-center mb-2">
                     <Label className="text-sm font-medium">Booking Windows</Label>
                     <Button 
                       size="sm" 
                       variant="outline"
-                      onClick={() => {
-                        setCurrentServiceId(service.id);
-                        setShowWindowDialog(true);
-                      }}
+                      onClick={() => handleManageWindows(service.id)}
                     >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Add
+                      <Settings className="h-3 w-3 mr-1" />
+                      Manage
                     </Button>
                   </div>
                   
-                  {service.windows.length > 0 ? (
-                    <div className="space-y-1 max-h-24 overflow-y-auto">
-                      {service.windows.map((window) => (
-                        <div key={window.id} className="flex items-center justify-between text-xs bg-muted p-2 rounded">
-                          <div>
-                            <div className="font-medium">{window.days.join(", ")} • {window.startTime}-{window.endTime}</div>
-                            <div className="text-muted-foreground">Max {window.maxBookingsPerSlot} bookings</div>
+                  {serviceWindows.length > 0 ? (
+                    <div className="space-y-2 max-h-32 overflow-y-auto">
+                      {serviceWindows.map((window) => (
+                        <div key={window.id} className="text-xs bg-muted p-3 rounded">
+                          <div className="font-medium mb-1">
+                            {window.days.join(", ")} • {window.start_time}-{window.end_time}
                           </div>
-                          <div className="flex gap-1">
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => handleEditWindow(service.id, window)}
-                              className="h-6 w-6 p-0"
-                            >
-                              <Edit className="h-3 w-3" />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => handleDeleteWindow(service.id, window.id)}
-                              className="h-6 w-6 p-0 text-red-600"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
+                          
+                          {(window.start_date || window.end_date) && (
+                            <div className="text-muted-foreground mb-1">
+                              {window.start_date && format(window.start_date, 'MMM d, yyyy')}
+                              {window.end_date && ` - ${format(window.end_date, 'MMM d, yyyy')}`}
+                              {!window.end_date && window.start_date && " (ongoing)"}
+                            </div>
+                          )}
+                          
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">Max {window.max_bookings_per_slot} bookings</span>
+                            {window.blackout_periods && window.blackout_periods.length > 0 && (
+                              <Badge variant="destructive" className="text-xs">
+                                {window.blackout_periods.length} blackout{window.blackout_periods.length > 1 ? 's' : ''}
+                              </Badge>
+                            )}
                           </div>
                         </div>
                       ))}
