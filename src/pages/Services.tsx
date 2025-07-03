@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Calendar, Clock, Users, Edit, Trash2, Copy, Eye } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Plus, Calendar, Clock, Users, Edit, Trash2, Copy, Eye, ChevronDown, ChevronRight } from "lucide-react";
 import { DurationRulesManager } from "@/components/services/DurationRulesManager";
 import { MediaUpload } from "@/components/services/MediaUpload";
 import { TermsEditor } from "@/components/services/TermsEditor";
@@ -709,17 +710,35 @@ const Services = () => {
             <Card key={service.id} className={`overflow-hidden ${!service.active ? 'opacity-75' : ''}`}>
               <div className="aspect-video bg-muted bg-cover bg-center" 
                    style={{ backgroundImage: `url(${service.imageUrl})` }} />
-              <CardHeader>
+              <CardHeader className="pb-3">
                 <div className="flex justify-between items-start">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    {service.title}
-                    {service.isSecret && (
-                      <Badge variant="outline" className="text-xs">
-                        <Eye className="h-3 w-3 mr-1" />
-                        Secret
-                      </Badge>
+                  <div className="flex-1">
+                    <CardTitle className="text-lg flex items-center gap-2 mb-2">
+                      {service.title}
+                      {service.isSecret && (
+                        <Badge variant="outline" className="text-xs">
+                          <Eye className="h-3 w-3 mr-1" />
+                          Secret
+                        </Badge>
+                      )}
+                    </CardTitle>
+                    
+                    {/* Tags Display - Prominent under title */}
+                    {serviceTags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {serviceTags.map((tag) => (
+                          <Badge key={tag.id} variant="secondary" className="text-xs flex items-center gap-1">
+                            <div
+                              className="w-2 h-2 rounded-full"
+                              style={{ backgroundColor: tag.color }}
+                            />
+                            {tag.name}
+                          </Badge>
+                        ))}
+                      </div>
                     )}
-                  </CardTitle>
+                  </div>
+                  
                   <div className="flex gap-1">
                     {service.onlineBookable && (
                       <Badge variant="secondary">Online</Badge>
@@ -731,53 +750,46 @@ const Services = () => {
                     )}
                   </div>
                 </div>
-                <CardDescription>{service.description}</CardDescription>
+                <CardDescription className="text-sm">{service.description}</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex flex-wrap gap-1">
-                  {serviceTags.map((tag) => (
-                    <Badge key={tag.id} variant="outline" className="text-xs flex items-center gap-1">
-                      <div
-                        className="w-2 h-2 rounded-full"
-                        style={{ backgroundColor: tag.color }}
-                      />
-                      {tag.name}
-                    </Badge>
-                  ))}
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4 text-sm">
+              
+              <CardContent className="space-y-4">
+                {/* Key Metrics - Always visible */}
+                <div className="grid grid-cols-2 gap-3 text-sm">
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-muted-foreground" strokeWidth={2} />
                     <span>{service.minGuests}-{service.maxGuests} guests</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-muted-foreground" strokeWidth={2} />
-                    <span>{service.leadTimeHours}h lead time</span>
+                    <span>{service.leadTimeHours}h lead</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" strokeWidth={2} />
                     <span>{service.cancellationWindowHours}h cancel</span>
                   </div>
                   {service.requiresDeposit && (
-                    <div className="text-sm">
-                      <span className="font-medium">£{service.depositPerGuest}</span> deposit
+                    <div className="text-sm font-medium">
+                      £{service.depositPerGuest} deposit
                     </div>
                   )}
                 </div>
 
-                {/* Duration Rules Display */}
+                {/* Collapsible Duration Rules */}
                 {service.durationRules?.length > 0 && (
-                  <div>
-                    <Label className="text-sm font-medium">Duration Rules</Label>
-                    <div className="space-y-1 max-h-16 overflow-y-auto">
+                  <Collapsible>
+                    <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded bg-muted/50 hover:bg-muted text-sm">
+                      <span className="font-medium">{service.durationRules.length} Duration Rules</span>
+                      <ChevronDown className="h-4 w-4" />
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="space-y-1 mt-2">
                       {service.durationRules.map((rule, index) => (
-                        <div key={rule.id || index} className="text-xs bg-muted p-1 rounded">
-                          {rule.minGuests}-{rule.maxGuests} guests: {rule.durationMinutes}min
+                        <div key={rule.id || index} className="text-xs bg-muted p-2 rounded">
+                          {rule.minGuests}-{rule.maxGuests} guests: {rule.durationMinutes} minutes
                         </div>
                       ))}
-                    </div>
-                  </div>
+                    </CollapsibleContent>
+                  </Collapsible>
                 )}
 
                 {/* Booking Windows */}
@@ -796,65 +808,74 @@ const Services = () => {
                       Add
                     </Button>
                   </div>
-                  <div className="space-y-1 max-h-24 overflow-y-auto">
-                    {service.windows.map((window) => (
-                      <div key={window.id} className="flex items-center justify-between text-xs bg-muted p-2 rounded">
-                        <div>
-                          <div>{window.days.join(", ")} • {window.startTime}-{window.endTime}</div>
-                          <div className="text-muted-foreground">Max {window.maxBookingsPerSlot} bookings</div>
+                  
+                  {service.windows.length > 0 ? (
+                    <div className="space-y-1 max-h-24 overflow-y-auto">
+                      {service.windows.map((window) => (
+                        <div key={window.id} className="flex items-center justify-between text-xs bg-muted p-2 rounded">
+                          <div>
+                            <div className="font-medium">{window.days.join(", ")} • {window.startTime}-{window.endTime}</div>
+                            <div className="text-muted-foreground">Max {window.maxBookingsPerSlot} bookings</div>
+                          </div>
+                          <div className="flex gap-1">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleEditWindow(service.id, window)}
+                              className="h-6 w-6 p-0"
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleDeleteWindow(service.id, window.id)}
+                              className="h-6 w-6 p-0 text-red-600"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </div>
-                        <div className="flex gap-1">
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => handleEditWindow(service.id, window)}
-                            className="h-6 w-6 p-0"
-                          >
-                            <Edit className="h-3 w-3" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm" 
-                            onClick={() => handleDeleteWindow(service.id, window.id)}
-                            className="h-6 w-6 p-0 text-red-600"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-muted-foreground p-2 bg-muted/50 rounded">
+                      No booking windows configured
+                    </div>
+                  )}
                 </div>
 
-                <div className="flex gap-2 pt-2">
-                  <Button variant="outline" size="sm" onClick={() => handleEditService(service)}>
-                    <Edit className="h-3 w-3 mr-1" />
-                    Edit
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => handleDuplicateService(service)}
-                  >
-                    <Copy className="h-3 w-3 mr-1" />
-                    Copy
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => toggleServiceActive(service.id)}
-                    className={service.active ? "text-orange-600" : "text-green-600"}
-                  >
-                    {service.active ? "Deactivate" : "Activate"}
-                  </Button>
+                {/* Actions - Grouped better */}
+                <div className="flex gap-2 pt-2 border-t">
+                  <div className="flex gap-1 flex-1">
+                    <Button variant="outline" size="sm" onClick={() => handleEditService(service)}>
+                      <Edit className="h-3 w-3 mr-1" />
+                      Edit
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleDuplicateService(service)}
+                    >
+                      <Copy className="h-3 w-3 mr-1" />
+                      Copy
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => toggleServiceActive(service.id)}
+                      className={service.active ? "text-orange-600" : "text-green-600"}
+                    >
+                      {service.active ? "Deactivate" : "Activate"}
+                    </Button>
+                  </div>
                   <Button 
                     variant="outline" 
                     size="sm" 
                     onClick={() => handleDeleteService(service.id)}
                     className="text-red-600"
                   >
-                    <Trash2 className="h-3 w-3 mr-1" />
-                    Delete
+                    <Trash2 className="h-3 w-3" />
                   </Button>
                 </div>
               </CardContent>
