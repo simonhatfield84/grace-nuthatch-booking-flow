@@ -1,16 +1,23 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Calendar, Clock, Users, Edit, Trash2, Copy } from "lucide-react";
+import { Plus, Calendar, Clock, Users, Edit, Trash2, Copy, Eye, EyeOff } from "lucide-react";
+import { DurationRulesManager } from "@/components/services/DurationRulesManager";
+import { MediaUpload } from "@/components/services/MediaUpload";
+import { TermsEditor } from "@/components/services/TermsEditor";
+import { DurationRule } from "@/hooks/useServiceDurationRules";
+
+// Controlled input options
+const guestOptions = Array.from({length: 20}, (_, i) => i + 1);
+const leadTimeOptions = [1, 2, 4, 6, 12, 24, 48, 72];
+const cancellationOptions = [24, 48, 72];
 
 const Services = () => {
   const [services, setServices] = useState([
@@ -18,16 +25,25 @@ const Services = () => {
       id: 1,
       title: "Dinner Service",
       description: "Evening dining experience with seasonal menu",
-      image: "/api/placeholder/400/200",
+      mediaUrl: "/api/placeholder/400/200",
+      mediaType: "image" as const,
       tags: ["dinner", "seasonal"],
       minGuests: 1,
       maxGuests: 8,
       leadTimeHours: 2,
-      turnTimeMinutes: 120,
+      cancellationWindowHours: 24,
       requiresDeposit: true,
       depositPerGuest: 25,
       onlineBookable: true,
       active: true,
+      isSecret: false,
+      secretSlug: null,
+      termsAndConditions: "",
+      durationRules: [
+        { id: "1", minGuests: 1, maxGuests: 2, durationMinutes: 90 },
+        { id: "2", minGuests: 3, maxGuests: 6, durationMinutes: 120 },
+        { id: "3", minGuests: 7, maxGuests: 8, durationMinutes: 150 }
+      ] as DurationRule[],
       windows: [
         { 
           id: 1,
@@ -42,16 +58,24 @@ const Services = () => {
       id: 2,
       title: "Afternoon Tea",
       description: "Traditional afternoon tea with homemade scones and cakes",
-      image: "/api/placeholder/400/200",
+      mediaUrl: "/api/placeholder/400/200",
+      mediaType: "image" as const,
       tags: ["tea", "traditional"],
       minGuests: 2,
       maxGuests: 6,
       leadTimeHours: 24,
-      turnTimeMinutes: 90,
+      cancellationWindowHours: 48,
       requiresDeposit: false,
       depositPerGuest: 0,
       onlineBookable: true,
       active: true,
+      isSecret: false,
+      secretSlug: null,
+      termsAndConditions: "",
+      durationRules: [
+        { id: "1", minGuests: 2, maxGuests: 4, durationMinutes: 90 },
+        { id: "2", minGuests: 5, maxGuests: 6, durationMinutes: 105 }
+      ] as DurationRule[],
       windows: [
         { 
           id: 2,
@@ -73,16 +97,21 @@ const Services = () => {
   const [newService, setNewService] = useState({
     title: "",
     description: "",
-    image: "",
+    mediaUrl: "",
+    mediaType: "image" as const,
     tags: "",
     minGuests: 1,
     maxGuests: 8,
     leadTimeHours: 2,
-    turnTimeMinutes: 120,
+    cancellationWindowHours: 24,
     requiresDeposit: false,
     depositPerGuest: 0,
     onlineBookable: true,
-    active: true
+    active: true,
+    isSecret: false,
+    secretSlug: null,
+    termsAndConditions: "",
+    durationRules: [] as DurationRule[]
   });
 
   const [newWindow, setNewWindow] = useState({
@@ -110,11 +139,16 @@ const Services = () => {
     "22:00", "22:30", "23:00", "23:30"
   ];
 
+  const generateSecretSlug = () => {
+    return Math.random().toString(36).substring(2, 10);
+  };
+
   const handleAddService = () => {
     const service = {
       id: Date.now(),
       ...newService,
       tags: newService.tags.split(",").map(tag => tag.trim()).filter(tag => tag),
+      secretSlug: newService.isSecret ? generateSecretSlug() : null,
       windows: []
     };
     setServices([...services, service]);
@@ -127,7 +161,10 @@ const Services = () => {
       ...editingService,
       tags: typeof editingService.tags === 'string' 
         ? editingService.tags.split(",").map(tag => tag.trim()).filter(tag => tag)
-        : editingService.tags
+        : editingService.tags,
+      secretSlug: editingService.isSecret 
+        ? (editingService.secretSlug || generateSecretSlug())
+        : null
     };
     setServices(services.map(s => s.id === editingService.id ? updatedService : s));
     setEditingService(null);
@@ -151,7 +188,8 @@ const Services = () => {
       ...service,
       id: Date.now(),
       title: `${service.title} (Copy)`,
-      active: false
+      active: false,
+      secretSlug: service.isSecret ? generateSecretSlug() : null
     };
     setServices([...services, duplicatedService]);
   };
@@ -160,16 +198,21 @@ const Services = () => {
     setNewService({
       title: "",
       description: "",
-      image: "",
+      mediaUrl: "",
+      mediaType: "image",
       tags: "",
       minGuests: 1,
       maxGuests: 8,
       leadTimeHours: 2,
-      turnTimeMinutes: 120,
+      cancellationWindowHours: 24,
       requiresDeposit: false,
       depositPerGuest: 0,
       onlineBookable: true,
-      active: true
+      active: true,
+      isSecret: false,
+      secretSlug: null,
+      termsAndConditions: "",
+      durationRules: []
     });
     setEditingService(null);
   };
@@ -262,180 +305,254 @@ const Services = () => {
         </Button>
       </div>
 
-      {/* Service Dialog */}
+      {/* Enhanced Service Dialog */}
       <Dialog open={showServiceDialog} onOpenChange={(open) => {
         setShowServiceDialog(open);
         if (!open) resetServiceForm();
       }}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingService ? 'Edit Service' : 'Add New Service'}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="title">Service Title</Label>
-                <Input
-                  id="title"
-                  value={currentFormData.title}
-                  onChange={(e) => editingService
-                    ? setEditingService({...editingService, title: e.target.value})
-                    : setNewService({...newService, title: e.target.value})
-                  }
-                  placeholder="e.g., Dinner Service"
-                />
-              </div>
-              <div>
-                <Label htmlFor="image">Image URL</Label>
-                <Input
-                  id="image"
-                  value={currentFormData.image}
-                  onChange={(e) => editingService
-                    ? setEditingService({...editingService, image: e.target.value})
-                    : setNewService({...newService, image: e.target.value})
-                  }
-                  placeholder="https://..."
-                />
-              </div>
-            </div>
-            
-            <div>
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={currentFormData.description}
-                onChange={(e) => editingService
-                  ? setEditingService({...editingService, description: e.target.value})
-                  : setNewService({...newService, description: e.target.value})
-                }
-                placeholder="Describe your service..."
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="tags">Tags (comma separated)</Label>
-              <Input
-                id="tags"
-                value={currentFormData.tags}
-                onChange={(e) => editingService
-                  ? setEditingService({...editingService, tags: e.target.value})
-                  : setNewService({...newService, tags: e.target.value})
-                }
-                placeholder="dinner, seasonal, special"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <Label htmlFor="minGuests">Min Guests</Label>
-                <Input
-                  id="minGuests"
-                  type="number"
-                  value={currentFormData.minGuests}
-                  onChange={(e) => editingService
-                    ? setEditingService({...editingService, minGuests: parseInt(e.target.value)})
-                    : setNewService({...newService, minGuests: parseInt(e.target.value)})
-                  }
-                />
-              </div>
-              <div>
-                <Label htmlFor="maxGuests">Max Guests</Label>
-                <Input
-                  id="maxGuests"
-                  type="number"
-                  value={currentFormData.maxGuests}
-                  onChange={(e) => editingService
-                    ? setEditingService({...editingService, maxGuests: parseInt(e.target.value)})
-                    : setNewService({...newService, maxGuests: parseInt(e.target.value)})
-                  }
-                />
-              </div>
-              <div>
-                <Label htmlFor="leadTime">Lead Time (hrs)</Label>
-                <Input
-                  id="leadTime"
-                  type="number"
-                  value={currentFormData.leadTimeHours}
-                  onChange={(e) => editingService
-                    ? setEditingService({...editingService, leadTimeHours: parseInt(e.target.value)})
-                    : setNewService({...newService, leadTimeHours: parseInt(e.target.value)})
-                  }
-                />
-              </div>
-              <div>
-                <Label htmlFor="turnTime">Turn Time (min)</Label>
-                <Input
-                  id="turnTime"
-                  type="number"
-                  value={currentFormData.turnTimeMinutes}
-                  onChange={(e) => editingService
-                    ? setEditingService({...editingService, turnTimeMinutes: parseInt(e.target.value)})
-                    : setNewService({...newService, turnTimeMinutes: parseInt(e.target.value)})
-                  }
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="deposit"
-                  checked={currentFormData.requiresDeposit}
-                  onCheckedChange={(checked) => editingService
-                    ? setEditingService({...editingService, requiresDeposit: checked})
-                    : setNewService({...newService, requiresDeposit: checked})
-                  }
-                />
-                <Label htmlFor="deposit">Requires Deposit</Label>
-              </div>
-              {currentFormData.requiresDeposit && (
-                <div className="flex items-center space-x-2">
-                  <Label htmlFor="depositAmount">Amount per guest (£)</Label>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left Column - Basic Info */}
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="title">Service Title</Label>
                   <Input
-                    id="depositAmount"
-                    type="number"
-                    className="w-20"
-                    value={currentFormData.depositPerGuest}
+                    id="title"
+                    value={currentFormData.title}
                     onChange={(e) => editingService
-                      ? setEditingService({...editingService, depositPerGuest: parseInt(e.target.value)})
-                      : setNewService({...newService, depositPerGuest: parseInt(e.target.value)})
+                      ? setEditingService({...editingService, title: e.target.value})
+                      : setNewService({...newService, title: e.target.value})
                     }
+                    placeholder="e.g., Dinner Service"
                   />
                 </div>
-              )}
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="secret"
+                    checked={currentFormData.isSecret}
+                    onCheckedChange={(checked) => editingService
+                      ? setEditingService({...editingService, isSecret: checked})
+                      : setNewService({...newService, isSecret: checked})
+                    }
+                  />
+                  <Label htmlFor="secret">Secret Service</Label>
+                  {currentFormData.isSecret && (
+                    <Badge variant="secondary" className="text-xs">
+                      {currentFormData.secretSlug || 'auto-generated'}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              
+              <div>
+                <Label htmlFor="description">Description</Label>
+                <Input
+                  id="description"
+                  value={currentFormData.description}
+                  onChange={(e) => editingService
+                    ? setEditingService({...editingService, description: e.target.value})
+                    : setNewService({...newService, description: e.target.value})
+                  }
+                  placeholder="Describe your service..."
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="tags">Tags (comma separated)</Label>
+                <Input
+                  id="tags"
+                  value={currentFormData.tags}
+                  onChange={(e) => editingService
+                    ? setEditingService({...editingService, tags: e.target.value})
+                    : setNewService({...newService, tags: e.target.value})
+                  }
+                  placeholder="dinner, seasonal, special"
+                />
+              </div>
+
+              {/* Media Upload */}
+              <MediaUpload
+                mediaUrl={currentFormData.mediaUrl}
+                mediaType={currentFormData.mediaType}
+                onMediaChange={(url, type) => editingService
+                  ? setEditingService({...editingService, mediaUrl: url, mediaType: type})
+                  : setNewService({...newService, mediaUrl: url, mediaType: type})
+                }
+                onRemove={() => editingService
+                  ? setEditingService({...editingService, mediaUrl: "", mediaType: "image"})
+                  : setNewService({...newService, mediaUrl: "", mediaType: "image"})
+                }
+              />
+
+              {/* Guest and Time Controls */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <Label htmlFor="minGuests">Min Guests</Label>
+                  <Select 
+                    value={currentFormData.minGuests.toString()} 
+                    onValueChange={(value) => editingService
+                      ? setEditingService({...editingService, minGuests: parseInt(value)})
+                      : setNewService({...newService, minGuests: parseInt(value)})
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {guestOptions.map(num => (
+                        <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="maxGuests">Max Guests</Label>
+                  <Select 
+                    value={currentFormData.maxGuests.toString()} 
+                    onValueChange={(value) => editingService
+                      ? setEditingService({...editingService, maxGuests: parseInt(value)})
+                      : setNewService({...newService, maxGuests: parseInt(value)})
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {guestOptions.map(num => (
+                        <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="leadTime">Lead Time (hrs)</Label>
+                  <Select 
+                    value={currentFormData.leadTimeHours.toString()} 
+                    onValueChange={(value) => editingService
+                      ? setEditingService({...editingService, leadTimeHours: parseInt(value)})
+                      : setNewService({...newService, leadTimeHours: parseInt(value)})
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {leadTimeOptions.map(hours => (
+                        <SelectItem key={hours} value={hours.toString()}>{hours}h</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="cancellation">Cancel Window</Label>
+                  <Select 
+                    value={currentFormData.cancellationWindowHours.toString()} 
+                    onValueChange={(value) => editingService
+                      ? setEditingService({...editingService, cancellationWindowHours: parseInt(value)})
+                      : setNewService({...newService, cancellationWindowHours: parseInt(value)})
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {cancellationOptions.map(hours => (
+                        <SelectItem key={hours} value={hours.toString()}>{hours}h</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Switches */}
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="deposit"
+                    checked={currentFormData.requiresDeposit}
+                    onCheckedChange={(checked) => editingService
+                      ? setEditingService({...editingService, requiresDeposit: checked})
+                      : setNewService({...newService, requiresDeposit: checked})
+                    }
+                  />
+                  <Label htmlFor="deposit">Requires Deposit</Label>
+                </div>
+                {currentFormData.requiresDeposit && (
+                  <div className="flex items-center space-x-2">
+                    <Label htmlFor="depositAmount">Amount per guest (£)</Label>
+                    <Input
+                      id="depositAmount"
+                      type="number"
+                      className="w-20"
+                      value={currentFormData.depositPerGuest}
+                      onChange={(e) => editingService
+                        ? setEditingService({...editingService, depositPerGuest: parseInt(e.target.value)})
+                        : setNewService({...newService, depositPerGuest: parseInt(e.target.value)})
+                      }
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="bookable"
+                    checked={currentFormData.onlineBookable}
+                    onCheckedChange={(checked) => editingService
+                      ? setEditingService({...editingService, onlineBookable: checked})
+                      : setNewService({...newService, onlineBookable: checked})
+                    }
+                  />
+                  <Label htmlFor="bookable">Online Bookable</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="active"
+                    checked={currentFormData.active}
+                    onCheckedChange={(checked) => editingService
+                      ? setEditingService({...editingService, active: checked})
+                      : setNewService({...newService, active: checked})
+                    }
+                  />
+                  <Label htmlFor="active">Active</Label>
+                </div>
+              </div>
             </div>
 
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="bookable"
-                  checked={currentFormData.onlineBookable}
-                  onCheckedChange={(checked) => editingService
-                    ? setEditingService({...editingService, onlineBookable: checked})
-                    : setNewService({...newService, onlineBookable: checked})
-                  }
-                />
-                <Label htmlFor="bookable">Online Bookable</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="active"
-                  checked={currentFormData.active}
-                  onCheckedChange={(checked) => editingService
-                    ? setEditingService({...editingService, active: checked})
-                    : setNewService({...newService, active: checked})
-                  }
-                />
-                <Label htmlFor="active">Active</Label>
-              </div>
-            </div>
+            {/* Right Column - Advanced Features */}
+            <div className="space-y-4">
+              {/* Duration Rules */}
+              <DurationRulesManager
+                rules={currentFormData.durationRules}
+                maxGuests={currentFormData.maxGuests}
+                onChange={(rules) => editingService
+                  ? setEditingService({...editingService, durationRules: rules})
+                  : setNewService({...newService, durationRules: rules})
+                }
+              />
 
-            <div className="flex gap-2">
-              <Button onClick={editingService ? handleUpdateService : handleAddService}>
-                {editingService ? 'Update Service' : 'Add Service'}
-              </Button>
-              <Button variant="outline" onClick={() => setShowServiceDialog(false)}>Cancel</Button>
+              {/* Terms Editor */}
+              <TermsEditor
+                value={currentFormData.termsAndConditions}
+                onChange={(value) => editingService
+                  ? setEditingService({...editingService, termsAndConditions: value})
+                  : setNewService({...newService, termsAndConditions: value})
+                }
+              />
             </div>
+          </div>
+
+          <div className="flex gap-2 pt-4 border-t">
+            <Button onClick={editingService ? handleUpdateService : handleAddService}>
+              {editingService ? 'Update Service' : 'Add Service'}
+            </Button>
+            <Button variant="outline" onClick={() => setShowServiceDialog(false)}>Cancel</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -540,10 +657,18 @@ const Services = () => {
         {services.map((service) => (
           <Card key={service.id} className={`overflow-hidden ${!service.active ? 'opacity-75' : ''}`}>
             <div className="aspect-video bg-muted bg-cover bg-center" 
-                 style={{ backgroundImage: `url(${service.image})` }} />
+                 style={{ backgroundImage: `url(${service.mediaUrl})` }} />
             <CardHeader>
               <div className="flex justify-between items-start">
-                <CardTitle className="text-lg">{service.title}</CardTitle>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  {service.title}
+                  {service.isSecret && (
+                    <Badge variant="outline" className="text-xs">
+                      <Eye className="h-3 w-3 mr-1" />
+                      Secret
+                    </Badge>
+                  )}
+                </CardTitle>
                 <div className="flex gap-1">
                   {service.onlineBookable && (
                     <Badge variant="secondary">Online</Badge>
@@ -577,7 +702,7 @@ const Services = () => {
                 </div>
                 <div className="flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-muted-foreground" strokeWidth={2} />
-                  <span>{service.turnTimeMinutes}min duration</span>
+                  <span>{service.cancellationWindowHours}h cancel</span>
                 </div>
                 {service.requiresDeposit && (
                   <div className="text-sm">
@@ -585,6 +710,20 @@ const Services = () => {
                   </div>
                 )}
               </div>
+
+              {/* Duration Rules Display */}
+              {service.durationRules?.length > 0 && (
+                <div>
+                  <Label className="text-sm font-medium">Duration Rules</Label>
+                  <div className="space-y-1 max-h-16 overflow-y-auto">
+                    {service.durationRules.map((rule, index) => (
+                      <div key={rule.id || index} className="text-xs bg-muted p-1 rounded">
+                        {rule.minGuests}-{rule.maxGuests} guests: {rule.durationMinutes}min
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Booking Windows */}
               <div>
