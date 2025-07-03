@@ -122,7 +122,7 @@ export const BlockDialog = ({ tables, timeSlots, blockedSlots, setBlockedSlots }
                 <Checkbox
                   id="blockAll"
                   checked={formData.blockAll}
-                  onCheckedChange={handleBlockAllToggle}
+                  onCheckedChange={(checked) => handleBlockAllToggle(!!checked)}
                   className="border-grace-accent/30"
                 />
                 <Label htmlFor="blockAll" className="text-sm font-medium">
@@ -137,7 +137,7 @@ export const BlockDialog = ({ tables, timeSlots, blockedSlots, setBlockedSlots }
                       <Checkbox
                         id={`table-${table.id}`}
                         checked={formData.selectedTables.includes(table.id.toString())}
-                        onCheckedChange={(checked) => handleTableToggle(table.id.toString(), checked)}
+                        onCheckedChange={(checked) => handleTableToggle(table.id.toString(), !!checked)}
                         className="border-grace-accent/30"
                       />
                       <Label htmlFor={`table-${table.id}`} className="text-xs">
