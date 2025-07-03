@@ -12,6 +12,7 @@ import { Plus, Calendar, Clock, Users, Edit, Trash2, Copy, Eye, EyeOff } from "l
 import { DurationRulesManager } from "@/components/services/DurationRulesManager";
 import { MediaUpload } from "@/components/services/MediaUpload";
 import { TermsEditor } from "@/components/services/TermsEditor";
+import { RichTextEditor } from "@/components/services/RichTextEditor";
 import { DurationRule } from "@/hooks/useServiceDurationRules";
 
 // Controlled input options
@@ -113,6 +114,7 @@ const Services = () => {
     isSecret: false,
     secretSlug: null,
     termsAndConditions: "",
+    useStandardTerms: true,
     durationRules: [] as DurationRule[]
   });
 
@@ -143,6 +145,10 @@ const Services = () => {
 
   const generateSecretSlug = () => {
     return Math.random().toString(36).substring(2, 10);
+  };
+
+  const getStandardTerms = () => {
+    return localStorage.getItem('standardTerms') || '';
   };
 
   const handleAddService = () => {
@@ -214,6 +220,7 @@ const Services = () => {
       isSecret: false,
       secretSlug: null,
       termsAndConditions: "",
+      useStandardTerms: true,
       durationRules: []
     });
     setEditingService(null);
@@ -351,18 +358,16 @@ const Services = () => {
                 </div>
               </div>
               
-              <div>
-                <Label htmlFor="description">Description</Label>
-                <Input
-                  id="description"
-                  value={currentFormData.description}
-                  onChange={(e) => editingService
-                    ? setEditingService({...editingService, description: e.target.value})
-                    : setNewService({...newService, description: e.target.value})
-                  }
-                  placeholder="Describe your service..."
-                />
-              </div>
+              <RichTextEditor
+                value={currentFormData.description}
+                onChange={(value) => editingService
+                  ? setEditingService({...editingService, description: value})
+                  : setNewService({...newService, description: value})
+                }
+                label="Service Description"
+                placeholder="Describe your service... Use **bold**, _italic_, and [links](url) for rich formatting."
+                minHeight="min-h-[120px]"
+              />
 
               <div>
                 <Label htmlFor="tags">Tags (comma separated)</Label>
@@ -539,14 +544,48 @@ const Services = () => {
                 }
               />
 
-              {/* Terms Editor */}
-              <TermsEditor
-                value={currentFormData.termsAndConditions}
-                onChange={(value) => editingService
-                  ? setEditingService({...editingService, termsAndConditions: value})
-                  : setNewService({...newService, termsAndConditions: value})
-                }
-              />
+              {/* Terms & Conditions Section */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label>Terms & Conditions</Label>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="useStandardTerms"
+                      checked={currentFormData.useStandardTerms !== false}
+                      onCheckedChange={(checked) => editingService
+                        ? setEditingService({
+                            ...editingService, 
+                            useStandardTerms: checked,
+                            termsAndConditions: checked ? getStandardTerms() : editingService.termsAndConditions
+                          })
+                        : setNewService({
+                            ...newService, 
+                            useStandardTerms: checked,
+                            termsAndConditions: checked ? getStandardTerms() : newService.termsAndConditions
+                          })
+                      }
+                    />
+                    <Label htmlFor="useStandardTerms" className="text-sm">Use Standard Terms</Label>
+                  </div>
+                </div>
+                
+                {currentFormData.useStandardTerms !== false ? (
+                  <div className="p-3 bg-muted rounded-md">
+                    <p className="text-sm text-muted-foreground mb-2">Using standard terms & conditions</p>
+                    <div className="max-h-32 overflow-y-auto text-xs bg-background p-2 rounded border">
+                      {getStandardTerms() || 'No standard terms defined. Go to Settings to set them up.'}
+                    </div>
+                  </div>
+                ) : (
+                  <TermsEditor
+                    value={currentFormData.termsAndConditions}
+                    onChange={(value) => editingService
+                      ? setEditingService({...editingService, termsAndConditions: value})
+                      : setNewService({...newService, termsAndConditions: value})
+                    }
+                  />
+                )}
+              </div>
             </div>
           </div>
 

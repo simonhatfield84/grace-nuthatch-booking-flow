@@ -12,6 +12,7 @@ import Services from "./pages/Services";
 import Tables from "./pages/Tables";
 import Guests from "./pages/Guests";
 import Reports from "./pages/Reports";
+import Settings from "./pages/Settings";
 import HostInterface from "./pages/HostInterface";
 import BookingWidget from "./pages/BookingWidget";
 import NotFound from "./pages/NotFound";
@@ -46,6 +47,7 @@ const App = () => (
               <Route path="tables" element={<Tables />} />
               <Route path="guests" element={<Guests />} />
               <Route path="reports" element={<Reports />} />
+              <Route path="settings" element={<Settings />} />
             </Route>
             
             <Route path="*" element={<NotFound />} />

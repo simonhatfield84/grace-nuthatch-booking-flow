@@ -20,6 +20,7 @@ const items = [
   { title: "Tables", url: "/tables", icon: Utensils },
   { title: "Guests", url: "/guests", icon: Users },
   { title: "Reports", url: "/reports", icon: BarChart3 },
+  { title: "Settings", url: "/settings", icon: Settings },
 ];
 
 export function AppSidebar() {
