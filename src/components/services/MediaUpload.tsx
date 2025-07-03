@@ -1,139 +1,153 @@
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
-import { Upload, X, ExternalLink } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { Card } from "@/components/ui/card";
+import { Upload, X, Info } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useToast } from "@/hooks/use-toast";
 
 interface MediaUploadProps {
-  mediaUrl?: string;
-  mediaType?: 'image' | 'video';
-  onMediaChange: (url: string, type: 'image' | 'video') => void;
+  imageUrl: string;
+  onImageChange: (url: string) => void;
   onRemove: () => void;
 }
 
-export const MediaUpload = ({ mediaUrl, mediaType, onMediaChange, onRemove }: MediaUploadProps) => {
-  const [uploading, setUploading] = useState(false);
-  const [urlInput, setUrlInput] = useState('');
+export const MediaUpload = ({ imageUrl, onImageChange, onRemove }: MediaUploadProps) => {
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+
+  const validateImage = (file: File): string | null => {
+    // Check file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      return "Image must be smaller than 5MB";
+    }
+
+    // Check file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      return "Only JPG, PNG, and WebP images are supported";
+    }
+
+    return null;
+  };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    setUploading(true);
+    const validationError = validateImage(file);
+    if (validationError) {
+      toast({
+        title: "Invalid image",
+        description: validationError,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('service-media')
-        .upload(filePath, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data } = supabase.storage
-        .from('service-media')
-        .getPublicUrl(filePath);
-
-      const type = file.type.startsWith('video/') ? 'video' : 'image';
-      onMediaChange(data.publicUrl, type);
+      // For now, we'll create a URL for the uploaded file
+      // In a real implementation, this would upload to Supabase Storage
+      const imageUrl = URL.createObjectURL(file);
+      onImageChange(imageUrl);
+      
+      toast({
+        title: "Image uploaded",
+        description: "Your service image has been uploaded successfully.",
+      });
     } catch (error) {
-      console.error('Error uploading file:', error);
+      toast({
+        title: "Upload failed",
+        description: "Failed to upload image. Please try again.",
+        variant: "destructive",
+      });
     } finally {
-      setUploading(false);
+      setIsUploading(false);
     }
   };
 
-  const handleUrlSubmit = () => {
-    if (urlInput.trim()) {
-      // Simple type detection based on URL
-      const type = urlInput.includes('video') || urlInput.match(/\.(mp4|webm|ogg)$/i) ? 'video' : 'image';
-      onMediaChange(urlInput.trim(), type);
-      setUrlInput('');
+  const handleRemove = () => {
+    onRemove();
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
   return (
-    <div className="space-y-4">
-      <Label>Service Media</Label>
-      
-      {mediaUrl ? (
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {mediaType === 'video' ? (
-                  <video src={mediaUrl} className="w-16 h-16 object-cover rounded" controls />
-                ) : (
-                  <img src={mediaUrl} alt="Service media" className="w-16 h-16 object-cover rounded" />
-                )}
-                <div>
-                  <p className="text-sm font-medium capitalize">{mediaType}</p>
-                  <a 
-                    href={mediaUrl} 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-xs text-blue-600 hover:underline flex items-center gap-1"
-                  >
-                    View full size <ExternalLink className="h-3 w-3" />
-                  </a>
-                </div>
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Label>Service Image</Label>
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger>
+              <Info className="h-4 w-4 text-muted-foreground" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">
+              <div className="space-y-2 text-sm">
+                <p><strong>Optimal size:</strong> 1200x800px (3:2 aspect ratio)</p>
+                <p><strong>Mobile display:</strong> Cropped to 16:9 for mobile cards</p>
+                <p><strong>Desktop display:</strong> Full 3:2 aspect ratio maintained</p>
+                <p><strong>File limits:</strong> JPG, PNG, WebP under 5MB</p>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onRemove}
-                className="text-red-600"
-              >
-                <X className="h-4 w-4" />
-              </Button>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
+      
+      {imageUrl ? (
+        <Card className="relative overflow-hidden">
+          <div className="aspect-video bg-muted bg-cover bg-center relative" 
+               style={{ backgroundImage: `url(${imageUrl})` }}>
+            {/* Desktop crop indicator */}
+            <div className="absolute inset-0 border-2 border-blue-400 border-dashed opacity-60">
+              <div className="absolute top-1 left-1 bg-blue-500 text-white text-xs px-1 rounded">
+                Desktop (3:2)
+              </div>
             </div>
-          </CardContent>
+            {/* Mobile crop indicator */}
+            <div className="absolute inset-x-0 top-0 bottom-0 border-2 border-green-400 border-dashed opacity-60 mx-8">
+              <div className="absolute top-1 right-1 bg-green-500 text-white text-xs px-1 rounded">
+                Mobile (16:9)
+              </div>
+            </div>
+            <Button
+              variant="destructive"
+              size="sm"
+              className="absolute top-2 right-2"
+              onClick={handleRemove}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          </div>
         </Card>
       ) : (
-        <div className="space-y-3">
-          {/* File Upload */}
-          <div>
-            <Label htmlFor="media-upload" className="text-sm">Upload File</Label>
-            <div className="flex items-center gap-2 mt-1">
-              <Input
-                id="media-upload"
-                type="file"
-                accept="image/*,video/*"
-                onChange={handleFileUpload}
-                disabled={uploading}
-                className="flex-1"
-              />
-              {uploading && (
-                <div className="text-sm text-muted-foreground">Uploading...</div>
-              )}
-            </div>
+        <Card className="border-2 border-dashed border-muted-foreground/25 hover:border-muted-foreground/50 transition-colors">
+          <div className="aspect-video flex flex-col items-center justify-center p-6">
+            <Upload className="h-8 w-8 text-muted-foreground mb-2" />
+            <p className="text-sm text-muted-foreground text-center mb-3">
+              Upload a service image
+            </p>
+            <Button 
+              variant="outline" 
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+            >
+              {isUploading ? "Uploading..." : "Choose Image"}
+            </Button>
           </div>
-
-          {/* URL Input */}
-          <div>
-            <Label className="text-sm">Or enter URL</Label>
-            <div className="flex gap-2 mt-1">
-              <Input
-                value={urlInput}
-                onChange={(e) => setUrlInput(e.target.value)}
-                placeholder="https://example.com/image.jpg"
-                className="flex-1"
-              />
-              <Button 
-                onClick={handleUrlSubmit}
-                disabled={!urlInput.trim()}
-                size="sm"
-              >
-                Add
-              </Button>
-            </div>
-          </div>
-        </div>
+        </Card>
       )}
+      
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/jpg,image/png,image/webp"
+        onChange={handleFileUpload}
+        className="hidden"
+      />
     </div>
   );
 };

@@ -8,11 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Calendar, Clock, Users, Edit, Trash2, Copy, Eye, EyeOff } from "lucide-react";
+import { Plus, Calendar, Clock, Users, Edit, Trash2, Copy, Eye } from "lucide-react";
 import { DurationRulesManager } from "@/components/services/DurationRulesManager";
 import { MediaUpload } from "@/components/services/MediaUpload";
 import { TermsEditor } from "@/components/services/TermsEditor";
 import { RichTextEditor } from "@/components/services/RichTextEditor";
+import { TagSelector } from "@/components/services/TagSelector";
 import { DurationRule } from "@/hooks/useServiceDurationRules";
 
 // Controlled input options
@@ -20,16 +21,14 @@ const guestOptions = Array.from({length: 20}, (_, i) => i + 1);
 const leadTimeOptions = [1, 2, 4, 6, 12, 24, 48, 72];
 const cancellationOptions = [24, 48, 72];
 
-type MediaType = 'image' | 'video';
-
 const Services = () => {
   const [services, setServices] = useState([
     {
       id: 1,
       title: "Dinner Service",
       description: "Evening dining experience with seasonal menu",
-      mediaUrl: "/api/placeholder/400/200",
-      mediaType: "image" as MediaType,
+      imageUrl: "/api/placeholder/400/200",
+      tagIds: [] as string[],
       tags: ["dinner", "seasonal"],
       minGuests: 1,
       maxGuests: 8,
@@ -61,8 +60,8 @@ const Services = () => {
       id: 2,
       title: "Afternoon Tea",
       description: "Traditional afternoon tea with homemade scones and cakes",
-      mediaUrl: "/api/placeholder/400/200",
-      mediaType: "image" as MediaType,
+      imageUrl: "/api/placeholder/400/200",
+      tagIds: [] as string[],
       tags: ["tea", "traditional"],
       minGuests: 2,
       maxGuests: 6,
@@ -100,9 +99,8 @@ const Services = () => {
   const [newService, setNewService] = useState({
     title: "",
     description: "",
-    mediaUrl: "",
-    mediaType: "image" as MediaType,
-    tags: "",
+    imageUrl: "",
+    tagIds: [] as string[],
     minGuests: 1,
     maxGuests: 8,
     leadTimeHours: 2,
@@ -155,7 +153,7 @@ const Services = () => {
     const service = {
       id: Date.now(),
       ...newService,
-      tags: newService.tags.split(",").map(tag => tag.trim()).filter(tag => tag),
+      tags: [], // Legacy field for display
       secretSlug: newService.isSecret ? generateSecretSlug() : null,
       windows: []
     };
@@ -167,9 +165,6 @@ const Services = () => {
   const handleUpdateService = () => {
     const updatedService = {
       ...editingService,
-      tags: typeof editingService.tags === 'string' 
-        ? editingService.tags.split(",").map((tag: string) => tag.trim()).filter((tag: string) => tag)
-        : editingService.tags,
       secretSlug: editingService.isSecret 
         ? (editingService.secretSlug || generateSecretSlug())
         : null
@@ -186,7 +181,7 @@ const Services = () => {
   const handleEditService = (service: any) => {
     setEditingService({
       ...service,
-      tags: Array.isArray(service.tags) ? service.tags.join(", ") : service.tags
+      tagIds: service.tagIds || []
     });
     setShowServiceDialog(true);
   };
@@ -206,9 +201,8 @@ const Services = () => {
     setNewService({
       title: "",
       description: "",
-      mediaUrl: "",
-      mediaType: "image" as MediaType,
-      tags: "",
+      imageUrl: "",
+      tagIds: [],
       minGuests: 1,
       maxGuests: 8,
       leadTimeHours: 2,
@@ -369,30 +363,25 @@ const Services = () => {
                 minHeight="min-h-[120px]"
               />
 
-              <div>
-                <Label htmlFor="tags">Tags (comma separated)</Label>
-                <Input
-                  id="tags"
-                  value={currentFormData.tags}
-                  onChange={(e) => editingService
-                    ? setEditingService({...editingService, tags: e.target.value})
-                    : setNewService({...newService, tags: e.target.value})
-                  }
-                  placeholder="dinner, seasonal, special"
-                />
-              </div>
+              {/* Tag Selector */}
+              <TagSelector
+                selectedTagIds={currentFormData.tagIds}
+                onTagsChange={(tagIds) => editingService
+                  ? setEditingService({...editingService, tagIds})
+                  : setNewService({...newService, tagIds})
+                }
+              />
 
-              {/* Media Upload */}
+              {/* Enhanced Image Upload */}
               <MediaUpload
-                mediaUrl={currentFormData.mediaUrl}
-                mediaType={currentFormData.mediaType}
-                onMediaChange={(url, type) => editingService
-                  ? setEditingService({...editingService, mediaUrl: url, mediaType: type})
-                  : setNewService({...newService, mediaUrl: url, mediaType: type})
+                imageUrl={currentFormData.imageUrl}
+                onImageChange={(url) => editingService
+                  ? setEditingService({...editingService, imageUrl: url})
+                  : setNewService({...newService, imageUrl: url})
                 }
                 onRemove={() => editingService
-                  ? setEditingService({...editingService, mediaUrl: "", mediaType: "image" as MediaType})
-                  : setNewService({...newService, mediaUrl: "", mediaType: "image" as MediaType})
+                  ? setEditingService({...editingService, imageUrl: ""})
+                  : setNewService({...newService, imageUrl: ""})
                 }
               />
 
@@ -698,7 +687,7 @@ const Services = () => {
         {services.map((service) => (
           <Card key={service.id} className={`overflow-hidden ${!service.active ? 'opacity-75' : ''}`}>
             <div className="aspect-video bg-muted bg-cover bg-center" 
-                 style={{ backgroundImage: `url(${service.mediaUrl})` }} />
+                 style={{ backgroundImage: `url(${service.imageUrl})` }} />
             <CardHeader>
               <div className="flex justify-between items-start">
                 <CardTitle className="text-lg flex items-center gap-2">

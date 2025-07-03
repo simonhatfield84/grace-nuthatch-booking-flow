@@ -2,10 +2,9 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { RichTextEditor } from "@/components/services/RichTextEditor";
+import { TagManagement } from "@/components/settings/TagManagement";
 
 const Settings = () => {
   const { toast } = useToast();
@@ -65,6 +64,9 @@ _By making a booking, you agree to these terms and conditions._`);
       </div>
 
       <div className="grid grid-cols-1 gap-6">
+        {/* Tag Management */}
+        <TagManagement />
+
         {/* Standard Terms & Conditions */}
         <Card>
           <CardHeader>
