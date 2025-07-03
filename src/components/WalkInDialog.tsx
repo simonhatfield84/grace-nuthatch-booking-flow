@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,7 +44,7 @@ export const WalkInDialog = ({
   const setOpen = controlledOnOpenChange || setInternalOpen;
 
   // Update form when pre-selected values change
-  React.useEffect(() => {
+  useEffect(() => {
     if (preSelectedTable) {
       setFormData(prev => ({ ...prev, tableId: preSelectedTable.toString() }));
     }
