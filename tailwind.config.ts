@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,7 +62,19 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				// Grace OS Brand Colors
+				grace: {
+					dark: '#2e2e2e',
+					accent: '#005f56',
+					secondary: '#D87C5A',
+					light: '#F4EAE0'
 				}
+			},
+			fontFamily: {
+				'playfair': ['Playfair Display', 'serif'],
+				'poppins': ['Poppins', 'sans-serif'],
+				'markazi': ['Markazi Text', 'serif']
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
