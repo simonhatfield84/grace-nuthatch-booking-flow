@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -67,7 +66,7 @@ const Services = () => {
 
   const [services, setServices] = useState([
     {
-      id: 1,
+      id: "550e8400-e29b-41d4-a716-446655440001", // Changed from integer to UUID
       title: "Dinner Service",
       description: "Evening dining experience with seasonal menu",
       imageUrl: "/api/placeholder/400/200",
@@ -90,7 +89,7 @@ const Services = () => {
       ] as DurationRule[]
     },
     {
-      id: 2,
+      id: "550e8400-e29b-41d4-a716-446655440002", // Changed from integer to UUID
       title: "Afternoon Tea",
       description: "Traditional afternoon tea with homemade scones and cakes",
       imageUrl: "/api/placeholder/400/200",
@@ -116,7 +115,7 @@ const Services = () => {
   const [showServiceDialog, setShowServiceDialog] = useState(false);
   const [editingService, setEditingService] = useState<any>(null);
   const [showWindowManager, setShowWindowManager] = useState(false);
-  const [currentServiceId, setCurrentServiceId] = useState<number | null>(null);
+  const [currentServiceId, setCurrentServiceId] = useState<string | null>(null); // Changed from number to string
 
   const [newService, setNewService] = useState({
     title: "",
@@ -143,9 +142,9 @@ const Services = () => {
     return allTags.filter(tag => tagIds.includes(tag.id));
   };
 
-  // Helper function to get booking windows for a service
-  const getWindowsForService = (serviceId: number) => {
-    return allBookingWindows.filter(window => window.service_id === serviceId.toString());
+  // Helper function to get booking windows for a service - Updated to use string service ID
+  const getWindowsForService = (serviceId: string) => {
+    return allBookingWindows.filter(window => window.service_id === serviceId);
   };
 
   const generateSecretSlug = () => {
@@ -158,7 +157,7 @@ const Services = () => {
 
   const handleAddService = () => {
     const service = {
-      id: Date.now(),
+      id: crypto.randomUUID(), // Generate UUID for new services
       ...newService,
       secretSlug: newService.isSecret ? generateSecretSlug() : null
     };
@@ -179,7 +178,7 @@ const Services = () => {
     setShowServiceDialog(false);
   };
 
-  const handleDeleteService = (serviceId: number) => {
+  const handleDeleteService = (serviceId: string) => { // Changed parameter type to string
     setServices(services.filter(s => s.id !== serviceId));
   };
 
@@ -194,7 +193,7 @@ const Services = () => {
   const handleDuplicateService = (service: any) => {
     const duplicatedService = {
       ...service,
-      id: Date.now(),
+      id: crypto.randomUUID(), // Generate UUID for duplicated services
       title: `${service.title} (Copy)`,
       active: false,
       secretSlug: service.isSecret ? generateSecretSlug() : null
@@ -225,13 +224,13 @@ const Services = () => {
     setEditingService(null);
   };
 
-  const toggleServiceActive = (serviceId: number) => {
+  const toggleServiceActive = (serviceId: string) => { // Changed parameter type to string
     setServices(services.map(service => 
       service.id === serviceId ? { ...service, active: !service.active } : service
     ));
   };
 
-  const handleManageWindows = (serviceId: number) => {
+  const handleManageWindows = (serviceId: string) => { // Changed parameter type to string
     setCurrentServiceId(serviceId);
     setShowWindowManager(true);
   };
@@ -533,7 +532,7 @@ const Services = () => {
       {/* Booking Window Manager */}
       {currentServiceId && (
         <BookingWindowManager
-          serviceId={currentServiceId.toString()}
+          serviceId={currentServiceId}
           open={showWindowManager}
           onOpenChange={(open) => {
             setShowWindowManager(open);
