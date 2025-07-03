@@ -66,7 +66,7 @@ export const RichTextEditor = ({
     },
     { 
       icon: Quote, 
-      action: () => insertFormatting('\n> '),
+      action: () => insertFormatting('\n{">"}'),
       tooltip: 'Quote'
     }
   ];
@@ -98,7 +98,7 @@ export const RichTextEditor = ({
         />
       </div>
       <p className="text-xs text-muted-foreground">
-        Use **bold**, _italic_, [links](url), > quotes, and - for bullet points.
+        Use **bold**, _italic_, [links](url), {'>'}quotes, and - for bullet points.
       </p>
     </div>
   );
