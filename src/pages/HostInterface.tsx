@@ -1,12 +1,10 @@
+
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Clock, Users, Plus, MessageSquare, Phone, Mail, Ban } from "lucide-react";
+import { MessageSquare, Ban } from "lucide-react";
 import { WalkInDialog } from "@/components/WalkInDialog";
 import { BlockDialog } from "@/components/BlockDialog";
 import { ReservationPopup } from "@/components/ReservationPopup";
@@ -15,8 +13,10 @@ const HostInterface = () => {
   const [selectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [currentTime] = useState(new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }));
   const [draggedReservation, setDraggedReservation] = useState(null);
-  const [isResizing, setIsResizing] = useState(null);
-  const [selectedReservation, setSelectedReservation] = useState(null);
+  const [walkInDialogOpen, setWalkInDialogOpen] = useState(false);
+  const [selectedTableForWalkIn, setSelectedTableForWalkIn] = useState<number | null>(null);
+  const [selectedTimeForWalkIn, setSelectedTimeForWalkIn] = useState<string | null>(null);
+  const [selectedBlockForEdit, setSelectedBlockForEdit] = useState(null);
   
   // Time slots for the grid (15-minute intervals)
   const timeSlots = [
@@ -128,6 +128,35 @@ const HostInterface = () => {
     e.dataTransfer.dropEffect = 'move';
   };
 
+  const handleCellClick = (tableId: number, time: string) => {
+    const reservation = getReservationForTableAndTime(tableId, time);
+    const isBlocked = isSlotBlocked(tableId, time);
+    
+    if (isBlocked) {
+      // Find the block and set it for editing
+      const block = blockedSlots.find(block => {
+        if (block.tableIds.includes(tableId.toString()) || block.tableIds.includes('all')) {
+          const timeIndex = timeSlots.indexOf(time);
+          const startIndex = timeSlots.indexOf(block.fromTime);
+          const endIndex = timeSlots.indexOf(block.toTime);
+          return timeIndex >= startIndex && timeIndex <= endIndex;
+        }
+        return false;
+      });
+      if (block) {
+        setSelectedBlockForEdit(block);
+      }
+      return;
+    }
+    
+    if (!reservation) {
+      // Open walk-in dialog for empty slot
+      setSelectedTableForWalkIn(tableId);
+      setSelectedTimeForWalkIn(time);
+      setWalkInDialogOpen(true);
+    }
+  };
+
   const getCurrentTimePosition = () => {
     const now = new Date();
     const currentHour = now.getHours();
@@ -147,7 +176,7 @@ const HostInterface = () => {
 
   const isSlotBlocked = (tableId: number, time: string) => {
     return blockedSlots.some(block => {
-      if (block.tableIds.includes(tableId) || block.tableIds.includes('all')) {
+      if (block.tableIds.includes(tableId.toString()) || block.tableIds.includes('all')) {
         const timeIndex = timeSlots.indexOf(time);
         const startIndex = timeSlots.indexOf(block.fromTime);
         const endIndex = timeSlots.indexOf(block.toTime);
@@ -160,7 +189,7 @@ const HostInterface = () => {
   return (
     <div className="min-h-screen bg-grace-dark text-grace-light p-4">
       <div className="max-w-7xl mx-auto space-y-4">
-        {/* Header - more compact */}
+        {/* Header */}
         <div className="flex justify-between items-center">
           <div>
             <div className="grace-logo text-2xl font-bold mb-1">grace</div>
@@ -179,12 +208,17 @@ const HostInterface = () => {
               timeSlots={timeSlots}
               reservations={reservations}
               setReservations={setReservations}
+              open={walkInDialogOpen}
+              onOpenChange={setWalkInDialogOpen}
+              preSelectedTable={selectedTableForWalkIn}
+              preSelectedTime={selectedTimeForWalkIn}
             />
             <BlockDialog 
               tables={tables}
               timeSlots={timeSlots}
               blockedSlots={blockedSlots}
               setBlockedSlots={setBlockedSlots}
+              selectedBlock={selectedBlockForEdit}
             />
             <Button variant="outline" size="sm" className="bg-grace-secondary text-grace-light border-grace-secondary hover:bg-grace-secondary/90">
               <MessageSquare className="h-4 w-4 mr-2" strokeWidth={2} />
@@ -193,7 +227,7 @@ const HostInterface = () => {
           </div>
         </div>
 
-        {/* Stats Cards - more compact */}
+        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <Card className="bg-grace-dark border-grace-accent/30">
             <CardContent className="p-3">
@@ -227,7 +261,7 @@ const HostInterface = () => {
           </Card>
         </div>
 
-        {/* Reservation Grid - Compact and Scrollable */}
+        {/* Reservation Grid */}
         <Card className="bg-grace-dark border-grace-accent/30">
           <CardContent className="p-0">
             <div className="relative">
@@ -283,7 +317,7 @@ const HostInterface = () => {
                           return (
                             <div 
                               key={`${table.id}-${time}`}
-                              className={`w-12 flex-shrink-0 border-r border-grace-accent/30 cursor-pointer hover:bg-grace-accent/10 transition-colors flex items-center justify-center ${
+                              className={`w-12 flex-shrink-0 border-r border-grace-accent/30 cursor-pointer hover:bg-grace-accent/10 transition-colors flex items-center justify-center relative ${
                                 isBlocked 
                                   ? 'bg-red-900/30 border-red-500/50' 
                                   : reservation 
@@ -294,13 +328,18 @@ const HostInterface = () => {
                               onDragStart={(e) => reservation && isStart && handleReservationDragStart(e, reservation)}
                               onDrop={(e) => handleReservationDrop(e, table.id, time)}
                               onDragOver={handleDragOver}
+                              onClick={() => handleCellClick(table.id, time)}
                             >
-                              {reservation && isStart && (
+                              {reservation && (
                                 <Popover>
                                   <PopoverTrigger asChild>
-                                    <div className="text-xs text-center px-1 w-full h-full flex flex-col justify-center cursor-pointer">
-                                      <div className="font-medium truncate text-xs leading-tight">{reservation.guest.split(' ')[0]}</div>
-                                      <div className="text-xs opacity-75">{reservation.party}</div>
+                                    <div className="absolute inset-0 flex items-center justify-center cursor-pointer">
+                                      {isStart && (
+                                        <div className="text-xs text-center px-1 w-full h-full flex flex-col justify-center">
+                                          <div className="font-medium truncate text-xs leading-tight">{reservation.guest.split(' ')[0]}</div>
+                                          <div className="text-xs opacity-75">{reservation.party}p • {reservation.service}</div>
+                                        </div>
+                                      )}
                                     </div>
                                   </PopoverTrigger>
                                   <PopoverContent className="w-80 bg-grace-dark border-grace-accent/30">

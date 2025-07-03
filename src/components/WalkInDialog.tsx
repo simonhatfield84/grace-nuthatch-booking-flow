@@ -12,20 +12,47 @@ interface WalkInDialogProps {
   timeSlots: string[];
   reservations: any[];
   setReservations: (reservations: any[]) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  preSelectedTable?: number;
+  preSelectedTime?: string;
 }
 
-export const WalkInDialog = ({ tables, timeSlots, reservations, setReservations }: WalkInDialogProps) => {
-  const [open, setOpen] = useState(false);
+export const WalkInDialog = ({ 
+  tables, 
+  timeSlots, 
+  reservations, 
+  setReservations, 
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
+  preSelectedTable,
+  preSelectedTime
+}: WalkInDialogProps) => {
+  const [internalOpen, setInternalOpen] = useState(false);
   const [formData, setFormData] = useState({
     guest: "",
     party: "",
-    tableId: "",
-    startTime: "",
+    tableId: preSelectedTable?.toString() || "",
+    startTime: preSelectedTime || "",
     duration: "4",
     phone: "",
     email: "",
     notes: ""
   });
+
+  // Use controlled or internal state
+  const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
+  const setOpen = controlledOnOpenChange || setInternalOpen;
+
+  // Update form when pre-selected values change
+  React.useEffect(() => {
+    if (preSelectedTable) {
+      setFormData(prev => ({ ...prev, tableId: preSelectedTable.toString() }));
+    }
+    if (preSelectedTime) {
+      setFormData(prev => ({ ...prev, startTime: preSelectedTime }));
+    }
+  }, [preSelectedTable, preSelectedTime]);
 
   const getAvailableTables = () => {
     const currentTime = formData.startTime;
@@ -53,7 +80,7 @@ export const WalkInDialog = ({ tables, timeSlots, reservations, setReservations 
       tableId: parseInt(formData.tableId),
       startTime: formData.startTime,
       duration: parseInt(formData.duration),
-      guest: formData.guest,
+      guest: formData.guest.trim() || "Walk-in",
       party: parseInt(formData.party),
       service: "Walk-in",
       status: "seated",
@@ -77,7 +104,7 @@ export const WalkInDialog = ({ tables, timeSlots, reservations, setReservations 
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={isOpen} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="bg-grace-accent text-grace-light border-grace-accent hover:bg-grace-accent/90">
           <Plus className="h-4 w-4 mr-2" strokeWidth={2} />
@@ -91,13 +118,13 @@ export const WalkInDialog = ({ tables, timeSlots, reservations, setReservations 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="guest">Guest Name</Label>
+              <Label htmlFor="guest">Guest Name (optional)</Label>
               <Input
                 id="guest"
                 value={formData.guest}
                 onChange={(e) => setFormData({ ...formData, guest: e.target.value })}
                 className="bg-grace-dark border-grace-accent/30 text-grace-light"
-                required
+                placeholder="Leave empty for 'Walk-in'"
               />
             </div>
             <div>
@@ -129,7 +156,7 @@ export const WalkInDialog = ({ tables, timeSlots, reservations, setReservations 
               </Select>
             </div>
             <div>
-              <Label htmlFor="duration">Duration (15min slots)</Label>
+              <Label htmlFor="duration">Duration</Label>
               <Select value={formData.duration} onValueChange={(value) => setFormData({ ...formData, duration: value })}>
                 <SelectTrigger className="bg-grace-dark border-grace-accent/30 text-grace-light">
                   <SelectValue />
