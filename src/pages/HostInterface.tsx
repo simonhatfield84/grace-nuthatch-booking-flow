@@ -4,18 +4,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Clock, Users, Plus, MessageSquare, Phone, Mail } from "lucide-react";
 
 const HostInterface = () => {
   const [selectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [currentTime] = useState(new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }));
   
-  // Time slots for the grid (30-minute intervals)
+  // Time slots for the grid (15-minute intervals)
   const timeSlots = [
-    "17:30", "18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00", "21:30", "22:00"
+    "17:00", "17:15", "17:30", "17:45", 
+    "18:00", "18:15", "18:30", "18:45",
+    "19:00", "19:15", "19:30", "19:45",
+    "20:00", "20:15", "20:30", "20:45",
+    "21:00", "21:15", "21:30", "21:45",
+    "22:00", "22:15", "22:30", "22:45"
   ];
 
-  // Table configuration
+  // Extended table configuration for 25 tables
   const tables = [
     { id: 1, label: "T1", seats: 2 },
     { id: 2, label: "T2", seats: 2 },
@@ -23,21 +29,51 @@ const HostInterface = () => {
     { id: 4, label: "T4", seats: 4 },
     { id: 5, label: "T5", seats: 6 },
     { id: 6, label: "T6", seats: 8 },
+    { id: 7, label: "T7", seats: 2 },
+    { id: 8, label: "T8", seats: 4 },
+    { id: 9, label: "T9", seats: 4 },
+    { id: 10, label: "T10", seats: 6 },
+    { id: 11, label: "T11", seats: 2 },
+    { id: 12, label: "T12", seats: 2 },
+    { id: 13, label: "T13", seats: 4 },
+    { id: 14, label: "T14", seats: 4 },
+    { id: 15, label: "T15", seats: 6 },
+    { id: 16, label: "T16", seats: 8 },
+    { id: 17, label: "T17", seats: 2 },
+    { id: 18, label: "T18", seats: 4 },
+    { id: 19, label: "T19", seats: 4 },
+    { id: 20, label: "T20", seats: 6 },
+    { id: 21, label: "T21", seats: 2 },
+    { id: 22, label: "T22", seats: 2 },
+    { id: 23, label: "T23", seats: 4 },
+    { id: 24, label: "T24", seats: 4 },
+    { id: 25, label: "T25", seats: 6 },
   ];
 
-  // Sample reservations
+  // Updated reservations with duration spans
   const [reservations, setReservations] = useState([
-    { id: 1, tableId: 1, time: "18:00", guest: "Sarah Johnson", party: 2, service: "Dinner", status: "confirmed", phone: "+44 7700 900123", email: "sarah@email.com", notes: "Vegetarian options" },
-    { id: 2, tableId: 3, time: "19:00", guest: "Mike Chen", party: 4, service: "Dinner", status: "seated", phone: "+44 7700 900456", email: "mike@email.com", notes: "Birthday celebration" },
-    { id: 3, tableId: 5, time: "19:30", guest: "Emma Wilson", party: 6, service: "Dinner", status: "confirmed", phone: "+44 7700 900789", email: "emma@email.com", notes: "Business dinner" },
-    { id: 4, tableId: 2, time: "20:00", guest: "James Brown", party: 2, service: "Dinner", status: "late", phone: "+44 7700 900012", email: "james@email.com", notes: "Anniversary" },
-    { id: 5, tableId: 4, time: "20:30", guest: "Lisa Davis", party: 4, service: "Dinner", status: "confirmed", phone: "+44 7700 900345", email: "lisa@email.com", notes: "Dietary requirements" },
+    { id: 1, tableId: 1, startTime: "18:00", duration: 4, guest: "Sarah Johnson", party: 2, service: "Dinner", status: "confirmed", phone: "+44 7700 900123", email: "sarah@email.com", notes: "Vegetarian options" },
+    { id: 2, tableId: 3, startTime: "19:00", duration: 6, guest: "Mike Chen", party: 4, service: "Dinner", status: "seated", phone: "+44 7700 900456", email: "mike@email.com", notes: "Birthday celebration" },
+    { id: 3, tableId: 5, startTime: "19:30", duration: 8, guest: "Emma Wilson", party: 6, service: "Dinner", status: "confirmed", phone: "+44 7700 900789", email: "emma@email.com", notes: "Business dinner" },
+    { id: 4, tableId: 2, startTime: "20:00", duration: 6, guest: "James Brown", party: 2, service: "Dinner", status: "late", phone: "+44 7700 900012", email: "james@email.com", notes: "Anniversary" },
+    { id: 5, tableId: 4, startTime: "20:30", duration: 4, guest: "Lisa Davis", party: 4, service: "Dinner", status: "confirmed", phone: "+44 7700 900345", email: "lisa@email.com", notes: "Dietary requirements" },
   ]);
 
   const [selectedReservation, setSelectedReservation] = useState(null);
 
   const getReservationForTableAndTime = (tableId: number, time: string) => {
-    return reservations.find(r => r.tableId === tableId && r.time === time);
+    return reservations.find(r => {
+      if (r.tableId !== tableId) return false;
+      
+      const startIndex = timeSlots.indexOf(r.startTime);
+      const timeIndex = timeSlots.indexOf(time);
+      
+      return timeIndex >= startIndex && timeIndex < startIndex + r.duration;
+    });
+  };
+
+  const isReservationStart = (reservation: any, time: string) => {
+    return reservation.startTime === time;
   };
 
   const getStatusColor = (status: string) => {
@@ -63,8 +99,8 @@ const HostInterface = () => {
     const currentMinute = now.getMinutes();
     const currentTotalMinutes = currentHour * 60 + currentMinute;
     
-    const startTime = 17.5 * 60; // 17:30 in minutes
-    const endTime = 22 * 60; // 22:00 in minutes
+    const startTime = 17 * 60; // 17:00 in minutes
+    const endTime = 23 * 60; // 23:00 in minutes
     
     if (currentTotalMinutes < startTime || currentTotalMinutes > endTime) return null;
     
@@ -76,13 +112,13 @@ const HostInterface = () => {
 
   return (
     <div className="min-h-screen bg-grace-dark text-grace-light p-4">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
+      <div className="max-w-7xl mx-auto space-y-4">
+        {/* Header - more compact */}
         <div className="flex justify-between items-center">
           <div>
-            <div className="grace-logo text-3xl font-bold mb-2">grace</div>
-            <h1 className="text-2xl font-playfair font-bold">Host Interface</h1>
-            <p className="text-grace-light/70">
+            <div className="grace-logo text-2xl font-bold mb-1">grace</div>
+            <h1 className="text-xl font-playfair font-bold">Host Interface</h1>
+            <p className="text-sm text-grace-light/70">
               {new Date(selectedDate).toLocaleDateString('en-GB', { 
                 weekday: 'long', 
                 year: 'numeric', 
@@ -92,111 +128,128 @@ const HostInterface = () => {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" className="bg-grace-accent text-grace-light border-grace-accent hover:bg-grace-accent/90">
+            <Button variant="outline" size="sm" className="bg-grace-accent text-grace-light border-grace-accent hover:bg-grace-accent/90">
               <Plus className="h-4 w-4 mr-2" strokeWidth={2} />
               Walk-in
             </Button>
-            <Button variant="outline" className="bg-grace-secondary text-grace-light border-grace-secondary hover:bg-grace-secondary/90">
+            <Button variant="outline" size="sm" className="bg-grace-secondary text-grace-light border-grace-secondary hover:bg-grace-secondary/90">
               <MessageSquare className="h-4 w-4 mr-2" strokeWidth={2} />
               Messages
             </Button>
           </div>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* Stats Cards - more compact */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <Card className="bg-grace-dark border-grace-accent/30">
-            <CardContent className="p-4">
-              <div className="text-2xl font-bold text-grace-light">{reservations.length}</div>
-              <div className="text-sm text-grace-light/70">Today's Reservations</div>
+            <CardContent className="p-3">
+              <div className="text-xl font-bold text-grace-light">{reservations.length}</div>
+              <div className="text-xs text-grace-light/70">Today's Reservations</div>
             </CardContent>
           </Card>
           <Card className="bg-grace-dark border-grace-accent/30">
-            <CardContent className="p-4">
-              <div className="text-2xl font-bold text-grace-light">
+            <CardContent className="p-3">
+              <div className="text-xl font-bold text-grace-light">
                 {reservations.filter(r => r.status === 'seated').length}
               </div>
-              <div className="text-sm text-grace-light/70">Currently Seated</div>
+              <div className="text-xs text-grace-light/70">Currently Seated</div>
             </CardContent>
           </Card>
           <Card className="bg-grace-dark border-grace-accent/30">
-            <CardContent className="p-4">
-              <div className="text-2xl font-bold text-grace-light">
+            <CardContent className="p-3">
+              <div className="text-xl font-bold text-grace-light">
                 {reservations.reduce((sum, r) => sum + r.party, 0)}
               </div>
-              <div className="text-sm text-grace-light/70">Total Covers</div>
+              <div className="text-xs text-grace-light/70">Total Covers</div>
             </CardContent>
           </Card>
           <Card className="bg-grace-dark border-grace-accent/30">
-            <CardContent className="p-4">
-              <div className="text-2xl font-bold text-grace-light">
+            <CardContent className="p-3">
+              <div className="text-xl font-bold text-grace-light">
                 {tables.length - new Set(reservations.filter(r => r.status === 'seated').map(r => r.tableId)).size}
               </div>
-              <div className="text-sm text-grace-light/70">Available Tables</div>
+              <div className="text-xs text-grace-light/70">Available Tables</div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Reservation Grid */}
+        {/* Reservation Grid - Compact and Scrollable */}
         <Card className="bg-grace-dark border-grace-accent/30">
-          <CardHeader>
-            <CardTitle className="text-grace-light">Reservation Grid</CardTitle>
-            <CardDescription className="text-grace-light/70">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-grace-light text-lg">Reservation Grid</CardTitle>
+            <CardDescription className="text-grace-light/70 text-sm">
               Tap any cell to view details or add reservations
             </CardDescription>
           </CardHeader>
-          <CardContent className="overflow-x-auto">
+          <CardContent className="p-0">
             <div className="relative">
-              {/* Current time line */}
-              {timeLinePosition !== null && (
-                <div 
-                  className="absolute top-0 bottom-0 w-0.5 bg-grace-secondary z-10 pointer-events-none"
-                  style={{ left: `${12 + (timeLinePosition * 0.88)}%` }}
-                />
-              )}
-              
-              <div className="grid grid-cols-11 gap-2 min-w-[800px]">
-                {/* Header row */}
-                <div className="p-2 text-sm font-medium text-grace-light/70">Table</div>
-                {timeSlots.map(time => (
-                  <div key={time} className="p-2 text-sm font-medium text-center text-grace-light/70">
-                    {time}
+              {/* Fixed table column */}
+              <div className="flex">
+                <div className="flex-shrink-0 w-16 bg-grace-dark border-r border-grace-accent/30">
+                  {/* Header */}
+                  <div className="h-8 flex items-center justify-center text-xs font-medium text-grace-light/70 border-b border-grace-accent/30">
+                    Table
                   </div>
-                ))}
-
-                {/* Table rows */}
-                {tables.map(table => (
-                  <div key={table.id} className="contents">
-                    <div className="p-3 text-sm font-medium bg-grace-accent/20 rounded text-grace-light flex items-center justify-center">
-                      <div>
-                        <div className="font-bold">{table.label}</div>
-                        <div className="text-xs text-grace-light/70">{table.seats} seats</div>
+                  {/* Table rows */}
+                  {tables.map(table => (
+                    <div key={table.id} className="h-10 flex items-center justify-center bg-grace-accent/20 border-b border-grace-accent/30 text-grace-light">
+                      <div className="text-center">
+                        <div className="text-xs font-bold">{table.label}</div>
+                        <div className="text-xs text-grace-light/70">{table.seats}</div>
                       </div>
                     </div>
-                    {timeSlots.map(time => {
-                      const reservation = getReservationForTableAndTime(table.id, time);
-                      return (
-                        <div 
-                          key={`${table.id}-${time}`}
-                          className={`p-2 min-h-[60px] border border-grace-accent/30 rounded cursor-pointer hover:bg-grace-accent/10 transition-colors ${
-                            reservation ? getStatusColor(reservation.status) : 'bg-grace-dark'
-                          }`}
-                          onClick={() => reservation && setSelectedReservation(reservation)}
-                        >
-                          {reservation && (
-                            <div className="text-xs">
-                              <div className="font-medium truncate">{reservation.guest}</div>
-                              <div className="text-xs opacity-75">{reservation.party} guests</div>
-                              <Badge variant="outline" className="text-xs mt-1">
-                                {reservation.status}
-                              </Badge>
+                  ))}
+                </div>
+
+                {/* Scrollable time slots */}
+                <ScrollArea className="flex-1">
+                  <div className="relative">
+                    {/* Current time line */}
+                    {timeLinePosition !== null && (
+                      <div 
+                        className="absolute top-0 bottom-0 w-0.5 bg-grace-secondary z-10 pointer-events-none"
+                        style={{ left: `${timeLinePosition * 0.88}%` }}
+                      />
+                    )}
+                    
+                    <div className="flex">
+                      {/* Time header */}
+                      <div className="flex h-8 border-b border-grace-accent/30">
+                        {timeSlots.map(time => (
+                          <div key={time} className="w-16 flex-shrink-0 flex items-center justify-center text-xs font-medium text-grace-light/70 border-r border-grace-accent/30">
+                            {time}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Table rows with time slots */}
+                    {tables.map(table => (
+                      <div key={table.id} className="flex h-10 border-b border-grace-accent/30">
+                        {timeSlots.map(time => {
+                          const reservation = getReservationForTableAndTime(table.id, time);
+                          const isStart = reservation && isReservationStart(reservation, time);
+                          return (
+                            <div 
+                              key={`${table.id}-${time}`}
+                              className={`w-16 flex-shrink-0 border-r border-grace-accent/30 cursor-pointer hover:bg-grace-accent/10 transition-colors flex items-center justify-center ${
+                                reservation ? getStatusColor(reservation.status) : 'bg-grace-dark'
+                              }`}
+                              onClick={() => reservation && setSelectedReservation(reservation)}
+                            >
+                              {reservation && isStart && (
+                                <div className="text-xs text-center px-1">
+                                  <div className="font-medium truncate text-xs leading-tight">{reservation.guest.split(' ')[0]}</div>
+                                  <div className="text-xs opacity-75">{reservation.party}</div>
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                          );
+                        })}
+                      </div>
+                    ))}
                   </div>
-                ))}
+                </ScrollArea>
               </div>
             </div>
           </CardContent>
@@ -210,7 +263,7 @@ const HostInterface = () => {
                 <div>
                   <CardTitle className="text-grace-light">Reservation Details</CardTitle>
                   <CardDescription className="text-grace-light/70">
-                    Table {tables.find(t => t.id === selectedReservation.tableId)?.label} • {selectedReservation.time}
+                    Table {tables.find(t => t.id === selectedReservation.tableId)?.label} • {selectedReservation.startTime} ({selectedReservation.duration * 15} mins)
                   </CardDescription>
                 </div>
                 <Button 
