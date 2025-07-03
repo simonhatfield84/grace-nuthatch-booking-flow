@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,9 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Users, Link, Edit, Trash2 } from "lucide-react";
+import { Plus, Link, Edit, Trash2 } from "lucide-react";
+import { TableList } from "@/components/TableList";
 
 const Tables = () => {
   const [tables, setTables] = useState([
@@ -88,7 +87,7 @@ const Tables = () => {
     const group = {
       id: Date.now(),
       ...newGroup,
-      maxCapacity: newGroup.memberTableIds.reduce((sum, id) => {
+      maxCapacity: parseInt(newGroup.maxCapacity.toString()) || newGroup.memberTableIds.reduce((sum, id) => {
         const table = tables.find(t => t.id === id);
         return sum + (table?.seats || 0);
       }, 0)
@@ -109,7 +108,7 @@ const Tables = () => {
   const handleUpdateGroup = () => {
     const updatedGroup = {
       ...editingGroup,
-      maxCapacity: editingGroup.memberTableIds.reduce((sum, id) => {
+      maxCapacity: parseInt(editingGroup.maxCapacity.toString()) || editingGroup.memberTableIds.reduce((sum, id) => {
         const table = tables.find(t => t.id === id);
         return sum + (table?.seats || 0);
       }, 0)
@@ -166,6 +165,12 @@ const Tables = () => {
 
   const currentFormData = editingTable || newTable;
   const currentGroupData = editingGroup || newGroup;
+  
+  // Calculate suggested capacity for groups
+  const suggestedCapacity = currentGroupData.memberTableIds.reduce((sum, id) => {
+    const table = tables.find(t => t.id === id);
+    return sum + (table?.seats || 0);
+  }, 0);
 
   return (
     <div className="space-y-6">
@@ -341,6 +346,23 @@ const Tables = () => {
               </div>
             </div>
 
+            <div>
+              <Label htmlFor="maxCapacity">Max Group Capacity</Label>
+              <Input
+                id="maxCapacity"
+                type="number"
+                value={currentGroupData.maxCapacity}
+                onChange={(e) => editingGroup
+                  ? setEditingGroup({...editingGroup, maxCapacity: parseInt(e.target.value) || 0})
+                  : setNewGroup({...newGroup, maxCapacity: parseInt(e.target.value) || 0})
+                }
+                placeholder={`Suggested: ${suggestedCapacity} seats`}
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Individual table capacity: {suggestedCapacity} seats
+              </p>
+            </div>
+
             <div className="flex gap-2">
               <Button 
                 onClick={editingGroup ? handleUpdateGroup : handleAddGroup}
@@ -354,62 +376,15 @@ const Tables = () => {
         </DialogContent>
       </Dialog>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {tables
-          .sort((a, b) => a.priorityRank - b.priorityRank)
-          .map((table) => (
-          <Card key={table.id} className={`${!table.onlineBookable ? 'opacity-75' : ''}`}>
-            <CardHeader className="pb-3">
-              <div className="flex justify-between items-start">
-                <CardTitle className="text-lg">{table.label}</CardTitle>
-                <div className="flex gap-1">
-                  {table.onlineBookable && (
-                    <Badge variant="secondary" className="text-xs">Online</Badge>
-                  )}
-                  {table.joinGroup && (
-                    <Badge variant="outline" className="text-xs">
-                      <Link className="h-3 w-3 mr-1" strokeWidth={2} />
-                      Group
-                    </Badge>
-                  )}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-muted-foreground" strokeWidth={2} />
-                <span className="text-sm">{table.seats} seats</span>
-              </div>
-              
-              <div className="text-xs text-muted-foreground">
-                Priority: #{table.priorityRank}
-              </div>
-
-              {table.joinGroup && (
-                <div className="text-xs">
-                  <span className="font-medium">Join Group:</span> {getJoinGroupName(table.joinGroup)}
-                </div>
-              )}
-
-              <div className="flex gap-2 pt-2">
-                <Button variant="outline" size="sm" onClick={() => handleEditTable(table)}>
-                  <Edit className="h-3 w-3 mr-1" />
-                  Edit
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => handleDeleteTable(table.id)}
-                  className="text-red-600 hover:text-red-700"
-                >
-                  <Trash2 className="h-3 w-3 mr-1" />
-                  Delete
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {/* Table List Component */}
+      <TableList
+        tables={tables}
+        setTables={setTables}
+        joinGroups={joinGroups}
+        onEditTable={handleEditTable}
+        onDeleteTable={handleDeleteTable}
+        getJoinGroupName={getJoinGroupName}
+      />
 
       {joinGroups.length > 0 && (
         <Card>
