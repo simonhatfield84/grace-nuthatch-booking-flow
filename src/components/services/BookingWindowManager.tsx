@@ -51,7 +51,6 @@ const dayOptions = [
   { value: "sun", label: "Sunday" }
 ];
 
-// Updated time slots to 15-minute increments instead of 30-minute
 const timeSlots = [
   "06:00", "06:15", "06:30", "06:45", "07:00", "07:15", "07:30", "07:45",
   "08:00", "08:15", "08:30", "08:45", "09:00", "09:15", "09:30", "09:45",
@@ -73,22 +72,18 @@ export function BookingWindowManager({ serviceId, open, onOpenChange }: BookingW
   const [openEnded, setOpenEnded] = useState(true);
   const [newBlackoutPeriod, setNewBlackoutPeriod] = useState<Partial<BlackoutPeriod>>({});
 
-  // Add debugging for serviceId
-  useEffect(() => {
-    console.log('BookingWindowManager serviceId:', serviceId);
-    console.log('BookingWindowManager open:', open);
-  }, [serviceId, open]);
+  console.log('BookingWindowManager serviceId:', serviceId);
+  console.log('BookingWindowManager open:', open);
 
-  // Validation: Don't render if serviceId is null
-  if (!serviceId) {
-    console.warn('BookingWindowManager: serviceId is null, not rendering dialog');
-    return null;
-  }
-
-  // Fetch booking windows for this service
+  // Fetch booking windows for this service - only when we have a valid serviceId and dialog is open
   const { data: windows = [] } = useQuery({
     queryKey: ['booking-windows', serviceId],
     queryFn: async () => {
+      if (!serviceId) {
+        console.warn('No serviceId provided to fetch booking windows');
+        return [];
+      }
+      
       console.log('Fetching booking windows for service:', serviceId);
       const { data, error } = await supabase
         .from('booking_windows')
@@ -121,7 +116,6 @@ export function BookingWindowManager({ serviceId, open, onOpenChange }: BookingW
     mutationFn: async (window: Omit<BookingWindow, 'id'>) => {
       console.log('Creating booking window with data:', window);
       
-      // Validate serviceId before submission
       if (!window.service_id) {
         throw new Error('Service ID is required');
       }
@@ -178,7 +172,6 @@ export function BookingWindowManager({ serviceId, open, onOpenChange }: BookingW
     mutationFn: async (window: BookingWindow) => {
       console.log('Updating booking window with data:', window);
       
-      // Validate serviceId before submission
       if (!window.service_id) {
         throw new Error('Service ID is required');
       }
@@ -260,7 +253,7 @@ export function BookingWindowManager({ serviceId, open, onOpenChange }: BookingW
   });
 
   const [formData, setFormData] = useState<Partial<BookingWindow>>({
-    service_id: serviceId,
+    service_id: serviceId || '',
     days: [],
     start_time: "",
     end_time: "",
@@ -281,7 +274,7 @@ export function BookingWindowManager({ serviceId, open, onOpenChange }: BookingW
   const resetWindowForm = () => {
     console.log('Resetting form with serviceId:', serviceId);
     setFormData({
-      service_id: serviceId,
+      service_id: serviceId || '',
       days: [],
       start_time: "",
       end_time: "",
@@ -332,7 +325,6 @@ export function BookingWindowManager({ serviceId, open, onOpenChange }: BookingW
     console.log('Submitting form with data:', formData);
     console.log('Current serviceId:', serviceId);
     
-    // Validate required fields
     if (!serviceId) {
       toast({
         title: "Error",
@@ -353,7 +345,7 @@ export function BookingWindowManager({ serviceId, open, onOpenChange }: BookingW
 
     const windowData = {
       ...formData,
-      service_id: serviceId, // Ensure serviceId is always set
+      service_id: serviceId,
       start_date: startToday ? new Date() : formData.start_date,
       end_date: openEnded ? null : formData.end_date
     } as BookingWindow;
@@ -372,7 +364,7 @@ export function BookingWindowManager({ serviceId, open, onOpenChange }: BookingW
     setEditingWindow(window);
     setFormData({
       ...window,
-      service_id: serviceId, // Ensure serviceId is set
+      service_id: serviceId || '',
       blackout_periods: window.blackout_periods || []
     });
     setStartToday(false);
@@ -391,6 +383,11 @@ export function BookingWindowManager({ serviceId, open, onOpenChange }: BookingW
       setFormData(prev => ({ ...prev, end_date: null }));
     }
   }, [openEnded]);
+
+  // Don't render the dialog if serviceId is null or undefined
+  if (!serviceId) {
+    return null;
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
