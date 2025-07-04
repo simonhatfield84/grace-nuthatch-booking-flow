@@ -273,6 +273,8 @@ export type Database = {
           created_at: string | null
           email: string | null
           id: string
+          import_last_visit_date: string | null
+          import_visit_count: number | null
           name: string
           notes: string | null
           opt_in_marketing: boolean | null
@@ -283,6 +285,8 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           id?: string
+          import_last_visit_date?: string | null
+          import_visit_count?: number | null
           name: string
           notes?: string | null
           opt_in_marketing?: boolean | null
@@ -293,6 +297,8 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           id?: string
+          import_last_visit_date?: string | null
+          import_visit_count?: number | null
           name?: string
           notes?: string | null
           opt_in_marketing?: boolean | null
@@ -583,6 +589,17 @@ export type Database = {
           bulk_booking_count: number
         }[]
       }
+      find_duplicate_guests: {
+        Args: { guest_email?: string; guest_phone?: string }
+        Returns: {
+          id: string
+          name: string
+          email: string
+          phone: string
+          created_at: string
+          match_type: string
+        }[]
+      }
       generate_booking_reference: {
         Args: Record<PropertyKey, never>
         Returns: string
@@ -590,6 +607,10 @@ export type Database = {
       get_tag_usage_count: {
         Args: { tag_id: string }
         Returns: number
+      }
+      merge_guests: {
+        Args: { primary_guest_id: string; duplicate_guest_id: string }
+        Returns: string
       }
     }
     Enums: {

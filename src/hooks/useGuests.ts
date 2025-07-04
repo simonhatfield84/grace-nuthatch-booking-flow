@@ -11,6 +11,8 @@ export interface Guest {
   notes: string | null;
   created_at: string;
   updated_at: string;
+  import_visit_count?: number | null;
+  import_last_visit_date?: string | null;
   tags?: Tag[];
   visit_count?: number;
   last_visit_date?: string;
@@ -30,6 +32,15 @@ export interface GuestTag {
   assigned_by: string;
   assigned_at: string;
   tags: Tag;
+}
+
+export interface DuplicateGuest {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  created_at: string;
+  match_type: string;
 }
 
 export const useGuests = () => {
@@ -172,13 +183,47 @@ export const useGuests = () => {
     }
   });
 
+  const findDuplicatesMutation = useMutation({
+    mutationFn: async ({ email, phone }: { email?: string; phone?: string }) => {
+      const { data, error } = await supabase.rpc('find_duplicate_guests', {
+        guest_email: email || null,
+        guest_phone: phone || null
+      });
+      
+      if (error) throw error;
+      return data as DuplicateGuest[];
+    }
+  });
+
+  const mergeGuestsMutation = useMutation({
+    mutationFn: async ({ primaryId, duplicateId }: { primaryId: string; duplicateId: string }) => {
+      const { data, error } = await supabase.rpc('merge_guests', {
+        primary_guest_id: primaryId,
+        duplicate_guest_id: duplicateId
+      });
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['guests'] });
+      toast({ title: "Guests merged", description: "Duplicate guests have been successfully merged." });
+    },
+    onError: (error: any) => {
+      console.error('Merge guests error:', error);
+      toast({ title: "Error", description: "Failed to merge guests.", variant: "destructive" });
+    }
+  });
+
   return {
     guests,
     isLoading,
     createGuest: createGuestMutation.mutateAsync,
     updateGuest: updateGuestMutation.mutateAsync,
     deleteGuest: deleteGuestMutation.mutateAsync,
-    bulkDeleteGuests: bulkDeleteGuestsMutation.mutateAsync
+    bulkDeleteGuests: bulkDeleteGuestsMutation.mutateAsync,
+    findDuplicates: findDuplicatesMutation.mutateAsync,
+    mergeGuests: mergeGuestsMutation.mutateAsync
   };
 };
 
