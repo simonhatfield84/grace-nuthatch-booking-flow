@@ -45,22 +45,75 @@ export const CSVImportDialog = ({ isOpen, onOpenChange, onImport }: CSVImportDia
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     if (file) {
-      Papa.parse(file, {
-        header: true,
-        complete: (results) => {
-          if (results.errors.length > 0) {
-            setErrors(results.errors.map(error => error.message));
-            return;
+      // Try parsing with different delimiters
+      const tryDelimiters = [',', ';', '\t', '|'];
+      let bestResult = null;
+      let bestFieldCount = 0;
+
+      const tryParse = (delimiter: string) => {
+        return new Promise<any>((resolve) => {
+          Papa.parse(file, {
+            header: true,
+            delimiter: delimiter,
+            skipEmptyLines: true,
+            complete: (results) => {
+              resolve(results);
+            },
+            error: () => {
+              resolve(null);
+            }
+          });
+        });
+      };
+
+      // Try each delimiter and pick the one that gives the most fields
+      Promise.all(tryDelimiters.map(delimiter => tryParse(delimiter)))
+        .then(results => {
+          results.forEach((result, index) => {
+            if (result && result.meta.fields && result.meta.fields.length > bestFieldCount) {
+              bestFieldCount = result.meta.fields.length;
+              bestResult = result;
+            }
+          });
+
+          if (bestResult && bestResult.errors.length === 0) {
+            setCsvData(bestResult.data as CSVRow[]);
+            setCsvHeaders(bestResult.meta.fields || []);
+            setErrors([]);
+            
+            // Auto-map common column names
+            const headers = bestResult.meta.fields || [];
+            const autoMapping: ColumnMapping = {
+              name: '',
+              email: '',
+              phone: '',
+              opt_in_marketing: '',
+              notes: ''
+            };
+
+            headers.forEach(header => {
+              const lowerHeader = header.toLowerCase().trim();
+              if (lowerHeader.includes('name') && !lowerHeader.includes('email')) {
+                autoMapping.name = header;
+              } else if (lowerHeader.includes('email') || lowerHeader.includes('mail')) {
+                autoMapping.email = header;
+              } else if (lowerHeader.includes('phone') || lowerHeader.includes('mobile') || lowerHeader.includes('tel')) {
+                autoMapping.phone = header;
+              } else if (lowerHeader.includes('marketing') || lowerHeader.includes('opt') || lowerHeader.includes('newsletter')) {
+                autoMapping.opt_in_marketing = header;
+              } else if (lowerHeader.includes('note') || lowerHeader.includes('comment') || lowerHeader.includes('remark')) {
+                autoMapping.notes = header;
+              }
+            });
+
+            setColumnMapping(autoMapping);
+          } else {
+            setErrors(['Unable to parse CSV file. Please ensure it is properly formatted with headers.']);
           }
-          
-          setCsvData(results.data as CSVRow[]);
-          setCsvHeaders(results.meta.fields || []);
-          setErrors([]);
-        },
-        error: (error) => {
-          setErrors([error.message]);
-        }
-      });
+        })
+        .catch(() => {
+          setErrors(['Failed to read CSV file. Please try again.']);
+        });
     }
   }, []);
 
@@ -68,7 +121,8 @@ export const CSVImportDialog = ({ isOpen, onOpenChange, onImport }: CSVImportDia
     onDrop,
     accept: {
       'text/csv': ['.csv'],
-      'application/vnd.ms-excel': ['.csv']
+      'application/vnd.ms-excel': ['.csv'],
+      'text/plain': ['.txt']
     },
     maxFiles: 1
   });
@@ -117,7 +171,7 @@ export const CSVImportDialog = ({ isOpen, onOpenChange, onImport }: CSVImportDia
       // Marketing opt-in
       if (columnMapping.opt_in_marketing) {
         const optIn = row[columnMapping.opt_in_marketing]?.trim().toLowerCase();
-        guest.opt_in_marketing = ['true', '1', 'yes', 'y'].includes(optIn);
+        guest.opt_in_marketing = ['true', '1', 'yes', 'y', 'on'].includes(optIn);
       } else {
         guest.opt_in_marketing = false;
       }
@@ -195,12 +249,22 @@ export const CSVImportDialog = ({ isOpen, onOpenChange, onImport }: CSVImportDia
                 <div>
                   <p>Drag & drop a CSV file here, or click to select</p>
                   <p className="text-sm text-muted-foreground mt-1">
-                    CSV files only
+                    Supports CSV files with comma, semicolon, tab, or pipe delimiters
                   </p>
                 </div>
               )}
             </div>
           </div>
+
+          {/* File Info */}
+          {csvHeaders.length > 0 && (
+            <Alert>
+              <CheckCircle className="h-4 w-4" />
+              <AlertDescription>
+                CSV file loaded successfully! Found {csvHeaders.length} columns and {csvData.length} rows.
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Column Mapping */}
           {csvHeaders.length > 0 && (
