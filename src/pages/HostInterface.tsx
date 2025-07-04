@@ -1,30 +1,30 @@
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { ImprovedDateNavigator } from "@/components/host/ImprovedDateNavigator";
-import { ImprovedFloatingBookingBar } from "@/components/host/ImprovedFloatingBookingBar";
-import { TimeGrid } from "@/components/host/TimeGrid";
 import { useVenueHours } from "@/hooks/useVenueHours";
 import { useSections } from "@/hooks/useSections";
 import { useTables } from "@/hooks/useTables";
 import { TableAllocationService } from "@/services/tableAllocation";
 import { useToast } from "@/hooks/use-toast";
-import { RefreshCw, AlertTriangle } from "lucide-react";
+import { UnallocatedBookingsBanner } from "@/components/host/UnallocatedBookingsBanner";
+import { IPadCalendar } from "@/components/host/IPadCalendar";
+import { OptimizedTimeGrid } from "@/components/host/OptimizedTimeGrid";
+import { TouchOptimizedBookingBar } from "@/components/host/TouchOptimizedBookingBar";
+import { BookingDetailsPanel } from "@/components/host/BookingDetailsPanel";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const HostInterface = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedBooking, setSelectedBooking] = useState(null);
+  const [showDetails, setShowDetails] = useState(false);
   const { toast } = useToast();
 
-  // Fetch venue hours
+  // Fetch venue hours, sections, and tables
   const { data: venueHours } = useVenueHours();
-  
-  // Fetch sections and tables
   const { sections } = useSections();
   const { tables } = useTables();
   
@@ -44,28 +44,30 @@ const HostInterface = () => {
     }
   });
 
-  // Fetch cancelled bookings separately
-  const { data: cancelledBookings = [] } = useQuery({
-    queryKey: ['cancelled-bookings', format(selectedDate, 'yyyy-MM-dd')],
+  // Get unique booking dates for calendar indicators
+  const { data: allBookings = [] } = useQuery({
+    queryKey: ['all-bookings-dates'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bookings')
-        .select('*')
-        .eq('booking_date', format(selectedDate, 'yyyy-MM-dd'))
-        .eq('status', 'cancelled')
-        .order('booking_time');
+        .select('booking_date')
+        .neq('status', 'cancelled');
       
       if (error) throw error;
       return data;
     }
   });
 
-  const startHour = venueHours ? parseInt(venueHours.start_time.split(':')[0]) : 17;
+  const bookingDates = [...new Set(allBookings.map(b => b.booking_date))];
 
   const handleBookingClick = (booking) => {
     setSelectedBooking(booking);
-    console.log('Booking clicked:', booking);
-    // TODO: Open booking details modal
+    setShowDetails(true);
+  };
+
+  const handleCloseDetails = () => {
+    setShowDetails(false);
+    setSelectedBooking(null);
   };
 
   const handleAllocateUnallocatedBookings = async () => {
@@ -87,14 +89,6 @@ const HostInterface = () => {
     });
   };
 
-  const getBookingsBySection = (sectionId) => {
-    const sectionTables = tables.filter(table => table.section_id === sectionId);
-    const sectionTableIds = sectionTables.map(table => table.id);
-    return bookings.filter(booking => 
-      booking.table_id && sectionTableIds.includes(booking.table_id)
-    );
-  };
-
   const getUnallocatedBookings = () => {
     return bookings.filter(booking => booking.is_unallocated || !booking.table_id);
   };
@@ -103,172 +97,134 @@ const HostInterface = () => {
     return bookings.filter(booking => booking.table_id === tableId);
   };
 
+  const handleStatusChange = async (booking, newStatus) => {
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq('id', booking.id);
+      
+      if (error) throw error;
+      
+      refetchBookings();
+      setSelectedBooking({ ...booking, status: newStatus });
+      toast({
+        title: "Status Updated",
+        description: `Booking status changed to ${newStatus}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update booking status",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="flex">
-        {/* Sidebar */}
-        <div className="w-80 p-4 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 sticky top-0 h-screen overflow-y-auto">
-          <ImprovedDateNavigator
-            selectedDate={selectedDate}
-            onDateSelect={setSelectedDate}
-          />
-          
-          {/* Unallocated Bookings Alert */}
-          {getUnallocatedBookings().length > 0 && (
-            <Card className="mt-4 border-orange-200 bg-orange-50 dark:bg-orange-950">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-orange-700 dark:text-orange-300 flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5" />
-                  Unallocated Bookings ({getUnallocatedBookings().length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2 mb-3">
-                  {getUnallocatedBookings().map((booking) => (
-                    <div key={booking.id} className="p-2 bg-orange-100 dark:bg-orange-900 rounded border">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-orange-900 dark:text-orange-100">
-                          {booking.guest_name}
-                        </span>
-                        <Badge variant="outline" className="text-orange-700 dark:text-orange-300">
-                          {booking.party_size}
-                        </Badge>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
+      {/* Unallocated Bookings Banner */}
+      <UnallocatedBookingsBanner
+        bookings={getUnallocatedBookings()}
+        onAllocateAll={handleAllocateUnallocatedBookings}
+        onBookingClick={handleBookingClick}
+      />
+
+      {/* Header */}
+      <div className="mb-4">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          Host Interface
+        </h1>
+        <p className="text-gray-600 dark:text-gray-400">
+          {format(selectedDate, 'EEEE, MMMM do, yyyy')} • {bookings.length} bookings
+        </p>
+      </div>
+
+      {/* Main Layout */}
+      <div className="grid grid-cols-12 gap-4 h-[calc(100vh-200px)]">
+        {/* Time Grid - Takes most space */}
+        <div className={`${showDetails ? 'col-span-8' : 'col-span-9'} flex flex-col`}>
+          <ScrollArea className="flex-1">
+            <OptimizedTimeGrid venueHours={venueHours}>
+              {/* Tables by Section */}
+              <div className="space-y-0">
+                {sections.map((section) => {
+                  const sectionTables = tables.filter(table => 
+                    table.section_id === section.id && table.status === 'active'
+                  );
+
+                  return (
+                    <div key={section.id}>
+                      {/* Section Header */}
+                      <div 
+                        className="bg-gray-100 dark:bg-gray-800 px-4 py-2 border-b border-gray-200 dark:border-gray-700 flex items-center"
+                        style={{ borderLeftColor: section.color, borderLeftWidth: '4px' }}
+                      >
+                        <h3 className="font-semibold" style={{ color: section.color }}>
+                          {section.name} ({sectionTables.length})
+                        </h3>
                       </div>
-                      <div className="text-sm text-orange-700 dark:text-orange-300">
-                        {booking.booking_time} • {booking.service}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <Button 
-                  onClick={handleAllocateUnallocatedBookings}
-                  className="w-full"
-                  size="sm"
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Auto-Allocate All
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-          
-          {/* Cancelled Bookings */}
-          {cancelledBookings.length > 0 && (
-            <Card className="mt-4 border-red-200 bg-red-50 dark:bg-red-950">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-red-700 dark:text-red-300">
-                  Cancelled Bookings ({cancelledBookings.length})
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {cancelledBookings.map((booking) => (
-                    <div key={booking.id} className="p-2 bg-red-100 dark:bg-red-900 rounded border">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium text-red-900 dark:text-red-100">
-                          {booking.guest_name}
-                        </span>
-                        <Badge variant="outline" className="text-red-700 dark:text-red-300">
-                          {booking.party_size}
-                        </Badge>
-                      </div>
-                      <div className="text-sm text-red-700 dark:text-red-300">
-                        {booking.booking_time}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
 
-        {/* Main Content */}
-        <div className="flex-1">
-          {/* Header */}
-          <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-                  Host Interface
-                </h1>
-                <p className="text-gray-600 dark:text-gray-400 mt-1">
-                  {format(selectedDate, 'EEEE, MMMM do, yyyy')} • {bookings.length} bookings
-                </p>
-              </div>
-              <div className="text-right">
-                <div className="text-sm text-gray-600 dark:text-gray-400">Current Time</div>
-                <div className="text-xl font-mono font-bold">
-                  {format(new Date(), 'HH:mm')}
-                </div>
-              </div>
-            </div>
-          </div>
+                      {/* Tables in Section */}
+                      {sectionTables.map((table) => {
+                        const tableBookings = getBookingsForTable(table.id);
 
-          {/* Time Grid */}
-          <TimeGrid venueHours={venueHours}>
-            {/* Sections and Tables */}
-            <div className="space-y-0">
-              {sections.map((section) => {
-                const sectionTables = tables.filter(table => 
-                  table.section_id === section.id && table.status === 'active'
-                );
-
-                return (
-                  <div key={section.id} className="border-b border-gray-200 dark:border-gray-700">
-                    {/* Section Header */}
-                    <div 
-                      className="bg-gray-100 dark:bg-gray-800 px-4 py-2 border-b border-gray-200 dark:border-gray-700"
-                      style={{ borderLeftColor: section.color, borderLeftWidth: '4px' }}
-                    >
-                      <h3 className="font-semibold text-lg" style={{ color: section.color }}>
-                        {section.name} ({sectionTables.length} tables)
-                      </h3>
-                    </div>
-
-                    {/* Tables in Section */}
-                    {sectionTables.map((table) => {
-                      const tableBookings = getBookingsForTable(table.id);
-
-                      return (
-                        <div key={table.id} className="grid grid-cols-13 gap-0 border-b border-gray-100 dark:border-gray-800 min-h-[60px]">
-                          {/* Table Label */}
-                          <div className="bg-white dark:bg-gray-900 p-4 border-r border-gray-200 dark:border-gray-700 flex items-center">
-                            <div>
-                              <span className="font-semibold text-lg">{table.label}</span>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Badge variant="outline" className="text-xs">
-                                  {table.seats} seats
-                                </Badge>
-                                {table.join_groups && table.join_groups.length > 0 && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    Group
+                        return (
+                          <div key={table.id} className="flex border-b border-gray-100 dark:border-gray-800 min-h-[52px]">
+                            {/* Table Info */}
+                            <div className="w-48 p-4 border-r border-gray-200 dark:border-gray-700 flex items-center bg-white dark:bg-gray-900">
+                              <div>
+                                <span className="font-semibold">{table.label}</span>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <Badge variant="outline" className="text-xs">
+                                    {table.seats} seats
                                   </Badge>
-                                )}
+                                  {table.join_groups && table.join_groups.length > 0 && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      Group
+                                    </Badge>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                          </div>
 
-                          {/* Time Slots with Bookings */}
-                          <div className="col-span-12 relative bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 min-h-[60px]">
-                            {tableBookings.map((booking) => (
-                              <ImprovedFloatingBookingBar
-                                key={booking.id}
-                                booking={booking}
-                                startHour={startHour}
-                                duration={120} // 2 hours default
-                                onBookingClick={handleBookingClick}
-                              />
-                            ))}
+                            {/* Time Slots with Bookings */}
+                            <div className="flex-1 relative bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 min-h-[52px]">
+                              {tableBookings.map((booking) => (
+                                <TouchOptimizedBookingBar
+                                  key={booking.id}
+                                  booking={booking}
+                                  startTime={venueHours?.start_time || '17:00'}
+                                  onBookingClick={handleBookingClick}
+                                />
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
-            </div>
-          </TimeGrid>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            </OptimizedTimeGrid>
+          </ScrollArea>
+        </div>
+
+        {/* Right Panel */}
+        <div className={`${showDetails ? 'col-span-4' : 'col-span-3'} flex flex-col space-y-4`}>
+          {showDetails ? (
+            <BookingDetailsPanel
+              booking={selectedBooking}
+              onClose={handleCloseDetails}
+              onStatusChange={handleStatusChange}
+            />
+          ) : (
+            <IPadCalendar
+              selectedDate={selectedDate}
+              onDateSelect={setSelectedDate}
+              bookingDates={bookingDates}
+            />
+          )}
         </div>
       </div>
     </div>
