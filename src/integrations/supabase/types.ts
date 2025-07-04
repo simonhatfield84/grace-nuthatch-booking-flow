@@ -143,6 +143,39 @@ export type Database = {
           },
         ]
       }
+      join_groups: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: number
+          max_party_size: number
+          min_party_size: number
+          name: string
+          table_ids: number[]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: number
+          max_party_size?: number
+          min_party_size?: number
+          name: string
+          table_ids: number[]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: number
+          max_party_size?: number
+          min_party_size?: number
+          name?: string
+          table_ids?: number[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sections: {
         Row: {
           color: string | null
