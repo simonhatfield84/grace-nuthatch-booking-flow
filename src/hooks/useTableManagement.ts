@@ -8,7 +8,8 @@ export const useTableManagement = (initialTables: any[]) => {
     label: "",
     seats: 2,
     onlineBookable: true,
-    priorityRank: initialTables.length + 1
+    priorityRank: initialTables.length + 1,
+    sectionId: null
   });
 
   const handleAddTable = () => {
@@ -23,6 +24,7 @@ export const useTableManagement = (initialTables: any[]) => {
   };
 
   const handleUpdateTable = () => {
+    if (!editingTable) return;
     setTables(tables.map(t => t.id === editingTable.id ? { ...editingTable } : t));
     setEditingTable(null);
   };
@@ -32,7 +34,7 @@ export const useTableManagement = (initialTables: any[]) => {
   };
 
   const handleEditTable = (table: any) => {
-    setEditingTable(table);
+    setEditingTable({ ...table });
   };
 
   const resetTableForm = () => {
@@ -40,7 +42,8 @@ export const useTableManagement = (initialTables: any[]) => {
       label: "",
       seats: 2,
       onlineBookable: true,
-      priorityRank: tables.length + 2
+      priorityRank: tables.length + 2,
+      sectionId: null
     });
     setEditingTable(null);
   };

@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useSections } from "@/hooks/useSections";
 
 interface TableDialogProps {
   isOpen: boolean;
@@ -26,6 +28,7 @@ export const TableDialog = ({
   onAddTable,
   onUpdateTable
 }: TableDialogProps) => {
+  const { sections } = useSections();
   const currentFormData = editingTable || newTable;
 
   return (
@@ -75,6 +78,31 @@ export const TableDialog = ({
                 min="1"
               />
             </div>
+          </div>
+
+          <div>
+            <Label htmlFor="section">Section</Label>
+            <Select 
+              value={currentFormData.sectionId ? currentFormData.sectionId.toString() : "none"} 
+              onValueChange={(value) => {
+                const sectionId = value === "none" ? null : parseInt(value);
+                editingTable
+                  ? setEditingTable({...editingTable, sectionId})
+                  : setNewTable({...newTable, sectionId});
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a section" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">No Section</SelectItem>
+                {sections.map(section => (
+                  <SelectItem key={section.id} value={section.id.toString()}>
+                    {section.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex items-center space-x-2">
