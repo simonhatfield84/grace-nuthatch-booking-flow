@@ -36,9 +36,11 @@ export class EmailService {
         .eq('venue_id', venue_id);
       
       const settings: Record<string, any> = {};
-      venueSettings?.forEach(setting => {
-        settings[setting.setting_key] = setting.setting_value;
-      });
+      if (venueSettings) {
+        for (const setting of venueSettings) {
+          settings[setting.setting_key] = setting.setting_value;
+        }
+      }
 
       return {
         domain: settings.custom_email_domain || settings.email_domain || 'grace-os.com',
