@@ -80,6 +80,72 @@ export type Database = {
           },
         ]
       }
+      services: {
+        Row: {
+          active: boolean
+          cancellation_window_hours: number
+          created_at: string
+          deposit_per_guest: number
+          description: string | null
+          duration_rules: Json | null
+          id: string
+          image_url: string | null
+          is_secret: boolean
+          lead_time_hours: number
+          max_guests: number
+          min_guests: number
+          online_bookable: boolean
+          requires_deposit: boolean
+          secret_slug: string | null
+          tag_ids: string[] | null
+          terms_and_conditions: string | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          cancellation_window_hours?: number
+          created_at?: string
+          deposit_per_guest?: number
+          description?: string | null
+          duration_rules?: Json | null
+          id?: string
+          image_url?: string | null
+          is_secret?: boolean
+          lead_time_hours?: number
+          max_guests?: number
+          min_guests?: number
+          online_bookable?: boolean
+          requires_deposit?: boolean
+          secret_slug?: string | null
+          tag_ids?: string[] | null
+          terms_and_conditions?: string | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          cancellation_window_hours?: number
+          created_at?: string
+          deposit_per_guest?: number
+          description?: string | null
+          duration_rules?: Json | null
+          id?: string
+          image_url?: string | null
+          is_secret?: boolean
+          lead_time_hours?: number
+          max_guests?: number
+          min_guests?: number
+          online_bookable?: boolean
+          requires_deposit?: boolean
+          secret_slug?: string | null
+          tag_ids?: string[] | null
+          terms_and_conditions?: string | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tags: {
         Row: {
           color: string | null

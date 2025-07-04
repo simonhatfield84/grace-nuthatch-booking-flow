@@ -1,19 +1,23 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, Users, MapPin, Phone, Mail, CheckCircle } from "lucide-react";
+import { Calendar, Clock, Users, MapPin, CheckCircle } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { isDateInAllowedDays, getDayOfWeek } from "@/utils/dayUtils";
+import { format, addDays, startOfDay } from "date-fns";
 
 const BookingWidget = () => {
   const [step, setStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedTime, setSelectedTime] = useState("");
   const [partySize, setPartySize] = useState(2);
-  const [selectedService, setSelectedService] = useState(null);
+  const [selectedService, setSelectedService] = useState<any>(null);
   const [guestDetails, setGuestDetails] = useState({
     name: "",
     email: "",
@@ -22,43 +26,150 @@ const BookingWidget = () => {
   });
   const [isConfirmed, setIsConfirmed] = useState(false);
 
-  const services = [
-    {
-      id: 1,
-      title: "Dinner Service",
-      description: "Evening dining experience with seasonal menu",
-      image: "/api/placeholder/300/200",
-      minGuests: 1,
-      maxGuests: 8,
-      duration: "2 hours",
-      price: "No deposit required",
-      times: ["18:00", "18:30", "19:00", "19:30", "20:00", "20:30", "21:00"]
-    },
-    {
-      id: 2,
-      title: "Afternoon Tea",
-      description: "Traditional afternoon tea with homemade scones and cakes",
-      image: "/api/placeholder/300/200",
-      minGuests: 2,
-      maxGuests: 6,
-      duration: "1.5 hours",
-      price: "£25 deposit per guest",
-      times: ["14:00", "14:30", "15:00", "15:30", "16:00"]
+  // Fetch services from database
+  const { data: services = [], isLoading: isServicesLoading } = useQuery({
+    queryKey: ['widget-services'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('services')
+        .select('*')
+        .eq('active', true)
+        .eq('online_bookable', true)
+        .order('created_at');
+      
+      if (error) throw error;
+      return data;
     }
-  ];
+  });
 
-  const availableDates = [
-    { date: "2024-01-20", day: "Sat", available: true },
-    { date: "2024-01-21", day: "Sun", available: true },
-    { date: "2024-01-22", day: "Mon", available: false },
-    { date: "2024-01-23", day: "Tue", available: true },
-    { date: "2024-01-24", day: "Wed", available: true },
-    { date: "2024-01-25", day: "Thu", available: true },
-    { date: "2024-01-26", day: "Fri", available: true },
-  ];
+  // Fetch booking windows for the selected service
+  const { data: bookingWindows = [] } = useQuery({
+    queryKey: ['service-booking-windows', selectedService?.id],
+    queryFn: async () => {
+      if (!selectedService?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('booking_windows')
+        .select('*')
+        .eq('service_id', selectedService.id);
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!selectedService?.id
+  });
 
-  const handleServiceSelect = (service) => {
+  // Generate available dates based on booking windows
+  const getAvailableDates = () => {
+    if (!bookingWindows.length) return [];
+    
+    const dates = [];
+    const today = startOfDay(new Date());
+    
+    // Generate next 14 days
+    for (let i = 0; i < 14; i++) {
+      const date = addDays(today, i);
+      const dayName = getDayOfWeek(date);
+      
+      // Check if this day is available in any booking window
+      const isAvailable = bookingWindows.some(window => {
+        // Check if day is in allowed days
+        const dayMatch = window.days.some((allowedDay: string) => 
+          allowedDay === dayName || 
+          (allowedDay.length === 3 && allowedDay === dayName.substring(0, 3))
+        );
+        
+        if (!dayMatch) return false;
+        
+        // Check date range if specified
+        if (window.start_date) {
+          const startDate = new Date(window.start_date);
+          if (date < startDate) return false;
+        }
+        
+        if (window.end_date) {
+          const endDate = new Date(window.end_date);
+          if (date > endDate) return false;
+        }
+        
+        // Check blackout periods
+        if (window.blackout_periods && Array.isArray(window.blackout_periods)) {
+          const isBlackedOut = window.blackout_periods.some((blackout: any) => {
+            const blackoutStart = new Date(blackout.startDate);
+            const blackoutEnd = new Date(blackout.endDate);
+            return date >= blackoutStart && date <= blackoutEnd;
+          });
+          if (isBlackedOut) return false;
+        }
+        
+        return true;
+      });
+      
+      dates.push({
+        date: format(date, 'yyyy-MM-dd'),
+        day: format(date, 'EEE'),
+        available: isAvailable,
+        dayName
+      });
+    }
+    
+    return dates;
+  };
+
+  // Generate time slots based on booking windows
+  const getAvailableTimeSlots = () => {
+    if (!selectedDate || !bookingWindows.length) return [];
+    
+    const selectedDateObj = new Date(selectedDate);
+    const dayName = getDayOfWeek(selectedDateObj);
+    
+    // Find booking windows that apply to this day
+    const applicableWindows = bookingWindows.filter(window => 
+      window.days.some((allowedDay: string) => 
+        allowedDay === dayName || 
+        (allowedDay.length === 3 && allowedDay === dayName.substring(0, 3))
+      )
+    );
+    
+    if (!applicableWindows.length) return [];
+    
+    // Generate time slots for all applicable windows
+    const timeSlots = new Set<string>();
+    
+    applicableWindows.forEach(window => {
+      const startTime = window.start_time;
+      const endTime = window.end_time;
+      
+      // Parse start and end times
+      const [startHour, startMin] = startTime.split(':').map(Number);
+      const [endHour, endMin] = endTime.split(':').map(Number);
+      
+      // Generate 15-minute slots
+      let currentHour = startHour;
+      let currentMin = startMin;
+      
+      while (currentHour < endHour || (currentHour === endHour && currentMin < endMin)) {
+        const timeSlot = `${currentHour.toString().padStart(2, '0')}:${currentMin.toString().padStart(2, '0')}`;
+        timeSlots.add(timeSlot);
+        
+        // Add 15 minutes
+        currentMin += 15;
+        if (currentMin >= 60) {
+          currentMin = 0;
+          currentHour++;
+        }
+      }
+    });
+    
+    return Array.from(timeSlots).sort();
+  };
+
+  const availableDates = getAvailableDates();
+  const availableTimeSlots = getAvailableTimeSlots();
+
+  const handleServiceSelect = (service: any) => {
     setSelectedService(service);
+    setPartySize(Math.max(service.min_guests, Math.min(service.max_guests, partySize)));
     setStep(2);
   };
 
@@ -85,6 +196,17 @@ const BookingWidget = () => {
     setGuestDetails({ name: "", email: "", phone: "", notes: "" });
     setIsConfirmed(false);
   };
+
+  if (isServicesLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 p-4 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading services...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 p-4">
@@ -131,37 +253,46 @@ const BookingWidget = () => {
                 <CardDescription>Select the service you'd like to book</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-4">
-                  {services.map((service) => (
-                    <div 
-                      key={service.id}
-                      className="border rounded-lg p-4 cursor-pointer hover:border-green-500 transition-colors"
-                      onClick={() => handleServiceSelect(service)}
-                    >
-                      <div className="flex gap-4">
-                        <div className="w-20 h-20 bg-gray-200 rounded-lg bg-cover bg-center"
-                             style={{ backgroundImage: `url(${service.image})` }} />
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-lg">{service.title}</h3>
-                          <p className="text-gray-600 text-sm mb-2">{service.description}</p>
-                          <div className="flex flex-wrap gap-2 text-xs">
-                            <Badge variant="outline">
-                              <Users className="h-3 w-3 mr-1" strokeWidth={2} />
-                              {service.minGuests}-{service.maxGuests} guests
-                            </Badge>
-                            <Badge variant="outline">
-                              <Clock className="h-3 w-3 mr-1" strokeWidth={2} />
-                              {service.duration}
-                            </Badge>
-                            <Badge variant="outline">
-                              {service.price}
-                            </Badge>
+                {services.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">
+                    No services available for online booking
+                  </div>
+                ) : (
+                  <div className="grid gap-4">
+                    {services.map((service) => (
+                      <div 
+                        key={service.id}
+                        className="border rounded-lg p-4 cursor-pointer hover:border-green-500 transition-colors"
+                        onClick={() => handleServiceSelect(service)}
+                      >
+                        <div className="flex gap-4">
+                          <div className="w-20 h-20 bg-gray-200 rounded-lg bg-cover bg-center"
+                               style={{ backgroundImage: service.image_url ? `url(${service.image_url})` : 'none' }} />
+                          <div className="flex-1">
+                            <h3 className="font-semibold text-lg">{service.title}</h3>
+                            <p className="text-gray-600 text-sm mb-2">{service.description}</p>
+                            <div className="flex flex-wrap gap-2 text-xs">
+                              <Badge variant="outline">
+                                <Users className="h-3 w-3 mr-1" strokeWidth={2} />
+                                {service.min_guests}-{service.max_guests} guests
+                              </Badge>
+                              <Badge variant="outline">
+                                <Clock className="h-3 w-3 mr-1" strokeWidth={2} />
+                                {service.lead_time_hours}h lead time
+                              </Badge>
+                              <Badge variant="outline">
+                                {service.requires_deposit 
+                                  ? `£${service.deposit_per_guest} deposit per guest`
+                                  : 'No deposit required'
+                                }
+                              </Badge>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -185,8 +316,8 @@ const BookingWidget = () => {
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => setPartySize(Math.max(selectedService.minGuests, partySize - 1))}
-                      disabled={partySize <= selectedService.minGuests}
+                      onClick={() => setPartySize(Math.max(selectedService.min_guests, partySize - 1))}
+                      disabled={partySize <= selectedService.min_guests}
                     >
                       -
                     </Button>
@@ -194,8 +325,8 @@ const BookingWidget = () => {
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => setPartySize(Math.min(selectedService.maxGuests, partySize + 1))}
-                      disabled={partySize >= selectedService.maxGuests}
+                      onClick={() => setPartySize(Math.min(selectedService.max_guests, partySize + 1))}
+                      disabled={partySize >= selectedService.max_guests}
                     >
                       +
                     </Button>
@@ -205,48 +336,60 @@ const BookingWidget = () => {
                 {/* Date Selection */}
                 <div>
                   <Label>Select Date</Label>
-                  <div className="grid grid-cols-7 gap-2 mt-2">
-                    {availableDates.map((dateOption) => (
-                      <button
-                        key={dateOption.date}
-                        className={`p-3 text-center rounded border ${
-                          selectedDate === dateOption.date
-                            ? 'bg-green-600 text-white border-green-600'
-                            : dateOption.available
-                            ? 'border-gray-300 hover:border-green-500'
-                            : 'border-gray-200 text-gray-400 cursor-not-allowed'
-                        }`}
-                        onClick={() => dateOption.available && setSelectedDate(dateOption.date)}
-                        disabled={!dateOption.available}
-                      >
-                        <div className="text-xs">{dateOption.day}</div>
-                        <div className="text-sm font-medium">
-                          {new Date(dateOption.date).getDate()}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+                  {availableDates.length === 0 ? (
+                    <div className="text-center py-4 text-gray-500">
+                      No available dates. Please check booking windows configuration.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-7 gap-2 mt-2">
+                      {availableDates.map((dateOption) => (
+                        <button
+                          key={dateOption.date}
+                          className={`p-3 text-center rounded border ${
+                            selectedDate === dateOption.date
+                              ? 'bg-green-600 text-white border-green-600'
+                              : dateOption.available
+                              ? 'border-gray-300 hover:border-green-500'
+                              : 'border-gray-200 text-gray-400 cursor-not-allowed'
+                          }`}
+                          onClick={() => dateOption.available && setSelectedDate(dateOption.date)}
+                          disabled={!dateOption.available}
+                        >
+                          <div className="text-xs">{dateOption.day}</div>
+                          <div className="text-sm font-medium">
+                            {new Date(dateOption.date).getDate()}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Time Selection */}
                 {selectedDate && (
                   <div>
                     <Label>Select Time</Label>
-                    <div className="grid grid-cols-4 gap-2 mt-2">
-                      {selectedService.times.map((time) => (
-                        <button
-                          key={time}
-                          className={`p-2 text-center rounded border ${
-                            selectedTime === time
-                              ? 'bg-green-600 text-white border-green-600'
-                              : 'border-gray-300 hover:border-green-500'
-                          }`}
-                          onClick={() => setSelectedTime(time)}
-                        >
-                          {time}
-                        </button>
-                      ))}
-                    </div>
+                    {availableTimeSlots.length === 0 ? (
+                      <div className="text-center py-4 text-gray-500">
+                        No available time slots for selected date
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-4 gap-2 mt-2">
+                        {availableTimeSlots.map((time) => (
+                          <button
+                            key={time}
+                            className={`p-2 text-center rounded border ${
+                              selectedTime === time
+                                ? 'bg-green-600 text-white border-green-600'
+                                : 'border-gray-300 hover:border-green-500'
+                            }`}
+                            onClick={() => setSelectedTime(time)}
+                          >
+                            {time}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -322,13 +465,13 @@ const BookingWidget = () => {
                   />
                 </div>
 
-                {selectedService.price.includes('deposit') && (
+                {selectedService.requires_deposit && (
                   <div className="p-4 bg-blue-50 rounded-lg">
                     <p className="text-sm">
-                      <strong>Deposit Required:</strong> {selectedService.price}
+                      <strong>Deposit Required:</strong> £{selectedService.deposit_per_guest} per guest
                     </p>
                     <p className="text-xs text-gray-600 mt-1">
-                      Total deposit: £{25 * partySize}
+                      Total deposit: £{selectedService.deposit_per_guest * partySize}
                     </p>
                   </div>
                 )}
@@ -342,7 +485,7 @@ const BookingWidget = () => {
                     disabled={!guestDetails.name || !guestDetails.email || !guestDetails.phone}
                     className="flex-1"
                   >
-                    {selectedService.price.includes('deposit') ? 'Pay Deposit' : 'Confirm Booking'}
+                    {selectedService.requires_deposit ? 'Pay Deposit' : 'Confirm Booking'}
                   </Button>
                 </div>
               </CardContent>

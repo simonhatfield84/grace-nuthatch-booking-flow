@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,9 +17,11 @@ import { RichTextEditor } from "@/components/services/RichTextEditor";
 import { TagSelector } from "@/components/services/TagSelector";
 import { BookingWindowManager } from "@/components/services/BookingWindowManager";
 import { DurationRule } from "@/hooks/useServiceDurationRules";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
+import { sortDaysChronologically } from "@/utils/dayUtils";
+import { useToast } from "@/hooks/use-toast";
 
 // Controlled input options
 const guestOptions = Array.from({length: 20}, (_, i) => i + 1);
@@ -26,6 +29,23 @@ const leadTimeOptions = [1, 2, 4, 6, 12, 24, 48, 72];
 const cancellationOptions = [24, 48, 72];
 
 const Services = () => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Fetch services from database
+  const { data: services = [], isLoading: isServicesLoading } = useQuery({
+    queryKey: ['services'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('services')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
   // Fetch tags from database for display
   const { data: allTags = [] } = useQuery({
     queryKey: ['tags'],
@@ -62,6 +82,7 @@ const Services = () => {
         try {
           const transformed = {
             ...window,
+            days: sortDaysChronologically(window.days), // Sort days chronologically
             start_date: window.start_date ? new Date(window.start_date) : null,
             end_date: window.end_date ? new Date(window.end_date) : null,
             blackout_periods: Array.isArray(window.blackout_periods) 
@@ -102,6 +123,80 @@ const Services = () => {
     }
   });
 
+  // Create service mutation
+  const createServiceMutation = useMutation({
+    mutationFn: async (newService: any) => {
+      const { data, error } = await supabase
+        .from('services')
+        .insert([{
+          ...newService,
+          duration_rules: newService.durationRules,
+          tag_ids: newService.tagIds
+        }])
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['services'] });
+      toast({ title: "Service created", description: "Your service has been created successfully." });
+    },
+    onError: (error) => {
+      console.error('Create service error:', error);
+      toast({ title: "Error", description: "Failed to create service.", variant: "destructive" });
+    }
+  });
+
+  // Update service mutation
+  const updateServiceMutation = useMutation({
+    mutationFn: async ({ id, updates }: { id: string, updates: any }) => {
+      const { data, error } = await supabase
+        .from('services')
+        .update({
+          ...updates,
+          duration_rules: updates.durationRules,
+          tag_ids: updates.tagIds,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['services'] });
+      toast({ title: "Service updated", description: "Your service has been updated successfully." });
+    },
+    onError: (error) => {
+      console.error('Update service error:', error);
+      toast({ title: "Error", description: "Failed to update service.", variant: "destructive" });
+    }
+  });
+
+  // Delete service mutation
+  const deleteServiceMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('services')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['services'] });
+      toast({ title: "Service deleted", description: "Your service has been deleted successfully." });
+    },
+    onError: (error) => {
+      console.error('Delete service error:', error);
+      toast({ title: "Error", description: "Failed to delete service.", variant: "destructive" });
+    }
+  });
+
   // Log any query errors
   useEffect(() => {
     if (windowsError) {
@@ -109,77 +204,29 @@ const Services = () => {
     }
   }, [windowsError]);
 
-  const [services, setServices] = useState([
-    {
-      id: "550e8400-e29b-41d4-a716-446655440001", // Changed from integer to UUID
-      title: "Dinner Service",
-      description: "Evening dining experience with seasonal menu",
-      imageUrl: "/api/placeholder/400/200",
-      tagIds: [] as string[],
-      minGuests: 1,
-      maxGuests: 8,
-      leadTimeHours: 2,
-      cancellationWindowHours: 24,
-      requiresDeposit: true,
-      depositPerGuest: 25,
-      onlineBookable: true,
-      active: true,
-      isSecret: false,
-      secretSlug: null,
-      termsAndConditions: "",
-      durationRules: [
-        { id: "1", minGuests: 1, maxGuests: 2, durationMinutes: 90 },
-        { id: "2", minGuests: 3, maxGuests: 6, durationMinutes: 120 },
-        { id: "3", minGuests: 7, maxGuests: 8, durationMinutes: 150 }
-      ] as DurationRule[]
-    },
-    {
-      id: "550e8400-e29b-41d4-a716-446655440002", // Changed from integer to UUID
-      title: "Afternoon Tea",
-      description: "Traditional afternoon tea with homemade scones and cakes",
-      imageUrl: "/api/placeholder/400/200",
-      tagIds: [] as string[],
-      minGuests: 2,
-      maxGuests: 6,
-      leadTimeHours: 24,
-      cancellationWindowHours: 48,
-      requiresDeposit: false,
-      depositPerGuest: 0,
-      onlineBookable: true,
-      active: true,
-      isSecret: false,
-      secretSlug: null,
-      termsAndConditions: "",
-      durationRules: [
-        { id: "1", minGuests: 2, maxGuests: 4, durationMinutes: 90 },
-        { id: "2", minGuests: 5, maxGuests: 6, durationMinutes: 105 }
-      ] as DurationRule[]
-    }
-  ]);
-
   const [showServiceDialog, setShowServiceDialog] = useState(false);
   const [editingService, setEditingService] = useState<any>(null);
   const [showWindowManager, setShowWindowManager] = useState(false);
-  const [currentServiceId, setCurrentServiceId] = useState<string | null>(null); // Changed from number to string
+  const [currentServiceId, setCurrentServiceId] = useState<string | null>(null);
 
   const [newService, setNewService] = useState({
     title: "",
     description: "",
-    imageUrl: "",
-    tagIds: [] as string[],
-    minGuests: 1,
-    maxGuests: 8,
-    leadTimeHours: 2,
-    cancellationWindowHours: 24,
-    requiresDeposit: false,
-    depositPerGuest: 0,
-    onlineBookable: true,
+    image_url: "",
+    tag_ids: [] as string[],
+    min_guests: 1,
+    max_guests: 8,
+    lead_time_hours: 2,
+    cancellation_window_hours: 24,
+    requires_deposit: false,
+    deposit_per_guest: 0,
+    online_bookable: true,
     active: true,
-    isSecret: false,
-    secretSlug: null,
-    termsAndConditions: "",
+    is_secret: false,
+    secret_slug: null,
+    terms_and_conditions: "",
     useStandardTerms: true,
-    durationRules: [] as DurationRule[]
+    duration_rules: [] as DurationRule[]
   });
 
   // Helper function to get tags for a service
@@ -203,12 +250,11 @@ const Services = () => {
   };
 
   const handleAddService = () => {
-    const service = {
-      id: crypto.randomUUID(), // Generate UUID for new services
+    const serviceData = {
       ...newService,
-      secretSlug: newService.isSecret ? generateSecretSlug() : null
+      secret_slug: newService.is_secret ? generateSecretSlug() : null
     };
-    setServices([...services, service]);
+    createServiceMutation.mutate(serviceData);
     resetServiceForm();
     setShowServiceDialog(false);
   };
@@ -216,23 +262,25 @@ const Services = () => {
   const handleUpdateService = () => {
     const updatedService = {
       ...editingService,
-      secretSlug: editingService.isSecret 
-        ? (editingService.secretSlug || generateSecretSlug())
+      secret_slug: editingService.is_secret 
+        ? (editingService.secret_slug || generateSecretSlug())
         : null
     };
-    setServices(services.map(s => s.id === editingService.id ? updatedService : s));
+    updateServiceMutation.mutate({ id: editingService.id, updates: updatedService });
     setEditingService(null);
     setShowServiceDialog(false);
   };
 
-  const handleDeleteService = (serviceId: string) => { // Changed parameter type to string
-    setServices(services.filter(s => s.id !== serviceId));
+  const handleDeleteService = (serviceId: string) => {
+    deleteServiceMutation.mutate(serviceId);
   };
 
   const handleEditService = (service: any) => {
     setEditingService({
       ...service,
-      tagIds: service.tagIds || []
+      tagIds: service.tag_ids || [],
+      durationRules: service.duration_rules || [],
+      useStandardTerms: !service.terms_and_conditions || service.terms_and_conditions === getStandardTerms()
     });
     setShowServiceDialog(true);
   };
@@ -240,49 +288,64 @@ const Services = () => {
   const handleDuplicateService = (service: any) => {
     const duplicatedService = {
       ...service,
-      id: crypto.randomUUID(), // Generate UUID for duplicated services
       title: `${service.title} (Copy)`,
       active: false,
-      secretSlug: service.isSecret ? generateSecretSlug() : null
+      secret_slug: service.is_secret ? generateSecretSlug() : null,
+      id: undefined // Remove ID so a new one will be generated
     };
-    setServices([...services, duplicatedService]);
+    createServiceMutation.mutate(duplicatedService);
   };
 
   const resetServiceForm = () => {
     setNewService({
       title: "",
       description: "",
-      imageUrl: "",
-      tagIds: [],
-      minGuests: 1,
-      maxGuests: 8,
-      leadTimeHours: 2,
-      cancellationWindowHours: 24,
-      requiresDeposit: false,
-      depositPerGuest: 0,
-      onlineBookable: true,
+      image_url: "",
+      tag_ids: [],
+      min_guests: 1,
+      max_guests: 8,
+      lead_time_hours: 2,
+      cancellation_window_hours: 24,
+      requires_deposit: false,
+      deposit_per_guest: 0,
+      online_bookable: true,
       active: true,
-      isSecret: false,
-      secretSlug: null,
-      termsAndConditions: "",
+      is_secret: false,
+      secret_slug: null,
+      terms_and_conditions: "",
       useStandardTerms: true,
-      durationRules: []
+      duration_rules: []
     });
     setEditingService(null);
   };
 
-  const toggleServiceActive = (serviceId: string) => { // Changed parameter type to string
-    setServices(services.map(service => 
-      service.id === serviceId ? { ...service, active: !service.active } : service
-    ));
+  const toggleServiceActive = (serviceId: string) => {
+    const service = services.find(s => s.id === serviceId);
+    if (service) {
+      updateServiceMutation.mutate({ 
+        id: serviceId, 
+        updates: { active: !service.active }
+      });
+    }
   };
 
-  const handleManageWindows = (serviceId: string) => { // Changed parameter type to string
+  const handleManageWindows = (serviceId: string) => {
     setCurrentServiceId(serviceId);
     setShowWindowManager(true);
   };
 
   const currentFormData = editingService || newService;
+
+  if (isServicesLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading services...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -326,23 +389,23 @@ const Services = () => {
                 <div className="flex items-center space-x-2">
                   <Switch
                     id="secret"
-                    checked={currentFormData.isSecret}
+                    checked={currentFormData.is_secret}
                     onCheckedChange={(checked) => editingService
-                      ? setEditingService({...editingService, isSecret: checked})
-                      : setNewService({...newService, isSecret: checked})
+                      ? setEditingService({...editingService, is_secret: checked})
+                      : setNewService({...newService, is_secret: checked})
                     }
                   />
                   <Label htmlFor="secret">Secret Service</Label>
-                  {currentFormData.isSecret && (
+                  {currentFormData.is_secret && (
                     <Badge variant="secondary" className="text-xs">
-                      {currentFormData.secretSlug || 'auto-generated'}
+                      {currentFormData.secret_slug || 'auto-generated'}
                     </Badge>
                   )}
                 </div>
               </div>
               
               <RichTextEditor
-                value={currentFormData.description}
+                value={currentFormData.description || ""}
                 onChange={(value) => editingService
                   ? setEditingService({...editingService, description: value})
                   : setNewService({...newService, description: value})
@@ -354,23 +417,23 @@ const Services = () => {
 
               {/* Tag Selector */}
               <TagSelector
-                selectedTagIds={currentFormData.tagIds}
+                selectedTagIds={currentFormData.tag_ids || []}
                 onTagsChange={(tagIds) => editingService
-                  ? setEditingService({...editingService, tagIds})
-                  : setNewService({...newService, tagIds})
+                  ? setEditingService({...editingService, tag_ids: tagIds})
+                  : setNewService({...newService, tag_ids: tagIds})
                 }
               />
 
               {/* Enhanced Image Upload */}
               <MediaUpload
-                imageUrl={currentFormData.imageUrl}
+                imageUrl={currentFormData.image_url || ""}
                 onImageChange={(url) => editingService
-                  ? setEditingService({...editingService, imageUrl: url})
-                  : setNewService({...newService, imageUrl: url})
+                  ? setEditingService({...editingService, image_url: url})
+                  : setNewService({...newService, image_url: url})
                 }
                 onRemove={() => editingService
-                  ? setEditingService({...editingService, imageUrl: ""})
-                  : setNewService({...newService, imageUrl: ""})
+                  ? setEditingService({...editingService, image_url: ""})
+                  : setNewService({...newService, image_url: ""})
                 }
               />
 
@@ -379,10 +442,10 @@ const Services = () => {
                 <div>
                   <Label htmlFor="minGuests">Min Guests</Label>
                   <Select 
-                    value={currentFormData.minGuests.toString()} 
+                    value={currentFormData.min_guests?.toString()} 
                     onValueChange={(value) => editingService
-                      ? setEditingService({...editingService, minGuests: parseInt(value)})
-                      : setNewService({...newService, minGuests: parseInt(value)})
+                      ? setEditingService({...editingService, min_guests: parseInt(value)})
+                      : setNewService({...newService, min_guests: parseInt(value)})
                     }
                   >
                     <SelectTrigger>
@@ -398,10 +461,10 @@ const Services = () => {
                 <div>
                   <Label htmlFor="maxGuests">Max Guests</Label>
                   <Select 
-                    value={currentFormData.maxGuests.toString()} 
+                    value={currentFormData.max_guests?.toString()} 
                     onValueChange={(value) => editingService
-                      ? setEditingService({...editingService, maxGuests: parseInt(value)})
-                      : setNewService({...newService, maxGuests: parseInt(value)})
+                      ? setEditingService({...editingService, max_guests: parseInt(value)})
+                      : setNewService({...newService, max_guests: parseInt(value)})
                     }
                   >
                     <SelectTrigger>
@@ -417,10 +480,10 @@ const Services = () => {
                 <div>
                   <Label htmlFor="leadTime">Lead Time (hrs)</Label>
                   <Select 
-                    value={currentFormData.leadTimeHours.toString()} 
+                    value={currentFormData.lead_time_hours?.toString()} 
                     onValueChange={(value) => editingService
-                      ? setEditingService({...editingService, leadTimeHours: parseInt(value)})
-                      : setNewService({...newService, leadTimeHours: parseInt(value)})
+                      ? setEditingService({...editingService, lead_time_hours: parseInt(value)})
+                      : setNewService({...newService, lead_time_hours: parseInt(value)})
                     }
                   >
                     <SelectTrigger>
@@ -436,10 +499,10 @@ const Services = () => {
                 <div>
                   <Label htmlFor="cancellation">Cancel Window</Label>
                   <Select 
-                    value={currentFormData.cancellationWindowHours.toString()} 
+                    value={currentFormData.cancellation_window_hours?.toString()} 
                     onValueChange={(value) => editingService
-                      ? setEditingService({...editingService, cancellationWindowHours: parseInt(value)})
-                      : setNewService({...newService, cancellationWindowHours: parseInt(value)})
+                      ? setEditingService({...editingService, cancellation_window_hours: parseInt(value)})
+                      : setNewService({...newService, cancellation_window_hours: parseInt(value)})
                     }
                   >
                     <SelectTrigger>
@@ -459,25 +522,25 @@ const Services = () => {
                 <div className="flex items-center space-x-2">
                   <Switch
                     id="deposit"
-                    checked={currentFormData.requiresDeposit}
+                    checked={currentFormData.requires_deposit}
                     onCheckedChange={(checked) => editingService
-                      ? setEditingService({...editingService, requiresDeposit: checked})
-                      : setNewService({...newService, requiresDeposit: checked})
+                      ? setEditingService({...editingService, requires_deposit: checked})
+                      : setNewService({...newService, requires_deposit: checked})
                     }
                   />
                   <Label htmlFor="deposit">Requires Deposit</Label>
                 </div>
-                {currentFormData.requiresDeposit && (
+                {currentFormData.requires_deposit && (
                   <div className="flex items-center space-x-2">
                     <Label htmlFor="depositAmount">Amount per guest (£)</Label>
                     <Input
                       id="depositAmount"
                       type="number"
                       className="w-20"
-                      value={currentFormData.depositPerGuest}
+                      value={currentFormData.deposit_per_guest}
                       onChange={(e) => editingService
-                        ? setEditingService({...editingService, depositPerGuest: parseInt(e.target.value)})
-                        : setNewService({...newService, depositPerGuest: parseInt(e.target.value)})
+                        ? setEditingService({...editingService, deposit_per_guest: parseInt(e.target.value)})
+                        : setNewService({...newService, deposit_per_guest: parseInt(e.target.value)})
                       }
                     />
                   </div>
@@ -488,10 +551,10 @@ const Services = () => {
                 <div className="flex items-center space-x-2">
                   <Switch
                     id="bookable"
-                    checked={currentFormData.onlineBookable}
+                    checked={currentFormData.online_bookable}
                     onCheckedChange={(checked) => editingService
-                      ? setEditingService({...editingService, onlineBookable: checked})
-                      : setNewService({...newService, onlineBookable: checked})
+                      ? setEditingService({...editingService, online_bookable: checked})
+                      : setNewService({...newService, online_bookable: checked})
                     }
                   />
                   <Label htmlFor="bookable">Online Bookable</Label>
@@ -514,11 +577,11 @@ const Services = () => {
             <div className="space-y-4">
               {/* Duration Rules */}
               <DurationRulesManager
-                rules={currentFormData.durationRules}
-                maxGuests={currentFormData.maxGuests}
+                rules={currentFormData.duration_rules || []}
+                maxGuests={currentFormData.max_guests}
                 onChange={(rules) => editingService
-                  ? setEditingService({...editingService, durationRules: rules})
-                  : setNewService({...newService, durationRules: rules})
+                  ? setEditingService({...editingService, duration_rules: rules})
+                  : setNewService({...newService, duration_rules: rules})
                 }
               />
 
@@ -534,12 +597,12 @@ const Services = () => {
                         ? setEditingService({
                             ...editingService, 
                             useStandardTerms: checked,
-                            termsAndConditions: checked ? getStandardTerms() : editingService.termsAndConditions
+                            terms_and_conditions: checked ? getStandardTerms() : editingService.terms_and_conditions
                           })
                         : setNewService({
                             ...newService, 
                             useStandardTerms: checked,
-                            termsAndConditions: checked ? getStandardTerms() : newService.termsAndConditions
+                            terms_and_conditions: checked ? getStandardTerms() : newService.terms_and_conditions
                           })
                       }
                     />
@@ -556,10 +619,10 @@ const Services = () => {
                   </div>
                 ) : (
                   <TermsEditor
-                    value={currentFormData.termsAndConditions}
+                    value={currentFormData.terms_and_conditions || ""}
                     onChange={(value) => editingService
-                      ? setEditingService({...editingService, termsAndConditions: value})
-                      : setNewService({...newService, termsAndConditions: value})
+                      ? setEditingService({...editingService, terms_and_conditions: value})
+                      : setNewService({...newService, terms_and_conditions: value})
                     }
                   />
                 )}
@@ -568,8 +631,14 @@ const Services = () => {
           </div>
 
           <div className="flex gap-2 pt-4 border-t">
-            <Button onClick={editingService ? handleUpdateService : handleAddService}>
-              {editingService ? 'Update Service' : 'Add Service'}
+            <Button 
+              onClick={editingService ? handleUpdateService : handleAddService}
+              disabled={createServiceMutation.isPending || updateServiceMutation.isPending}
+            >
+              {createServiceMutation.isPending || updateServiceMutation.isPending 
+                ? "Saving..." 
+                : editingService ? 'Update Service' : 'Add Service'
+              }
             </Button>
             <Button variant="outline" onClick={() => setShowServiceDialog(false)}>Cancel</Button>
           </div>
@@ -590,19 +659,19 @@ const Services = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {services.map((service) => {
-          const serviceTags = getTagsForService(service.tagIds);
+          const serviceTags = getTagsForService(service.tag_ids || []);
           const serviceWindows = getWindowsForService(service.id);
           
           return (
             <Card key={service.id} className={`overflow-hidden ${!service.active ? 'opacity-75' : ''}`}>
               <div className="aspect-video bg-muted bg-cover bg-center" 
-                   style={{ backgroundImage: `url(${service.imageUrl})` }} />
+                   style={{ backgroundImage: service.image_url ? `url(${service.image_url})` : 'none' }} />
               <CardHeader className="pb-3">
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <CardTitle className="text-lg flex items-center gap-2 mb-2">
                       {service.title}
-                      {service.isSecret && (
+                      {service.is_secret && (
                         <Badge variant="outline" className="text-xs">
                           <Eye className="h-3 w-3 mr-1" />
                           Secret
@@ -627,7 +696,7 @@ const Services = () => {
                   </div>
                   
                   <div className="flex gap-1">
-                    {service.onlineBookable && (
+                    {service.online_bookable && (
                       <Badge variant="secondary">Online</Badge>
                     )}
                     {service.active ? (
@@ -645,32 +714,32 @@ const Services = () => {
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-muted-foreground" strokeWidth={2} />
-                    <span>{service.minGuests}-{service.maxGuests} guests</span>
+                    <span>{service.min_guests}-{service.max_guests} guests</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Clock className="h-4 w-4 text-muted-foreground" strokeWidth={2} />
-                    <span>{service.leadTimeHours}h lead</span>
+                    <span>{service.lead_time_hours}h lead</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4 text-muted-foreground" strokeWidth={2} />
-                    <span>{service.cancellationWindowHours}h cancel</span>
+                    <span>{service.cancellation_window_hours}h cancel</span>
                   </div>
-                  {service.requiresDeposit && (
+                  {service.requires_deposit && (
                     <div className="text-sm font-medium">
-                      £{service.depositPerGuest} deposit
+                      £{service.deposit_per_guest} deposit
                     </div>
                   )}
                 </div>
 
                 {/* Collapsible Duration Rules */}
-                {service.durationRules?.length > 0 && (
+                {service.duration_rules?.length > 0 && (
                   <Collapsible>
                     <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded bg-muted/50 hover:bg-muted text-sm">
-                      <span className="font-medium">{service.durationRules.length} Duration Rules</span>
+                      <span className="font-medium">{service.duration_rules.length} Duration Rules</span>
                       <ChevronDown className="h-4 w-4" />
                     </CollapsibleTrigger>
                     <CollapsibleContent className="space-y-1 mt-2">
-                      {service.durationRules.map((rule, index) => (
+                      {service.duration_rules.map((rule: any, index: number) => (
                         <div key={rule.id || index} className="text-xs bg-muted p-2 rounded">
                           {rule.minGuests}-{rule.maxGuests} guests: {rule.durationMinutes} minutes
                         </div>

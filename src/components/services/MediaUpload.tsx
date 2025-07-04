@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Upload, X, Info } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 interface MediaUploadProps {
   imageUrl: string;
@@ -49,16 +50,33 @@ export const MediaUpload = ({ imageUrl, onImageChange, onRemove }: MediaUploadPr
 
     setIsUploading(true);
     try {
-      // For now, we'll create a URL for the uploaded file
-      // In a real implementation, this would upload to Supabase Storage
-      const imageUrl = URL.createObjectURL(file);
-      onImageChange(imageUrl);
+      // Create a unique filename
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `service-images/${fileName}`;
+
+      // Upload file to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('service-images')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Get the public URL
+      const { data } = supabase.storage
+        .from('service-images')
+        .getPublicUrl(filePath);
+
+      onImageChange(data.publicUrl);
       
       toast({
         title: "Image uploaded",
         description: "Your service image has been uploaded successfully.",
       });
     } catch (error) {
+      console.error('Upload error:', error);
       toast({
         title: "Upload failed",
         description: "Failed to upload image. Please try again.",
@@ -69,7 +87,22 @@ export const MediaUpload = ({ imageUrl, onImageChange, onRemove }: MediaUploadPr
     }
   };
 
-  const handleRemove = () => {
+  const handleRemove = async () => {
+    // If it's a Supabase Storage URL, try to delete the file
+    if (imageUrl.includes('supabase')) {
+      try {
+        const urlParts = imageUrl.split('/');
+        const fileName = urlParts[urlParts.length - 1];
+        const filePath = `service-images/${fileName}`;
+        
+        await supabase.storage
+          .from('service-images')
+          .remove([filePath]);
+      } catch (error) {
+        console.warn('Failed to delete file from storage:', error);
+      }
+    }
+    
     onRemove();
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
