@@ -279,7 +279,7 @@ const Services = () => {
     setEditingService({
       ...service,
       tagIds: service.tag_ids || [],
-      durationRules: service.duration_rules || [],
+      durationRules: Array.isArray(service.duration_rules) ? service.duration_rules : [],
       useStandardTerms: !service.terms_and_conditions || service.terms_and_conditions === getStandardTerms()
     });
     setShowServiceDialog(true);
@@ -661,6 +661,7 @@ const Services = () => {
         {services.map((service) => {
           const serviceTags = getTagsForService(service.tag_ids || []);
           const serviceWindows = getWindowsForService(service.id);
+          const durationRules = Array.isArray(service.duration_rules) ? service.duration_rules : [];
           
           return (
             <Card key={service.id} className={`overflow-hidden ${!service.active ? 'opacity-75' : ''}`}>
@@ -732,14 +733,14 @@ const Services = () => {
                 </div>
 
                 {/* Collapsible Duration Rules */}
-                {service.duration_rules?.length > 0 && (
+                {durationRules.length > 0 && (
                   <Collapsible>
                     <CollapsibleTrigger className="flex items-center justify-between w-full p-2 rounded bg-muted/50 hover:bg-muted text-sm">
-                      <span className="font-medium">{service.duration_rules.length} Duration Rules</span>
+                      <span className="font-medium">{durationRules.length} Duration Rules</span>
                       <ChevronDown className="h-4 w-4" />
                     </CollapsibleTrigger>
                     <CollapsibleContent className="space-y-1 mt-2">
-                      {service.duration_rules.map((rule: any, index: number) => (
+                      {durationRules.map((rule: any, index: number) => (
                         <div key={rule.id || index} className="text-xs bg-muted p-2 rounded">
                           {rule.minGuests}-{rule.maxGuests} guests: {rule.durationMinutes} minutes
                         </div>
