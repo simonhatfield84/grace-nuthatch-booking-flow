@@ -16,6 +16,7 @@ import { OptimizedTimeGrid } from "@/components/host/OptimizedTimeGrid";
 import { TouchOptimizedBookingBar } from "@/components/host/TouchOptimizedBookingBar";
 import { BookingDetailsPanel } from "@/components/host/BookingDetailsPanel";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Booking } from "@/hooks/useBookings";
 
 const HostInterface = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -40,7 +41,12 @@ const HostInterface = () => {
         .order('booking_time');
       
       if (error) throw error;
-      return data;
+      
+      // Cast the data to match our Booking interface
+      return (data || []).map(booking => ({
+        ...booking,
+        status: booking.status as Booking['status']
+      })) as Booking[];
     }
   });
 
