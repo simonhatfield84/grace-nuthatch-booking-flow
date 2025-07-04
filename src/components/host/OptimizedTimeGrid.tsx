@@ -1,4 +1,3 @@
-
 import { format, addMinutes } from "date-fns";
 
 interface OptimizedTimeGridProps {
@@ -7,6 +6,9 @@ interface OptimizedTimeGridProps {
 }
 
 export const OptimizedTimeGrid = ({ venueHours, children }: OptimizedTimeGridProps) => {
+  // Platform test - minimal change
+  console.log("OptimizedTimeGrid rendered successfully");
+  
   const generateTimeSlots = () => {
     if (!venueHours) return [];
     
