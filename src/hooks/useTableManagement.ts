@@ -88,6 +88,7 @@ export const useTableManagement = () => {
     handleDeleteTable,
     handleEditTable,
     resetTableForm,
-    validateTable
+    validateTable,
+    updateTable // Expose this for use in other hooks
   };
 };

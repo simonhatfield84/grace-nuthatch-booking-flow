@@ -38,11 +38,11 @@ export const GroupDialog = ({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{editingGroup ? 'Edit Join Group' : 'Create Join Group'}</DialogTitle>
+          <DialogTitle>{editingGroup ? 'Edit Table Join' : 'Create Table Join'}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div>
-            <Label htmlFor="groupName">Group Name</Label>
+            <Label htmlFor="groupName">Table Join Name</Label>
             <Input
               id="groupName"
               value={currentGroupData.name}
@@ -106,7 +106,7 @@ export const GroupDialog = ({
               onClick={editingGroup ? onUpdateGroup : onAddGroup}
               disabled={!currentGroupData.name || currentGroupData.memberTableIds.length < 2}
             >
-              {editingGroup ? 'Update Group' : 'Create Group'}
+              {editingGroup ? 'Update Table Join' : 'Create Table Join'}
             </Button>
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           </div>

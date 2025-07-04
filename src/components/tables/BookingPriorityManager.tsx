@@ -14,7 +14,7 @@ interface BookingPriorityManagerProps {
 export const BookingPriorityManager = ({ tables, joinGroups }: BookingPriorityManagerProps) => {
   const [selectedPartySize, setSelectedPartySize] = useState<string>("2");
 
-  // Get all items (tables + groups) that can accommodate the selected party size
+  // Get all items (tables + table joins) that can accommodate the selected party size
   const getAvailableItems = (partySize: number) => {
     const availableTables = tables
       .filter(table => table.seats >= partySize)
@@ -25,7 +25,7 @@ export const BookingPriorityManager = ({ tables, joinGroups }: BookingPriorityMa
         displayName: `${table.label} (${table.seats} seats)`
       }));
 
-    const availableGroups = joinGroups
+    const availableTableJoins = joinGroups
       .filter(group => group.maxCapacity >= partySize)
       .map(group => ({
         ...group,
@@ -34,7 +34,7 @@ export const BookingPriorityManager = ({ tables, joinGroups }: BookingPriorityMa
         displayName: `${group.name} (${group.maxCapacity} seats)`
       }));
 
-    return [...availableTables, ...availableGroups].sort((a, b) => a.priorityRank - b.priorityRank);
+    return [...availableTables, ...availableTableJoins].sort((a, b) => a.priorityRank - b.priorityRank);
   };
 
   const handleDragEnd = (result: any) => {
@@ -62,7 +62,7 @@ export const BookingPriorityManager = ({ tables, joinGroups }: BookingPriorityMa
         <div>
           <h3 className="text-lg font-semibold">Booking Priority</h3>
           <p className="text-sm text-muted-foreground">
-            Set booking priority for tables and groups by party size
+            Set booking priority for tables and table joins by party size
           </p>
         </div>
         <Select value={selectedPartySize} onValueChange={setSelectedPartySize}>
@@ -93,7 +93,7 @@ export const BookingPriorityManager = ({ tables, joinGroups }: BookingPriorityMa
         <CardContent>
           {availableItems.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              No tables or groups can accommodate a party of {selectedPartySize}
+              No tables or table joins can accommodate a party of {selectedPartySize}
             </div>
           ) : (
             <DragDropContext onDragEnd={handleDragEnd}>
@@ -134,7 +134,7 @@ export const BookingPriorityManager = ({ tables, joinGroups }: BookingPriorityMa
                                   {item.joinGroups && item.joinGroups.length > 0 && (
                                     <Badge variant="outline" className="text-xs">
                                       <Link className="h-3 w-3 mr-1" />
-                                      {item.joinGroups.length} groups
+                                      {item.joinGroups.length} table joins
                                     </Badge>
                                   )}
                                 </>

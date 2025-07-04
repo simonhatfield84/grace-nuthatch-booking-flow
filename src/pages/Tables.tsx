@@ -23,7 +23,8 @@ const Tables = () => {
     handleUpdateTable,
     handleDeleteTable,
     handleEditTable,
-    resetTableForm
+    resetTableForm,
+    updateTable
   } = useTableManagement();
 
   const {
@@ -37,7 +38,7 @@ const Tables = () => {
     handleDeleteGroup,
     handleEditGroup,
     resetGroupForm
-  } = useGroupManagement([], tables, () => {});
+  } = useGroupManagement([], tables, updateTable);
 
   const [showAddTableDialog, setShowAddTableDialog] = useState(false);
   const [showEditTableDialog, setShowEditTableDialog] = useState(false);
@@ -85,7 +86,7 @@ const Tables = () => {
           </Button>
           <Button variant="outline" onClick={() => setShowAddGroupDialog(true)}>
             <Link className="h-4 w-4 mr-2" strokeWidth={2} />
-            Create Group
+            Create Table Join
           </Button>
         </div>
       </div>
@@ -96,7 +97,7 @@ const Tables = () => {
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="layout">Layout & Sections</TabsTrigger>
           <TabsTrigger value="priority">Booking Priority</TabsTrigger>
-          <TabsTrigger value="groups">Join Groups</TabsTrigger>
+          <TabsTrigger value="groups">Table Joins</TabsTrigger>
         </TabsList>
 
         <TabsContent value="layout" className="space-y-6">

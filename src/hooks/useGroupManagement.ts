@@ -15,7 +15,7 @@ interface JoinGroup {
   updated_at: string;
 }
 
-export const useGroupManagement = (initialGroups: any[], tables: any[], setTables: (tables: any[]) => void) => {
+export const useGroupManagement = (initialGroups: any[], tables: any[], updateTableFunction: (params: { id: number, updates: any }) => Promise<any>) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -40,6 +40,29 @@ export const useGroupManagement = (initialGroups: any[], tables: any[], setTable
     maxCapacity: 0
   });
 
+  // Helper function to update tables' join_groups arrays
+  const updateTablesJoinGroups = async (tableIds: number[], groupId: number, operation: 'add' | 'remove') => {
+    const updatePromises = tableIds.map(async (tableId) => {
+      const table = tables.find(t => t.id === tableId);
+      if (!table) return;
+
+      let updatedJoinGroups = [...(table.join_groups || [])];
+      
+      if (operation === 'add' && !updatedJoinGroups.includes(groupId)) {
+        updatedJoinGroups.push(groupId);
+      } else if (operation === 'remove') {
+        updatedJoinGroups = updatedJoinGroups.filter(id => id !== groupId);
+      }
+
+      return updateTableFunction({
+        id: tableId,
+        updates: { join_groups: updatedJoinGroups }
+      });
+    });
+
+    await Promise.all(updatePromises);
+  };
+
   // Create join group mutation
   const createGroupMutation = useMutation({
     mutationFn: async (groupData: {
@@ -58,26 +81,32 @@ export const useGroupManagement = (initialGroups: any[], tables: any[], setTable
       if (error) throw error;
       return data;
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['join-groups'] });
-      
-      // Update tables to include this join group in their joinGroups array
-      setTables(tables.map(table => 
-        data.table_ids.includes(table.id) 
-          ? { ...table, join_groups: [...(table.join_groups || []), data.id] }
-          : table
-      ));
-      
-      toast({ 
-        title: "Group created", 
-        description: "Join group has been created successfully." 
-      });
+    onSuccess: async (data) => {
+      try {
+        // Update all affected tables to include this join group
+        await updateTablesJoinGroups(data.table_ids, data.id, 'add');
+        
+        queryClient.invalidateQueries({ queryKey: ['join-groups'] });
+        queryClient.invalidateQueries({ queryKey: ['tables'] });
+        
+        toast({ 
+          title: "Table join created", 
+          description: "Table join has been created successfully." 
+        });
+      } catch (error) {
+        console.error('Error updating tables after group creation:', error);
+        toast({ 
+          title: "Warning", 
+          description: "Table join created but some table updates failed.", 
+          variant: "destructive" 
+        });
+      }
     },
     onError: (error: any) => {
       console.error('Create group error:', error);
       toast({ 
         title: "Error", 
-        description: "Failed to create join group.", 
+        description: "Failed to create table join.", 
         variant: "destructive" 
       });
     }
@@ -85,7 +114,7 @@ export const useGroupManagement = (initialGroups: any[], tables: any[], setTable
 
   // Update join group mutation
   const updateGroupMutation = useMutation({
-    mutationFn: async ({ id, updates }: { id: number, updates: Partial<JoinGroup> }) => {
+    mutationFn: async ({ id, updates, oldTableIds }: { id: number, updates: Partial<JoinGroup>, oldTableIds: number[] }) => {
       const { data, error } = await supabase
         .from('join_groups')
         .update({ ...updates, updated_at: new Date().toISOString() })
@@ -94,34 +123,41 @@ export const useGroupManagement = (initialGroups: any[], tables: any[], setTable
         .single();
       
       if (error) throw error;
-      return data;
+      return { data, oldTableIds };
     },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['join-groups'] });
-      
-      // Update tables to reflect new group membership
-      setTables(tables.map(table => {
-        const wasInGroup = table.join_groups?.includes(data.id) || false;
-        const shouldBeInGroup = data.table_ids.includes(table.id);
-        
-        if (!wasInGroup && shouldBeInGroup) {
-          return { ...table, join_groups: [...(table.join_groups || []), data.id] };
-        } else if (wasInGroup && !shouldBeInGroup) {
-          return { ...table, join_groups: (table.join_groups || []).filter((gId: number) => gId !== data.id) };
+    onSuccess: async ({ data, oldTableIds }) => {
+      try {
+        // Remove group from old tables
+        if (oldTableIds.length > 0) {
+          await updateTablesJoinGroups(oldTableIds, data.id, 'remove');
         }
-        return table;
-      }));
-      
-      toast({ 
-        title: "Group updated", 
-        description: "Join group has been updated successfully." 
-      });
+        
+        // Add group to new tables
+        if (data.table_ids.length > 0) {
+          await updateTablesJoinGroups(data.table_ids, data.id, 'add');
+        }
+        
+        queryClient.invalidateQueries({ queryKey: ['join-groups'] });
+        queryClient.invalidateQueries({ queryKey: ['tables'] });
+        
+        toast({ 
+          title: "Table join updated", 
+          description: "Table join has been updated successfully." 
+        });
+      } catch (error) {
+        console.error('Error updating tables after group update:', error);
+        toast({ 
+          title: "Warning", 
+          description: "Table join updated but some table updates failed.", 
+          variant: "destructive" 
+        });
+      }
     },
     onError: (error: any) => {
       console.error('Update group error:', error);
       toast({ 
         title: "Error", 
-        description: "Failed to update join group.", 
+        description: "Failed to update table join.", 
         variant: "destructive" 
       });
     }
@@ -130,33 +166,51 @@ export const useGroupManagement = (initialGroups: any[], tables: any[], setTable
   // Delete join group mutation
   const deleteGroupMutation = useMutation({
     mutationFn: async (id: number) => {
+      // First get the group to know which tables to update
+      const { data: group, error: fetchError } = await supabase
+        .from('join_groups')
+        .select('table_ids')
+        .eq('id', id)
+        .single();
+      
+      if (fetchError) throw fetchError;
+
       const { error } = await supabase
         .from('join_groups')
         .delete()
         .eq('id', id);
       
       if (error) throw error;
-      return id;
+      return { id, tableIds: group.table_ids };
     },
-    onSuccess: (deletedId) => {
-      queryClient.invalidateQueries({ queryKey: ['join-groups'] });
-      
-      // Remove group from all tables
-      setTables(tables.map(table => ({
-        ...table,
-        join_groups: (table.join_groups || []).filter((gId: number) => gId !== deletedId)
-      })));
-      
-      toast({ 
-        title: "Group deleted", 
-        description: "Join group has been deleted successfully." 
-      });
+    onSuccess: async ({ id, tableIds }) => {
+      try {
+        // Remove group from all affected tables
+        if (tableIds.length > 0) {
+          await updateTablesJoinGroups(tableIds, id, 'remove');
+        }
+        
+        queryClient.invalidateQueries({ queryKey: ['join-groups'] });
+        queryClient.invalidateQueries({ queryKey: ['tables'] });
+        
+        toast({ 
+          title: "Table join deleted", 
+          description: "Table join has been deleted successfully." 
+        });
+      } catch (error) {
+        console.error('Error updating tables after group deletion:', error);
+        toast({ 
+          title: "Warning", 
+          description: "Table join deleted but some table updates failed.", 
+          variant: "destructive" 
+        });
+      }
     },
     onError: (error: any) => {
       console.error('Delete group error:', error);
       toast({ 
         title: "Error", 
-        description: "Failed to delete join group.", 
+        description: "Failed to delete table join.", 
         variant: "destructive" 
       });
     }
@@ -173,7 +227,7 @@ export const useGroupManagement = (initialGroups: any[], tables: any[], setTable
       table_ids: newGroup.memberTableIds,
       min_party_size: 1,
       max_party_size: maxCapacity,
-      description: `Group of ${newGroup.memberTableIds.length} tables`
+      description: `Table join of ${newGroup.memberTableIds.length} tables`
     });
     
     resetGroupForm();
@@ -187,14 +241,19 @@ export const useGroupManagement = (initialGroups: any[], tables: any[], setTable
       return sum + (table?.seats || 0);
     }, 0);
 
+    // Find the original group to get old table IDs
+    const originalGroup = joinGroups.find(g => g.id === editingGroup.id);
+    const oldTableIds = originalGroup?.table_ids || [];
+
     await updateGroupMutation.mutateAsync({
       id: editingGroup.id,
       updates: {
         name: editingGroup.name,
         table_ids: editingGroup.memberTableIds,
         max_party_size: maxCapacity,
-        description: `Group of ${editingGroup.memberTableIds.length} tables`
-      }
+        description: `Table join of ${editingGroup.memberTableIds.length} tables`
+      },
+      oldTableIds
     });
     
     setEditingGroup(null);

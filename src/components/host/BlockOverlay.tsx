@@ -1,6 +1,7 @@
 
 import { useBlocks } from "@/hooks/useBlocks";
 import { format } from "date-fns";
+import { Ban } from "lucide-react";
 
 interface BlockOverlayProps {
   selectedDate: Date;
@@ -50,7 +51,7 @@ export const BlockOverlay = ({ selectedDate, venueHours, tableId }: BlockOverlay
         return (
           <div
             key={block.id}
-            className="absolute bg-gray-400/50 border border-gray-500 rounded-sm"
+            className="absolute bg-red-500/30 border-2 border-red-500 rounded-sm flex items-center justify-center"
             style={{
               left: `${leftPixels}px`,
               width: `${widthPixels}px`,
@@ -59,7 +60,9 @@ export const BlockOverlay = ({ selectedDate, venueHours, tableId }: BlockOverlay
               zIndex: 5
             }}
             title={`Blocked: ${block.reason || 'No reason specified'}`}
-          />
+          >
+            <Ban className="h-4 w-4 text-red-600" strokeWidth={3} />
+          </div>
         );
       })}
     </>

@@ -19,7 +19,7 @@ export const JoinGroupsList = ({ joinGroups, tables, onEditGroup, onDeleteGroup 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Join Groups</CardTitle>
+        <CardTitle>Table Joins</CardTitle>
         <CardDescription>Tables that can be combined for larger parties</CardDescription>
       </CardHeader>
       <CardContent>
