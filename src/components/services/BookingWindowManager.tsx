@@ -14,6 +14,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 interface BlackoutPeriod {
   id?: string;
@@ -35,7 +36,7 @@ interface BookingWindow {
 }
 
 interface BookingWindowManagerProps {
-  serviceId: string;
+  serviceId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -64,6 +65,7 @@ const timeSlots = [
 ];
 
 export function BookingWindowManager({ serviceId, open, onOpenChange }: BookingWindowManagerProps) {
+  const { toast } = useToast();
   const queryClient = useQueryClient();
   const [editingWindow, setEditingWindow] = useState<BookingWindow | null>(null);
   const [showWindowDialog, setShowWindowDialog] = useState(false);
@@ -71,18 +73,35 @@ export function BookingWindowManager({ serviceId, open, onOpenChange }: BookingW
   const [openEnded, setOpenEnded] = useState(true);
   const [newBlackoutPeriod, setNewBlackoutPeriod] = useState<Partial<BlackoutPeriod>>({});
 
+  // Add debugging for serviceId
+  useEffect(() => {
+    console.log('BookingWindowManager serviceId:', serviceId);
+    console.log('BookingWindowManager open:', open);
+  }, [serviceId, open]);
+
+  // Validation: Don't render if serviceId is null
+  if (!serviceId) {
+    console.warn('BookingWindowManager: serviceId is null, not rendering dialog');
+    return null;
+  }
+
   // Fetch booking windows for this service
   const { data: windows = [] } = useQuery({
     queryKey: ['booking-windows', serviceId],
     queryFn: async () => {
+      console.log('Fetching booking windows for service:', serviceId);
       const { data, error } = await supabase
         .from('booking_windows')
         .select('*')
         .eq('service_id', serviceId)
         .order('created_at');
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching booking windows:', error);
+        throw error;
+      }
       
+      console.log('Fetched booking windows:', data);
       return data.map(window => ({
         ...window,
         start_date: window.start_date ? new Date(window.start_date) : null,
@@ -94,12 +113,19 @@ export function BookingWindowManager({ serviceId, open, onOpenChange }: BookingW
         })) : []
       }));
     },
-    enabled: open
+    enabled: open && !!serviceId
   });
 
   // Create window mutation
   const createWindowMutation = useMutation({
     mutationFn: async (window: Omit<BookingWindow, 'id'>) => {
+      console.log('Creating booking window with data:', window);
+      
+      // Validate serviceId before submission
+      if (!window.service_id) {
+        throw new Error('Service ID is required');
+      }
+
       const { data, error } = await supabase
         .from('booking_windows')
         .insert({
@@ -119,19 +145,44 @@ export function BookingWindowManager({ serviceId, open, onOpenChange }: BookingW
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error creating booking window:', error);
+        throw error;
+      }
+      
+      console.log('Successfully created booking window:', data);
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['booking-windows', serviceId] });
+      queryClient.invalidateQueries({ queryKey: ['all-booking-windows'] });
       setShowWindowDialog(false);
       resetWindowForm();
+      toast({
+        title: "Success",
+        description: "Booking window created successfully"
+      });
+    },
+    onError: (error: any) => {
+      console.error('Error creating booking window:', error);
+      toast({
+        title: "Error",
+        description: `Failed to create booking window: ${error.message}`,
+        variant: "destructive"
+      });
     }
   });
 
   // Update window mutation
   const updateWindowMutation = useMutation({
     mutationFn: async (window: BookingWindow) => {
+      console.log('Updating booking window with data:', window);
+      
+      // Validate serviceId before submission
+      if (!window.service_id) {
+        throw new Error('Service ID is required');
+      }
+
       const { data, error } = await supabase
         .from('booking_windows')
         .update({
@@ -151,14 +202,32 @@ export function BookingWindowManager({ serviceId, open, onOpenChange }: BookingW
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error updating booking window:', error);
+        throw error;
+      }
+      
+      console.log('Successfully updated booking window:', data);
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['booking-windows', serviceId] });
+      queryClient.invalidateQueries({ queryKey: ['all-booking-windows'] });
       setShowWindowDialog(false);
       setEditingWindow(null);
       resetWindowForm();
+      toast({
+        title: "Success",
+        description: "Booking window updated successfully"
+      });
+    },
+    onError: (error: any) => {
+      console.error('Error updating booking window:', error);
+      toast({
+        title: "Error",
+        description: `Failed to update booking window: ${error.message}`,
+        variant: "destructive"
+      });
     }
   });
 
@@ -174,6 +243,19 @@ export function BookingWindowManager({ serviceId, open, onOpenChange }: BookingW
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['booking-windows', serviceId] });
+      queryClient.invalidateQueries({ queryKey: ['all-booking-windows'] });
+      toast({
+        title: "Success",
+        description: "Booking window deleted successfully"
+      });
+    },
+    onError: (error: any) => {
+      console.error('Error deleting booking window:', error);
+      toast({
+        title: "Error",
+        description: `Failed to delete booking window: ${error.message}`,
+        variant: "destructive"
+      });
     }
   });
 
@@ -188,7 +270,16 @@ export function BookingWindowManager({ serviceId, open, onOpenChange }: BookingW
     blackout_periods: []
   });
 
+  // Update formData when serviceId changes
+  useEffect(() => {
+    if (serviceId) {
+      console.log('Setting formData service_id to:', serviceId);
+      setFormData(prev => ({ ...prev, service_id: serviceId }));
+    }
+  }, [serviceId]);
+
   const resetWindowForm = () => {
+    console.log('Resetting form with serviceId:', serviceId);
     setFormData({
       service_id: serviceId,
       days: [],
@@ -238,11 +329,36 @@ export function BookingWindowManager({ serviceId, open, onOpenChange }: BookingW
   };
 
   const handleSubmit = () => {
+    console.log('Submitting form with data:', formData);
+    console.log('Current serviceId:', serviceId);
+    
+    // Validate required fields
+    if (!serviceId) {
+      toast({
+        title: "Error",
+        description: "Service ID is missing. Please close and reopen the dialog.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!formData.start_time || !formData.end_time || !formData.days?.length) {
+      toast({
+        title: "Error",
+        description: "Please fill in all required fields (days, start time, end time).",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const windowData = {
       ...formData,
+      service_id: serviceId, // Ensure serviceId is always set
       start_date: startToday ? new Date() : formData.start_date,
       end_date: openEnded ? null : formData.end_date
     } as BookingWindow;
+
+    console.log('Final window data being submitted:', windowData);
 
     if (editingWindow?.id) {
       updateWindowMutation.mutate({ ...windowData, id: editingWindow.id });
@@ -252,9 +368,11 @@ export function BookingWindowManager({ serviceId, open, onOpenChange }: BookingW
   };
 
   const handleEditWindow = (window: any) => {
+    console.log('Editing window:', window);
     setEditingWindow(window);
     setFormData({
       ...window,
+      service_id: serviceId, // Ensure serviceId is set
       blackout_periods: window.blackout_periods || []
     });
     setStartToday(false);
@@ -649,9 +767,12 @@ export function BookingWindowManager({ serviceId, open, onOpenChange }: BookingW
               <div className="flex gap-2 pt-4 border-t">
                 <Button 
                   onClick={handleSubmit}
-                  disabled={!formData.start_time || !formData.end_time || !formData.days?.length}
+                  disabled={!formData.start_time || !formData.end_time || !formData.days?.length || createWindowMutation.isPending || updateWindowMutation.isPending}
                 >
-                  {editingWindow ? 'Update Window' : 'Add Window'}
+                  {createWindowMutation.isPending || updateWindowMutation.isPending 
+                    ? 'Saving...' 
+                    : editingWindow ? 'Update Window' : 'Add Window'
+                  }
                 </Button>
                 <Button 
                   variant="outline" 
