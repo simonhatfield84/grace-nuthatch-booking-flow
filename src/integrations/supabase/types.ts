@@ -9,6 +9,83 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      blocks: {
+        Row: {
+          created_at: string
+          date: string
+          end_time: string
+          id: string
+          reason: string | null
+          start_time: string
+          table_ids: number[] | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          end_time: string
+          id?: string
+          reason?: string | null
+          start_time: string
+          table_ids?: number[] | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          end_time?: string
+          id?: string
+          reason?: string | null
+          start_time?: string
+          table_ids?: number[] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      booking_audit: {
+        Row: {
+          booking_id: number
+          change_type: string
+          changed_at: string
+          changed_by: string | null
+          field_name: string | null
+          id: string
+          new_value: string | null
+          notes: string | null
+          old_value: string | null
+        }
+        Insert: {
+          booking_id: number
+          change_type: string
+          changed_at?: string
+          changed_by?: string | null
+          field_name?: string | null
+          id?: string
+          new_value?: string | null
+          notes?: string | null
+          old_value?: string | null
+        }
+        Update: {
+          booking_id?: number
+          change_type?: string
+          changed_at?: string
+          changed_by?: string | null
+          field_name?: string | null
+          id?: string
+          new_value?: string | null
+          notes?: string | null
+          old_value?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_audit_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_priorities: {
         Row: {
           created_at: string
@@ -84,6 +161,7 @@ export type Database = {
       bookings: {
         Row: {
           booking_date: string
+          booking_reference: string | null
           booking_time: string
           created_at: string | null
           duration_minutes: number | null
@@ -103,6 +181,7 @@ export type Database = {
         }
         Insert: {
           booking_date: string
+          booking_reference?: string | null
           booking_time: string
           created_at?: string | null
           duration_minutes?: number | null
@@ -122,6 +201,7 @@ export type Database = {
         }
         Update: {
           booking_date?: string
+          booking_reference?: string | null
           booking_time?: string
           created_at?: string | null
           duration_minutes?: number | null
@@ -413,6 +493,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_booking_reference: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_tag_usage_count: {
         Args: { tag_id: string }
         Returns: number

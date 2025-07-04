@@ -1,314 +1,203 @@
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { X, Users, Clock, Phone, Mail, Edit, Trash2, MapPin } from "lucide-react";
+import { X, Users, Clock, Phone, Mail, MapPin, FileText, Calendar, Hash } from "lucide-react";
+import { format } from "date-fns";
 import { Booking } from "@/hooks/useBookings";
-import { useTables } from "@/hooks/useTables";
-import { TableAllocationService } from "@/services/tableAllocation";
-import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect } from "react";
-import { BookingEditForm } from "./BookingEditForm";
-
-interface Table {
-  id: number;
-  label: string;
-  seats: number;
-  section_id: number | null;
-}
+import { BookingAuditTrail } from "./BookingAuditTrail";
 
 interface BookingDetailsPanelProps {
   booking: Booking | null;
   onClose: () => void;
-  onEdit?: (booking: Booking) => void;
-  onDelete?: (booking: Booking) => void;
-  onStatusChange?: (booking: Booking, status: string) => void;
-  onBookingUpdate?: () => void;
+  onStatusChange: (booking: Booking, newStatus: string) => void;
+  onBookingUpdate: () => void;
 }
 
 export const BookingDetailsPanel = ({ 
   booking, 
   onClose, 
-  onEdit, 
-  onDelete, 
-  onStatusChange,
-  onBookingUpdate
+  onStatusChange, 
+  onBookingUpdate 
 }: BookingDetailsPanelProps) => {
-  const { tables } = useTables();
-  const { toast } = useToast();
-  const [availableTables, setAvailableTables] = useState<Table[]>([]);
-  const [isEditing, setIsEditing] = useState(false);
-  const [isAssigning, setIsAssigning] = useState(false);
-
-  useEffect(() => {
-    if (booking) {
-      loadAvailableTables();
-    }
-  }, [booking]);
-
-  const loadAvailableTables = async () => {
-    if (!booking) return;
-    
-    const available = await TableAllocationService.getAvailableTablesForBooking(
-      booking.party_size,
-      booking.booking_date,
-      booking.booking_time
-    );
-    
-    // Include currently assigned table even if it's not "available" for reassignment
-    const currentTable = tables.find(t => t.id === booking.table_id);
-    if (currentTable && !available.find(t => t.id === currentTable.id)) {
-      available.push(currentTable);
-    }
-    
-    setAvailableTables(available);
-  };
-
-  const handleTableAssignment = async (tableId: string) => {
-    if (!booking) return;
-    
-    setIsAssigning(true);
-    const success = await TableAllocationService.manuallyAssignBookingToTable(
-      booking.id,
-      parseInt(tableId)
-    );
-    
-    if (success) {
-      const assignedTable = tables.find(t => t.id === parseInt(tableId));
-      toast({
-        title: "Table Assigned",
-        description: `Booking assigned to table ${assignedTable?.label}`,
-      });
-      onBookingUpdate?.();
-    } else {
-      toast({
-        title: "Assignment Failed",
-        description: "Could not assign booking to selected table",
-        variant: "destructive"
-      });
-    }
-    setIsAssigning(false);
-  };
-
-  const handleBookingSave = (updatedBooking: Booking) => {
-    setIsEditing(false);
-    onBookingUpdate?.();
-  };
-
   if (!booking) return null;
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
-      case 'confirmed': return 'bg-green-100 text-green-800 border-green-200';
-      case 'seated': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'finished': return 'bg-gray-100 text-gray-800 border-gray-200';
-      case 'cancelled': return 'bg-red-100 text-red-800 border-red-200';
-      case 'late': return 'bg-orange-100 text-orange-800 border-orange-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'confirmed':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'seated':
+        return 'bg-blue-100 text-blue-800 border-blue-200';
+      case 'finished':
+        return 'bg-gray-100 text-gray-800 border-gray-200';
+      case 'cancelled':
+        return 'bg-red-100 text-red-800 border-red-200';
+      case 'late':
+        return 'bg-orange-100 text-orange-800 border-orange-200';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
   const statusOptions = ['confirmed', 'seated', 'finished', 'cancelled', 'late'];
-  const assignedTable = tables.find(t => t.id === booking.table_id);
-
-  if (isEditing) {
-    return (
-      <Card className="h-full flex flex-col">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-xl">Edit Booking</CardTitle>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => setIsEditing(false)}
-              className="min-h-[44px] min-w-[44px]"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        </CardHeader>
-        
-        <CardContent className="flex-1">
-          <BookingEditForm
-            booking={booking}
-            onSave={handleBookingSave}
-            onCancel={() => setIsEditing(false)}
-          />
-        </CardContent>
-      </Card>
-    );
-  }
 
   return (
     <Card className="h-full flex flex-col">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-xl">Booking Details</CardTitle>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={onClose}
-            className="min-h-[44px] min-w-[44px]"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+        <CardTitle className="text-lg font-semibold">Booking Details</CardTitle>
+        <Button variant="ghost" size="sm" onClick={onClose}>
+          <X className="h-4 w-4" />
+        </Button>
       </CardHeader>
       
       <CardContent className="flex-1 space-y-6">
-        {/* Guest Information */}
-        <div>
-          <h3 className="font-semibold text-lg mb-3">{booking.guest_name}</h3>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-gray-500" />
-              <span>{booking.party_size} guests</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-gray-500" />
-              <span>{booking.booking_time} on {booking.booking_date}</span>
-            </div>
-            {booking.phone && (
-              <div className="flex items-center gap-2">
-                <Phone className="h-4 w-4 text-gray-500" />
-                <span>{booking.phone}</span>
-              </div>
-            )}
-            {booking.email && (
-              <div className="flex items-center gap-2">
-                <Mail className="h-4 w-4 text-gray-500" />
-                <span>{booking.email}</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <Separator />
-
-        {/* Table Assignment */}
-        <div>
-          <h4 className="font-medium mb-2 flex items-center gap-2">
-            <MapPin className="h-4 w-4" />
-            Table Assignment
-          </h4>
-          
-          {booking.is_unallocated || !assignedTable ? (
-            <div className="space-y-3">
-              <Badge variant="destructive" className="mb-2">
-                Unallocated
-              </Badge>
-              <Select onValueChange={handleTableAssignment} disabled={isAssigning}>
-                <SelectTrigger className="min-h-[44px]">
-                  <SelectValue placeholder="Select a table..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableTables.map((table) => (
-                    <SelectItem key={table.id} value={table.id.toString()}>
-                      Table {table.label} ({table.seats} seats)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Badge variant="outline" className="bg-green-50">
-                  Table {assignedTable.label} ({assignedTable.seats} seats)
-                </Badge>
-              </div>
-              <Select 
-                onValueChange={handleTableAssignment} 
-                disabled={isAssigning}
-                value={booking.table_id?.toString()}
-              >
-                <SelectTrigger className="min-h-[44px]">
-                  <SelectValue placeholder="Reassign table..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableTables.map((table) => (
-                    <SelectItem key={table.id} value={table.id.toString()}>
-                      Table {table.label} ({table.seats} seats)
-                      {table.id === booking.table_id && " (Current)"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-        </div>
-
-        <Separator />
-
-        {/* Status */}
-        <div>
-          <h4 className="font-medium mb-2">Status</h4>
-          <Badge className={`${getStatusColor(booking.status)} capitalize mb-3`}>
-            {booking.status}
-          </Badge>
-          
-          {onStatusChange && (
-            <div className="flex flex-wrap gap-2">
-              {statusOptions.map((status) => (
-                <Button
-                  key={status}
-                  variant={booking.status === status ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => onStatusChange(booking, status)}
-                  className="capitalize min-h-[44px]"
-                >
-                  {status}
-                </Button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {booking.service && (
-          <>
-            <Separator />
+        <ScrollArea className="flex-1">
+          <div className="space-y-6">
+            {/* Guest Information */}
             <div>
-              <h4 className="font-medium mb-2">Service</h4>
-              <p>{booking.service}</p>
+              <h3 className="font-medium text-sm mb-3 flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Guest Information
+              </h3>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Name:</span>
+                  <span className="font-medium">{booking.guest_name}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Party Size:</span>
+                  <span className="font-medium">{booking.party_size} guests</span>
+                </div>
+                {booking.phone && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                      <Phone className="h-3 w-3" />
+                      Phone:
+                    </span>
+                    <span className="font-medium">{booking.phone}</span>
+                  </div>
+                )}
+                {booking.email && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                      <Mail className="h-3 w-3" />
+                      Email:
+                    </span>
+                    <span className="font-medium text-sm">{booking.email}</span>
+                  </div>
+                )}
+              </div>
             </div>
-          </>
-        )}
 
-        <Separator />
+            <Separator />
 
-        {/* Notes */}
-        <div>
-          <h4 className="font-medium mb-2">Notes</h4>
-          <p className="text-sm text-gray-600 dark:text-gray-400 min-h-[20px]">
-            {booking.notes || "No notes"}
-          </p>
-        </div>
+            {/* Booking Information */}
+            <div>
+              <h3 className="font-medium text-sm mb-3 flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Booking Information
+              </h3>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                    <Hash className="h-3 w-3" />
+                    Booking ID:
+                  </span>
+                  <span className="font-medium text-sm">
+                    {booking.booking_reference || `#${booking.id}`}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Date:</span>
+                  <span className="font-medium">
+                    {format(new Date(booking.booking_date), 'EEEE, MMM d, yyyy')}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    Time:
+                  </span>
+                  <span className="font-medium">
+                    {booking.booking_time}
+                    {booking.end_time && booking.status === 'finished' && 
+                      ` - ${booking.end_time}`
+                    }
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Duration:</span>
+                  <span className="font-medium">
+                    {Math.floor((booking.duration_minutes || 120) / 60)}h {((booking.duration_minutes || 120) % 60)}m
+                  </span>
+                </div>
+                {booking.service && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Service:</span>
+                    <span className="font-medium">{booking.service}</span>
+                  </div>
+                )}
+                {booking.table_id && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                      <MapPin className="h-3 w-3" />
+                      Table:
+                    </span>
+                    <span className="font-medium">Table {booking.table_id}</span>
+                  </div>
+                )}
+              </div>
+            </div>
 
-        <Separator />
+            <Separator />
 
-        {/* Actions */}
-        <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            onClick={() => setIsEditing(true)}
-            className="flex-1 min-h-[44px]"
-          >
-            <Edit className="h-4 w-4 mr-2" />
-            Edit
-          </Button>
-          {onDelete && (
-            <Button 
-              variant="destructive" 
-              onClick={() => onDelete(booking)}
-              className="flex-1 min-h-[44px]"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete
-            </Button>
-          )}
-        </div>
+            {/* Status */}
+            <div>
+              <h3 className="font-medium text-sm mb-3">Status</h3>
+              <div className="space-y-3">
+                <Badge className={getStatusColor(booking.status)}>
+                  {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                </Badge>
+                
+                <div className="flex flex-wrap gap-2">
+                  {statusOptions.map((status) => (
+                    <Button
+                      key={status}
+                      size="sm"
+                      variant={booking.status === status ? "default" : "outline"}
+                      onClick={() => onStatusChange(booking, status)}
+                      className="text-xs"
+                    >
+                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {booking.notes && (
+              <>
+                <Separator />
+                <div>
+                  <h3 className="font-medium text-sm mb-3 flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Notes
+                  </h3>
+                  <p className="text-sm bg-gray-50 dark:bg-gray-800 p-3 rounded">
+                    {booking.notes}
+                  </p>
+                </div>
+              </>
+            )}
+
+            <Separator />
+
+            {/* Audit Trail */}
+            <BookingAuditTrail bookingId={booking.id} />
+          </div>
+        </ScrollArea>
       </CardContent>
     </Card>
   );

@@ -1,12 +1,15 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { useVenueHours } from "@/hooks/useVenueHours";
 import { useSections } from "@/hooks/useSections";
 import { useTables } from "@/hooks/useTables";
+import { useBlocks } from "@/hooks/useBlocks";
+import { useBookingAudit } from "@/hooks/useBookingAudit";
 import { TableAllocationService } from "@/services/tableAllocation";
 import { useToast } from "@/hooks/use-toast";
 import { UnallocatedBookingsBanner } from "@/components/host/UnallocatedBookingsBanner";
@@ -14,11 +17,14 @@ import { IPadCalendar } from "@/components/host/IPadCalendar";
 import { OptimizedTimeGrid } from "@/components/host/OptimizedTimeGrid";
 import { TouchOptimizedBookingBar } from "@/components/host/TouchOptimizedBookingBar";
 import { BookingDetailsPanel } from "@/components/host/BookingDetailsPanel";
+import { BlockOverlay } from "@/components/host/BlockOverlay";
+import { CancelledBookingsPanel } from "@/components/host/CancelledBookingsPanel";
+import { BlockDialog } from "@/components/BlockDialog";
 import { WalkInDialog } from "@/components/WalkInDialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Booking } from "@/hooks/useBookings";
 import { backfillBookingDurations } from "@/utils/backfillBookingDurations";
-import { Users, Link } from "lucide-react";
+import { Users, Link, Ban } from "lucide-react";
 
 const HostInterface = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -33,6 +39,8 @@ const HostInterface = () => {
   const { data: venueHours } = useVenueHours();
   const { sections } = useSections();
   const { tables } = useTables();
+  const { blocks } = useBlocks(format(selectedDate, 'yyyy-MM-dd'));
+  const { logAudit } = useBookingAudit();
   
   const { data: bookings = [], refetch: refetchBookings } = useQuery({
     queryKey: ['bookings', format(selectedDate, 'yyyy-MM-dd')],
@@ -148,15 +156,48 @@ const HostInterface = () => {
 
   const handleStatusChange = async (booking: Booking, newStatus: string) => {
     try {
+      const oldStatus = booking.status;
+      const updateData: any = { 
+        status: newStatus, 
+        updated_at: new Date().toISOString() 
+      };
+
+      if (newStatus === 'finished' && oldStatus !== 'finished') {
+        const now = new Date();
+        const endTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+        updateData.end_time = endTime;
+        
+        const [bookingHour, bookingMin] = booking.booking_time.split(':').map(Number);
+        const bookingDate = new Date(booking.booking_date);
+        const bookingDateTime = new Date(bookingDate.getFullYear(), bookingDate.getMonth(), bookingDate.getDate(), bookingHour, bookingMin);
+        const actualDuration = Math.max(30, Math.floor((now.getTime() - bookingDateTime.getTime()) / (1000 * 60)));
+        updateData.duration_minutes = actualDuration;
+      }
+
       const { error } = await supabase
         .from('bookings')
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .update(updateData)
         .eq('id', booking.id);
       
       if (error) throw error;
+
+      await logAudit({
+        booking_id: booking.id,
+        change_type: 'status_changed',
+        field_name: 'status',
+        old_value: oldStatus,
+        new_value: newStatus,
+        changed_by: 'Host Interface',
+        notes: newStatus === 'finished' ? 'End time automatically set to current time' : null
+      });
       
       refetchBookings();
-      setSelectedBooking({ ...booking, status: newStatus as Booking['status'] });
+      setSelectedBooking({ 
+        ...booking, 
+        status: newStatus as Booking['status'],
+        ...(updateData.end_time && { end_time: updateData.end_time }),
+        ...(updateData.duration_minutes && { duration_minutes: updateData.duration_minutes })
+      });
       toast({
         title: "Status Updated",
         description: `Booking status changed to ${newStatus}`,
@@ -174,9 +215,12 @@ const HostInterface = () => {
     refetchBookings();
   };
 
-  const handleGridClick = (time: string) => {
-    setClickedTime(time);
-    setWalkInDialogOpen(true);
+  const handleGridClick = (time: string, event: React.MouseEvent) => {
+    const target = event.target as HTMLElement;
+    if (!target.closest('[data-booking-bar]')) {
+      setClickedTime(time);
+      setWalkInDialogOpen(true);
+    }
   };
 
   const handleDragOver = (e: React.DragEvent, tableId: number) => {
@@ -255,6 +299,22 @@ const HostInterface = () => {
     }
   };
 
+  const generateTimeSlots = () => {
+    if (!venueHours) return [];
+    const slots = [];
+    const [startHour, startMin] = venueHours.start_time.split(':').map(Number);
+    let totalMinutes = startHour * 60 + startMin;
+    
+    for (let i = 0; i < 48; i++) {
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      slots.push(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`);
+      totalMinutes += 15;
+    }
+    
+    return slots;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
       <UnallocatedBookingsBanner
@@ -272,13 +332,27 @@ const HostInterface = () => {
             {format(selectedDate, 'EEEE, MMMM do, yyyy')} • {bookings.length} bookings
           </p>
         </div>
-        <WalkInDialog
-          open={walkInDialogOpen}
-          onOpenChange={setWalkInDialogOpen}
-          preSelectedDate={format(selectedDate, 'yyyy-MM-dd')}
-          preSelectedTime={clickedTime}
-          onBookingCreated={handleBookingUpdate}
-        />
+        <div className="flex gap-2">
+          <BlockDialog
+            tables={tables}
+            timeSlots={generateTimeSlots()}
+            blockedSlots={blocks.map(block => ({
+              id: parseInt(block.id.slice(-6), 16),
+              fromTime: block.start_time,
+              toTime: block.end_time,
+              tableIds: block.table_ids.length === 0 ? ['all'] : block.table_ids.map(String),
+              reason: block.reason || 'Blocked'
+            }))}
+            setBlockedSlots={() => {}}
+          />
+          <WalkInDialog
+            open={walkInDialogOpen}
+            onOpenChange={setWalkInDialogOpen}
+            preSelectedDate={format(selectedDate, 'yyyy-MM-dd')}
+            preSelectedTime={clickedTime}
+            onBookingCreated={handleBookingUpdate}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-12 gap-4 h-[calc(100vh-200px)]">
@@ -345,18 +419,25 @@ const HostInterface = () => {
                                   const hours = Math.floor(totalMinutes / 60);
                                   const minutes = totalMinutes % 60;
                                   const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-                                  handleGridClick(timeStr);
+                                  handleGridClick(timeStr, e);
                                 }
                               }}
                             >
+                              <BlockOverlay
+                                selectedDate={selectedDate}
+                                venueHours={venueHours}
+                                tableId={table.id}
+                              />
+                              
                               {tableBookings.map((booking) => (
-                                <TouchOptimizedBookingBar
-                                  key={booking.id}
-                                  booking={booking}
-                                  startTime={venueHours?.start_time || '17:00'}
-                                  onBookingClick={handleBookingClick}
-                                  onBookingDrag={handleBookingDrag}
-                                />
+                                <div key={booking.id} data-booking-bar>
+                                  <TouchOptimizedBookingBar
+                                    booking={booking}
+                                    startTime={venueHours?.start_time || '17:00'}
+                                    onBookingClick={handleBookingClick}
+                                    onBookingDrag={handleBookingDrag}
+                                  />
+                                </div>
                               ))}
                             </div>
                           </div>
@@ -387,6 +468,11 @@ const HostInterface = () => {
           )}
         </div>
       </div>
+
+      <CancelledBookingsPanel
+        selectedDate={selectedDate}
+        onBookingRestore={handleBookingUpdate}
+      />
     </div>
   );
 };

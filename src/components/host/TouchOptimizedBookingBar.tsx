@@ -15,6 +15,8 @@ interface Booking {
   email?: string;
   notes?: string;
   service?: string;
+  end_time?: string;
+  booking_reference?: string;
 }
 
 interface TouchOptimizedBookingBarProps {
@@ -58,15 +60,29 @@ export const TouchOptimizedBookingBar = ({
     const bookingTotalMin = bookingHour * 60 + bookingMin;
     const diffMin = Math.max(0, bookingTotalMin - startTotalMin);
     
-    // Calculate percentage based on 15-minute slots (each slot is 60px, total grid width varies)
-    const totalMinutesInGrid = 12 * 60; // 12 hours typical
+    const totalMinutesInGrid = 12 * 60;
     return (diffMin / totalMinutesInGrid) * 100;
   };
 
   const leftPercentage = calculateLeftPercentage();
   
-  // Calculate width based on actual booking duration
-  const duration = booking.duration_minutes || 120;
+  // Calculate width based on actual duration or end_time if finished
+  const getActualDuration = () => {
+    if (booking.status === 'finished' && booking.end_time) {
+      // Calculate actual duration from booking_time to end_time
+      const [bookingHour, bookingMin] = booking.booking_time.split(':').map(Number);
+      const [endHour, endMin] = booking.end_time.split(':').map(Number);
+      
+      const bookingTotalMin = bookingHour * 60 + bookingMin;
+      const endTotalMin = endHour * 60 + endMin;
+      
+      return Math.max(30, endTotalMin - bookingTotalMin); // Minimum 30 minutes
+    }
+    
+    return booking.duration_minutes || 120;
+  };
+
+  const duration = getActualDuration();
   const totalMinutesInGrid = 12 * 60;
   const widthPercentage = Math.min((duration / totalMinutesInGrid) * 100, 100 - leftPercentage);
 
@@ -92,6 +108,12 @@ export const TouchOptimizedBookingBar = ({
     setIsDragging(false);
   };
 
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation(); // Prevent walk-in popup from opening
+    onBookingClick(booking);
+  };
+
   return (
     <TooltipProvider>
       <Tooltip>
@@ -104,7 +126,7 @@ export const TouchOptimizedBookingBar = ({
               top: '4px',
               zIndex: 10
             }}
-            onClick={() => onBookingClick(booking)}
+            onClick={handleClick}
             draggable
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
@@ -136,8 +158,16 @@ export const TouchOptimizedBookingBar = ({
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="h-3 w-3" />
-                <span>{booking.booking_time} ({formatDuration(duration)})</span>
+                <span>
+                  {booking.booking_time}
+                  {booking.end_time && booking.status === 'finished' && 
+                    ` - ${booking.end_time}`
+                  } ({formatDuration(duration)})
+                </span>
               </div>
+              {booking.booking_reference && (
+                <div><strong>ID:</strong> {booking.booking_reference}</div>
+              )}
               {booking.service && (
                 <div><strong>Service:</strong> {booking.service}</div>
               )}

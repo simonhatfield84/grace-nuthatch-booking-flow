@@ -21,6 +21,7 @@ export interface Booking {
   service: string;
   duration_minutes: number;
   end_time: string;
+  booking_reference: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -49,7 +50,7 @@ export const useBookings = (date?: string) => {
   });
 
   const createBookingMutation = useMutation({
-    mutationFn: async (newBooking: Omit<Booking, 'id' | 'created_at' | 'updated_at' | 'table_id' | 'is_unallocated' | 'duration_minutes' | 'end_time'>) => {
+    mutationFn: async (newBooking: Omit<Booking, 'id' | 'created_at' | 'updated_at' | 'table_id' | 'is_unallocated' | 'duration_minutes' | 'end_time' | 'booking_reference'>) => {
       // Calculate duration from service rules
       const serviceId = newBooking.service ? await getServiceIdFromServiceName(newBooking.service) : null;
       const duration = await calculateBookingDuration(serviceId || undefined, newBooking.party_size);
