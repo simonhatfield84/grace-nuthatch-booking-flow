@@ -1,9 +1,9 @@
 
+@import "https://fonts.googleapis.com/css2?family=Markazi+Text:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&family=Poppins:wght@300;400;500;600;700&family=Karla:wght@300;400;500;600;700&display=swap";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* Grace OS Design System - All colors MUST be HSL */
 
 @layer base {
   :root {
@@ -12,7 +12,7 @@
     --foreground: 0 0% 18%;          /* Charcoal Grey #2E2E2E */
 
     --card: 0 0% 100%;               /* Pure White */
-    --card-foreground: 0 0% 18%;     /* Charcootal Grey */
+    --card-foreground: 0 0% 18%;     /* Charcoal Grey */
 
     --popover: 0 0% 100%;            /* Pure White */
     --popover-foreground: 0 0% 18%;  /* Charcoal Grey */
@@ -38,15 +38,15 @@
 
     --radius: 0.5rem;
 
-    /* Admin Sidebar - Light Theme */
-    --sidebar-background: 0 0% 100%;     /* Pure White */
-    --sidebar-foreground: 0 0% 18%;      /* Charcoal Grey */
-    --sidebar-primary: 18 65% 59%;       /* Warm Terracotta */
-    --sidebar-primary-foreground: 0 0% 100%; /* Pure White */
-    --sidebar-accent: 35 45% 95%;        /* Very Light Sand */
-    --sidebar-accent-foreground: 0 0% 18%; /* Charcoal Grey */
-    --sidebar-border: 35 30% 85%;        /* Light Border */
-    --sidebar-ring: 18 65% 59%;          /* Warm Terracotta */
+    /* Sidebar */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 18%;
+    --sidebar-primary: 18 65% 59%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 35 45% 95%;
+    --sidebar-accent-foreground: 0 0% 18%;
+    --sidebar-border: 35 30% 85%;
+    --sidebar-ring: 18 65% 59%;
   }
 
   .dark {
@@ -79,15 +79,15 @@
     --input: 180 50% 25%;            /* Dark Teal Input */
     --ring: 18 65% 59%;              /* Warm Terracotta */
 
-    /* Host Sidebar - Dark Theme */
-    --sidebar-background: 180 100% 8%;   /* Very Dark Teal */
-    --sidebar-foreground: 35 50% 94%;    /* Soft Sand */
-    --sidebar-primary: 18 65% 59%;       /* Warm Terracotta */
-    --sidebar-primary-foreground: 0 0% 100%; /* Pure White */
-    --sidebar-accent: 180 50% 15%;       /* Dark Teal Accent */
-    --sidebar-accent-foreground: 35 50% 94%; /* Soft Sand */
-    --sidebar-border: 180 50% 25%;       /* Dark Teal Border */
-    --sidebar-ring: 18 65% 59%;          /* Warm Terracotta */
+    /* Sidebar */
+    --sidebar-background: 180 100% 8%;
+    --sidebar-foreground: 35 50% 94%;
+    --sidebar-primary: 18 65% 59%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 180 50% 15%;
+    --sidebar-accent-foreground: 35 50% 94%;
+    --sidebar-border: 180 50% 25%;
+    --sidebar-ring: 18 65% 59%;
   }
 }
 
@@ -97,27 +97,31 @@
   }
 
   body {
-    @apply bg-background text-foreground font-karla;
+    @apply bg-background text-foreground;
+    font-family: 'Karla', sans-serif;
   }
 
   h1 {
-    @apply font-playfair font-semibold;
+    font-family: 'Playfair Display', serif;
+    @apply font-semibold;
   }
 
   h2, h3, h4, h5, h6 {
-    @apply font-poppins font-medium;
+    font-family: 'Poppins', sans-serif;
+    @apply font-medium;
   }
 
   .grace-logo {
-    @apply font-markazi text-grace-primary font-bold;
+    font-family: 'Markazi Text', serif;
+    @apply text-primary font-bold;
   }
 
   .grace-brand {
-    @apply text-grace-primary;
+    @apply text-primary;
   }
 }
 
-/* Custom scrollbar for better theming */
+/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
 }

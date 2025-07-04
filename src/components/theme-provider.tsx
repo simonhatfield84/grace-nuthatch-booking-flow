@@ -45,24 +45,14 @@ export function ThemeProvider({
 
     root.classList.remove("light", "dark")
 
-    // Force dark theme for host interface, light for admin
     if (appTheme === "host") {
+      // Host interface always uses dark theme
       root.classList.add("dark")
     } else {
       // Admin interface uses light theme
-      if (theme === "system") {
-        const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
-          .matches
-          ? "light" // Force light for admin even if system prefers dark
-          : "light"
-
-        root.classList.add(systemTheme)
-      } else {
-        // For admin, always use light regardless of user preference
-        root.classList.add("light")
-      }
+      root.classList.add("light")
     }
-  }, [theme, appTheme])
+  }, [appTheme])
 
   const value = {
     theme,

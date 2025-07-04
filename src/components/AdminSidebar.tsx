@@ -37,20 +37,20 @@ export function AppSidebar() {
 
   const getNavCls = (path: string) =>
     isActive(path) 
-      ? "bg-grace-primary/10 text-grace-primary border-r-2 border-grace-primary font-medium" 
-      : "hover:bg-grace-background text-grace-dark hover:text-grace-primary transition-colors";
+      ? "bg-primary/10 text-primary border-r-2 border-primary font-medium" 
+      : "hover:bg-accent hover:text-primary transition-colors";
 
   return (
     <Sidebar className={isCollapsed ? "w-14" : "w-60"} collapsible="icon">
-      <SidebarContent className="bg-white border-r border-grace-background">
-        <div className="p-4 border-b border-grace-background">
+      <SidebarContent className="bg-sidebar-background border-r border-sidebar-border">
+        <div className="p-4 border-b border-sidebar-border">
           <div className="grace-logo text-2xl font-bold text-center">
             {isCollapsed ? "G" : "grace"}
           </div>
         </div>
         
         <SidebarGroup>
-          <SidebarGroupLabel className="text-grace-dark/70 font-poppins font-medium px-4 py-2">
+          <SidebarGroupLabel className="text-sidebar-foreground/70 font-medium px-4 py-2">
             Admin Console
           </SidebarGroupLabel>
           <SidebarGroupContent>
@@ -60,7 +60,7 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild className="rounded-lg mb-1">
                     <NavLink to={item.url} className={getNavCls(item.url)}>
                       <item.icon className="h-5 w-5" strokeWidth={2} />
-                      {!isCollapsed && <span className="font-karla">{item.title}</span>}
+                      {!isCollapsed && <span>{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
