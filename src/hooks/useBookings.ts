@@ -29,7 +29,7 @@ export const useBookings = (date?: string) => {
     queryKey: ['bookings', date],
     queryFn: async () => {
       let query = supabase
-        .from('bookings')
+        .from('bookings' as any)
         .select('*')
         .order('booking_time');
       
@@ -47,7 +47,7 @@ export const useBookings = (date?: string) => {
   const updateBookingMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: number, updates: Partial<Booking> }) => {
       const { data, error } = await supabase
-        .from('bookings')
+        .from('bookings' as any)
         .update({ ...updates, updated_at: new Date().toISOString() })
         .eq('id', id)
         .select()

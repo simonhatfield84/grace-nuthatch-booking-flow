@@ -27,7 +27,7 @@ export const useTables = () => {
     queryKey: ['tables'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('tables')
+        .from('tables' as any)
         .select('*')
         .eq('status', 'active')
         .order('priority_rank');
@@ -40,7 +40,7 @@ export const useTables = () => {
   const createTableMutation = useMutation({
     mutationFn: async (newTable: Omit<Table, 'id' | 'created_at' | 'updated_at' | 'status' | 'deleted_at'>) => {
       const { data, error } = await supabase
-        .from('tables')
+        .from('tables' as any)
         .insert([newTable])
         .select()
         .single();
@@ -61,7 +61,7 @@ export const useTables = () => {
   const updateTableMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: number, updates: Partial<Table> }) => {
       const { data, error } = await supabase
-        .from('tables')
+        .from('tables' as any)
         .update({ ...updates, updated_at: new Date().toISOString() })
         .eq('id', id)
         .select()
@@ -83,7 +83,7 @@ export const useTables = () => {
   const deleteTableMutation = useMutation({
     mutationFn: async (id: number) => {
       const { error } = await supabase
-        .from('tables')
+        .from('tables' as any)
         .delete()
         .eq('id', id);
       
@@ -103,7 +103,7 @@ export const useTables = () => {
     mutationFn: async (updates: Array<{ id: number; position_x: number; position_y: number }>) => {
       for (const update of updates) {
         const { error } = await supabase
-          .from('tables')
+          .from('tables' as any)
           .update({ 
             position_x: update.position_x, 
             position_y: update.position_y,
