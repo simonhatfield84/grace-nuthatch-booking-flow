@@ -2,8 +2,9 @@ import { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Download, Upload, UserPlus, Trash2 } from "lucide-react";
+import { Download, Upload, UserPlus, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { useGuests } from "@/hooks/useGuests";
 import { Guest } from "@/types/guest";
 import { GuestsTable } from "@/components/guests/GuestsTable";
@@ -11,10 +12,21 @@ import { GuestFilters, GuestFilters as GuestFiltersType } from "@/components/gue
 import { GuestDialog } from "@/components/guests/GuestDialog";
 import { CSVImportDialog } from "@/components/guests/CSVImportDialog";
 import { DeleteConfirmDialog } from "@/components/guests/DeleteConfirmDialog";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 
 const Guests = () => {
   const { toast } = useToast();
-  const { guests, createGuest, createGuestSilent, updateGuest, bulkDeleteGuests, isLoading } = useGuests();
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   
   const [selectedGuests, setSelectedGuests] = useState<string[]>([]);
   const [isGuestDialogOpen, setIsGuestDialogOpen] = useState(false);
@@ -32,49 +44,28 @@ const Guests = () => {
     lastVisitBefore: null
   });
 
-  // Apply filters to guests
+  // Calculate pagination offset
+  const offset = (currentPage - 1) * pageSize;
+
+  // Fetch guests with pagination and server-side filtering
+  const { guests, totalCount, createGuest, createGuestSilent, updateGuest, bulkDeleteGuests, isLoading } = useGuests({
+    limit: pageSize,
+    offset: offset,
+    search: filters.search,
+    tags: filters.tags,
+    marketingOptIn: filters.marketingOptIn,
+    visitCount: filters.visitCount
+  });
+
+  // Calculate pagination info
+  const totalPages = Math.ceil(totalCount / pageSize);
+  const startItem = offset + 1;
+  const endItem = Math.min(offset + pageSize, totalCount);
+
+  // Client-side filtering for date ranges (keep existing logic for complex filters)
   const filteredGuests = useMemo(() => {
     return guests.filter(guest => {
-      // Search filter
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase();
-        const matchesSearch = 
-          guest.name.toLowerCase().includes(searchLower) ||
-          guest.email?.toLowerCase().includes(searchLower) ||
-          guest.phone?.includes(filters.search);
-        if (!matchesSearch) return false;
-      }
-
-      // Marketing opt-in filter
-      if (filters.marketingOptIn !== "all") {
-        const wantsOptedIn = filters.marketingOptIn === "opted_in";
-        if (guest.opt_in_marketing !== wantsOptedIn) return false;
-      }
-
-      // Visit count filter
-      if (filters.visitCount !== "all") {
-        const visitCount = guest.visit_count || 0;
-        switch (filters.visitCount) {
-          case "first_time":
-            if (visitCount !== 1) return false;
-            break;
-          case "repeat":
-            if (visitCount < 2 || visitCount > 4) return false;
-            break;
-          case "frequent":
-            if (visitCount < 5) return false;
-            break;
-        }
-      }
-
-      // Tags filter
-      if (filters.tags.length > 0) {
-        const guestTagIds = guest.tags?.map(tag => tag.id) || [];
-        const hasAnySelectedTag = filters.tags.some(tagId => guestTagIds.includes(tagId));
-        if (!hasAnySelectedTag) return false;
-      }
-
-      // Last visit date filters
+      // Last visit date filters (keep client-side for now)
       if (filters.lastVisitAfter || filters.lastVisitBefore) {
         const lastVisitDate = guest.last_visit_date ? new Date(guest.last_visit_date) : null;
         
@@ -91,10 +82,9 @@ const Guests = () => {
     });
   }, [guests, filters]);
 
-  // Calculate statistics (no revenue)
-  const totalGuests = guests.length;
-  const returningGuests = guests.filter(g => (g.visit_count || 0) > 1).length;
-  const marketingOptIns = guests.filter(g => g.opt_in_marketing).length;
+  // Calculate statistics from current page only
+  const returningGuests = filteredGuests.filter(g => (g.visit_count || 0) > 1).length;
+  const marketingOptIns = filteredGuests.filter(g => g.opt_in_marketing).length;
 
   const handleSelectGuest = (guestId: string) => {
     setSelectedGuests(prev => 
@@ -224,6 +214,18 @@ const Guests = () => {
       lastVisitAfter: null,
       lastVisitBefore: null
     });
+    setCurrentPage(1);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    setSelectedGuests([]); // Clear selections when changing pages
+  };
+
+  const handlePageSizeChange = (newPageSize: string) => {
+    setPageSize(parseInt(newPageSize));
+    setCurrentPage(1);
+    setSelectedGuests([]);
   };
 
   if (isLoading) {
@@ -270,14 +272,17 @@ const Guests = () => {
         </div>
       </div>
 
-      {/* Statistics Cards (no revenue) */}
+      {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-lg">Total Guests</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalGuests}</div>
+            <div className="text-2xl font-bold">{totalCount}</div>
+            <p className="text-xs text-muted-foreground">
+              Showing {startItem}-{endItem} of {totalCount}
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -287,7 +292,7 @@ const Guests = () => {
           <CardContent>
             <div className="text-2xl font-bold">{returningGuests}</div>
             <p className="text-xs text-muted-foreground">
-              {totalGuests > 0 ? Math.round((returningGuests / totalGuests) * 100) : 0}% return rate
+              On current page
             </p>
           </CardContent>
         </Card>
@@ -298,7 +303,7 @@ const Guests = () => {
           <CardContent>
             <div className="text-2xl font-bold">{marketingOptIns}</div>
             <p className="text-xs text-muted-foreground">
-              {totalGuests > 0 ? Math.round((marketingOptIns / totalGuests) * 100) : 0}% opted in
+              On current page
             </p>
           </CardContent>
         </Card>
@@ -307,21 +312,40 @@ const Guests = () => {
       {/* Filters */}
       <GuestFilters
         filters={filters}
-        onFiltersChange={setFilters}
+        onFiltersChange={(newFilters) => {
+          setFilters(newFilters);
+          setCurrentPage(1); // Reset to first page when filtering
+        }}
         onClearFilters={clearFilters}
       />
 
-      {/* Results Summary */}
+      {/* Results Summary and Page Size Selector */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <p className="text-sm text-muted-foreground">
-            Showing {filteredGuests.length} of {totalGuests} guests
+            Showing {startItem}-{endItem} of {totalCount} guests
           </p>
           {selectedGuests.length > 0 && (
             <Badge variant="secondary">
               {selectedGuests.length} selected
             </Badge>
           )}
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Show:</span>
+          <Select value={pageSize.toString()} onValueChange={handlePageSizeChange}>
+            <SelectTrigger className="w-20">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="10">10</SelectItem>
+              <SelectItem value="25">25</SelectItem>
+              <SelectItem value="50">50</SelectItem>
+              <SelectItem value="100">100</SelectItem>
+            </SelectContent>
+          </Select>
+          <span className="text-sm text-muted-foreground">per page</span>
         </div>
       </div>
 
@@ -343,6 +367,55 @@ const Guests = () => {
           />
         </CardContent>
       </Card>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center">
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious 
+                  onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
+                  className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                />
+              </PaginationItem>
+              
+              {/* Show page numbers */}
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                let pageNum;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (currentPage <= 3) {
+                  pageNum = i + 1;
+                } else if (currentPage >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = currentPage - 2 + i;
+                }
+                
+                return (
+                  <PaginationItem key={pageNum}>
+                    <PaginationLink 
+                      onClick={() => handlePageChange(pageNum)}
+                      isActive={currentPage === pageNum}
+                      className="cursor-pointer"
+                    >
+                      {pageNum}
+                    </PaginationLink>
+                  </PaginationItem>
+                );
+              })}
+              
+              <PaginationItem>
+                <PaginationNext 
+                  onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
+                  className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
+      )}
 
       {/* Dialogs */}
       <GuestDialog

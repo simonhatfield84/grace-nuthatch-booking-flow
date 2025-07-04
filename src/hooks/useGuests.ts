@@ -1,17 +1,28 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Guest } from "@/types/guest";
 import { guestService } from "@/services/guestService";
 
-export const useGuests = () => {
+interface UseGuestsOptions {
+  limit?: number;
+  offset?: number;
+  search?: string;
+  tags?: string[];
+  marketingOptIn?: string;
+  visitCount?: string;
+}
+
+export const useGuests = (options?: UseGuestsOptions) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: guests = [], isLoading } = useQuery({
-    queryKey: ['guests'],
-    queryFn: guestService.fetchGuests
+  const { data, isLoading } = useQuery({
+    queryKey: ['guests', options],
+    queryFn: () => guestService.fetchGuests(options)
   });
+
+  const guests = data?.guests || [];
+  const totalCount = data?.totalCount || 0;
 
   const createGuestMutation = useMutation({
     mutationFn: guestService.createGuest,
@@ -80,6 +91,7 @@ export const useGuests = () => {
 
   return {
     guests,
+    totalCount,
     isLoading,
     createGuest: createGuestMutation.mutateAsync,
     createGuestSilent: createGuestSilentMutation.mutateAsync,

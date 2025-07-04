@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -5,6 +6,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Edit, Mail, Phone } from "lucide-react";
 import { Guest } from "@/types/guest";
+import { GuestTagsDisplay } from "./GuestTagsDisplay";
 
 interface GuestsTableProps {
   guests: Guest[];
@@ -57,11 +59,11 @@ export const GuestsTable = ({
             </TableHead>
             <TableHead>Name</TableHead>
             <TableHead>Contact</TableHead>
-            <TableHead>Visits</TableHead>
+            <TableHead className="w-20">Visits</TableHead>
             <TableHead>Last Visit</TableHead>
-            <TableHead>Tags</TableHead>
-            <TableHead>Marketing</TableHead>
-            <TableHead>Notes</TableHead>
+            <TableHead className="w-24">Tags</TableHead>
+            <TableHead className="w-24">Marketing</TableHead>
+            <TableHead className="w-32">Notes</TableHead>
             <TableHead className="w-20">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -102,11 +104,8 @@ export const GuestsTable = ({
                     )}
                   </div>
                 </TableCell>
-                <TableCell>
-                  <div className="text-center">
-                    <div className="font-bold">{guest.visit_count || 0}</div>
-                    <div className="text-xs text-muted-foreground">visits</div>
-                  </div>
+                <TableCell className="text-center">
+                  <div className="font-bold">{guest.visit_count || 0}</div>
                 </TableCell>
                 <TableCell>
                   <span className="text-sm">
@@ -114,35 +113,15 @@ export const GuestsTable = ({
                   </span>
                 </TableCell>
                 <TableCell>
-                  <div className="flex flex-wrap gap-1 max-w-[200px]">
-                    {guest.tags?.slice(0, 3).map((tag) => (
-                      <Badge
-                        key={tag.id}
-                        variant="outline"
-                        className="text-xs"
-                        style={{ 
-                          backgroundColor: tag.color + '20',
-                          borderColor: tag.color,
-                          color: tag.color 
-                        }}
-                      >
-                        {tag.name}
-                      </Badge>
-                    ))}
-                    {(guest.tags?.length || 0) > 3 && (
-                      <Badge variant="outline" className="text-xs">
-                        +{(guest.tags?.length || 0) - 3}
-                      </Badge>
-                    )}
-                  </div>
+                  <GuestTagsDisplay tags={guest.tags || []} />
                 </TableCell>
                 <TableCell>
-                  <Badge variant={guest.opt_in_marketing ? "default" : "secondary"}>
-                    {guest.opt_in_marketing ? "Opted In" : "Opted Out"}
+                  <Badge variant={guest.opt_in_marketing ? "default" : "secondary"} className="text-xs">
+                    {guest.opt_in_marketing ? "Yes" : "No"}
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <div className="max-w-[150px] truncate text-xs text-muted-foreground">
+                  <div className="max-w-[120px] truncate text-xs text-muted-foreground">
                     {guest.notes || "—"}
                   </div>
                 </TableCell>

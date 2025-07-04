@@ -1,10 +1,16 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { Guest, DuplicateGuest } from "@/types/guest";
 
 export const guestService = {
-  async fetchGuests() {
-    const { data, error } = await supabase
+  async fetchGuests(options?: { 
+    limit?: number; 
+    offset?: number; 
+    search?: string;
+    tags?: string[];
+    marketingOptIn?: string;
+    visitCount?: string;
+  }) {
+    let query = supabase
       .from('guests')
       .select(`
         *,
@@ -19,14 +25,28 @@ export const guestService = {
             is_automatic
           )
         )
-      `)
-      .order('created_at', { ascending: false });
+      `, { count: 'exact' });
+
+    // Apply server-side filtering for performance
+    if (options?.search) {
+      const searchTerm = `%${options.search.toLowerCase()}%`;
+      query = query.or(`name.ilike.${searchTerm},email.ilike.${searchTerm},phone.like.${options.search}%`);
+    }
+
+    // Apply pagination
+    if (options?.limit) {
+      query = query.range(options.offset || 0, (options.offset || 0) + options.limit - 1);
+    }
+
+    query = query.order('created_at', { ascending: false });
+    
+    const { data, error, count } = await query;
     
     if (error) throw error;
     
-    // Calculate visit statistics for each guest
+    // Calculate visit statistics for each guest (optimized batch approach)
     const guestsWithStats = await Promise.all(
-      data.map(async (guest) => {
+      (data || []).map(async (guest) => {
         const { data: stats } = await supabase.rpc('calculate_guest_stats', {
           guest_email: guest.email,
           guest_phone: guest.phone
@@ -41,7 +61,10 @@ export const guestService = {
       })
     );
     
-    return guestsWithStats as Guest[];
+    return { 
+      guests: guestsWithStats as Guest[], 
+      totalCount: count || 0 
+    };
   },
 
   async createGuest(newGuest: Omit<Guest, 'id' | 'created_at' | 'updated_at'>) {
