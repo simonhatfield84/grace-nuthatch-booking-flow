@@ -1,12 +1,28 @@
+
 import { format, addMinutes } from "date-fns";
+
+interface Table {
+  id: number;
+  label: string;
+  seats: number;
+  join_groups: number[];
+}
+
+interface Section {
+  id: number;
+  name: string;
+  color: string;
+}
 
 interface OptimizedTimeGridProps {
   venueHours: { start_time: string; end_time: string } | null;
+  tables: Table[];
+  sections: Section[];
   children?: React.ReactNode;
+  onTableRowRender?: (table: Table, section: Section) => React.ReactNode;
 }
 
-export const OptimizedTimeGrid = ({ venueHours, children }: OptimizedTimeGridProps) => {
-  // Platform test - minimal change
+export const OptimizedTimeGrid = ({ venueHours, tables, sections, children, onTableRowRender }: OptimizedTimeGridProps) => {
   console.log("OptimizedTimeGrid rendered successfully");
   
   const generateTimeSlots = () => {
@@ -56,7 +72,7 @@ export const OptimizedTimeGrid = ({ venueHours, children }: OptimizedTimeGridPro
 
   return (
     <div className="relative bg-white dark:bg-gray-900 rounded-lg border">
-      {/* Time Headers - Now with horizontal scrolling */}
+      {/* Time Headers */}
       <div className="sticky top-0 z-20 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 rounded-t-lg">
         <div className="flex">
           {/* Table Header - Fixed position */}
@@ -64,7 +80,7 @@ export const OptimizedTimeGrid = ({ venueHours, children }: OptimizedTimeGridPro
             Tables
           </div>
           
-          {/* Time Slots Container - Now scrollable */}
+          {/* Time Slots Container - Scrollable */}
           <div className="flex-1 overflow-x-auto">
             <div className="flex" style={{ minWidth: `${timeSlots.length * 60}px` }}>
               {timeSlots.map((time, index) => (
@@ -91,19 +107,63 @@ export const OptimizedTimeGrid = ({ venueHours, children }: OptimizedTimeGridPro
         </div>
       </div>
 
-      {/* Content Area - Also scrollable */}
+      {/* Content Area */}
       <div className="relative">
-        <div className="flex">
-          {/* Spacer for table column alignment */}
-          <div className="w-48 flex-shrink-0 sticky left-0 z-10"></div>
+        {/* Render sections and tables */}
+        {sections.map((section) => {
+          const sectionTables = tables.filter(table => table.section_id === section.id && table.status === 'active');
           
-          {/* Scrollable content area */}
-          <div className="flex-1 overflow-x-auto">
-            <div style={{ minWidth: `${timeSlots.length * 60}px` }}>
-              {children}
+          if (sectionTables.length === 0) return null;
+
+          return (
+            <div key={section.id}>
+              {/* Section Header */}
+              <div 
+                className="bg-gray-100 dark:bg-gray-800 px-4 py-2 border-b border-gray-200 dark:border-gray-700 flex items-center sticky left-0 z-10"
+                style={{ borderLeftColor: section.color, borderLeftWidth: '4px' }}
+              >
+                <div className="w-48 flex-shrink-0">
+                  <h3 className="font-semibold" style={{ color: section.color }}>
+                    {section.name} ({sectionTables.length})
+                  </h3>
+                </div>
+                <div className="flex-1 overflow-x-auto">
+                  <div style={{ minWidth: `${timeSlots.length * 60}px` }}></div>
+                </div>
+              </div>
+
+              {/* Table Rows */}
+              {sectionTables.map((table) => (
+                <div key={table.id} className="flex border-b border-gray-100 dark:border-gray-800 min-h-[48px]">
+                  {/* Fixed Table Name Column */}
+                  <div className="w-48 p-3 border-r border-gray-200 dark:border-gray-700 flex items-center bg-white dark:bg-gray-900 flex-shrink-0 sticky left-0 z-10">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-sm">{table.label}</span>
+                        <span className="text-xs text-gray-500 px-1 py-0 border border-gray-300 rounded">
+                          {table.seats}
+                        </span>
+                        {table.join_groups && table.join_groups.length > 0 && (
+                          <span className="text-xs text-blue-600">🔗</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Scrollable Content Area */}
+                  <div className="flex-1 overflow-x-auto">
+                    <div 
+                      className="relative bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 min-h-[48px]"
+                      style={{ minWidth: `${timeSlots.length * 60}px` }}
+                    >
+                      {onTableRowRender && onTableRowRender(table, section)}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
-        </div>
+          );
+        })}
         
         {/* Current time line across all rows */}
         {currentTimePosition >= 0 && (

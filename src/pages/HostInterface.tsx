@@ -315,6 +315,54 @@ const HostInterface = () => {
     return slots;
   };
 
+  const renderTableRow = (table: any, section: any) => {
+    const tableBookings = getBookingsForTable(table.id);
+    const isDragOver = dragOverTable === table.id;
+
+    return (
+      <>
+        <div 
+          className={`absolute inset-0 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 ${isDragOver ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
+          onDragOver={(e) => handleDragOver(e, table.id)}
+          onDragLeave={handleDragLeave}
+          onDrop={(e) => handleDrop(e, table.id)}
+          onClick={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const clickX = e.clientX - rect.left;
+            const slotWidth = 60;
+            const slotIndex = Math.floor(clickX / slotWidth);
+            
+            if (venueHours) {
+              const [startHour, startMin] = venueHours.start_time.split(':').map(Number);
+              const totalMinutes = startHour * 60 + startMin + (slotIndex * 15);
+              const hours = Math.floor(totalMinutes / 60);
+              const minutes = totalMinutes % 60;
+              const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+              handleGridClick(timeStr, e);
+            }
+          }}
+        />
+        
+        <BlockOverlay
+          selectedDate={selectedDate}
+          venueHours={venueHours}
+          tableId={table.id}
+        />
+        
+        {tableBookings.map((booking) => (
+          <div key={booking.id} data-booking-bar>
+            <TouchOptimizedBookingBar
+              booking={booking}
+              startTime={venueHours?.start_time || '17:00'}
+              onBookingClick={handleBookingClick}
+              onBookingDrag={handleBookingDrag}
+            />
+          </div>
+        ))}
+      </>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
       <UnallocatedBookingsBanner
@@ -351,96 +399,12 @@ const HostInterface = () => {
       <div className="grid grid-cols-12 gap-4 h-[calc(100vh-200px)]">
         <div className={`${showDetails ? 'col-span-8' : 'col-span-9'} flex flex-col`}>
           <div className="flex-1 overflow-auto">
-            <OptimizedTimeGrid venueHours={venueHours}>
-              <div className="space-y-0">
-                {sections.map((section) => {
-                  const sectionTables = tables.filter(table => 
-                    table.section_id === section.id && table.status === 'active'
-                  );
-
-                  return (
-                    <div key={section.id}>
-                      <div 
-                        className="bg-gray-100 dark:bg-gray-800 px-4 py-2 border-b border-gray-200 dark:border-gray-700 flex items-center"
-                        style={{ borderLeftColor: section.color, borderLeftWidth: '4px' }}
-                      >
-                        <h3 className="font-semibold" style={{ color: section.color }}>
-                          {section.name} ({sectionTables.length})
-                        </h3>
-                      </div>
-
-                      {sectionTables.map((table) => {
-                        const tableBookings = getBookingsForTable(table.id);
-                        const isDragOver = dragOverTable === table.id;
-
-                        return (
-                          <div 
-                            key={table.id} 
-                            className={`flex border-b border-gray-100 dark:border-gray-800 min-h-[48px] ${isDragOver ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
-                            onDragOver={(e) => handleDragOver(e, table.id)}
-                            onDragLeave={handleDragLeave}
-                            onDrop={(e) => handleDrop(e, table.id)}
-                          >
-                            <div className="w-48 p-3 border-r border-gray-200 dark:border-gray-700 flex items-center bg-white dark:bg-gray-900 flex-shrink-0">
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <span className="font-semibold text-sm">{table.label}</span>
-                                  <Badge variant="outline" className="text-xs px-1 py-0">
-                                    <Users className="h-3 w-3 mr-0.5" />
-                                    {table.seats}
-                                  </Badge>
-                                  {table.join_groups && table.join_groups.length > 0 && (
-                                    <Badge variant="secondary" className="text-xs px-1 py-0">
-                                      <Link className="h-3 w-3" />
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-
-                            <div 
-                              className="flex-1 relative bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 min-h-[48px] cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
-                              onClick={(e) => {
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                const clickX = e.clientX - rect.left;
-                                const slotWidth = 60;
-                                const slotIndex = Math.floor(clickX / slotWidth);
-                                
-                                if (venueHours) {
-                                  const [startHour, startMin] = venueHours.start_time.split(':').map(Number);
-                                  const totalMinutes = startHour * 60 + startMin + (slotIndex * 15);
-                                  const hours = Math.floor(totalMinutes / 60);
-                                  const minutes = totalMinutes % 60;
-                                  const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-                                  handleGridClick(timeStr, e);
-                                }
-                              }}
-                            >
-                              <BlockOverlay
-                                selectedDate={selectedDate}
-                                venueHours={venueHours}
-                                tableId={table.id}
-                              />
-                              
-                              {tableBookings.map((booking) => (
-                                <div key={booking.id} data-booking-bar>
-                                  <TouchOptimizedBookingBar
-                                    booking={booking}
-                                    startTime={venueHours?.start_time || '17:00'}
-                                    onBookingClick={handleBookingClick}
-                                    onBookingDrag={handleBookingDrag}
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
-              </div>
-            </OptimizedTimeGrid>
+            <OptimizedTimeGrid 
+              venueHours={venueHours}
+              tables={tables}
+              sections={sections}
+              onTableRowRender={renderTableRow}
+            />
           </div>
         </div>
 
