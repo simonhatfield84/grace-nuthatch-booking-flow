@@ -1,15 +1,18 @@
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Plus, Link } from "lucide-react";
+import { Plus, Link, Settings } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TableStats } from "@/components/tables/TableStats";
 import { TableDialog } from "@/components/tables/TableDialog";
 import { GroupDialog } from "@/components/tables/GroupDialog";
+import { SectionDialog } from "@/components/tables/SectionDialog";
 import { JoinGroupsList } from "@/components/tables/JoinGroupsList";
 import { EnhancedSectionManager } from "@/components/tables/EnhancedSectionManager";
 import { BookingPriorityManager } from "@/components/tables/BookingPriorityManager";
 import { useTableManagement } from "@/hooks/useTableManagement";
 import { useGroupManagement } from "@/hooks/useGroupManagement";
+import { useSections } from "@/hooks/useSections";
 
 const Tables = () => {
   const {
@@ -39,9 +42,13 @@ const Tables = () => {
     resetGroupForm
   } = useGroupManagement([], tables, updateTable);
 
+  const { sections, deleteSection } = useSections();
+
   const [showAddTableDialog, setShowAddTableDialog] = useState(false);
   const [showEditTableDialog, setShowEditTableDialog] = useState(false);
   const [showAddGroupDialog, setShowAddGroupDialog] = useState(false);
+  const [showSectionDialog, setShowSectionDialog] = useState(false);
+  const [editingSection, setEditingSection] = useState<any>(null);
   const [preSelectedSectionId, setPreSelectedSectionId] = useState<number | null>(null);
 
   const handleEditTableClick = (table: any) => {
@@ -85,6 +92,22 @@ const Tables = () => {
     }
   };
 
+  const handleCreateSection = () => {
+    setEditingSection(null);
+    setShowSectionDialog(true);
+  };
+
+  const handleEditSection = (section: any) => {
+    setEditingSection(section);
+    setShowSectionDialog(true);
+  };
+
+  const handleDeleteSection = async (sectionId: number) => {
+    if (confirm('Are you sure you want to delete this section? All tables in this section will need to be reassigned.')) {
+      await deleteSection(sectionId);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -93,6 +116,10 @@ const Tables = () => {
           <p className="text-muted-foreground">Design your venue layout and manage table configurations</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={handleCreateSection}>
+            <Settings className="h-4 w-4 mr-2" strokeWidth={2} />
+            Manage Sections
+          </Button>
           <Button onClick={handleGlobalAddTable}>
             <Plus className="h-4 w-4 mr-2" strokeWidth={2} />
             Add Table
@@ -120,6 +147,9 @@ const Tables = () => {
             onDeleteTable={handleDeleteTable}
             onAddTableToSection={handleAddTableToSection}
             onUpdateTablePosition={handleUpdateTablePosition}
+            onEditSection={handleEditSection}
+            onDeleteSection={handleDeleteSection}
+            onCreateSection={handleCreateSection}
           />
         </TabsContent>
 
@@ -188,6 +218,12 @@ const Tables = () => {
         onAddGroup={handleAddGroup} 
         onUpdateGroup={handleUpdateGroup} 
         tables={tables} 
+      />
+
+      <SectionDialog
+        isOpen={showSectionDialog}
+        onOpenChange={setShowSectionDialog}
+        editingSection={editingSection}
       />
     </div>
   );

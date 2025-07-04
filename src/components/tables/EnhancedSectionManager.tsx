@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Settings, Eye, EyeOff, LayoutGrid } from "lucide-react";
+import { Plus, Settings, Eye, EyeOff, LayoutGrid, Edit, Trash2 } from "lucide-react";
 import { FloorPlanCanvas } from "./FloorPlanCanvas";
 import { SectionTablesList } from "./SectionTablesList";
 import { Table } from "@/hooks/useTables";
@@ -16,6 +16,9 @@ interface EnhancedSectionManagerProps {
   onDeleteTable: (tableId: number) => void;
   onAddTableToSection?: (sectionId: number) => void;
   onUpdateTablePosition: (tableId: number, x: number, y: number) => void;
+  onEditSection?: (section: any) => void;
+  onDeleteSection?: (sectionId: number) => void;
+  onCreateSection?: () => void;
 }
 
 export const EnhancedSectionManager = ({
@@ -23,7 +26,10 @@ export const EnhancedSectionManager = ({
   onEditTable,
   onDeleteTable,
   onAddTableToSection,
-  onUpdateTablePosition
+  onUpdateTablePosition,
+  onEditSection,
+  onDeleteSection,
+  onCreateSection
 }: EnhancedSectionManagerProps) => {
   const { sections } = useSections();
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
@@ -56,7 +62,7 @@ export const EnhancedSectionManager = ({
         <LayoutGrid className="h-12 w-12 mx-auto mb-4 opacity-50" />
         <h3 className="text-lg font-medium mb-2">No sections created yet</h3>
         <p className="text-sm mb-4">Create sections to organize your tables and design your floor plan.</p>
-        <Button variant="outline">
+        <Button variant="outline" onClick={onCreateSection}>
           <Plus className="h-4 w-4 mr-2" />
           Create Your First Section
         </Button>
@@ -79,19 +85,36 @@ export const EnhancedSectionManager = ({
         
         <div className="flex items-center gap-2">
           {sections.map((section) => (
-            <Button
-              key={section.id}
-              variant={visibleSections.has(section.id) ? "default" : "outline"}
-              size="sm"
-              onClick={() => toggleSectionVisibility(section.id)}
-              className="text-xs"
-            >
-              {visibleSections.has(section.id) ? <Eye className="h-3 w-3 mr-1" /> : <EyeOff className="h-3 w-3 mr-1" />}
-              {section.name}
-              <Badge variant="secondary" className="ml-1 text-xs">
-                {getTablesForSection(section.id).length}
-              </Badge>
-            </Button>
+            <div key={section.id} className="flex items-center gap-1">
+              <Button
+                variant={visibleSections.has(section.id) ? "default" : "outline"}
+                size="sm"
+                onClick={() => toggleSectionVisibility(section.id)}
+                className="text-xs"
+              >
+                {visibleSections.has(section.id) ? <Eye className="h-3 w-3 mr-1" /> : <EyeOff className="h-3 w-3 mr-1" />}
+                {section.name}
+                <Badge variant="secondary" className="ml-1 text-xs">
+                  {getTablesForSection(section.id).length}
+                </Badge>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onEditSection?.(section)}
+                className="h-8 w-8 p-0"
+              >
+                <Edit className="h-3 w-3" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onDeleteSection?.(section.id)}
+                className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </div>
           ))}
         </div>
       </div>
@@ -202,14 +225,32 @@ export const EnhancedSectionManager = ({
                         {sectionTables.length} tables
                       </Badge>
                     </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => handleAddTable(section.id)}
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      Add Table
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => onEditSection?.(section)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Edit className="h-3 w-3" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => onDeleteSection?.(section.id)}
+                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleAddTable(section.id)}
+                      >
+                        <Plus className="h-4 w-4 mr-1" />
+                        Add Table
+                      </Button>
+                    </div>
                   </div>
                   {section.description && (
                     <p className="text-sm text-muted-foreground mt-1">{section.description}</p>
