@@ -18,6 +18,27 @@ import { WalkInDialog } from "@/components/WalkInDialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Booking } from "@/hooks/useBookings";
 import { backfillBookingDurations } from "@/utils/backfillBookingDurations";
+import { Users, Link } from "lucide-react";
+
+interface Booking {
+  id: number;
+  table_id: number | null;
+  guest_name: string;
+  party_size: number;
+  booking_date: string;
+  booking_time: string;
+  status: 'confirmed' | 'seated' | 'finished' | 'cancelled' | 'late';
+  is_unallocated: boolean;
+  original_table_id: number | null;
+  phone: string | null;
+  email: string | null;
+  notes: string | null;
+  service: string;
+  duration_minutes: number;
+  end_time: string;
+  created_at: string;
+  updated_at: string;
+}
 
 const HostInterface = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -26,14 +47,13 @@ const HostInterface = () => {
   const [walkInDialogOpen, setWalkInDialogOpen] = useState(false);
   const [clickedTime, setClickedTime] = useState<string>("");
   const [backfillComplete, setBackfillComplete] = useState(false);
+  const [dragOverTable, setDragOverTable] = useState<number | null>(null);
   const { toast } = useToast();
 
-  // Fetch venue hours, sections, and tables
   const { data: venueHours } = useVenueHours();
   const { sections } = useSections();
   const { tables } = useTables();
   
-  // Fetch bookings for selected date
   const { data: bookings = [], refetch: refetchBookings } = useQuery({
     queryKey: ['bookings', format(selectedDate, 'yyyy-MM-dd')],
     queryFn: async () => {
@@ -46,14 +66,12 @@ const HostInterface = () => {
       
       if (error) throw error;
       
-      // Cast the data to match our Booking interface and auto-allocate unallocated bookings
       const typedBookings = (data || []).map(booking => ({
         ...booking,
         status: booking.status as Booking['status'],
         duration_minutes: booking.duration_minutes || 120
       })) as Booking[];
 
-      // Try to allocate any unallocated bookings
       const unallocatedBookings = typedBookings.filter(b => b.is_unallocated || !b.table_id);
       if (unallocatedBookings.length > 0) {
         console.log(`Found ${unallocatedBookings.length} unallocated bookings, attempting allocation`);
@@ -65,7 +83,6 @@ const HostInterface = () => {
             booking.booking_time
           );
         }
-        // Refetch after allocation attempts
         setTimeout(() => refetchBookings(), 1000);
       }
       
@@ -73,7 +90,6 @@ const HostInterface = () => {
     }
   });
 
-  // Run backfill on component mount
   useEffect(() => {
     const runBackfill = async () => {
       if (!backfillComplete) {
@@ -86,7 +102,6 @@ const HostInterface = () => {
             title: "Duration Backfill Complete",
             description: `Updated ${updatedCount} bookings with calculated durations.`,
           });
-          // Refetch bookings to show updated durations
           refetchBookings();
         }
       }
@@ -95,7 +110,6 @@ const HostInterface = () => {
     runBackfill();
   }, [backfillComplete, toast, refetchBookings]);
 
-  // Get unique booking dates for calendar indicators
   const { data: allBookings = [] } = useQuery({
     queryKey: ['all-bookings-dates'],
     queryFn: async () => {
@@ -185,16 +199,56 @@ const HostInterface = () => {
     setWalkInDialogOpen(true);
   };
 
+  const handleDragOver = (e: React.DragEvent, tableId: number) => {
+    e.preventDefault();
+    setDragOverTable(tableId);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverTable(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent, tableId: number) => {
+    e.preventDefault();
+    setDragOverTable(null);
+    
+    try {
+      const bookingData = JSON.parse(e.dataTransfer.getData('application/json'));
+      
+      const { error } = await supabase
+        .from('bookings')
+        .update({ 
+          table_id: tableId,
+          is_unallocated: false,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', bookingData.id);
+      
+      if (error) throw error;
+      
+      refetchBookings();
+      toast({
+        title: "Booking Moved",
+        description: `${bookingData.guest_name}'s booking moved to new table`,
+      });
+    } catch (error) {
+      console.error('Drop error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to move booking",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
-      {/* Unallocated Bookings Banner */}
       <UnallocatedBookingsBanner
         bookings={getUnallocatedBookings()}
         onAllocateAll={handleAllocateUnallocatedBookings}
         onBookingClick={handleBookingClick}
       />
 
-      {/* Header */}
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -213,13 +267,10 @@ const HostInterface = () => {
         />
       </div>
 
-      {/* Main Layout */}
       <div className="grid grid-cols-12 gap-4 h-[calc(100vh-200px)]">
-        {/* Time Grid - Takes most space */}
         <div className={`${showDetails ? 'col-span-8' : 'col-span-9'} flex flex-col`}>
           <ScrollArea className="flex-1">
             <OptimizedTimeGrid venueHours={venueHours}>
-              {/* Tables by Section */}
               <div className="space-y-0">
                 {sections.map((section) => {
                   const sectionTables = tables.filter(table => 
@@ -228,7 +279,6 @@ const HostInterface = () => {
 
                   return (
                     <div key={section.id}>
-                      {/* Section Header */}
                       <div 
                         className="bg-gray-100 dark:bg-gray-800 px-4 py-2 border-b border-gray-200 dark:border-gray-700 flex items-center"
                         style={{ borderLeftColor: section.color, borderLeftWidth: '4px' }}
@@ -238,37 +288,41 @@ const HostInterface = () => {
                         </h3>
                       </div>
 
-                      {/* Tables in Section */}
                       {sectionTables.map((table) => {
                         const tableBookings = getBookingsForTable(table.id);
+                        const isDragOver = dragOverTable === table.id;
 
                         return (
-                          <div key={table.id} className="flex border-b border-gray-100 dark:border-gray-800 min-h-[52px]">
-                            {/* Table Info */}
-                            <div className="w-48 p-4 border-r border-gray-200 dark:border-gray-700 flex items-center bg-white dark:bg-gray-900">
+                          <div 
+                            key={table.id} 
+                            className={`flex border-b border-gray-100 dark:border-gray-800 min-h-[48px] ${isDragOver ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
+                            onDragOver={(e) => handleDragOver(e, table.id)}
+                            onDragLeave={handleDragLeave}
+                            onDrop={(e) => handleDrop(e, table.id)}
+                          >
+                            <div className="w-48 p-3 border-r border-gray-200 dark:border-gray-700 flex items-center bg-white dark:bg-gray-900">
                               <div>
-                                <span className="font-semibold">{table.label}</span>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <Badge variant="outline" className="text-xs">
-                                    {table.seats} seats
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold text-sm">{table.label}</span>
+                                  <Badge variant="outline" className="text-xs px-1 py-0">
+                                    <Users className="h-3 w-3 mr-0.5" />
+                                    {table.seats}
                                   </Badge>
                                   {table.join_groups && table.join_groups.length > 0 && (
-                                    <Badge variant="secondary" className="text-xs">
-                                      Group
+                                    <Badge variant="secondary" className="text-xs px-1 py-0">
+                                      <Link className="h-3 w-3" />
                                     </Badge>
                                   )}
                                 </div>
                               </div>
                             </div>
 
-                            {/* Time Slots with Bookings - Clickable for Walk-ins */}
                             <div 
-                              className="flex-1 relative bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 min-h-[52px] cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                              className="flex-1 relative bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 min-h-[48px] cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
                               onClick={(e) => {
-                                // Calculate clicked time based on position
                                 const rect = e.currentTarget.getBoundingClientRect();
                                 const clickX = e.clientX - rect.left;
-                                const slotWidth = 60; // 60px per 15-minute slot
+                                const slotWidth = 60;
                                 const slotIndex = Math.floor(clickX / slotWidth);
                                 
                                 if (venueHours) {
@@ -301,7 +355,6 @@ const HostInterface = () => {
           </ScrollArea>
         </div>
 
-        {/* Right Panel */}
         <div className={`${showDetails ? 'col-span-4' : 'col-span-3'} flex flex-col space-y-4`}>
           {showDetails ? (
             <BookingDetailsPanel

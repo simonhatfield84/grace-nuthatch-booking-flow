@@ -2,6 +2,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Clock, Users, Phone, Mail } from "lucide-react";
+import { useState } from "react";
 
 interface Booking {
   id: number;
@@ -20,13 +21,17 @@ interface TouchOptimizedBookingBarProps {
   booking: Booking;
   startTime: string;
   onBookingClick: (booking: Booking) => void;
+  onBookingDrag?: (bookingId: number, newTime: string, newTableId?: number) => void;
 }
 
 export const TouchOptimizedBookingBar = ({ 
   booking, 
   startTime,
-  onBookingClick 
+  onBookingClick,
+  onBookingDrag
 }: TouchOptimizedBookingBarProps) => {
+  const [isDragging, setIsDragging] = useState(false);
+  
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'confirmed':
@@ -45,7 +50,7 @@ export const TouchOptimizedBookingBar = ({
   };
 
   // Calculate position based on booking time (15-minute segments)
-  const calculatePosition = () => {
+  const calculateLeftPercentage = () => {
     const [startHour, startMin] = startTime.split(':').map(Number);
     const [bookingHour, bookingMin] = booking.booking_time.split(':').map(Number);
     
@@ -53,14 +58,17 @@ export const TouchOptimizedBookingBar = ({
     const bookingTotalMin = bookingHour * 60 + bookingMin;
     const diffMin = Math.max(0, bookingTotalMin - startTotalMin);
     
-    return (diffMin / 15) * 60; // 60px per 15-minute slot
+    // Calculate percentage based on 15-minute slots (each slot is 60px, total grid width varies)
+    const totalMinutesInGrid = 12 * 60; // 12 hours typical
+    return (diffMin / totalMinutesInGrid) * 100;
   };
 
-  const leftPosition = calculatePosition();
+  const leftPercentage = calculateLeftPercentage();
   
   // Calculate width based on actual booking duration
-  const duration = booking.duration_minutes || 120; // fallback to 2 hours
-  const width = (duration / 15) * 60; // 60px per 15-minute slot
+  const duration = booking.duration_minutes || 120;
+  const totalMinutesInGrid = 12 * 60;
+  const widthPercentage = Math.min((duration / totalMinutesInGrid) * 100, 100 - leftPercentage);
 
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
@@ -74,19 +82,32 @@ export const TouchOptimizedBookingBar = ({
     }
   };
 
+  const handleDragStart = (e: React.DragEvent) => {
+    setIsDragging(true);
+    e.dataTransfer.setData('application/json', JSON.stringify(booking));
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragEnd = () => {
+    setIsDragging(false);
+  };
+
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
           <div
-            className={`absolute rounded-md text-white text-xs flex items-center px-3 cursor-pointer transition-all duration-200 shadow-lg border-l-4 min-h-[44px] ${getStatusColor(booking.status)}`}
+            className={`absolute rounded-md text-white text-xs flex items-center px-3 cursor-pointer transition-all duration-200 shadow-lg border-l-4 min-h-[44px] ${getStatusColor(booking.status)} ${isDragging ? 'opacity-50' : ''}`}
             style={{
-              left: `${leftPosition}px`,
-              width: `${width}px`,
+              left: `${leftPercentage}%`,
+              width: `${widthPercentage}%`,
               top: '4px',
               zIndex: 10
             }}
             onClick={() => onBookingClick(booking)}
+            draggable
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
           >
             <div className="flex items-center justify-between w-full min-w-0">
               <div className="flex items-center gap-2 min-w-0">
