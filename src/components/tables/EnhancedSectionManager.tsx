@@ -85,36 +85,19 @@ export const EnhancedSectionManager = ({
         
         <div className="flex items-center gap-2">
           {sections.map((section) => (
-            <div key={section.id} className="flex items-center gap-1">
-              <Button
-                variant={visibleSections.has(section.id) ? "default" : "outline"}
-                size="sm"
-                onClick={() => toggleSectionVisibility(section.id)}
-                className="text-xs"
-              >
-                {visibleSections.has(section.id) ? <Eye className="h-3 w-3 mr-1" /> : <EyeOff className="h-3 w-3 mr-1" />}
-                {section.name}
-                <Badge variant="secondary" className="ml-1 text-xs">
-                  {getTablesForSection(section.id).length}
-                </Badge>
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onEditSection?.(section)}
-                className="h-8 w-8 p-0"
-              >
-                <Edit className="h-3 w-3" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => onDeleteSection?.(section.id)}
-                className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-              >
-                <Trash2 className="h-3 w-3" />
-              </Button>
-            </div>
+            <Button
+              key={section.id}
+              variant={visibleSections.has(section.id) ? "default" : "outline"}
+              size="sm"
+              onClick={() => toggleSectionVisibility(section.id)}
+              className="text-xs"
+            >
+              {visibleSections.has(section.id) ? <Eye className="h-3 w-3 mr-1" /> : <EyeOff className="h-3 w-3 mr-1" />}
+              {section.name}
+              <Badge variant="secondary" className="ml-1 text-xs">
+                {getTablesForSection(section.id).length}
+              </Badge>
+            </Button>
           ))}
         </div>
       </div>
@@ -184,6 +167,55 @@ export const EnhancedSectionManager = ({
                 </CardContent>
               </Card>
             )}
+
+            <Card>
+              <CardHeader className="pb-3">
+                <h4 className="font-medium">Section Management</h4>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start"
+                  onClick={onCreateSection}
+                >
+                  <Plus className="h-3 w-3 mr-2" />
+                  Create New Section
+                </Button>
+                
+                <div className="space-y-1">
+                  {sections.map((section) => (
+                    <div key={section.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50">
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <div 
+                          className="w-3 h-3 rounded-full flex-shrink-0" 
+                          style={{ backgroundColor: section.color }}
+                        />
+                        <span className="text-sm truncate">{section.name}</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onEditSection?.(section)}
+                          className="h-6 w-6 p-0"
+                        >
+                          <Edit className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onDeleteSection?.(section.id)}
+                          className="h-6 w-6 p-0 text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
             
             <Card>
               <CardHeader className="pb-3">
@@ -225,32 +257,14 @@ export const EnhancedSectionManager = ({
                         {sectionTables.length} tables
                       </Badge>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => onEditSection?.(section)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Edit className="h-3 w-3" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={() => onDeleteSection?.(section.id)}
-                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleAddTable(section.id)}
-                      >
-                        <Plus className="h-4 w-4 mr-1" />
-                        Add Table
-                      </Button>
-                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleAddTable(section.id)}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Table
+                    </Button>
                   </div>
                   {section.description && (
                     <p className="text-sm text-muted-foreground mt-1">{section.description}</p>
