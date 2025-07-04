@@ -27,9 +27,11 @@ export const GroupDialog = ({
   onUpdateGroup,
   tables
 }: GroupDialogProps) => {
+  // Handle data format: use memberTableIds for form, table_ids for database
   const currentGroupData = editingGroup || newGroup;
+  const memberTableIds = currentGroupData.memberTableIds || currentGroupData.table_ids || [];
   
-  const suggestedCapacity = currentGroupData.memberTableIds.reduce((sum: number, id: number) => {
+  const suggestedCapacity = memberTableIds.reduce((sum: number, id: number) => {
     const table = tables.find(t => t.id === id);
     return sum + (table?.seats || 0);
   }, 0);
@@ -45,7 +47,7 @@ export const GroupDialog = ({
             <Label htmlFor="groupName">Table Join Name</Label>
             <Input
               id="groupName"
-              value={currentGroupData.name}
+              value={currentGroupData.name || ""}
               onChange={(e) => editingGroup
                 ? setEditingGroup({...editingGroup, name: e.target.value})
                 : setNewGroup({...newGroup, name: e.target.value})
@@ -62,12 +64,12 @@ export const GroupDialog = ({
                   <input
                     type="checkbox"
                     id={`group-table-${table.id}`}
-                    checked={currentGroupData.memberTableIds.includes(table.id)}
+                    checked={memberTableIds.includes(table.id)}
                     onChange={(e) => {
                       const checked = e.target.checked;
                       const newMemberIds = checked
-                        ? [...currentGroupData.memberTableIds, table.id]
-                        : currentGroupData.memberTableIds.filter((id: number) => id !== table.id);
+                        ? [...memberTableIds, table.id]
+                        : memberTableIds.filter((id: number) => id !== table.id);
                       
                       if (editingGroup) {
                         setEditingGroup({...editingGroup, memberTableIds: newMemberIds});
@@ -89,7 +91,7 @@ export const GroupDialog = ({
             <Input
               id="maxCapacity"
               type="number"
-              value={currentGroupData.maxCapacity}
+              value={currentGroupData.maxCapacity || currentGroupData.max_party_size || 0}
               onChange={(e) => editingGroup
                 ? setEditingGroup({...editingGroup, maxCapacity: parseInt(e.target.value) || 0})
                 : setNewGroup({...newGroup, maxCapacity: parseInt(e.target.value) || 0})
@@ -104,7 +106,7 @@ export const GroupDialog = ({
           <div className="flex gap-2">
             <Button 
               onClick={editingGroup ? onUpdateGroup : onAddGroup}
-              disabled={!currentGroupData.name || currentGroupData.memberTableIds.length < 2}
+              disabled={!currentGroupData.name || memberTableIds.length < 2}
             >
               {editingGroup ? 'Update Table Join' : 'Create Table Join'}
             </Button>
