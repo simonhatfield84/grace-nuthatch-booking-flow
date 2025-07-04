@@ -20,7 +20,7 @@ import { Booking } from "@/hooks/useBookings";
 
 const HostInterface = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const { toast } = useToast();
 
@@ -66,7 +66,7 @@ const HostInterface = () => {
 
   const bookingDates = [...new Set(allBookings.map(b => b.booking_date))];
 
-  const handleBookingClick = (booking) => {
+  const handleBookingClick = (booking: Booking) => {
     setSelectedBooking(booking);
     setShowDetails(true);
   };
@@ -79,19 +79,23 @@ const HostInterface = () => {
   const handleAllocateUnallocatedBookings = async () => {
     const unallocatedBookings = bookings.filter(booking => booking.is_unallocated);
     
+    console.log(`Attempting to allocate ${unallocatedBookings.length} unallocated bookings`);
+    
+    let successCount = 0;
     for (const booking of unallocatedBookings) {
-      await TableAllocationService.allocateBookingToTables(
+      const success = await TableAllocationService.allocateBookingToTables(
         booking.id,
         booking.party_size,
         booking.booking_date,
         booking.booking_time
       );
+      if (success) successCount++;
     }
     
     refetchBookings();
     toast({
       title: "Allocation Complete",
-      description: `Attempted to allocate ${unallocatedBookings.length} unallocated bookings.`,
+      description: `Successfully allocated ${successCount} out of ${unallocatedBookings.length} bookings.`,
     });
   };
 
@@ -99,11 +103,11 @@ const HostInterface = () => {
     return bookings.filter(booking => booking.is_unallocated || !booking.table_id);
   };
 
-  const getBookingsForTable = (tableId) => {
+  const getBookingsForTable = (tableId: number) => {
     return bookings.filter(booking => booking.table_id === tableId);
   };
 
-  const handleStatusChange = async (booking, newStatus) => {
+  const handleStatusChange = async (booking: Booking, newStatus: string) => {
     try {
       const { error } = await supabase
         .from('bookings')
@@ -113,7 +117,7 @@ const HostInterface = () => {
       if (error) throw error;
       
       refetchBookings();
-      setSelectedBooking({ ...booking, status: newStatus });
+      setSelectedBooking({ ...booking, status: newStatus as Booking['status'] });
       toast({
         title: "Status Updated",
         description: `Booking status changed to ${newStatus}`,
@@ -125,6 +129,10 @@ const HostInterface = () => {
         variant: "destructive"
       });
     }
+  };
+
+  const handleBookingUpdate = () => {
+    refetchBookings();
   };
 
   return (
@@ -223,6 +231,7 @@ const HostInterface = () => {
               booking={selectedBooking}
               onClose={handleCloseDetails}
               onStatusChange={handleStatusChange}
+              onBookingUpdate={handleBookingUpdate}
             />
           ) : (
             <IPadCalendar

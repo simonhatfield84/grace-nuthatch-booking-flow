@@ -3,8 +3,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { X, Users, Clock, Phone, Mail, Edit, Trash2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { X, Users, Clock, Phone, Mail, Edit, Trash2, Save, MapPin } from "lucide-react";
 import { Booking } from "@/hooks/useBookings";
+import { useTables } from "@/hooks/useTables";
+import { TableAllocationService } from "@/services/tableAllocation";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { useState, useEffect } from "react";
+
+interface Table {
+  id: number;
+  label: string;
+  seats: number;
+  section_id: number | null;
+}
 
 interface BookingDetailsPanelProps {
   booking: Booking | null;
@@ -12,6 +26,7 @@ interface BookingDetailsPanelProps {
   onEdit?: (booking: Booking) => void;
   onDelete?: (booking: Booking) => void;
   onStatusChange?: (booking: Booking, status: string) => void;
+  onBookingUpdate?: () => void;
 }
 
 export const BookingDetailsPanel = ({ 
@@ -19,8 +34,96 @@ export const BookingDetailsPanel = ({
   onClose, 
   onEdit, 
   onDelete, 
-  onStatusChange 
+  onStatusChange,
+  onBookingUpdate
 }: BookingDetailsPanelProps) => {
+  const { tables } = useTables();
+  const { toast } = useToast();
+  const [availableTables, setAvailableTables] = useState<Table[]>([]);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedNotes, setEditedNotes] = useState("");
+  const [isAssigning, setIsAssigning] = useState(false);
+
+  useEffect(() => {
+    if (booking) {
+      setEditedNotes(booking.notes || "");
+      loadAvailableTables();
+    }
+  }, [booking]);
+
+  const loadAvailableTables = async () => {
+    if (!booking) return;
+    
+    const available = await TableAllocationService.getAvailableTablesForBooking(
+      booking.party_size,
+      booking.booking_date,
+      booking.booking_time
+    );
+    
+    // Include currently assigned table even if it's not "available" for reassignment
+    const currentTable = tables.find(t => t.id === booking.table_id);
+    if (currentTable && !available.find(t => t.id === currentTable.id)) {
+      available.push(currentTable);
+    }
+    
+    setAvailableTables(available);
+  };
+
+  const handleTableAssignment = async (tableId: string) => {
+    if (!booking) return;
+    
+    setIsAssigning(true);
+    const success = await TableAllocationService.manuallyAssignBookingToTable(
+      booking.id,
+      parseInt(tableId)
+    );
+    
+    if (success) {
+      toast({
+        title: "Table Assigned",
+        description: `Booking assigned to table ${tables.find(t => t.id === parseInt(tableId))?.label}`,
+      });
+      onBookingUpdate?.();
+    } else {
+      toast({
+        title: "Assignment Failed",
+        description: "Could not assign booking to selected table",
+        variant: "destructive"
+      });
+    }
+    setIsAssigning(false);
+  };
+
+  const handleSaveNotes = async () => {
+    if (!booking) return;
+    
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({ 
+          notes: editedNotes,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', booking.id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Notes Updated",
+        description: "Booking notes have been saved",
+      });
+      
+      setIsEditing(false);
+      onBookingUpdate?.();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update notes",
+        variant: "destructive"
+      });
+    }
+  };
+
   if (!booking) return null;
 
   const getStatusColor = (status: string) => {
@@ -35,6 +138,7 @@ export const BookingDetailsPanel = ({
   };
 
   const statusOptions = ['confirmed', 'seated', 'finished', 'cancelled', 'late'];
+  const assignedTable = tables.find(t => t.id === booking.table_id);
 
   return (
     <Card className="h-full flex flex-col">
@@ -82,6 +186,61 @@ export const BookingDetailsPanel = ({
 
         <Separator />
 
+        {/* Table Assignment */}
+        <div>
+          <h4 className="font-medium mb-2 flex items-center gap-2">
+            <MapPin className="h-4 w-4" />
+            Table Assignment
+          </h4>
+          
+          {booking.is_unallocated || !assignedTable ? (
+            <div className="space-y-3">
+              <Badge variant="destructive" className="mb-2">
+                Unallocated
+              </Badge>
+              <Select onValueChange={handleTableAssignment} disabled={isAssigning}>
+                <SelectTrigger className="min-h-[44px]">
+                  <SelectValue placeholder="Select a table..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableTables.map((table) => (
+                    <SelectItem key={table.id} value={table.id.toString()}>
+                      Table {table.label} ({table.seats} seats)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Badge variant="outline" className="bg-green-50">
+                  Table {assignedTable.label} ({assignedTable.seats} seats)
+                </Badge>
+              </div>
+              <Select 
+                onValueChange={handleTableAssignment} 
+                disabled={isAssigning}
+                defaultValue={booking.table_id?.toString()}
+              >
+                <SelectTrigger className="min-h-[44px]">
+                  <SelectValue placeholder="Reassign table..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableTables.map((table) => (
+                    <SelectItem key={table.id} value={table.id.toString()}>
+                      Table {table.label} ({table.seats} seats)
+                      {table.id === booking.table_id && " (Current)"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+        </div>
+
+        <Separator />
+
         {/* Status */}
         <div>
           <h4 className="font-medium mb-2">Status</h4>
@@ -116,15 +275,56 @@ export const BookingDetailsPanel = ({
           </>
         )}
 
-        {booking.notes && (
-          <>
-            <Separator />
-            <div>
-              <h4 className="font-medium mb-2">Notes</h4>
-              <p className="text-sm text-gray-600 dark:text-gray-400">{booking.notes}</p>
+        <Separator />
+
+        {/* Notes */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <h4 className="font-medium">Notes</h4>
+            {!isEditing && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsEditing(true)}
+                className="min-h-[36px]"
+              >
+                <Edit className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
+          
+          {isEditing ? (
+            <div className="space-y-2">
+              <Textarea
+                value={editedNotes}
+                onChange={(e) => setEditedNotes(e.target.value)}
+                placeholder="Add notes..."
+                className="min-h-[80px]"
+              />
+              <div className="flex gap-2">
+                <Button onClick={handleSaveNotes} size="sm" className="min-h-[36px]">
+                  <Save className="h-3 w-3 mr-1" />
+                  Save
+                </Button>
+                <Button 
+                  onClick={() => {
+                    setIsEditing(false);
+                    setEditedNotes(booking.notes || "");
+                  }} 
+                  variant="outline" 
+                  size="sm"
+                  className="min-h-[36px]"
+                >
+                  Cancel
+                </Button>
+              </div>
             </div>
-          </>
-        )}
+          ) : (
+            <p className="text-sm text-gray-600 dark:text-gray-400 min-h-[20px]">
+              {booking.notes || "No notes"}
+            </p>
+          )}
+        </div>
 
         <Separator />
 
