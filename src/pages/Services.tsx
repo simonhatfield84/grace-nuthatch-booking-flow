@@ -1,10 +1,12 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { ServiceCard } from "@/components/services/ServiceCard";
 import { ServiceDialog } from "@/components/services/ServiceDialog";
 import { useServices } from "@/hooks/useServices";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useBookingWindows } from "@/hooks/useBookingWindows";
 
 const Services = () => {
   const {
@@ -14,6 +16,23 @@ const Services = () => {
     updateServiceMutation,
     deleteServiceMutation
   } = useServices();
+
+  // Fetch tags
+  const { data: allTags = [] } = useQuery({
+    queryKey: ['tags'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('tags')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
+  // Fetch booking windows for all services
+  const { data: allWindows = [], isLoading: isWindowsLoading, error: windowsError } = useBookingWindows();
 
   const [showDialog, setShowDialog] = useState(false);
   const [editingService, setEditingService] = useState(null);
@@ -157,6 +176,59 @@ const Services = () => {
     }
   };
 
+  const handleDuplicateService = (service) => {
+    setNewService({
+      title: `${service.title} (Copy)`,
+      description: service.description,
+      image_url: service.image_url,
+      tag_ids: service.tag_ids || [],
+      min_guests: service.min_guests,
+      max_guests: service.max_guests,
+      lead_time_hours: service.lead_time_hours,
+      cancellation_window_hours: service.cancellation_window_hours,
+      requires_deposit: service.requires_deposit,
+      deposit_per_guest: service.deposit_per_guest,
+      online_bookable: service.online_bookable,
+      active: service.active,
+      is_secret: service.is_secret,
+      secret_slug: service.secret_slug ? `${service.secret_slug}-copy` : '',
+      terms_and_conditions: service.terms_and_conditions,
+      duration_rules: service.duration_rules || [],
+      useStandardTerms: service.terms_and_conditions === getStandardTerms()
+    });
+    setShowDialog(true);
+  };
+
+  const handleToggleActive = async (serviceId) => {
+    const service = services.find(s => s.id === serviceId);
+    if (!service) return;
+
+    try {
+      await updateServiceMutation.mutateAsync({
+        id: serviceId,
+        updates: { active: !service.active }
+      });
+    } catch (error) {
+      console.error('Error toggling service active state:', error);
+    }
+  };
+
+  const handleManageWindows = (serviceId) => {
+    // For now, just log - this would typically open a booking windows management dialog
+    console.log('Manage windows for service:', serviceId);
+  };
+
+  // Helper function to get tags for a specific service
+  const getServiceTags = (service) => {
+    if (!service.tag_ids || !Array.isArray(service.tag_ids)) return [];
+    return allTags.filter(tag => service.tag_ids.includes(tag.id));
+  };
+
+  // Helper function to get booking windows for a specific service
+  const getServiceWindows = (serviceId) => {
+    return allWindows.filter(window => window.service_id === serviceId);
+  };
+
   if (isServicesLoading) {
     return <div className="flex items-center justify-center h-64">Loading services...</div>;
   }
@@ -179,8 +251,15 @@ const Services = () => {
           <ServiceCard
             key={service.id}
             service={service}
+            serviceTags={getServiceTags(service)}
+            serviceWindows={getServiceWindows(service.id)}
+            isLoadingWindows={isWindowsLoading}
+            windowsError={windowsError}
             onEdit={handleEditService}
+            onDuplicate={handleDuplicateService}
             onDelete={handleDeleteService}
+            onToggleActive={handleToggleActive}
+            onManageWindows={handleManageWindows}
           />
         ))}
       </div>
