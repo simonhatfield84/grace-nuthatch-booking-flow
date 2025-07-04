@@ -6,6 +6,15 @@ interface Table {
   label: string;
   seats: number;
   join_groups: number[];
+  section_id: number | null;
+  status: 'active' | 'deleted';
+  online_bookable: boolean;
+  priority_rank: number;
+  position_x: number;
+  position_y: number;
+  deleted_at: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 interface Section {
