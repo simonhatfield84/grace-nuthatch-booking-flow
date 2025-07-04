@@ -336,14 +336,7 @@ const HostInterface = () => {
           <BlockDialog
             tables={tables}
             timeSlots={generateTimeSlots()}
-            blockedSlots={blocks.map(block => ({
-              id: parseInt(block.id.slice(-6), 16),
-              fromTime: block.start_time,
-              toTime: block.end_time,
-              tableIds: block.table_ids.length === 0 ? ['all'] : block.table_ids.map(String),
-              reason: block.reason || 'Blocked'
-            }))}
-            setBlockedSlots={() => {}}
+            selectedDate={selectedDate}
           />
           <WalkInDialog
             open={walkInDialogOpen}

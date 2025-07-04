@@ -6,36 +6,40 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Ban, Trash2, Edit } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useBlocks } from "@/hooks/useBlocks";
+import { format } from "date-fns";
 
 interface BlockDialogProps {
   tables: any[];
   timeSlots: string[];
-  blockedSlots: any[];
-  setBlockedSlots: (slots: any[]) => void;
+  selectedDate: Date;
   selectedBlock?: any;
 }
 
-export const BlockDialog = ({ tables, timeSlots, blockedSlots, setBlockedSlots, selectedBlock }: BlockDialogProps) => {
+export const BlockDialog = ({ tables, timeSlots, selectedDate, selectedBlock }: BlockDialogProps) => {
   const [open, setOpen] = useState(false);
   const [editingBlock, setEditingBlock] = useState(selectedBlock || null);
   const [formData, setFormData] = useState({
-    fromTime: selectedBlock?.fromTime || "",
-    toTime: selectedBlock?.toTime || "",
-    selectedTables: selectedBlock?.tableIds?.filter((id: string) => id !== 'all') || [],
-    blockAll: selectedBlock?.tableIds?.includes('all') || false
+    fromTime: selectedBlock?.start_time || "",
+    toTime: selectedBlock?.end_time || "",
+    selectedTables: selectedBlock?.table_ids?.filter((id: number) => id !== 0) || [],
+    blockAll: selectedBlock?.table_ids?.length === 0 || false
   });
 
+  const { blocks, createBlock, deleteBlock } = useBlocks(format(selectedDate, 'yyyy-MM-dd'));
+
   const handleTableToggle = (tableId: string, checked: boolean) => {
+    const numericTableId = parseInt(tableId);
     if (checked) {
       setFormData({ 
         ...formData, 
-        selectedTables: [...formData.selectedTables, tableId],
+        selectedTables: [...formData.selectedTables, numericTableId],
         blockAll: false
       });
     } else {
       setFormData({ 
         ...formData, 
-        selectedTables: formData.selectedTables.filter(id => id !== tableId)
+        selectedTables: formData.selectedTables.filter(id => id !== numericTableId)
       });
     }
   };
@@ -48,36 +52,24 @@ export const BlockDialog = ({ tables, timeSlots, blockedSlots, setBlockedSlots, 
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (editingBlock) {
-      // Update existing block
-      const updatedBlocks = blockedSlots.map(block => 
-        block.id === editingBlock.id 
-          ? {
-              ...block,
-              fromTime: formData.fromTime,
-              toTime: formData.toTime,
-              tableIds: formData.blockAll ? ['all'] : formData.selectedTables,
-            }
-          : block
-      );
-      setBlockedSlots(updatedBlocks);
-    } else {
-      // Create new block
-      const newBlock = {
-        id: Math.max(...blockedSlots.map(b => b.id), 0) + 1,
-        fromTime: formData.fromTime,
-        toTime: formData.toTime,
-        tableIds: formData.blockAll ? ['all'] : formData.selectedTables,
+    try {
+      const blockData = {
+        date: format(selectedDate, 'yyyy-MM-dd'),
+        start_time: formData.fromTime,
+        end_time: formData.toTime,
+        table_ids: formData.blockAll ? [] : formData.selectedTables,
         reason: "Blocked"
       };
-      setBlockedSlots([...blockedSlots, newBlock]);
-    }
 
-    resetForm();
-    setOpen(false);
+      await createBlock(blockData);
+      resetForm();
+      setOpen(false);
+    } catch (error) {
+      console.error('Error creating block:', error);
+    }
   };
 
   const resetForm = () => {
@@ -90,17 +82,21 @@ export const BlockDialog = ({ tables, timeSlots, blockedSlots, setBlockedSlots, 
     setEditingBlock(null);
   };
 
-  const handleDeleteBlock = (blockId: number) => {
-    setBlockedSlots(blockedSlots.filter(block => block.id !== blockId));
+  const handleDeleteBlock = async (blockId: string) => {
+    try {
+      await deleteBlock(blockId);
+    } catch (error) {
+      console.error('Error deleting block:', error);
+    }
   };
 
   const handleEditBlock = (block: any) => {
     setEditingBlock(block);
     setFormData({
-      fromTime: block.fromTime,
-      toTime: block.toTime,
-      selectedTables: block.tableIds.filter((id: string) => id !== 'all'),
-      blockAll: block.tableIds.includes('all')
+      fromTime: block.start_time,
+      toTime: block.end_time,
+      selectedTables: block.table_ids || [],
+      blockAll: block.table_ids.length === 0
     });
   };
 
@@ -110,9 +106,9 @@ export const BlockDialog = ({ tables, timeSlots, blockedSlots, setBlockedSlots, 
     return timeSlots.slice(fromIndex + 1);
   };
 
-  const getTableNames = (tableIds: string[]) => {
-    if (tableIds.includes('all')) return 'All Tables';
-    return tableIds.map(id => tables.find(t => t.id.toString() === id)?.label).join(', ');
+  const getTableNames = (tableIds: number[]) => {
+    if (tableIds.length === 0) return 'All Tables';
+    return tableIds.map(id => tables.find(t => t.id === id)?.label).filter(Boolean).join(', ');
   };
 
   return (
@@ -132,15 +128,15 @@ export const BlockDialog = ({ tables, timeSlots, blockedSlots, setBlockedSlots, 
         </DialogHeader>
         
         {/* Existing Blocks */}
-        {blockedSlots.length > 0 && !editingBlock && (
+        {blocks.length > 0 && !editingBlock && (
           <div className="mb-6">
             <h3 className="text-sm font-medium mb-3">Existing Blocks</h3>
             <div className="space-y-2 max-h-32 overflow-y-auto">
-              {blockedSlots.map((block) => (
+              {blocks.map((block) => (
                 <div key={block.id} className="flex items-center justify-between p-2 bg-red-900/30 rounded border border-red-500/50">
                   <div className="flex-1">
-                    <div className="text-sm font-medium">{block.fromTime} - {block.toTime}</div>
-                    <div className="text-xs text-grace-light/70">{getTableNames(block.tableIds)}</div>
+                    <div className="text-sm font-medium">{block.start_time} - {block.end_time}</div>
+                    <div className="text-xs text-grace-light/70">{getTableNames(block.table_ids)}</div>
                   </div>
                   <div className="flex gap-1">
                     <Button
@@ -217,7 +213,7 @@ export const BlockDialog = ({ tables, timeSlots, blockedSlots, setBlockedSlots, 
                     <div key={table.id} className="flex items-center space-x-2">
                       <Checkbox
                         id={`table-${table.id}`}
-                        checked={formData.selectedTables.includes(table.id.toString())}
+                        checked={formData.selectedTables.includes(table.id)}
                         onCheckedChange={(checked) => handleTableToggle(table.id.toString(), !!checked)}
                         className="border-grace-accent/30"
                       />
