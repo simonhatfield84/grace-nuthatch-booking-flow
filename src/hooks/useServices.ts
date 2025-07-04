@@ -24,17 +24,18 @@ export const useServices = () => {
   // Create service mutation
   const createServiceMutation = useMutation({
     mutationFn: async (newService: any) => {
+      console.log('Creating service with data:', newService);
+      
       const { data, error } = await supabase
         .from('services')
-        .insert([{
-          ...newService,
-          duration_rules: newService.durationRules,
-          tag_ids: newService.tagIds
-        }])
+        .insert([newService])
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
       return data;
     },
     onSuccess: () => {
@@ -50,19 +51,22 @@ export const useServices = () => {
   // Update service mutation
   const updateServiceMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string, updates: any }) => {
+      console.log('Updating service with data:', updates);
+      
       const { data, error } = await supabase
         .from('services')
         .update({
           ...updates,
-          duration_rules: updates.durationRules,
-          tag_ids: updates.tagIds,
           updated_at: new Date().toISOString()
         })
         .eq('id', id)
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase error:', error);
+        throw error;
+      }
       return data;
     },
     onSuccess: () => {

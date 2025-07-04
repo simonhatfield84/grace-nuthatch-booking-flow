@@ -2,14 +2,9 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
-import { BookingWindowManager } from "@/components/services/BookingWindowManager";
 import { ServiceCard } from "@/components/services/ServiceCard";
 import { ServiceDialog } from "@/components/services/ServiceDialog";
-import { DurationRule } from "@/hooks/useServiceDurationRules";
 import { useServices } from "@/hooks/useServices";
-import { useBookingWindows } from "@/hooks/useBookingWindows";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 
 const Services = () => {
   const {
@@ -20,36 +15,13 @@ const Services = () => {
     deleteServiceMutation
   } = useServices();
 
-  const {
-    isLoadingWindows,
-    windowsError,
-    getWindowsForService
-  } = useBookingWindows();
-
-  // Fetch tags from database for display
-  const { data: allTags = [] } = useQuery({
-    queryKey: ['tags'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('tags')
-        .select('*')
-        .order('name');
-      
-      if (error) throw error;
-      return data;
-    }
-  });
-
-  const [showServiceDialog, setShowServiceDialog] = useState(false);
-  const [editingService, setEditingService] = useState<any>(null);
-  const [showWindowManager, setShowWindowManager] = useState(false);
-  const [currentServiceId, setCurrentServiceId] = useState<string | null>(null);
-
+  const [showDialog, setShowDialog] = useState(false);
+  const [editingService, setEditingService] = useState(null);
   const [newService, setNewService] = useState({
-    title: "",
-    description: "",
-    image_url: "",
-    tag_ids: [] as string[],
+    title: '',
+    description: '',
+    image_url: '',
+    tag_ids: [],
     min_guests: 1,
     max_guests: 8,
     lead_time_hours: 2,
@@ -59,77 +31,17 @@ const Services = () => {
     online_bookable: true,
     active: true,
     is_secret: false,
-    secret_slug: null,
-    terms_and_conditions: "",
-    useStandardTerms: true,
-    duration_rules: [] as DurationRule[]
+    secret_slug: '',
+    terms_and_conditions: '',
+    duration_rules: [],
+    useStandardTerms: true
   });
 
-  // Helper function to get tags for a service
-  const getTagsForService = (tagIds: string[]) => {
-    return allTags.filter(tag => tagIds.includes(tag.id));
-  };
-
-  const generateSecretSlug = () => {
-    return Math.random().toString(36).substring(2, 10);
-  };
-
-  const getStandardTerms = () => {
-    return localStorage.getItem('standardTerms') || '';
-  };
-
-  const handleAddService = () => {
-    const serviceData = {
-      ...newService,
-      secret_slug: newService.is_secret ? generateSecretSlug() : null
-    };
-    createServiceMutation.mutate(serviceData);
-    resetServiceForm();
-    setShowServiceDialog(false);
-  };
-
-  const handleUpdateService = () => {
-    const updatedService = {
-      ...editingService,
-      secret_slug: editingService.is_secret 
-        ? (editingService.secret_slug || generateSecretSlug())
-        : null
-    };
-    updateServiceMutation.mutate({ id: editingService.id, updates: updatedService });
-    setEditingService(null);
-    setShowServiceDialog(false);
-  };
-
-  const handleDeleteService = (serviceId: string) => {
-    deleteServiceMutation.mutate(serviceId);
-  };
-
-  const handleEditService = (service: any) => {
-    setEditingService({
-      ...service,
-      tagIds: service.tag_ids || [],
-      durationRules: Array.isArray(service.duration_rules) ? service.duration_rules : [],
-      useStandardTerms: !service.terms_and_conditions || service.terms_and_conditions === getStandardTerms()
-    });
-    setShowServiceDialog(true);
-  };
-
-  const handleDuplicateService = (service: any) => {
-    const duplicatedService = {
-      ...service,
-      title: `${service.title} (Copy)`,
-      active: false,
-      secret_slug: service.is_secret ? generateSecretSlug() : null,
-      id: undefined // Remove ID so a new one will be generated
-    };
-    createServiceMutation.mutate(duplicatedService);
-  };
-
-  const resetServiceForm = () => {
+  const resetForm = () => {
     setNewService({
-      title: "",
-      description: "",
-      image_url: "",
+      title: '',
+      description: '',
+      image_url: '',
       tag_ids: [],
       min_guests: 1,
       max_guests: 8,
@@ -140,38 +52,113 @@ const Services = () => {
       online_bookable: true,
       active: true,
       is_secret: false,
-      secret_slug: null,
-      terms_and_conditions: "",
-      useStandardTerms: true,
-      duration_rules: []
+      secret_slug: '',
+      terms_and_conditions: '',
+      duration_rules: [],
+      useStandardTerms: true
     });
     setEditingService(null);
   };
 
-  const toggleServiceActive = (serviceId: string) => {
-    const service = services.find(s => s.id === serviceId);
-    if (service) {
-      updateServiceMutation.mutate({ 
-        id: serviceId, 
-        updates: { active: !service.active }
-      });
+  const getStandardTerms = () => {
+    return localStorage.getItem('standardTerms') || '';
+  };
+
+  const handleAddService = async () => {
+    try {
+      // Process terms based on useStandardTerms flag
+      const termsToUse = newService.useStandardTerms !== false 
+        ? getStandardTerms() 
+        : newService.terms_and_conditions;
+
+      // Create clean service data without UI-only properties
+      const serviceData = {
+        title: newService.title,
+        description: newService.description,
+        image_url: newService.image_url,
+        tag_ids: newService.tag_ids,
+        min_guests: newService.min_guests,
+        max_guests: newService.max_guests,
+        lead_time_hours: newService.lead_time_hours,
+        cancellation_window_hours: newService.cancellation_window_hours,
+        requires_deposit: newService.requires_deposit,
+        deposit_per_guest: newService.deposit_per_guest,
+        online_bookable: newService.online_bookable,
+        active: newService.active,
+        is_secret: newService.is_secret,
+        secret_slug: newService.secret_slug,
+        terms_and_conditions: termsToUse,
+        duration_rules: newService.duration_rules
+      };
+
+      await createServiceMutation.mutateAsync(serviceData);
+      setShowDialog(false);
+      resetForm();
+    } catch (error) {
+      console.error('Error creating service:', error);
     }
   };
 
-  const handleManageWindows = (serviceId: string) => {
-    setCurrentServiceId(serviceId);
-    setShowWindowManager(true);
+  const handleUpdateService = async () => {
+    if (!editingService) return;
+
+    try {
+      // Process terms based on useStandardTerms flag
+      const termsToUse = editingService.useStandardTerms !== false 
+        ? getStandardTerms() 
+        : editingService.terms_and_conditions;
+
+      // Create clean service data without UI-only properties
+      const serviceData = {
+        title: editingService.title,
+        description: editingService.description,
+        image_url: editingService.image_url,
+        tag_ids: editingService.tag_ids,
+        min_guests: editingService.min_guests,
+        max_guests: editingService.max_guests,
+        lead_time_hours: editingService.lead_time_hours,
+        cancellation_window_hours: editingService.cancellation_window_hours,
+        requires_deposit: editingService.requires_deposit,
+        deposit_per_guest: editingService.deposit_per_guest,
+        online_bookable: editingService.online_bookable,
+        active: editingService.active,
+        is_secret: editingService.is_secret,
+        secret_slug: editingService.secret_slug,
+        terms_and_conditions: termsToUse,
+        duration_rules: editingService.duration_rules
+      };
+
+      await updateServiceMutation.mutateAsync({
+        id: editingService.id,
+        updates: serviceData
+      });
+      setShowDialog(false);
+      resetForm();
+    } catch (error) {
+      console.error('Error updating service:', error);
+    }
+  };
+
+  const handleEditService = (service) => {
+    setEditingService({
+      ...service,
+      useStandardTerms: service.terms_and_conditions === getStandardTerms()
+    });
+    setShowDialog(true);
+  };
+
+  const handleDeleteService = async (serviceId) => {
+    if (window.confirm('Are you sure you want to delete this service?')) {
+      try {
+        await deleteServiceMutation.mutateAsync(serviceId);
+      } catch (error) {
+        console.error('Error deleting service:', error);
+      }
+    }
   };
 
   if (isServicesLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading services...</p>
-        </div>
-      </div>
-    );
+    return <div className="flex items-center justify-center h-64">Loading services...</div>;
   }
 
   return (
@@ -179,18 +166,28 @@ const Services = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Services</h1>
-          <p className="text-muted-foreground">Manage your restaurant services and booking windows</p>
+          <p className="text-muted-foreground">Manage your restaurant's services and booking options</p>
         </div>
-        <Button onClick={() => setShowServiceDialog(true)}>
-          <Plus className="h-4 w-4 mr-2" strokeWidth={2} />
+        <Button onClick={() => setShowDialog(true)}>
+          <Plus className="h-4 w-4 mr-2" />
           Add Service
         </Button>
       </div>
 
-      {/* Service Dialog */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {services.map((service) => (
+          <ServiceCard
+            key={service.id}
+            service={service}
+            onEdit={handleEditService}
+            onDelete={handleDeleteService}
+          />
+        ))}
+      </div>
+
       <ServiceDialog
-        open={showServiceDialog}
-        onOpenChange={setShowServiceDialog}
+        open={showDialog}
+        onOpenChange={setShowDialog}
         editingService={editingService}
         newService={newService}
         setEditingService={setEditingService}
@@ -199,43 +196,8 @@ const Services = () => {
         onUpdateService={handleUpdateService}
         createServiceMutation={createServiceMutation}
         updateServiceMutation={updateServiceMutation}
-        onReset={resetServiceForm}
+        onReset={resetForm}
       />
-
-      {/* Booking Window Manager */}
-      {currentServiceId && (
-        <BookingWindowManager
-          serviceId={currentServiceId}
-          open={showWindowManager}
-          onOpenChange={(open) => {
-            setShowWindowManager(open);
-            if (!open) setCurrentServiceId(null);
-          }}
-        />
-      )}
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {services.map((service) => {
-          const serviceTags = getTagsForService(service.tag_ids || []);
-          const serviceWindows = getWindowsForService(service.id);
-          
-          return (
-            <ServiceCard
-              key={service.id}
-              service={service}
-              serviceTags={serviceTags}
-              serviceWindows={serviceWindows}
-              isLoadingWindows={isLoadingWindows}
-              windowsError={windowsError}
-              onEdit={handleEditService}
-              onDuplicate={handleDuplicateService}
-              onDelete={handleDeleteService}
-              onToggleActive={toggleServiceActive}
-              onManageWindows={handleManageWindows}
-            />
-          );
-        })}
-      </div>
     </div>
   );
 };
