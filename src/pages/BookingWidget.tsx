@@ -1,303 +1,482 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, Users, MapPin, CheckCircle, AlertCircle } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { isDateInAllowedDays, getDayOfWeek } from "@/utils/dayUtils";
-import { format, addDays, startOfDay } from "date-fns";
-import { useTables } from "@/hooks/useTables";
-import { useBookings } from "@/hooks/useBookings";
-import { useTableAvailability } from "@/hooks/useTableAvailability";
+import { format, addDays } from "date-fns";
 
 const BookingWidget = () => {
-  const [step, setStep] = useState(1);
-  const [selectedDate, setSelectedDate] = useState("");
-  const [selectedTime, setSelectedTime] = useState("");
-  const [partySize, setPartySize] = useState(2);
-  const [selectedService, setSelectedService] = useState<any>(null);
-  const [guestDetails, setGuestDetails] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    notes: ""
-  });
-  const [isConfirmed, setIsConfirmed] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
+  const [selectedService, setSelectedService] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedTime, setSelectedTime] = useState(null);
+  const [partySize, setPartySize] = useState(1);
+  const [guestName, setGuestName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [notes, setNotes] = useState('');
 
-  // Fetch services from database
-  const { data: services = [], isLoading: isServicesLoading } = useQuery({
-    queryKey: ['widget-services'],
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  // Fetch services
+  const { data: services, isLoading: isServicesLoading } = useQuery({
+    queryKey: ['services'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('services')
         .select('*')
-        .eq('active', true)
-        .eq('online_bookable', true)
-        .order('created_at');
+        .order('title');
       
       if (error) throw error;
       return data;
     }
   });
 
-  // Fetch booking windows for the selected service
+  // Fetch booking windows for the selected service and date
   const { data: bookingWindows = [] } = useQuery({
-    queryKey: ['service-booking-windows', selectedService?.id],
+    queryKey: ['booking-windows', selectedService?.id, selectedDate],
     queryFn: async () => {
-      if (!selectedService?.id) return [];
-      
+      if (!selectedService?.id || !selectedDate) return [];
+
+      const formattedDate = format(selectedDate, 'yyyy-MM-dd');
       const { data, error } = await supabase
         .from('booking_windows')
         .select('*')
-        .eq('service_id', selectedService.id);
-      
+        .eq('service_id', selectedService.id)
+        .contains('days', [format(selectedDate, 'EEE').toLowerCase()])
+        .lte('start_date', formattedDate)
+        .gte('end_date', formattedDate);
+
       if (error) throw error;
       return data;
     },
-    enabled: !!selectedService?.id
   });
 
-  // Fetch tables and bookings for availability checking
-  const { tables } = useTables();
-  const { bookings } = useBookings(selectedDate);
-  const { checkTableAvailability, findAvailableTimeSlots } = useTableAvailability(tables, bookings);
+  // Calculate available time slots based on booking windows
+  const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
 
-  // Get service duration for the party size
-  const getServiceDuration = () => {
-    if (!selectedService?.duration_rules) return 120; // default 2 hours
-    
-    const durationRules = selectedService.duration_rules;
-    const rule = durationRules.find((rule: any) => 
-      partySize >= rule.minGuests && partySize <= rule.maxGuests
-    );
-    
-    return rule ? rule.durationMinutes : 120;
+  useEffect(() => {
+    if (bookingWindows && bookingWindows.length > 0) {
+      const slots = [];
+      bookingWindows.forEach(window => {
+        let startTime = window.start_time;
+        const endTime = window.end_time;
+
+        while (startTime < endTime) {
+          slots.push(startTime);
+          const [hours, minutes] = startTime.split(':').map(Number);
+          const nextTime = format(addHours(new Date(0, 0, 0, hours, minutes), 1), 'HH:00');
+          startTime = nextTime;
+        }
+      });
+      setAvailableTimeSlots(slots);
+    } else {
+      setAvailableTimeSlots([]);
+    }
+  }, [bookingWindows]);
+
+  // Create booking mutation
+  const createBookingMutation = useMutation({
+    mutationFn: async () => {
+      if (!selectedService || !selectedDate || !selectedTime) {
+        throw new Error("Missing required booking details.");
+      }
+
+      const bookingData = {
+        service: selectedService.title,
+        booking_date: format(selectedDate, 'yyyy-MM-dd'),
+        booking_time: selectedTime,
+        party_size: partySize,
+        guest_name: guestName,
+        phone: phone,
+        email: email,
+        notes: notes,
+      };
+
+      const { data, error } = await supabase
+        .from('bookings')
+        .insert([bookingData])
+        .select();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      toast({
+        title: "Booking confirmed",
+        description: "Your booking has been successfully created.",
+      });
+      resetForm();
+      setCurrentStep(1); // Reset to the first step
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to create booking. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+
+  const handleNext = () => {
+    setCurrentStep(currentStep + 1);
   };
 
-  // Generate available dates based on booking windows
-  const getAvailableDates = () => {
-    if (!bookingWindows.length) return [];
-    
-    const dates = [];
-    const today = startOfDay(new Date());
-    
-    // Generate next 14 days
-    for (let i = 0; i < 14; i++) {
-      const date = addDays(today, i);
-      const dayName = getDayOfWeek(date);
-      
-      // Check if this day is available in any booking window
-      const isAvailable = bookingWindows.some(window => {
-        // Check if day is in allowed days
-        const dayMatch = window.days.some((allowedDay: string) => 
-          allowedDay === dayName || 
-          (allowedDay.length === 3 && allowedDay === dayName.substring(0, 3))
-        );
-        
-        if (!dayMatch) return false;
-        
-        // Check date range if specified
-        if (window.start_date) {
-          const startDate = new Date(window.start_date);
-          if (date < startDate) return false;
-        }
-        
-        if (window.end_date) {
-          const endDate = new Date(window.end_date);
-          if (date > endDate) return false;
-        }
-        
-        // Check blackout periods
-        if (window.blackout_periods && Array.isArray(window.blackout_periods)) {
-          const isBlackedOut = window.blackout_periods.some((blackout: any) => {
-            const blackoutStart = new Date(blackout.startDate);
-            const blackoutEnd = new Date(blackout.endDate);
-            return date >= blackoutStart && date <= blackoutEnd;
-          });
-          if (isBlackedOut) return false;
-        }
-        
+  const handlePrevious = () => {
+    setCurrentStep(currentStep - 1);
+  };
+
+  const handleSubmit = async () => {
+    await createBookingMutation.mutateAsync();
+  };
+
+  const canProceed = () => {
+    switch (currentStep) {
+      case 1:
+        return !!selectedService;
+      case 2:
+        return !!selectedDate && !!selectedTime;
+      case 3:
+        return guestName.trim() !== '' && phone.trim() !== '';
+      case 4:
         return true;
-      });
-      
-      dates.push({
-        date: format(date, 'yyyy-MM-dd'),
-        day: format(date, 'EEE'),
-        available: isAvailable,
-        dayName
-      });
-    }
-    
-    return dates;
-  };
-
-  // Generate time slots with table availability
-  const getAvailableTimeSlots = () => {
-    if (!selectedDate || !bookingWindows.length) return [];
-    
-    const selectedDateObj = new Date(selectedDate);
-    const dayName = getDayOfWeek(selectedDateObj);
-    
-    // Find booking windows that apply to this day
-    const applicableWindows = bookingWindows.filter(window => 
-      window.days.some((allowedDay: string) => 
-        allowedDay === dayName || 
-        (allowedDay.length === 3 && allowedDay === dayName.substring(0, 3))
-      )
-    );
-    
-    if (!applicableWindows.length) return [];
-    
-    const serviceDuration = getServiceDuration();
-    const availableSlots: Array<{time: string, hasTable: boolean}> = [];
-    
-    applicableWindows.forEach(window => {
-      const timeSlots = findAvailableTimeSlots(
-        selectedDate,
-        partySize,
-        window.start_time,
-        window.end_time,
-        serviceDuration
-      );
-      
-      // Also generate all possible slots to show unavailable ones
-      const [startHour, startMin] = window.start_time.split(':').map(Number);
-      const [endHour, endMin] = window.end_time.split(':').map(Number);
-      
-      let currentHour = startHour;
-      let currentMin = startMin;
-      
-      while (currentHour < endHour || (currentHour === endHour && currentMin < endMin)) {
-        const timeSlot = `${currentHour.toString().padStart(2, '0')}:${currentMin.toString().padStart(2, '0')}`;
-        
-        if (!availableSlots.find(slot => slot.time === timeSlot)) {
-          availableSlots.push({
-            time: timeSlot,
-            hasTable: timeSlots.includes(timeSlot)
-          });
-        }
-        
-        currentMin += 15;
-        if (currentMin >= 60) {
-          currentMin = 0;
-          currentHour++;
-        }
-      }
-    });
-    
-    return availableSlots.sort((a, b) => a.time.localeCompare(b.time));
-  };
-
-  const availableDates = getAvailableDates();
-  const availableTimeSlots = getAvailableTimeSlots();
-
-  // Check if selected time has table availability
-  const selectedTimeAvailability = selectedTime && selectedDate ? 
-    checkTableAvailability({
-      date: selectedDate,
-      time: selectedTime,
-      partySize,
-      durationMinutes: getServiceDuration()
-    }) : null;
-
-  const handleServiceSelect = (service: any) => {
-    setSelectedService(service);
-    setPartySize(Math.max(service.min_guests, Math.min(service.max_guests, partySize)));
-    setStep(2);
-  };
-
-  const handleDateTimeSelect = () => {
-    if (selectedDate && selectedTime && selectedTimeAvailability?.available) {
-      setStep(3);
+      default:
+        return false;
     }
   };
 
-  const handleGuestDetailsSubmit = async () => {
-    if (guestDetails.name && guestDetails.email && guestDetails.phone && selectedTimeAvailability?.bestTable) {
-      // Create the booking
-      try {
-        const { data, error } = await supabase
-          .from('bookings')
-          .insert([{
-            table_id: selectedTimeAvailability.bestTable.id,
-            guest_name: guestDetails.name,
-            party_size: partySize,
-            booking_date: selectedDate,
-            booking_time: selectedTime,
-            phone: guestDetails.phone,
-            email: guestDetails.email,
-            notes: guestDetails.notes,
-            service: selectedService.title,
-            status: 'confirmed'
-          }])
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        setStep(4);
-        setIsConfirmed(true);
-      } catch (error) {
-        console.error('Error creating booking:', error);
-        // Handle error - could show toast notification
-      }
-    }
-  };
-
-  const resetBooking = () => {
-    setStep(1);
-    setSelectedDate("");
-    setSelectedTime("");
-    setPartySize(2);
+  const resetForm = () => {
     setSelectedService(null);
-    setGuestDetails({ name: "", email: "", phone: "", notes: "" });
-    setIsConfirmed(false);
+    setSelectedDate(null);
+    setSelectedTime(null);
+    setPartySize(1);
+    setGuestName('');
+    setPhone('');
+    setEmail('');
+    setNotes('');
   };
 
-  if (isServicesLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 p-4 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading services...</p>
-        </div>
-      </div>
-    );
-  }
+  const getStepContent = () => {
+    switch (currentStep) {
+      case 1:
+        return (
+          <Card className="w-full max-w-2xl mx-auto bg-white dark:bg-gray-900">
+            <CardHeader className="bg-gray-50 dark:bg-gray-800 border-b">
+              <CardTitle className="text-2xl text-gray-900 dark:text-gray-100">Select Service</CardTitle>
+              <CardDescription className="text-gray-600 dark:text-gray-300">
+                Choose the type of service you'd like to book
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6 bg-white dark:bg-gray-900">
+              <div className="grid gap-4">
+                {services?.filter(service => service.active && service.online_bookable).map((service) => (
+                  <Card 
+                    key={service.id} 
+                    className={`cursor-pointer transition-all hover:shadow-md border-2 ${
+                      selectedService?.id === service.id 
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-950 dark:border-blue-400' 
+                        : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                    }`}
+                    onClick={() => setSelectedService(service)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-lg text-gray-900 dark:text-gray-100">
+                            {service.title}
+                          </h3>
+                          {service.description && (
+                            <p className="text-gray-600 dark:text-gray-300 mt-1">
+                              {service.description}
+                            </p>
+                          )}
+                          <div className="flex flex-wrap gap-2 mt-3">
+                            <Badge variant="outline" className="text-gray-700 dark:text-gray-300">
+                              {service.min_guests}-{service.max_guests} guests
+                            </Badge>
+                            {service.requires_deposit && (
+                              <Badge variant="outline" className="text-green-700 dark:text-green-300 border-green-300">
+                                £{service.deposit_per_guest}/person deposit
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        {service.image_url && (
+                          <img 
+                            src={service.image_url} 
+                            alt={service.title}
+                            className="w-20 h-20 object-cover rounded-lg ml-4"
+                          />
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        );
+
+      case 2:
+        return (
+          <Card className="w-full max-w-2xl mx-auto bg-white dark:bg-gray-900">
+            <CardHeader className="bg-gray-50 dark:bg-gray-800 border-b">
+              <CardTitle className="text-2xl text-gray-900 dark:text-gray-100">Select Date & Time</CardTitle>
+              <CardDescription className="text-gray-600 dark:text-gray-300">
+                Choose your preferred date and time
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6 space-y-6 bg-white dark:bg-gray-900">
+              {/* Date Selection */}
+              <div>
+                <Label className="text-base font-medium text-gray-900 dark:text-gray-100">Select Date</Label>
+                <div className="mt-2">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    disabled={(date) => date < new Date() || date < addDays(new Date(), selectedService?.lead_time_hours ? Math.ceil(selectedService.lead_time_hours / 24) : 0)}
+                    className="rounded-md border border-gray-300 dark:border-gray-600"
+                  />
+                </div>
+              </div>
+
+              {/* Time Selection */}
+              {availableTimeSlots.length > 0 && (
+                <div>
+                  <Label className="text-base font-medium text-gray-900 dark:text-gray-100">Available Times</Label>
+                  <div className="grid grid-cols-3 gap-2 mt-2">
+                    {availableTimeSlots.map((slot) => (
+                      <Button
+                        key={slot}
+                        variant={selectedTime === slot ? "default" : "outline"}
+                        className={`p-2 text-sm ${
+                          selectedTime === slot 
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                            : 'border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800'
+                        }`}
+                        onClick={() => setSelectedTime(slot)}
+                      >
+                        {slot}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+
+      case 3:
+        return (
+          <Card className="w-full max-w-2xl mx-auto bg-white dark:bg-gray-900">
+            <CardHeader className="bg-gray-50 dark:bg-gray-800 border-b">
+              <CardTitle className="text-2xl text-gray-900 dark:text-gray-100">Party Details</CardTitle>
+              <CardDescription className="text-gray-600 dark:text-gray-300">
+                Tell us about your group
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4 bg-white dark:bg-gray-900">
+              <div>
+                <Label htmlFor="party-size" className="text-base font-medium text-gray-900 dark:text-gray-100">
+                  Party Size
+                </Label>
+                <Select value={partySize.toString()} onValueChange={(value) => setPartySize(parseInt(value))}>
+                  <SelectTrigger className="mt-1 border-gray-300 dark:border-gray-600">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white dark:bg-gray-800">
+                    {Array.from({ length: (selectedService?.max_guests || 8) - (selectedService?.min_guests || 1) + 1 }, (_, i) => (
+                      <SelectItem key={i} value={(i + (selectedService?.min_guests || 1)).toString()}>
+                        {i + (selectedService?.min_guests || 1)} {i + (selectedService?.min_guests || 1) === 1 ? 'person' : 'people'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="guest-name" className="text-base font-medium text-gray-900 dark:text-gray-100">
+                  Name *
+                </Label>
+                <Input
+                  id="guest-name"
+                  value={guestName}
+                  onChange={(e) => setGuestName(e.target.value)}
+                  className="mt-1 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                  placeholder="Your name"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="phone" className="text-base font-medium text-gray-900 dark:text-gray-100">
+                  Phone Number *
+                </Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  className="mt-1 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                  placeholder="Your phone number"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="email" className="text-base font-medium text-gray-900 dark:text-gray-100">
+                  Email Address
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="mt-1 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                  placeholder="your.email@example.com"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="notes" className="text-base font-medium text-gray-900 dark:text-gray-100">
+                  Special Requirements
+                </Label>
+                <Textarea
+                  id="notes"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="mt-1 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                  placeholder="Any dietary requirements, accessibility needs, or special requests..."
+                  rows={3}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        );
+
+      case 4:
+        return (
+          <Card className="w-full max-w-2xl mx-auto bg-white dark:bg-gray-900">
+            <CardHeader className="bg-gray-50 dark:bg-gray-800 border-b">
+              <CardTitle className="text-2xl text-gray-900 dark:text-gray-100">Booking Summary</CardTitle>
+              <CardDescription className="text-gray-600 dark:text-gray-300">
+                Please review your booking details
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-6 bg-white dark:bg-gray-900">
+              <div className="space-y-6">
+                {/* Booking Details */}
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                  <h3 className="font-semibold text-lg mb-3 text-gray-900 dark:text-gray-100">Booking Details</h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">Service:</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">{selectedService?.title}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">Date:</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                        {selectedDate ? format(selectedDate, 'EEEE, MMMM do, yyyy') : ''}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">Time:</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">{selectedTime}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">Party Size:</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">{partySize} {partySize === 1 ? 'person' : 'people'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Guest Details */}
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                  <h3 className="font-semibold text-lg mb-3 text-gray-900 dark:text-gray-100">Guest Details</h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">Name:</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">{guestName}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">Phone:</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">{phone}</span>
+                    </div>
+                    {email && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600 dark:text-gray-400">Email:</span>
+                        <span className="font-medium text-gray-900 dark:text-gray-100">{email}</span>
+                      </div>
+                    )}
+                    {notes && (
+                      <div>
+                        <span className="text-gray-600 dark:text-gray-400">Special Requirements:</span>
+                        <p className="mt-1 text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-900 p-2 rounded border">
+                          {notes}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Deposit Information */}
+                {selectedService?.requires_deposit && (
+                  <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
+                    <h3 className="font-semibold text-lg mb-2 text-blue-900 dark:text-blue-100">Deposit Required</h3>
+                    <p className="text-sm text-blue-800 dark:text-blue-200">
+                      A deposit of £{selectedService.deposit_per_guest} per person (£{selectedService.deposit_per_guest * partySize} total) 
+                      will be required to confirm this booking.
+                    </p>
+                  </div>
+                )}
+
+                {/* Terms & Conditions */}
+                {selectedService?.terms_and_conditions && (
+                  <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
+                    <h3 className="font-semibold text-lg mb-2 text-gray-900 dark:text-gray-100">Terms & Conditions</h3>
+                    <div className="text-sm text-gray-700 dark:text-gray-300 prose prose-sm max-w-none">
+                      <div dangerouslySetInnerHTML={{ __html: selectedService.terms_and_conditions }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        );
+
+      default:
+        return null;
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 to-blue-50 p-4">
-      <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <div className="w-12 h-12 bg-green-800 rounded-full flex items-center justify-center">
-              <span className="text-white font-bold">N</span>
-            </div>
-            <h1 className="text-2xl font-bold text-gray-800">The Nuthatch</h1>
-          </div>
-          <p className="text-gray-600">Book your table with us</p>
-        </div>
-
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-950 py-8">
+      <div className="container mx-auto px-4">
         {/* Progress Steps */}
         <div className="flex justify-center mb-8">
-          <div className="flex items-center gap-4">
-            {[1, 2, 3, 4].map((stepNumber) => (
-              <div key={stepNumber} className="flex items-center">
+          <div className="flex items-center space-x-4">
+            {[1, 2, 3, 4].map((step) => (
+              <div key={step} className="flex items-center">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                  step >= stepNumber 
-                    ? 'bg-green-600 text-white' 
-                    : 'bg-gray-200 text-gray-500'
+                  currentStep >= step 
+                    ? 'bg-blue-600 text-white' 
+                    : 'bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-300'
                 }`}>
-                  {stepNumber}
+                  {step}
                 </div>
-                {stepNumber < 4 && (
-                  <div className={`w-8 h-0.5 ${
-                    step > stepNumber ? 'bg-green-600' : 'bg-gray-200'
+                {step < 4 && (
+                  <div className={`w-12 h-1 ml-2 ${
+                    currentStep > step 
+                      ? 'bg-blue-600' 
+                      : 'bg-gray-300 dark:bg-gray-600'
                   }`} />
                 )}
               </div>
@@ -305,338 +484,27 @@ const BookingWidget = () => {
           </div>
         </div>
 
-        {/* Step 1: Service Selection */}
-        {step === 1 && (
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Choose Your Experience</CardTitle>
-                <CardDescription>Select the service you'd like to book</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {services.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    No services available for online booking
-                  </div>
-                ) : (
-                  <div className="grid gap-4">
-                    {services.map((service) => (
-                      <div 
-                        key={service.id}
-                        className="border rounded-lg p-4 cursor-pointer hover:border-green-500 transition-colors"
-                        onClick={() => handleServiceSelect(service)}
-                      >
-                        <div className="flex gap-4">
-                          <div className="w-20 h-20 bg-gray-200 rounded-lg bg-cover bg-center"
-                               style={{ backgroundImage: service.image_url ? `url(${service.image_url})` : 'none' }} />
-                          <div className="flex-1">
-                            <h3 className="font-semibold text-lg">{service.title}</h3>
-                            <p className="text-gray-600 text-sm mb-2">{service.description}</p>
-                            <div className="flex flex-wrap gap-2 text-xs">
-                              <Badge variant="outline">
-                                <Users className="h-3 w-3 mr-1" strokeWidth={2} />
-                                {service.min_guests}-{service.max_guests} guests
-                              </Badge>
-                              <Badge variant="outline">
-                                <Clock className="h-3 w-3 mr-1" strokeWidth={2} />
-                                {service.lead_time_hours}h lead time
-                              </Badge>
-                              <Badge variant="outline">
-                                {service.requires_deposit 
-                                  ? `£${service.deposit_per_guest} deposit per guest`
-                                  : 'No deposit required'
-                                }
-                              </Badge>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        )}
+        {getStepContent()}
 
-        {/* Step 2: Date & Time Selection */}
-        {step === 2 && selectedService && (
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Select Date & Time</CardTitle>
-                <CardDescription>
-                  {selectedService.title} • {partySize} guests
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Party Size */}
-                <div>
-                  <Label htmlFor="party-size">Party Size</Label>
-                  <div className="flex items-center gap-2 mt-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => setPartySize(Math.max(selectedService.min_guests, partySize - 1))}
-                      disabled={partySize <= selectedService.min_guests}
-                    >
-                      -
-                    </Button>
-                    <span className="px-4 py-2 border rounded">{partySize}</span>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => setPartySize(Math.min(selectedService.max_guests, partySize + 1))}
-                      disabled={partySize >= selectedService.max_guests}
-                    >
-                      +
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Date Selection */}
-                <div>
-                  <Label>Select Date</Label>
-                  {availableDates.length === 0 ? (
-                    <div className="text-center py-4 text-gray-500">
-                      No available dates. Please check booking windows configuration.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-7 gap-2 mt-2">
-                      {availableDates.map((dateOption) => (
-                        <button
-                          key={dateOption.date}
-                          className={`p-3 text-center rounded border ${
-                            selectedDate === dateOption.date
-                              ? 'bg-green-600 text-white border-green-600'
-                              : dateOption.available
-                              ? 'border-gray-300 hover:border-green-500'
-                              : 'border-gray-200 text-gray-400 cursor-not-allowed'
-                          }`}
-                          onClick={() => dateOption.available && setSelectedDate(dateOption.date)}
-                          disabled={!dateOption.available}
-                        >
-                          <div className="text-xs">{dateOption.day}</div>
-                          <div className="text-sm font-medium">
-                            {new Date(dateOption.date).getDate()}
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Time Selection */}
-                {selectedDate && (
-                  <div>
-                    <Label>Select Time</Label>
-                    {availableTimeSlots.length === 0 ? (
-                      <div className="text-center py-4 text-gray-500">
-                        No available time slots for selected date
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-4 gap-2 mt-2">
-                        {availableTimeSlots.map((slot) => (
-                          <button
-                            key={slot.time}
-                            className={`p-2 text-center rounded border text-sm ${
-                              selectedTime === slot.time
-                                ? slot.hasTable 
-                                  ? 'bg-green-600 text-white border-green-600'
-                                  : 'bg-red-600 text-white border-red-600'
-                                : slot.hasTable
-                                ? 'border-gray-300 hover:border-green-500'
-                                : 'border-red-200 text-red-600 cursor-not-allowed bg-red-50'
-                            }`}
-                            onClick={() => slot.hasTable && setSelectedTime(slot.time)}
-                            disabled={!slot.hasTable}
-                            title={!slot.hasTable ? 'No tables available at this time' : ''}
-                          >
-                            {slot.time}
-                            {!slot.hasTable && (
-                              <div className="text-xs mt-1">No tables</div>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Table availability info */}
-                {selectedTime && selectedTimeAvailability && (
-                  <div className={`p-3 rounded-lg ${
-                    selectedTimeAvailability.available 
-                      ? 'bg-green-50 border border-green-200' 
-                      : 'bg-red-50 border border-red-200'
-                  }`}>
-                    <div className="flex items-center gap-2">
-                      {selectedTimeAvailability.available ? (
-                        <>
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                          <span className="text-green-800 text-sm font-medium">
-                            Table available! ({selectedTimeAvailability.bestTable?.label})
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <AlertCircle className="h-4 w-4 text-red-600" />
-                          <span className="text-red-800 text-sm font-medium">
-                            {selectedTimeAvailability.reason}
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex gap-2 pt-4">
-                  <Button variant="outline" onClick={() => setStep(1)}>
-                    Back
-                  </Button>
-                  <Button 
-                    onClick={handleDateTimeSelect}
-                    disabled={!selectedDate || !selectedTime || !selectedTimeAvailability?.available}
-                    className="flex-1"
-                  >
-                    Continue
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Step 3: Guest Details */}
-        {step === 3 && (
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Your Details</CardTitle>
-                <CardDescription>
-                  {selectedService.title} • {new Date(selectedDate).toLocaleDateString()} at {selectedTime} • {partySize} guests
-                  {selectedTimeAvailability?.bestTable && (
-                    <span className="block text-green-600 font-medium mt-1">
-                      Table {selectedTimeAvailability.bestTable.label} reserved
-                    </span>
-                  )}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="name">Full Name *</Label>
-                    <Input
-                      id="name"
-                      value={guestDetails.name}
-                      onChange={(e) => setGuestDetails({...guestDetails, name: e.target.value})}
-                      placeholder="Your full name"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="email">Email Address *</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={guestDetails.email}
-                      onChange={(e) => setGuestDetails({...guestDetails, email: e.target.value})}
-                      placeholder="your@email.com"
-                    />
-                  </div>
-                </div>
-                
-                <div>
-                  <Label htmlFor="phone">Phone Number *</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    value={guestDetails.phone}
-                    onChange={(e) => setGuestDetails({...guestDetails, phone: e.target.value})}
-                    placeholder="+44 7700 900123"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="notes">Special Requirements</Label>
-                  <Textarea
-                    id="notes"
-                    value={guestDetails.notes}
-                    onChange={(e) => setGuestDetails({...guestDetails, notes: e.target.value})}
-                    placeholder="Dietary requirements, allergies, special occasions..."
-                    rows={3}
-                  />
-                </div>
-
-                {selectedService.requires_deposit && (
-                  <div className="p-4 bg-blue-50 rounded-lg">
-                    <p className="text-sm">
-                      <strong>Deposit Required:</strong> £{selectedService.deposit_per_guest} per guest
-                    </p>
-                    <p className="text-xs text-gray-600 mt-1">
-                      Total deposit: £{selectedService.deposit_per_guest * partySize}
-                    </p>
-                  </div>
-                )}
-
-                <div className="flex gap-2 pt-4">
-                  <Button variant="outline" onClick={() => setStep(2)}>
-                    Back
-                  </Button>
-                  <Button 
-                    onClick={handleGuestDetailsSubmit}
-                    disabled={!guestDetails.name || !guestDetails.email || !guestDetails.phone}
-                    className="flex-1"
-                  >
-                    {selectedService.requires_deposit ? 'Pay Deposit' : 'Confirm Booking'}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
-
-        {/* Step 4: Confirmation */}
-        {step === 4 && isConfirmed && (
-          <div className="space-y-6">
-            <Card>
-              <CardContent className="text-center py-8">
-                <CheckCircle className="h-16 w-16 text-green-600 mx-auto mb-4" strokeWidth={2} />
-                <h2 className="text-2xl font-bold text-gray-800 mb-2">Booking Confirmed!</h2>
-                <p className="text-gray-600 mb-6">
-                  We've sent a confirmation email to {guestDetails.email}
-                </p>
-
-                <div className="bg-gray-50 p-6 rounded-lg text-left space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-gray-500" strokeWidth={2} />
-                    <span>{selectedService.title}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-4 w-4 text-gray-500" strokeWidth={2} />
-                    <span>{new Date(selectedDate).toLocaleDateString()} at {selectedTime}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-gray-500" strokeWidth={2} />
-                    <span>{partySize} guests</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-gray-500" strokeWidth={2} />
-                    <span>Table {selectedTimeAvailability?.bestTable?.label} - The Nuthatch Restaurant</span>
-                  </div>
-                </div>
-
-                <div className="flex gap-2 pt-6">
-                  <Button variant="outline" onClick={resetBooking}>
-                    Make Another Booking
-                  </Button>
-                  <Button className="flex-1">
-                    Add to Calendar
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )}
+        {/* Navigation Buttons */}
+        <div className="flex justify-between mt-8 max-w-2xl mx-auto">
+          <Button 
+            variant="outline" 
+            onClick={handlePrevious}
+            disabled={currentStep === 1}
+            className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
+          >
+            Previous
+          </Button>
+          
+          <Button 
+            onClick={currentStep === 4 ? handleSubmit : handleNext}
+            disabled={!canProceed}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            {currentStep === 4 ? 'Confirm Booking' : 'Next'}
+          </Button>
+        </div>
       </div>
     </div>
   );
