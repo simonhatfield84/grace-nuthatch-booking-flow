@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { ServiceCard } from "@/components/services/ServiceCard";
 import { ServiceDialog } from "@/components/services/ServiceDialog";
+import { BookingWindowManager } from "@/components/services/BookingWindowManager";
 import { useServices } from "@/hooks/useServices";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,6 +37,7 @@ const Services = () => {
 
   const [showDialog, setShowDialog] = useState(false);
   const [editingService, setEditingService] = useState(null);
+  const [managingWindowsServiceId, setManagingWindowsServiceId] = useState(null);
   const [newService, setNewService] = useState({
     title: '',
     description: '',
@@ -214,8 +216,7 @@ const Services = () => {
   };
 
   const handleManageWindows = (serviceId) => {
-    // For now, just log - this would typically open a booking windows management dialog
-    console.log('Manage windows for service:', serviceId);
+    setManagingWindowsServiceId(serviceId);
   };
 
   // Helper function to get tags for a specific service
@@ -276,6 +277,16 @@ const Services = () => {
         createServiceMutation={createServiceMutation}
         updateServiceMutation={updateServiceMutation}
         onReset={resetForm}
+      />
+
+      <BookingWindowManager
+        serviceId={managingWindowsServiceId}
+        open={!!managingWindowsServiceId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setManagingWindowsServiceId(null);
+          }
+        }}
       />
     </div>
   );

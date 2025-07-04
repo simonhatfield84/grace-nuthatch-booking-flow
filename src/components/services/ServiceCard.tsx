@@ -120,7 +120,7 @@ export const ServiceCard = ({
           </Collapsible>
         )}
 
-        {/* Enhanced Booking Windows Display with Debug Info */}
+        {/* Enhanced Booking Windows Display with User-Friendly Messaging */}
         <div>
           <div className="flex justify-between items-center mb-2">
             <Label className="text-sm font-medium">
@@ -171,13 +171,8 @@ export const ServiceCard = ({
               ))}
             </div>
           ) : (
-            <div className="text-xs text-muted-foreground p-2 bg-muted/50 rounded">
-              No booking windows configured
-              {!isLoadingWindows && !windowsError && (
-                <div className="mt-1 text-[10px]">
-                  Service ID: {service.id}
-                </div>
-              )}
+            <div className="text-xs text-muted-foreground p-3 bg-muted/50 rounded text-center">
+              Click 'Manage' to set up booking times and availability for this service
             </div>
           )}
         </div>
