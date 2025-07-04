@@ -8,7 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { X, Trash2 } from "lucide-react";
-import { Guest, useTags, useGuestTags, useGuests } from "@/hooks/useGuests";
+import { Guest } from "@/types/guest";
+import { useTags } from "@/hooks/useTags";
+import { useGuestTags } from "@/hooks/useGuestTags";
+import { useGuests } from "@/hooks/useGuests";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
 
 interface GuestDialogProps {

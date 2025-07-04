@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Users, Mail, Phone, Calendar, AlertTriangle } from "lucide-react";
-import { DuplicateGuest } from "@/hooks/useGuests";
+import { DuplicateGuest } from "@/types/guest";
 
 interface DuplicateDetectionDialogProps {
   isOpen: boolean;

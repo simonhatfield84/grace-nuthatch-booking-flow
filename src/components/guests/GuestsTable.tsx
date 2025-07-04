@@ -1,11 +1,10 @@
-
 import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Edit, Mail, Phone } from "lucide-react";
-import { Guest } from "@/hooks/useGuests";
+import { Guest } from "@/types/guest";
 
 interface GuestsTableProps {
   guests: Guest[];
