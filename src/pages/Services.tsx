@@ -40,29 +40,74 @@ const Services = () => {
     }
   });
 
-  // Fetch booking windows for all services
-  const { data: allBookingWindows = [] } = useQuery({
+  // Fetch booking windows for all services with improved error handling
+  const { data: allBookingWindows = [], isLoading: isLoadingWindows, error: windowsError } = useQuery({
     queryKey: ['all-booking-windows'],
     queryFn: async () => {
+      console.log('Fetching booking windows...');
       const { data, error } = await supabase
         .from('booking_windows')
         .select('*')
         .order('created_at');
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching booking windows:', error);
+        throw error;
+      }
       
-      return data.map(window => ({
-        ...window,
-        start_date: window.start_date ? new Date(window.start_date) : null,
-        end_date: window.end_date ? new Date(window.end_date) : null,
-        blackout_periods: Array.isArray(window.blackout_periods) ? window.blackout_periods.map((bp: any) => ({
-          ...bp,
-          startDate: new Date(bp.startDate),
-          endDate: new Date(bp.endDate)
-        })) : []
-      }));
+      console.log('Raw booking windows data:', data);
+      
+      // Transform data with safer date parsing
+      const transformedData = data.map(window => {
+        try {
+          const transformed = {
+            ...window,
+            start_date: window.start_date ? new Date(window.start_date) : null,
+            end_date: window.end_date ? new Date(window.end_date) : null,
+            blackout_periods: Array.isArray(window.blackout_periods) 
+              ? window.blackout_periods.map((bp: any) => {
+                  try {
+                    return {
+                      ...bp,
+                      startDate: bp.startDate ? new Date(bp.startDate) : new Date(),
+                      endDate: bp.endDate ? new Date(bp.endDate) : new Date()
+                    };
+                  } catch (dateError) {
+                    console.warn('Error parsing blackout period dates:', dateError, bp);
+                    return {
+                      ...bp,
+                      startDate: new Date(),
+                      endDate: new Date()
+                    };
+                  }
+                })
+              : []
+          };
+          
+          console.log('Transformed window:', transformed);
+          return transformed;
+        } catch (transformError) {
+          console.error('Error transforming booking window:', transformError, window);
+          return {
+            ...window,
+            start_date: null,
+            end_date: null,
+            blackout_periods: []
+          };
+        }
+      });
+      
+      console.log('Final transformed booking windows:', transformedData);
+      return transformedData;
     }
   });
+
+  // Log any query errors
+  useEffect(() => {
+    if (windowsError) {
+      console.error('Booking windows query error:', windowsError);
+    }
+  }, [windowsError]);
 
   const [services, setServices] = useState([
     {
@@ -142,9 +187,11 @@ const Services = () => {
     return allTags.filter(tag => tagIds.includes(tag.id));
   };
 
-  // Helper function to get booking windows for a service - Updated to use string service ID
+  // Helper function to get booking windows for a service with improved filtering
   const getWindowsForService = (serviceId: string) => {
-    return allBookingWindows.filter(window => window.service_id === serviceId);
+    const windows = allBookingWindows.filter(window => window.service_id === serviceId);
+    console.log(`Windows for service ${serviceId}:`, windows);
+    return windows;
   };
 
   const generateSecretSlug = () => {
@@ -632,10 +679,14 @@ const Services = () => {
                   </Collapsible>
                 )}
 
-                {/* Enhanced Booking Windows Display */}
+                {/* Enhanced Booking Windows Display with Debug Info */}
                 <div>
                   <div className="flex justify-between items-center mb-2">
-                    <Label className="text-sm font-medium">Booking Windows</Label>
+                    <Label className="text-sm font-medium">
+                      Booking Windows 
+                      {isLoadingWindows && <span className="text-xs text-muted-foreground">(Loading...)</span>}
+                      {windowsError && <span className="text-xs text-red-500">(Error loading)</span>}
+                    </Label>
                     <Button 
                       size="sm" 
                       variant="outline"
@@ -656,9 +707,14 @@ const Services = () => {
                           
                           {(window.start_date || window.end_date) && (
                             <div className="text-muted-foreground mb-1">
-                              {window.start_date && format(window.start_date, 'MMM d, yyyy')}
-                              {window.end_date && ` - ${format(window.end_date, 'MMM d, yyyy')}`}
-                              {!window.end_date && window.start_date && " (ongoing)"}
+                              {window.start_date && window.start_date instanceof Date && !isNaN(window.start_date.getTime()) 
+                                ? format(window.start_date, 'MMM d, yyyy')
+                                : 'Invalid start date'
+                              }
+                              {window.end_date && window.end_date instanceof Date && !isNaN(window.end_date.getTime()) 
+                                ? ` - ${format(window.end_date, 'MMM d, yyyy')}`
+                                : !window.end_date && window.start_date ? " (ongoing)" : ''
+                              }
                             </div>
                           )}
                           
@@ -676,6 +732,11 @@ const Services = () => {
                   ) : (
                     <div className="text-xs text-muted-foreground p-2 bg-muted/50 rounded">
                       No booking windows configured
+                      {!isLoadingWindows && !windowsError && (
+                        <div className="mt-1 text-[10px]">
+                          Service ID: {service.id}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
