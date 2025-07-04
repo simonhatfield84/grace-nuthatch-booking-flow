@@ -20,26 +20,6 @@ import { Booking } from "@/hooks/useBookings";
 import { backfillBookingDurations } from "@/utils/backfillBookingDurations";
 import { Users, Link } from "lucide-react";
 
-interface Booking {
-  id: number;
-  table_id: number | null;
-  guest_name: string;
-  party_size: number;
-  booking_date: string;
-  booking_time: string;
-  status: 'confirmed' | 'seated' | 'finished' | 'cancelled' | 'late';
-  is_unallocated: boolean;
-  original_table_id: number | null;
-  phone: string | null;
-  email: string | null;
-  notes: string | null;
-  service: string;
-  duration_minutes: number;
-  end_time: string;
-  created_at: string;
-  updated_at: string;
-}
-
 const HostInterface = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
@@ -241,6 +221,40 @@ const HostInterface = () => {
     }
   };
 
+  const handleBookingDrag = async (bookingId: number, newTime: string, newTableId?: number) => {
+    try {
+      const updateData: any = { 
+        booking_time: newTime,
+        updated_at: new Date().toISOString()
+      };
+      
+      if (newTableId !== undefined) {
+        updateData.table_id = newTableId;
+        updateData.is_unallocated = false;
+      }
+
+      const { error } = await supabase
+        .from('bookings')
+        .update(updateData)
+        .eq('id', bookingId);
+      
+      if (error) throw error;
+      
+      refetchBookings();
+      toast({
+        title: "Booking Updated",
+        description: "Booking time updated successfully",
+      });
+    } catch (error) {
+      console.error('Booking drag error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update booking time",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
       <UnallocatedBookingsBanner
@@ -341,6 +355,7 @@ const HostInterface = () => {
                                   booking={booking}
                                   startTime={venueHours?.start_time || '17:00'}
                                   onBookingClick={handleBookingClick}
+                                  onBookingDrag={handleBookingDrag}
                                 />
                               ))}
                             </div>
