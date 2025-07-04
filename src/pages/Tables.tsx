@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus, Link } from "lucide-react";
@@ -7,7 +6,7 @@ import { TableStats } from "@/components/tables/TableStats";
 import { TableDialog } from "@/components/tables/TableDialog";
 import { GroupDialog } from "@/components/tables/GroupDialog";
 import { JoinGroupsList } from "@/components/tables/JoinGroupsList";
-import { SectionManager } from "@/components/tables/SectionManager";
+import { EnhancedSectionManager } from "@/components/tables/EnhancedSectionManager";
 import { BookingPriorityManager } from "@/components/tables/BookingPriorityManager";
 import { useTableManagement } from "@/hooks/useTableManagement";
 import { useGroupManagement } from "@/hooks/useGroupManagement";
@@ -72,12 +71,26 @@ const Tables = () => {
     setPreSelectedSectionId(null);
   };
 
+  const handleUpdateTablePosition = async (tableId: number, x: number, y: number) => {
+    try {
+      await updateTable({
+        id: tableId,
+        updates: {
+          position_x: x,
+          position_y: y
+        }
+      });
+    } catch (error) {
+      console.error('Failed to update table position:', error);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Tables</h1>
-          <p className="text-muted-foreground">Manage your venue's table layout, sections, and booking priorities</p>
+          <h1 className="text-3xl font-bold text-foreground">Tables & Floor Plan</h1>
+          <p className="text-muted-foreground">Design your venue layout and manage table configurations</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={handleGlobalAddTable}>
@@ -93,19 +106,20 @@ const Tables = () => {
 
       <TableStats />
 
-      <Tabs defaultValue="layout" className="space-y-6">
+      <Tabs defaultValue="floor-plan" className="space-y-6">
         <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="layout">Layout & Sections</TabsTrigger>
+          <TabsTrigger value="floor-plan">Floor Plan & Layout</TabsTrigger>
           <TabsTrigger value="priority">Booking Priority</TabsTrigger>
           <TabsTrigger value="groups">Table Joins</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="layout" className="space-y-6">
-          <SectionManager
+        <TabsContent value="floor-plan" className="space-y-6">
+          <EnhancedSectionManager
             tables={tables}
             onEditTable={handleEditTableClick}
             onDeleteTable={handleDeleteTable}
             onAddTableToSection={handleAddTableToSection}
+            onUpdateTablePosition={handleUpdateTablePosition}
           />
         </TabsContent>
 
