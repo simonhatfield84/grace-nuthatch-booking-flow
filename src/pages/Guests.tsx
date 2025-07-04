@@ -1,4 +1,3 @@
-
 import { useState, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,7 +13,7 @@ import { DeleteConfirmDialog } from "@/components/guests/DeleteConfirmDialog";
 
 const Guests = () => {
   const { toast } = useToast();
-  const { guests, createGuest, updateGuest, bulkDeleteGuests, isLoading } = useGuests();
+  const { guests, createGuest, createGuestSilent, updateGuest, bulkDeleteGuests, isLoading } = useGuests();
   
   const [selectedGuests, setSelectedGuests] = useState<string[]>([]);
   const [isGuestDialogOpen, setIsGuestDialogOpen] = useState(false);
@@ -178,18 +177,38 @@ const Guests = () => {
 
   const handleCSVImport = async (importedGuests: any[]) => {
     try {
+      let successCount = 0;
+      const errors: string[] = [];
+
       for (const guestData of importedGuests) {
-        await createGuest(guestData);
+        try {
+          await createGuestSilent(guestData);
+          successCount++;
+        } catch (error) {
+          console.error('Failed to import guest:', guestData.name, error);
+          errors.push(`Failed to import ${guestData.name}`);
+        }
       }
-      toast({
-        title: "Import complete",
-        description: `Successfully imported ${importedGuests.length} guests.`
-      });
+
+      if (successCount > 0) {
+        toast({
+          title: "Import complete",
+          description: `Successfully imported ${successCount} guest${successCount > 1 ? 's' : ''}.`
+        });
+      }
+
+      if (errors.length > 0) {
+        toast({
+          title: "Import partially complete",
+          description: `${errors.length} guest${errors.length > 1 ? 's' : ''} could not be imported. Check console for details.`,
+          variant: "destructive"
+        });
+      }
     } catch (error) {
       console.error('Import failed:', error);
       toast({
         title: "Import failed",
-        description: "Some guests could not be imported. Please check the data and try again.",
+        description: "Could not complete the import. Please check the data and try again.",
         variant: "destructive"
       });
     }

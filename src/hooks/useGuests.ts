@@ -116,6 +116,32 @@ export const useGuests = () => {
     }
   });
 
+  const createGuestSilentMutation = useMutation({
+    mutationFn: async (newGuest: Omit<Guest, 'id' | 'created_at' | 'updated_at'>) => {
+      const { data, error } = await supabase
+        .from('guests')
+        .insert([newGuest])
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      // Assign automatic tags
+      await supabase.rpc('assign_automatic_tags', { guest_id_param: data.id });
+      
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['guests'] });
+      // No toast notification for silent creation
+    },
+    onError: (error: any) => {
+      console.error('Create guest error:', error);
+      // Still throw error so bulk import can handle it
+      throw error;
+    }
+  });
+
   const updateGuestMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string, updates: Partial<Guest> }) => {
       const { data, error } = await supabase
@@ -219,6 +245,7 @@ export const useGuests = () => {
     guests,
     isLoading,
     createGuest: createGuestMutation.mutateAsync,
+    createGuestSilent: createGuestSilentMutation.mutateAsync,
     updateGuest: updateGuestMutation.mutateAsync,
     deleteGuest: deleteGuestMutation.mutateAsync,
     bulkDeleteGuests: bulkDeleteGuestsMutation.mutateAsync,
