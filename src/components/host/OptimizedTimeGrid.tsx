@@ -36,7 +36,6 @@ export const OptimizedTimeGrid = ({ venueHours, children }: OptimizedTimeGridPro
   const currentTime = new Date();
   const currentTimeStr = format(currentTime, 'HH:mm');
   
-  // Calculate current time position in pixels
   const getCurrentTimePosition = () => {
     if (!venueHours) return -1;
     
@@ -50,7 +49,6 @@ export const OptimizedTimeGrid = ({ venueHours, children }: OptimizedTimeGridPro
     const currentTotalMin = currentHour * 60 + currentMin;
     const diffMin = currentTotalMin - startTotalMin;
     
-    // Each 15-minute slot is 60px wide
     return (diffMin / 15) * 60;
   };
 
@@ -58,48 +56,60 @@ export const OptimizedTimeGrid = ({ venueHours, children }: OptimizedTimeGridPro
 
   return (
     <div className="relative bg-white dark:bg-gray-900 rounded-lg border">
-      {/* Time Headers - Fixed, no independent scrolling */}
+      {/* Time Headers - Now with horizontal scrolling */}
       <div className="sticky top-0 z-20 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 rounded-t-lg">
         <div className="flex">
-          {/* Table Header - Fixed width */}
-          <div className="w-48 p-3 font-semibold text-center border-r border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 flex-shrink-0">
+          {/* Table Header - Fixed position */}
+          <div className="w-48 p-3 font-semibold text-center border-r border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 flex-shrink-0 sticky left-0 z-10">
             Tables
           </div>
           
-          {/* Time Slots - Fixed width, no overflow here */}
-          <div className="flex flex-shrink-0">
-            {timeSlots.map((time, index) => (
-              <div 
-                key={time} 
-                className="w-[60px] p-3 text-xs font-medium text-center border-r border-gray-200 dark:border-gray-700 last:border-r-0 relative bg-gray-50 dark:bg-gray-800 flex-shrink-0"
-              >
-                {time}
-                {/* Current time indicator in header */}
-                {currentTimeStr >= time && 
-                 currentTimeStr < (timeSlots[index + 1] || '23:59') && 
-                 currentTimePosition >= 0 && (
-                  <div 
-                    className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10"
-                    style={{ 
-                      left: `${((currentTime.getMinutes() % 15) / 15) * 60}px` 
-                    }}
-                  />
-                )}
-              </div>
-            ))}
+          {/* Time Slots Container - Now scrollable */}
+          <div className="flex-1 overflow-x-auto">
+            <div className="flex" style={{ minWidth: `${timeSlots.length * 60}px` }}>
+              {timeSlots.map((time, index) => (
+                <div 
+                  key={time} 
+                  className="w-[60px] p-3 text-xs font-medium text-center border-r border-gray-200 dark:border-gray-700 last:border-r-0 relative bg-gray-50 dark:bg-gray-800 flex-shrink-0"
+                >
+                  {time}
+                  {/* Current time indicator in header */}
+                  {currentTimeStr >= time && 
+                   currentTimeStr < (timeSlots[index + 1] || '23:59') && 
+                   currentTimePosition >= 0 && (
+                    <div 
+                      className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10"
+                      style={{ 
+                        left: `${((currentTime.getMinutes() % 15) / 15) * 60}px` 
+                      }}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Content Area */}
+      {/* Content Area - Also scrollable */}
       <div className="relative">
-        {children}
+        <div className="flex">
+          {/* Spacer for table column alignment */}
+          <div className="w-48 flex-shrink-0 sticky left-0 z-10"></div>
+          
+          {/* Scrollable content area */}
+          <div className="flex-1 overflow-x-auto">
+            <div style={{ minWidth: `${timeSlots.length * 60}px` }}>
+              {children}
+            </div>
+          </div>
+        </div>
         
         {/* Current time line across all rows */}
         {currentTimePosition >= 0 && (
           <div 
             className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-30 pointer-events-none"
-            style={{ left: `${192 + currentTimePosition}px` }} // 192px is table column width (w-48)
+            style={{ left: `${192 + currentTimePosition}px` }}
           >
             <div className="absolute -top-2 -left-6 bg-red-500 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
               {currentTimeStr}
