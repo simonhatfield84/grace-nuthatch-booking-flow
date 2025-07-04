@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format, addDays } from "date-fns";
+import { format, addDays, addHours } from "date-fns";
 
 const BookingWidget = () => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -73,7 +73,7 @@ const BookingWidget = () => {
         while (startTime < endTime) {
           slots.push(startTime);
           const [hours, minutes] = startTime.split(':').map(Number);
-          const nextTime = format(addHours(new Date(0, 0, 0, hours, minutes), 1), 'HH:00');
+          const nextTime = format(addHours(new Date(0, 0, 0, hours, minutes), 1), 'HH:mm');
           startTime = nextTime;
         }
       });
@@ -499,7 +499,7 @@ const BookingWidget = () => {
           
           <Button 
             onClick={currentStep === 4 ? handleSubmit : handleNext}
-            disabled={!canProceed}
+            disabled={!canProceed()}
             className="bg-blue-600 hover:bg-blue-700 text-white"
           >
             {currentStep === 4 ? 'Confirm Booking' : 'Next'}

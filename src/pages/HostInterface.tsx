@@ -22,8 +22,8 @@ const HostInterface = () => {
   const { data: venueHours } = useVenueHours();
   
   // Fetch sections and tables
-  const { data: sections = [] } = useSections();
-  const { data: tables = [] } = useTables();
+  const { sections } = useSections();
+  const { tables } = useTables();
   
   // Fetch bookings for selected date
   const { data: bookings = [] } = useQuery({

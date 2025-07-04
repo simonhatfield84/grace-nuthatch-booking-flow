@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,14 +27,16 @@ export const VenueHoursSettings = () => {
       
       if (error) throw error;
       return data?.setting_value as { start_time: string; end_time: string } | null;
-    },
-    onSuccess: (data) => {
-      if (data) {
-        setStartTime(data.start_time);
-        setEndTime(data.end_time);
-      }
     }
   });
+
+  // Update local state when data is fetched
+  useEffect(() => {
+    if (venueHours) {
+      setStartTime(venueHours.start_time);
+      setEndTime(venueHours.end_time);
+    }
+  }, [venueHours]);
 
   // Update venue hours mutation
   const updateHoursMutation = useMutation({
