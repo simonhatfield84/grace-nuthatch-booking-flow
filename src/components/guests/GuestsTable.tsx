@@ -37,6 +37,14 @@ export const GuestsTable = ({
     return { label: "New", color: "bg-gray-100 text-gray-800" };
   };
 
+  const handleSelectAllChange = (value: boolean | 'indeterminate') => {
+    if (value === 'indeterminate') {
+      onSelectAll(false);
+    } else {
+      onSelectAll(value);
+    }
+  };
+
   return (
     <div className="border rounded-lg">
       <Table>
@@ -44,11 +52,8 @@ export const GuestsTable = ({
           <TableRow>
             <TableHead className="w-12">
               <Checkbox
-                checked={allSelected}
-                onCheckedChange={onSelectAll}
-                ref={(el) => {
-                  if (el) el.indeterminate = someSelected;
-                }}
+                checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+                onCheckedChange={handleSelectAllChange}
               />
             </TableHead>
             <TableHead>Name</TableHead>
