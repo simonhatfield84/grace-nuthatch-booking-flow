@@ -44,7 +44,7 @@ export const BookingEditForm = ({ booking, onSave, onCancel }: BookingEditFormPr
         email: formData.email || null,
         notes: formData.notes || null,
         service: formData.service,
-        status: formData.status,
+        status: formData.status as Booking['status'],
         updated_at: new Date().toISOString()
       };
 
@@ -82,7 +82,7 @@ export const BookingEditForm = ({ booking, onSave, onCancel }: BookingEditFormPr
     }
   };
 
-  const statusOptions = ['confirmed', 'seated', 'finished', 'cancelled', 'late'];
+  const statusOptions: Booking['status'][] = ['confirmed', 'seated', 'finished', 'cancelled', 'late'];
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -169,7 +169,7 @@ export const BookingEditForm = ({ booking, onSave, onCancel }: BookingEditFormPr
 
       <div>
         <Label htmlFor="status">Status</Label>
-        <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+        <Select value={formData.status} onValueChange={(value: Booking['status']) => setFormData({ ...formData, status: value })}>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
