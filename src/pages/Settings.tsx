@@ -115,7 +115,7 @@ _By making a booking, you agree to these terms and conditions._`);
               </div>
             </div>
           </CardContent>
-        </div>
+        </Card>
       </div>
     </div>
   );
