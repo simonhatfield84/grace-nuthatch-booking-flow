@@ -60,7 +60,7 @@ export class TableAllocationService {
         .neq('status', 'cancelled')
         .neq('status', 'finished');
 
-      if (!tables || !joinGroups || !existingBookings) {
+      if (!tables || !existingBookings) {
         throw new Error('Failed to fetch required data');
       }
 
@@ -74,7 +74,7 @@ export class TableAllocationService {
       console.log(`Occupied tables during ${bookingTime}: ${occupiedTableIds.join(', ')}`);
 
       // Try join groups first for larger parties (7+)
-      if (partySize >= 7) {
+      if (partySize >= 7 && joinGroups) {
         const suitableGroup = joinGroups.find(group => 
           partySize >= group.min_party_size && 
           partySize <= group.max_party_size &&
@@ -172,7 +172,7 @@ export class TableAllocationService {
 
     console.log(`Allocating booking ${bookingId} to table ${tableIds[0]}`);
     // Allocate to primary table
-    await supabase
+    const { error } = await supabase
       .from('bookings')
       .update({ 
         table_id: tableIds[0],
@@ -180,6 +180,11 @@ export class TableAllocationService {
         updated_at: new Date().toISOString()
       })
       .eq('id', bookingId);
+
+    if (error) {
+      console.error('Error updating booking:', error);
+      return false;
+    }
 
     return true;
   }

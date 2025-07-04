@@ -4,14 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { X, Users, Clock, Phone, Mail, Edit, Trash2, Save, MapPin } from "lucide-react";
+import { X, Users, Clock, Phone, Mail, Edit, Trash2, MapPin } from "lucide-react";
 import { Booking } from "@/hooks/useBookings";
 import { useTables } from "@/hooks/useTables";
 import { TableAllocationService } from "@/services/tableAllocation";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
+import { BookingEditForm } from "./BookingEditForm";
 
 interface Table {
   id: number;
@@ -41,12 +40,10 @@ export const BookingDetailsPanel = ({
   const { toast } = useToast();
   const [availableTables, setAvailableTables] = useState<Table[]>([]);
   const [isEditing, setIsEditing] = useState(false);
-  const [editedNotes, setEditedNotes] = useState("");
   const [isAssigning, setIsAssigning] = useState(false);
 
   useEffect(() => {
     if (booking) {
-      setEditedNotes(booking.notes || "");
       loadAvailableTables();
     }
   }, [booking]);
@@ -79,9 +76,10 @@ export const BookingDetailsPanel = ({
     );
     
     if (success) {
+      const assignedTable = tables.find(t => t.id === parseInt(tableId));
       toast({
         title: "Table Assigned",
-        description: `Booking assigned to table ${tables.find(t => t.id === parseInt(tableId))?.label}`,
+        description: `Booking assigned to table ${assignedTable?.label}`,
       });
       onBookingUpdate?.();
     } else {
@@ -94,34 +92,9 @@ export const BookingDetailsPanel = ({
     setIsAssigning(false);
   };
 
-  const handleSaveNotes = async () => {
-    if (!booking) return;
-    
-    try {
-      const { error } = await supabase
-        .from('bookings')
-        .update({ 
-          notes: editedNotes,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', booking.id);
-      
-      if (error) throw error;
-      
-      toast({
-        title: "Notes Updated",
-        description: "Booking notes have been saved",
-      });
-      
-      setIsEditing(false);
-      onBookingUpdate?.();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update notes",
-        variant: "destructive"
-      });
-    }
+  const handleBookingSave = (updatedBooking: Booking) => {
+    setIsEditing(false);
+    onBookingUpdate?.();
   };
 
   if (!booking) return null;
@@ -139,6 +112,34 @@ export const BookingDetailsPanel = ({
 
   const statusOptions = ['confirmed', 'seated', 'finished', 'cancelled', 'late'];
   const assignedTable = tables.find(t => t.id === booking.table_id);
+
+  if (isEditing) {
+    return (
+      <Card className="h-full flex flex-col">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-xl">Edit Booking</CardTitle>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setIsEditing(false)}
+              className="min-h-[44px] min-w-[44px]"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardHeader>
+        
+        <CardContent className="flex-1">
+          <BookingEditForm
+            booking={booking}
+            onSave={handleBookingSave}
+            onCancel={() => setIsEditing(false)}
+          />
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="h-full flex flex-col">
@@ -221,7 +222,7 @@ export const BookingDetailsPanel = ({
               <Select 
                 onValueChange={handleTableAssignment} 
                 disabled={isAssigning}
-                defaultValue={booking.table_id?.toString()}
+                value={booking.table_id?.toString()}
               >
                 <SelectTrigger className="min-h-[44px]">
                   <SelectValue placeholder="Reassign table..." />
@@ -279,67 +280,24 @@ export const BookingDetailsPanel = ({
 
         {/* Notes */}
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <h4 className="font-medium">Notes</h4>
-            {!isEditing && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsEditing(true)}
-                className="min-h-[36px]"
-              >
-                <Edit className="h-3 w-3" />
-              </Button>
-            )}
-          </div>
-          
-          {isEditing ? (
-            <div className="space-y-2">
-              <Textarea
-                value={editedNotes}
-                onChange={(e) => setEditedNotes(e.target.value)}
-                placeholder="Add notes..."
-                className="min-h-[80px]"
-              />
-              <div className="flex gap-2">
-                <Button onClick={handleSaveNotes} size="sm" className="min-h-[36px]">
-                  <Save className="h-3 w-3 mr-1" />
-                  Save
-                </Button>
-                <Button 
-                  onClick={() => {
-                    setIsEditing(false);
-                    setEditedNotes(booking.notes || "");
-                  }} 
-                  variant="outline" 
-                  size="sm"
-                  className="min-h-[36px]"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-gray-600 dark:text-gray-400 min-h-[20px]">
-              {booking.notes || "No notes"}
-            </p>
-          )}
+          <h4 className="font-medium mb-2">Notes</h4>
+          <p className="text-sm text-gray-600 dark:text-gray-400 min-h-[20px]">
+            {booking.notes || "No notes"}
+          </p>
         </div>
 
         <Separator />
 
         {/* Actions */}
         <div className="flex gap-2">
-          {onEdit && (
-            <Button 
-              variant="outline" 
-              onClick={() => onEdit(booking)}
-              className="flex-1 min-h-[44px]"
-            >
-              <Edit className="h-4 w-4 mr-2" />
-              Edit
-            </Button>
-          )}
+          <Button 
+            variant="outline" 
+            onClick={() => setIsEditing(true)}
+            className="flex-1 min-h-[44px]"
+          >
+            <Edit className="h-4 w-4 mr-2" />
+            Edit
+          </Button>
           {onDelete && (
             <Button 
               variant="destructive" 

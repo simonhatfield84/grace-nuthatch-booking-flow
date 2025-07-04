@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
@@ -15,6 +15,7 @@ import { IPadCalendar } from "@/components/host/IPadCalendar";
 import { OptimizedTimeGrid } from "@/components/host/OptimizedTimeGrid";
 import { TouchOptimizedBookingBar } from "@/components/host/TouchOptimizedBookingBar";
 import { BookingDetailsPanel } from "@/components/host/BookingDetailsPanel";
+import { WalkInDialog } from "@/components/WalkInDialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Booking } from "@/hooks/useBookings";
 
@@ -22,6 +23,8 @@ const HostInterface = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showDetails, setShowDetails] = useState(false);
+  const [walkInDialogOpen, setWalkInDialogOpen] = useState(false);
+  const [clickedTime, setClickedTime] = useState<string>("");
   const { toast } = useToast();
 
   // Fetch venue hours, sections, and tables
@@ -42,11 +45,29 @@ const HostInterface = () => {
       
       if (error) throw error;
       
-      // Cast the data to match our Booking interface
-      return (data || []).map(booking => ({
+      // Cast the data to match our Booking interface and auto-allocate unallocated bookings
+      const typedBookings = (data || []).map(booking => ({
         ...booking,
         status: booking.status as Booking['status']
       })) as Booking[];
+
+      // Try to allocate any unallocated bookings
+      const unallocatedBookings = typedBookings.filter(b => b.is_unallocated || !b.table_id);
+      if (unallocatedBookings.length > 0) {
+        console.log(`Found ${unallocatedBookings.length} unallocated bookings, attempting allocation`);
+        for (const booking of unallocatedBookings) {
+          await TableAllocationService.allocateBookingToTables(
+            booking.id,
+            booking.party_size,
+            booking.booking_date,
+            booking.booking_time
+          );
+        }
+        // Refetch after allocation attempts
+        setTimeout(() => refetchBookings(), 1000);
+      }
+      
+      return typedBookings;
     }
   });
 
@@ -135,6 +156,11 @@ const HostInterface = () => {
     refetchBookings();
   };
 
+  const handleGridClick = (time: string) => {
+    setClickedTime(time);
+    setWalkInDialogOpen(true);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
       {/* Unallocated Bookings Banner */}
@@ -145,13 +171,22 @@ const HostInterface = () => {
       />
 
       {/* Header */}
-      <div className="mb-4">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-          Host Interface
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          {format(selectedDate, 'EEEE, MMMM do, yyyy')} • {bookings.length} bookings
-        </p>
+      <div className="mb-4 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+            Host Interface
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            {format(selectedDate, 'EEEE, MMMM do, yyyy')} • {bookings.length} bookings
+          </p>
+        </div>
+        <WalkInDialog
+          open={walkInDialogOpen}
+          onOpenChange={setWalkInDialogOpen}
+          preSelectedDate={format(selectedDate, 'yyyy-MM-dd')}
+          preSelectedTime={clickedTime}
+          onBookingCreated={handleBookingUpdate}
+        />
       </div>
 
       {/* Main Layout */}
@@ -202,8 +237,26 @@ const HostInterface = () => {
                               </div>
                             </div>
 
-                            {/* Time Slots with Bookings */}
-                            <div className="flex-1 relative bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 min-h-[52px]">
+                            {/* Time Slots with Bookings - Clickable for Walk-ins */}
+                            <div 
+                              className="flex-1 relative bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 min-h-[52px] cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"
+                              onClick={(e) => {
+                                // Calculate clicked time based on position
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                const clickX = e.clientX - rect.left;
+                                const slotWidth = 60; // 60px per 15-minute slot
+                                const slotIndex = Math.floor(clickX / slotWidth);
+                                
+                                if (venueHours) {
+                                  const [startHour, startMin] = venueHours.start_time.split(':').map(Number);
+                                  const totalMinutes = startHour * 60 + startMin + (slotIndex * 15);
+                                  const hours = Math.floor(totalMinutes / 60);
+                                  const minutes = totalMinutes % 60;
+                                  const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                                  handleGridClick(timeStr);
+                                }
+                              }}
+                            >
                               {tableBookings.map((booking) => (
                                 <TouchOptimizedBookingBar
                                   key={booking.id}
