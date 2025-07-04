@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { RichTextEditor } from "@/components/services/RichTextEditor";
 import { TagManagement } from "@/components/settings/TagManagement";
 import { VenueHoursSettings } from "@/components/settings/VenueHoursSettings";
+import { EmailSettings } from "@/components/settings/EmailSettings";
 
 const Settings = () => {
   const { toast } = useToast();
@@ -67,6 +68,9 @@ _By making a booking, you agree to these terms and conditions._`);
       <div className="grid grid-cols-1 gap-6">
         {/* Venue Hours Settings */}
         <VenueHoursSettings />
+
+        {/* Email Configuration */}
+        <EmailSettings />
 
         {/* Tag Management */}
         <TagManagement />

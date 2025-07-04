@@ -21,6 +21,9 @@ interface SetupData {
   venueEmail: string;
   venuePhone: string;
   venueAddress: string;
+  // Email Configuration
+  customEmailDomain: string;
+  emailFromName: string;
   // Resend API Key
   resendApiKey: string;
 }
@@ -36,10 +39,11 @@ const Setup = () => {
     venueEmail: '',
     venuePhone: '',
     venueAddress: '',
+    customEmailDomain: '',
+    emailFromName: '',
     resendApiKey: '',
   });
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState(1);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -50,6 +54,11 @@ const Setup = () => {
     if (field === 'venueName') {
       const slug = value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
       setFormData(prev => ({ ...prev, venueSlug: slug }));
+      
+      // Auto-generate email from name if not set
+      if (!formData.emailFromName) {
+        setFormData(prev => ({ ...prev, emailFromName: value }));
+      }
     }
   };
 
@@ -114,13 +123,35 @@ const Setup = () => {
 
       if (roleError) throw roleError;
 
-      // Step 5: Store Resend API key
-      const { error: settingsError } = await supabase
-        .from('venue_settings')
-        .insert({
+      // Step 5: Store configuration settings
+      const settingsToInsert = [
+        {
           setting_key: 'resend_api_key',
           setting_value: formData.resendApiKey,
+          venue_id: venue.id
+        }
+      ];
+
+      // Add email configuration if provided
+      if (formData.customEmailDomain) {
+        settingsToInsert.push({
+          setting_key: 'custom_email_domain',
+          setting_value: formData.customEmailDomain,
+          venue_id: venue.id
         });
+      }
+
+      if (formData.emailFromName) {
+        settingsToInsert.push({
+          setting_key: 'email_from_name',
+          setting_value: formData.emailFromName,
+          venue_id: venue.id
+        });
+      }
+
+      const { error: settingsError } = await supabase
+        .from('venue_settings')
+        .insert(settingsToInsert);
 
       if (settingsError) throw settingsError;
 
@@ -267,6 +298,33 @@ const Setup = () => {
               {/* Email Configuration */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Email Configuration</h3>
+                <div>
+                  <Label htmlFor="emailFromName">Email From Name</Label>
+                  <Input
+                    id="emailFromName"
+                    type="text"
+                    value={formData.emailFromName}
+                    onChange={(e) => handleInputChange('emailFromName', e.target.value)}
+                    placeholder="The Nuthatch"
+                  />
+                  <p className="text-sm text-muted-foreground mt-1">
+                    This name will appear in the "From" field of guest emails
+                  </p>
+                </div>
+                <div>
+                  <Label htmlFor="customEmailDomain">Custom Email Domain (Optional)</Label>
+                  <Input
+                    id="customEmailDomain"
+                    type="text"
+                    value={formData.customEmailDomain}
+                    onChange={(e) => handleInputChange('customEmailDomain', e.target.value)}
+                    placeholder="example.com"
+                  />
+                  <p className="text-sm text-muted-foreground mt-1">
+                    If provided, guest emails will be sent from noreply@yourdomain.com<br/>
+                    If left empty, emails will be sent from {formData.venueSlug}@grace-os.com
+                  </p>
+                </div>
                 <div>
                   <Label htmlFor="resendApiKey">Resend API Key</Label>
                   <Input
