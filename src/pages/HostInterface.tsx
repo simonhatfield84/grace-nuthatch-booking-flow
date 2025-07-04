@@ -357,7 +357,7 @@ const HostInterface = () => {
 
       <div className="grid grid-cols-12 gap-4 h-[calc(100vh-200px)]">
         <div className={`${showDetails ? 'col-span-8' : 'col-span-9'} flex flex-col`}>
-          <ScrollArea className="flex-1">
+          <div className="flex-1 overflow-auto">
             <OptimizedTimeGrid venueHours={venueHours}>
               <div className="space-y-0">
                 {sections.map((section) => {
@@ -388,7 +388,7 @@ const HostInterface = () => {
                             onDragLeave={handleDragLeave}
                             onDrop={(e) => handleDrop(e, table.id)}
                           >
-                            <div className="w-48 p-3 border-r border-gray-200 dark:border-gray-700 flex items-center bg-white dark:bg-gray-900">
+                            <div className="w-48 p-3 border-r border-gray-200 dark:border-gray-700 flex items-center bg-white dark:bg-gray-900 flex-shrink-0">
                               <div>
                                 <div className="flex items-center gap-2">
                                   <span className="font-semibold text-sm">{table.label}</span>
@@ -448,7 +448,7 @@ const HostInterface = () => {
                 })}
               </div>
             </OptimizedTimeGrid>
-          </ScrollArea>
+          </div>
         </div>
 
         <div className={`${showDetails ? 'col-span-4' : 'col-span-3'} flex flex-col space-y-4`}>

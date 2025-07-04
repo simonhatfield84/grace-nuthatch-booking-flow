@@ -13,7 +13,7 @@ export const BlockOverlay = ({ selectedDate, venueHours, tableId }: BlockOverlay
 
   if (!venueHours) return null;
 
-  const calculateLeftPercentage = (blockStartTime: string) => {
+  const calculateLeftPixels = (blockStartTime: string) => {
     const [startHour, startMin] = venueHours.start_time.split(':').map(Number);
     const [blockHour, blockMin] = blockStartTime.split(':').map(Number);
     
@@ -21,11 +21,11 @@ export const BlockOverlay = ({ selectedDate, venueHours, tableId }: BlockOverlay
     const blockTotalMin = blockHour * 60 + blockMin;
     const diffMin = Math.max(0, blockTotalMin - startTotalMin);
     
-    const totalMinutesInGrid = 12 * 60;
-    return (diffMin / totalMinutesInGrid) * 100;
+    // Each 15-minute slot is 60px wide
+    return (diffMin / 15) * 60;
   };
 
-  const calculateWidth = (startTime: string, endTime: string) => {
+  const calculateWidthPixels = (startTime: string, endTime: string) => {
     const [startHour, startMin] = startTime.split(':').map(Number);
     const [endHour, endMin] = endTime.split(':').map(Number);
     
@@ -33,8 +33,8 @@ export const BlockOverlay = ({ selectedDate, venueHours, tableId }: BlockOverlay
     const endTotalMin = endHour * 60 + endMin;
     const durationMin = endTotalMin - startTotalMin;
     
-    const totalMinutesInGrid = 12 * 60;
-    return (durationMin / totalMinutesInGrid) * 100;
+    // Each 15-minute slot is 60px wide
+    return (durationMin / 15) * 60;
   };
 
   const relevantBlocks = blocks.filter(block => 
@@ -44,16 +44,16 @@ export const BlockOverlay = ({ selectedDate, venueHours, tableId }: BlockOverlay
   return (
     <>
       {relevantBlocks.map((block) => {
-        const leftPercentage = calculateLeftPercentage(block.start_time);
-        const widthPercentage = calculateWidth(block.start_time, block.end_time);
+        const leftPixels = calculateLeftPixels(block.start_time);
+        const widthPixels = calculateWidthPixels(block.start_time, block.end_time);
 
         return (
           <div
             key={block.id}
             className="absolute bg-gray-400/50 border border-gray-500 rounded-sm"
             style={{
-              left: `${leftPercentage}%`,
-              width: `${widthPercentage}%`,
+              left: `${leftPixels}px`,
+              width: `${widthPixels}px`,
               top: '0px',
               height: '44px',
               zIndex: 5

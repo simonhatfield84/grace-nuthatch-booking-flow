@@ -34,40 +34,42 @@ export const OptimizedTimeGrid = ({ venueHours, children }: OptimizedTimeGridPro
   const currentTime = new Date();
   const currentTimeStr = format(currentTime, 'HH:mm');
   
-  // Calculate current time position
+  // Calculate current time position in pixels
   const getCurrentTimePosition = () => {
     if (!venueHours) return -1;
     
-    const [startHour] = venueHours.start_time.split(':').map(Number);
+    const [startHour, startMin] = venueHours.start_time.split(':').map(Number);
     const currentHour = currentTime.getHours();
     const currentMin = currentTime.getMinutes();
     
     if (currentHour < startHour) return -1;
     
-    const totalMinutesFromStart = (currentHour - startHour) * 60 + currentMin;
-    const totalSlotsWidth = timeSlots.length * 60; // Each slot is 60px wide
+    const startTotalMin = startHour * 60 + startMin;
+    const currentTotalMin = currentHour * 60 + currentMin;
+    const diffMin = currentTotalMin - startTotalMin;
     
-    return (totalMinutesFromStart / 15) * 60; // 15 minutes per slot, 60px per slot
+    // Each 15-minute slot is 60px wide
+    return (diffMin / 15) * 60;
   };
 
   const currentTimePosition = getCurrentTimePosition();
 
   return (
     <div className="relative bg-white dark:bg-gray-900 rounded-lg border">
-      {/* Time Headers */}
+      {/* Time Headers - Fixed, no independent scrolling */}
       <div className="sticky top-0 z-20 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 rounded-t-lg">
         <div className="flex">
-          {/* Table Header */}
-          <div className="w-48 p-3 font-semibold text-center border-r border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800">
+          {/* Table Header - Fixed width */}
+          <div className="w-48 p-3 font-semibold text-center border-r border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 flex-shrink-0">
             Tables
           </div>
           
-          {/* Time Slots */}
-          <div className="flex flex-1 overflow-x-auto">
+          {/* Time Slots - Fixed width, no overflow here */}
+          <div className="flex flex-shrink-0">
             {timeSlots.map((time, index) => (
               <div 
                 key={time} 
-                className="min-w-[60px] p-3 text-xs font-medium text-center border-r border-gray-200 dark:border-gray-700 last:border-r-0 relative bg-gray-50 dark:bg-gray-800"
+                className="w-[60px] p-3 text-xs font-medium text-center border-r border-gray-200 dark:border-gray-700 last:border-r-0 relative bg-gray-50 dark:bg-gray-800 flex-shrink-0"
               >
                 {time}
                 {/* Current time indicator in header */}
@@ -77,7 +79,7 @@ export const OptimizedTimeGrid = ({ venueHours, children }: OptimizedTimeGridPro
                   <div 
                     className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10"
                     style={{ 
-                      left: `${((currentTime.getMinutes() % 15) / 15) * 100}%` 
+                      left: `${((currentTime.getMinutes() % 15) / 15) * 60}px` 
                     }}
                   />
                 )}
@@ -95,7 +97,7 @@ export const OptimizedTimeGrid = ({ venueHours, children }: OptimizedTimeGridPro
         {currentTimePosition >= 0 && (
           <div 
             className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-30 pointer-events-none"
-            style={{ left: `${192 + currentTimePosition}px` }} // 192px is table column width
+            style={{ left: `${192 + currentTimePosition}px` }} // 192px is table column width (w-48)
           >
             <div className="absolute -top-2 -left-6 bg-red-500 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
               {currentTimeStr}

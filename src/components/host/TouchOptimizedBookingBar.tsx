@@ -51,8 +51,8 @@ export const TouchOptimizedBookingBar = ({
     }
   };
 
-  // Calculate position based on booking time (15-minute segments)
-  const calculateLeftPercentage = () => {
+  // Calculate position in pixels based on booking time (15-minute segments = 60px each)
+  const calculateLeftPixels = () => {
     const [startHour, startMin] = startTime.split(':').map(Number);
     const [bookingHour, bookingMin] = booking.booking_time.split(':').map(Number);
     
@@ -60,13 +60,13 @@ export const TouchOptimizedBookingBar = ({
     const bookingTotalMin = bookingHour * 60 + bookingMin;
     const diffMin = Math.max(0, bookingTotalMin - startTotalMin);
     
-    const totalMinutesInGrid = 12 * 60;
-    return (diffMin / totalMinutesInGrid) * 100;
+    // Each 15-minute slot is 60px wide
+    return (diffMin / 15) * 60;
   };
 
-  const leftPercentage = calculateLeftPercentage();
+  const leftPixels = calculateLeftPixels();
   
-  // Calculate width based on actual duration or end_time if finished
+  // Calculate width in pixels based on actual duration or end_time if finished
   const getActualDuration = () => {
     if (booking.status === 'finished' && booking.end_time) {
       // Calculate actual duration from booking_time to end_time
@@ -83,8 +83,8 @@ export const TouchOptimizedBookingBar = ({
   };
 
   const duration = getActualDuration();
-  const totalMinutesInGrid = 12 * 60;
-  const widthPercentage = Math.min((duration / totalMinutesInGrid) * 100, 100 - leftPercentage);
+  // Convert duration to pixels (each 15-minute slot = 60px)
+  const widthPixels = (duration / 15) * 60;
 
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
@@ -121,8 +121,8 @@ export const TouchOptimizedBookingBar = ({
           <div
             className={`absolute rounded-md text-white text-xs flex items-center px-3 cursor-pointer transition-all duration-200 shadow-lg border-l-4 min-h-[44px] ${getStatusColor(booking.status)} ${isDragging ? 'opacity-50' : ''}`}
             style={{
-              left: `${leftPercentage}%`,
-              width: `${widthPercentage}%`,
+              left: `${leftPixels}px`,
+              width: `${widthPixels}px`,
               top: '4px',
               zIndex: 10
             }}
