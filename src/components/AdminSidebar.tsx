@@ -51,15 +51,15 @@ export function AppSidebar() {
         
         <SidebarGroup>
           <SidebarGroupLabel className="text-sidebar-foreground/70 font-medium px-4 py-2">
-            Admin Console
+            {!isCollapsed && "Admin Console"}
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="px-2">
+            <SidebarMenu className={isCollapsed ? "px-1" : "px-2"}>
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild className="rounded-lg mb-1">
+                  <SidebarMenuButton asChild className={`rounded-lg mb-1 ${isCollapsed ? 'justify-center px-0' : ''}`}>
                     <NavLink to={item.url} className={getNavCls(item.url)}>
-                      <item.icon className="h-5 w-5" strokeWidth={2} />
+                      <item.icon className={`h-5 w-5 ${isCollapsed ? 'mx-auto' : 'mr-2'}`} strokeWidth={2} />
                       {!isCollapsed && <span>{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>

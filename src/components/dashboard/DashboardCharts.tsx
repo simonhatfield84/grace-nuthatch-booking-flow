@@ -41,23 +41,25 @@ export const ServicePopularityChart = ({ data }: ServicePopularityProps) => {
         <CardDescription>This week's bookings by service</CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-48">
-          <PieChart>
-            <Pie
-              data={chartData}
-              cx="50%"
-              cy="50%"
-              innerRadius={40}
-              outerRadius={80}
-              paddingAngle={2}
-              dataKey="count"
-            >
-              {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.fill} />
-              ))}
-            </Pie>
-            <ChartTooltip content={<ChartTooltipContent />} />
-          </PieChart>
+        <ChartContainer config={chartConfig} className="min-h-[12rem] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                innerRadius={40}
+                outerRadius={80}
+                paddingAngle={2}
+                dataKey="count"
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.fill} />
+                ))}
+              </Pie>
+              <ChartTooltip content={<ChartTooltipContent />} />
+            </PieChart>
+          </ResponsiveContainer>
         </ChartContainer>
       </CardContent>
     </Card>
@@ -104,13 +106,15 @@ export const StatusBreakdownChart = ({ data }: StatusBreakdownProps) => {
         <CardDescription>Booking status breakdown</CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-48">
-          <BarChart data={chartData}>
-            <XAxis dataKey="status" />
-            <YAxis />
-            <Bar dataKey="count" radius={4} />
-            <ChartTooltip content={<ChartTooltipContent />} />
-          </BarChart>
+        <ChartContainer config={chartConfig} className="min-h-[12rem] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={chartData}>
+              <XAxis dataKey="status" />
+              <YAxis />
+              <Bar dataKey="count" radius={4} />
+              <ChartTooltip content={<ChartTooltipContent />} />
+            </BarChart>
+          </ResponsiveContainer>
         </ChartContainer>
       </CardContent>
     </Card>
