@@ -35,10 +35,10 @@ export class EmailService {
         .in('setting_key', ['email_domain', 'email_from_name', 'custom_email_domain'])
         .eq('venue_id', venue_id);
       
-      const settings = venueSettings?.reduce((acc, setting) => {
-        acc[setting.setting_key] = setting.setting_value;
-        return acc;
-      }, {} as Record<string, any>) || {};
+      const settings: Record<string, any> = {};
+      venueSettings?.forEach(setting => {
+        settings[setting.setting_key] = setting.setting_value;
+      });
 
       return {
         domain: settings.custom_email_domain || settings.email_domain || 'grace-os.com',
@@ -67,7 +67,14 @@ export class EmailService {
       return null;
     }
 
-    return data;
+    // Cast the template_type to the expected union type
+    return {
+      template_key: data.template_key,
+      subject: data.subject,
+      html_content: data.html_content,
+      text_content: data.text_content,
+      template_type: data.template_type as 'platform' | 'venue'
+    };
   }
 
   private interpolateTemplate(template: string, variables: Record<string, string>): string {
