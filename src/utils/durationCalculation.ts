@@ -7,6 +7,24 @@ export interface DurationRule {
   duration: number;
 }
 
+const validateDurationRule = (rule: any): rule is DurationRule => {
+  return (
+    typeof rule === 'object' &&
+    rule !== null &&
+    typeof rule.minGuests === 'number' &&
+    typeof rule.maxGuests === 'number' &&
+    typeof rule.duration === 'number'
+  );
+};
+
+const parseDurationRules = (data: any): DurationRule[] => {
+  if (!Array.isArray(data)) {
+    return [];
+  }
+
+  return data.filter(validateDurationRule);
+};
+
 export const calculateBookingDuration = async (serviceId?: string, partySize: number = 1): Promise<number> => {
   // Default duration if no service or rules found
   const DEFAULT_DURATION = 120;
@@ -28,7 +46,7 @@ export const calculateBookingDuration = async (serviceId?: string, partySize: nu
       return DEFAULT_DURATION;
     }
 
-    const durationRules = service.duration_rules as DurationRule[];
+    const durationRules = parseDurationRules(service.duration_rules);
     
     // Find matching rule based on party size
     const matchingRule = durationRules.find(rule => 
