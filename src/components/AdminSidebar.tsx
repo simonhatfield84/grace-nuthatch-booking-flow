@@ -37,24 +37,30 @@ export function AppSidebar() {
 
   const getNavCls = (path: string) =>
     isActive(path) 
-      ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium" 
-      : "hover:bg-sidebar-accent/50 text-sidebar-foreground";
+      ? "bg-grace-primary/10 text-grace-primary border-r-2 border-grace-primary font-medium" 
+      : "hover:bg-grace-background text-grace-dark hover:text-grace-primary transition-colors";
 
   return (
     <Sidebar className={isCollapsed ? "w-14" : "w-60"} collapsible="icon">
-      <SidebarContent>
+      <SidebarContent className="bg-white border-r border-grace-background">
+        <div className="p-4 border-b border-grace-background">
+          <div className="grace-logo text-2xl font-bold text-center">
+            {isCollapsed ? "G" : "grace"}
+          </div>
+        </div>
+        
         <SidebarGroup>
-          <SidebarGroupLabel className="text-sidebar-foreground/70">
-            Admin
+          <SidebarGroupLabel className="text-grace-dark/70 font-poppins font-medium px-4 py-2">
+            Admin Console
           </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="px-2">
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton asChild className="rounded-lg mb-1">
                     <NavLink to={item.url} className={getNavCls(item.url)}>
-                      <item.icon className="h-4 w-4" strokeWidth={2} />
-                      {!isCollapsed && <span>{item.title}</span>}
+                      <item.icon className="h-5 w-5" strokeWidth={2} />
+                      {!isCollapsed && <span className="font-karla">{item.title}</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

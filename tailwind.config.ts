@@ -65,16 +65,19 @@ export default {
 				},
 				// Grace OS Brand Colors
 				grace: {
-					dark: '#2e2e2e',
-					accent: '#005f56',
-					secondary: '#D87C5A',
-					light: '#F4EAE0'
+					primary: '#D87C5A',      // Warm Terracotta
+					secondary: '#005F56',    // Deep Teal
+					background: '#F4EAE0',   // Soft Sand
+					accent: '#E9A036',       // Muted Gold
+					dark: '#2E2E2E',         // Charcoal Grey
+					light: '#FFFFFF'         // Pure White
 				}
 			},
 			fontFamily: {
+				'markazi': ['Markazi Text', 'serif'],
 				'playfair': ['Playfair Display', 'serif'],
 				'poppins': ['Poppins', 'sans-serif'],
-				'markazi': ['Markazi Text', 'serif']
+				'karla': ['Karla', 'sans-serif']
 			},
 			borderRadius: {
 				lg: 'var(--radius)',

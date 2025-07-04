@@ -3,89 +3,91 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Grace OS Design System - All colors MUST be HSL */
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222.2 84% 4.9%;
+    /* Light Theme - Admin Console */
+    --background: 35 50% 94%;        /* Soft Sand #F4EAE0 */
+    --foreground: 0 0% 18%;          /* Charcoal Grey #2E2E2E */
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;               /* Pure White */
+    --card-foreground: 0 0% 18%;     /* Charcootal Grey */
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;            /* Pure White */
+    --popover-foreground: 0 0% 18%;  /* Charcoal Grey */
 
-    --primary: 180 100% 18%;
-    --primary-foreground: 180 20% 95%;
+    --primary: 18 65% 59%;           /* Warm Terracotta #D87C5A */
+    --primary-foreground: 0 0% 100%; /* Pure White */
 
-    --secondary: 18 70% 57%;
-    --secondary-foreground: 180 20% 95%;
+    --secondary: 37 74% 56%;         /* Muted Gold #E9A036 */
+    --secondary-foreground: 0 0% 18%; /* Charcoal Grey */
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 35 45% 90%;             /* Lighter Sand */
+    --muted-foreground: 0 0% 45%;    /* Medium Grey */
 
-    --accent: 180 100% 18%;
-    --accent-foreground: 180 20% 95%;
+    --accent: 18 65% 59%;            /* Warm Terracotta */
+    --accent-foreground: 0 0% 100%;  /* Pure White */
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;        /* Red */
+    --destructive-foreground: 0 0% 100%; /* Pure White */
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 180 100% 18%;
+    --border: 35 30% 85%;            /* Light Border */
+    --input: 35 30% 85%;             /* Light Input Border */
+    --ring: 18 65% 59%;              /* Warm Terracotta */
 
     --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 18%;
-    --sidebar-foreground: 180 20% 95%;
-    --sidebar-primary: 180 100% 18%;
-    --sidebar-primary-foreground: 180 20% 95%;
-    --sidebar-accent: 0 0% 25%;
-    --sidebar-accent-foreground: 180 20% 95%;
-    --sidebar-border: 0 0% 25%;
-    --sidebar-ring: 180 100% 18%;
+    /* Admin Sidebar - Light Theme */
+    --sidebar-background: 0 0% 100%;     /* Pure White */
+    --sidebar-foreground: 0 0% 18%;      /* Charcoal Grey */
+    --sidebar-primary: 18 65% 59%;       /* Warm Terracotta */
+    --sidebar-primary-foreground: 0 0% 100%; /* Pure White */
+    --sidebar-accent: 35 45% 95%;        /* Very Light Sand */
+    --sidebar-accent-foreground: 0 0% 18%; /* Charcoal Grey */
+    --sidebar-border: 35 30% 85%;        /* Light Border */
+    --sidebar-ring: 18 65% 59%;          /* Warm Terracotta */
   }
 
   .dark {
-    --background: 0 0% 18%;
-    --foreground: 180 20% 95%;
+    /* Dark Theme - Host Interface */
+    --background: 180 100% 11%;      /* Deep Teal Dark #005F56 */
+    --foreground: 35 50% 94%;        /* Soft Sand #F4EAE0 */
 
-    --card: 0 0% 18%;
-    --card-foreground: 180 20% 95%;
+    --card: 180 100% 13%;            /* Slightly Lighter Teal */
+    --card-foreground: 35 50% 94%;   /* Soft Sand */
 
-    --popover: 0 0% 18%;
-    --popover-foreground: 180 20% 95%;
+    --popover: 180 100% 13%;         /* Slightly Lighter Teal */
+    --popover-foreground: 35 50% 94%; /* Soft Sand */
 
-    --primary: 180 100% 18%;
-    --primary-foreground: 180 20% 95%;
+    --primary: 18 65% 59%;           /* Warm Terracotta */
+    --primary-foreground: 0 0% 100%; /* Pure White */
 
-    --secondary: 18 70% 57%;
-    --secondary-foreground: 180 20% 95%;
+    --secondary: 37 74% 56%;         /* Muted Gold */
+    --secondary-foreground: 0 0% 18%; /* Charcoal Grey */
 
-    --muted: 0 0% 25%;
-    --muted-foreground: 215 20.2% 65.1%;
+    --muted: 180 50% 20%;            /* Muted Teal */
+    --muted-foreground: 35 30% 70%;  /* Light Grey */
 
-    --accent: 180 100% 18%;
-    --accent-foreground: 180 20% 95%;
+    --accent: 37 74% 56%;            /* Muted Gold */
+    --accent-foreground: 0 0% 18%;   /* Charcoal Grey */
 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 180 20% 95%;
+    --destructive: 0 62% 51%;        /* Darker Red */
+    --destructive-foreground: 35 50% 94%; /* Soft Sand */
 
-    --border: 0 0% 25%;
-    --input: 0 0% 25%;
-    --ring: 180 100% 18%;
+    --border: 180 50% 25%;           /* Dark Teal Border */
+    --input: 180 50% 25%;            /* Dark Teal Input */
+    --ring: 18 65% 59%;              /* Warm Terracotta */
 
-    --sidebar-background: 0 0% 18%;
-    --sidebar-foreground: 180 20% 95%;
-    --sidebar-primary: 180 100% 18%;
-    --sidebar-primary-foreground: 180 20% 95%;
-    --sidebar-accent: 0 0% 25%;
-    --sidebar-accent-foreground: 180 20% 95%;
-    --sidebar-border: 0 0% 25%;
-    --sidebar-ring: 180 100% 18%;
+    /* Host Sidebar - Dark Theme */
+    --sidebar-background: 180 100% 8%;   /* Very Dark Teal */
+    --sidebar-foreground: 35 50% 94%;    /* Soft Sand */
+    --sidebar-primary: 18 65% 59%;       /* Warm Terracotta */
+    --sidebar-primary-foreground: 0 0% 100%; /* Pure White */
+    --sidebar-accent: 180 50% 15%;       /* Dark Teal Accent */
+    --sidebar-accent-foreground: 35 50% 94%; /* Soft Sand */
+    --sidebar-border: 180 50% 25%;       /* Dark Teal Border */
+    --sidebar-ring: 18 65% 59%;          /* Warm Terracotta */
   }
 }
 
@@ -95,32 +97,39 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground font-poppins;
+    @apply bg-background text-foreground font-karla;
   }
 
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-playfair;
+  h1 {
+    @apply font-playfair font-semibold;
+  }
+
+  h2, h3, h4, h5, h6 {
+    @apply font-poppins font-medium;
   }
 
   .grace-logo {
-    @apply font-markazi text-grace-secondary;
+    @apply font-markazi text-grace-primary font-bold;
+  }
+
+  .grace-brand {
+    @apply text-grace-primary;
   }
 }
 
-/* Custom scrollbar for dark theme */
+/* Custom scrollbar for better theming */
 ::-webkit-scrollbar {
   width: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #2e2e2e;
+  @apply bg-muted;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #005f56;
-  border-radius: 4px;
+  @apply bg-primary rounded;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #007a6e;
+  @apply bg-primary/80;
 }

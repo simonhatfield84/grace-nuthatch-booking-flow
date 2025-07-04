@@ -364,7 +364,7 @@ const HostInterface = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-4">
+    <div className="min-h-screen bg-grace-secondary text-grace-background p-4">
       <UnallocatedBookingsBanner
         bookings={getUnallocatedBookings()}
         onAllocateAll={handleAllocateUnallocatedBookings}
@@ -373,32 +373,23 @@ const HostInterface = () => {
 
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          <h1 className="text-3xl font-playfair font-bold text-grace-background">
             Host Interface
           </h1>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-grace-background/70 font-karla">
             {format(selectedDate, 'EEEE, MMMM do, yyyy')} • {bookings.length} bookings
           </p>
         </div>
         <div className="flex gap-2">
-          <BlockDialog
-            tables={tables}
-            timeSlots={generateTimeSlots()}
-            selectedDate={selectedDate}
-          />
-          <WalkInDialog
-            open={walkInDialogOpen}
-            onOpenChange={setWalkInDialogOpen}
-            preSelectedDate={format(selectedDate, 'yyyy-MM-dd')}
-            preSelectedTime={clickedTime}
-            onBookingCreated={handleBookingUpdate}
-          />
+          <div className="grace-logo text-4xl font-bold text-grace-primary">
+            grace
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-12 gap-4 h-[calc(100vh-200px)]">
         <div className={`${showDetails ? 'col-span-8' : 'col-span-9'} flex flex-col`}>
-          <div className="flex-1 overflow-auto">
+          <div className="flex-1 overflow-auto bg-grace-secondary/50 rounded-lg border border-grace-background/20">
             <OptimizedTimeGrid 
               venueHours={venueHours}
               tables={tables}
@@ -410,19 +401,38 @@ const HostInterface = () => {
 
         <div className={`${showDetails ? 'col-span-4' : 'col-span-3'} flex flex-col space-y-4`}>
           {showDetails ? (
-            <BookingDetailsPanel
-              booking={selectedBooking}
-              onClose={handleCloseDetails}
-              onStatusChange={handleStatusChange}
-              onBookingUpdate={handleBookingUpdate}
-            />
+            <div className="bg-grace-secondary/30 rounded-lg border border-grace-background/20 p-4">
+              <BookingDetailsPanel
+                booking={selectedBooking}
+                onClose={handleCloseDetails}
+                onStatusChange={handleStatusChange}
+                onBookingUpdate={handleBookingUpdate}
+              />
+            </div>
           ) : (
-            <IPadCalendar
-              selectedDate={selectedDate}
-              onDateSelect={setSelectedDate}
-              bookingDates={bookingDates}
-            />
+            <div className="bg-grace-secondary/30 rounded-lg border border-grace-background/20 p-4">
+              <IPadCalendar
+                selectedDate={selectedDate}
+                onDateSelect={setSelectedDate}
+                bookingDates={bookingDates}
+              />
+            </div>
           )}
+          
+          <div className="flex gap-2">
+            <BlockDialog
+              tables={tables}
+              timeSlots={generateTimeSlots()}
+              selectedDate={selectedDate}
+            />
+            <WalkInDialog
+              open={walkInDialogOpen}
+              onOpenChange={setWalkInDialogOpen}
+              preSelectedDate={format(selectedDate, 'yyyy-MM-dd')}
+              preSelectedTime={clickedTime}
+              onBookingCreated={handleBookingUpdate}
+            />
+          </div>
         </div>
       </div>
 

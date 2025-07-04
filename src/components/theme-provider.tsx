@@ -1,7 +1,9 @@
 
 import { createContext, useContext, useEffect, useState } from "react"
+import { useLocation } from "react-router-dom"
 
-type Theme = "dark" | "light" | "system"
+type Theme = "light" | "dark" | "system"
+type AppTheme = "admin" | "host"
 
 type ThemeProviderProps = {
   children: React.ReactNode
@@ -11,11 +13,13 @@ type ThemeProviderProps = {
 
 type ThemeProviderState = {
   theme: Theme
+  appTheme: AppTheme
   setTheme: (theme: Theme) => void
 }
 
 const initialState: ThemeProviderState = {
   theme: "system",
+  appTheme: "admin",
   setTheme: () => null,
 }
 
@@ -23,34 +27,46 @@ const ThemeProviderContext = createContext<ThemeProviderState>(initialState)
 
 export function ThemeProvider({
   children,
-  defaultTheme = "dark",
+  defaultTheme = "system",
   storageKey = "grace-ui-theme",
   ...props
 }: ThemeProviderProps) {
   const [theme, setTheme] = useState<Theme>(
     () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
   )
+  
+  const location = useLocation()
+  
+  // Determine app theme based on route
+  const appTheme: AppTheme = location.pathname.startsWith('/host') ? 'host' : 'admin'
 
   useEffect(() => {
     const root = window.document.documentElement
 
     root.classList.remove("light", "dark")
 
-    if (theme === "system") {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
-        .matches
-        ? "dark"
-        : "light"
+    // Force dark theme for host interface, light for admin
+    if (appTheme === "host") {
+      root.classList.add("dark")
+    } else {
+      // Admin interface uses light theme
+      if (theme === "system") {
+        const systemTheme = window.matchMedia("(prefers-color-scheme: dark)")
+          .matches
+          ? "light" // Force light for admin even if system prefers dark
+          : "light"
 
-      root.classList.add(systemTheme)
-      return
+        root.classList.add(systemTheme)
+      } else {
+        // For admin, always use light regardless of user preference
+        root.classList.add("light")
+      }
     }
-
-    root.classList.add(theme)
-  }, [theme])
+  }, [theme, appTheme])
 
   const value = {
     theme,
+    appTheme,
     setTheme: (theme: Theme) => {
       localStorage.setItem(storageKey, theme)
       setTheme(theme)
