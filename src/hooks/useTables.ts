@@ -33,7 +33,7 @@ export const useTables = () => {
         .order('priority_rank');
       
       if (error) throw error;
-      return data as Table[];
+      return (data || []) as Table[];
     }
   });
 

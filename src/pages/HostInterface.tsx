@@ -45,14 +45,13 @@ const HostInterface = () => {
     guest: booking.guest_name,
     party: booking.party_size,
     service: booking.service,
-    status: booking.status,
+    status: booking.status as 'confirmed' | 'seated' | 'finished' | 'cancelled' | 'late',
     phone: booking.phone || "",
     email: booking.email || "",
     notes: booking.notes || "",
     isUnallocated: booking.is_unallocated
   }));
 
-  // Group tables by section in priority order
   const getTablesBySection = () => {
     const tablesBySection = sections.map(section => ({
       ...section,
@@ -94,7 +93,7 @@ const HostInterface = () => {
   };
 
   const updateReservationStatus = async (reservationId: number, newStatus: string) => {
-    await updateBooking({ id: reservationId, updates: { status: newStatus } });
+    await updateBooking({ id: reservationId, updates: { status: newStatus as any } });
   };
 
   const handleReservationDragStart = (e: React.DragEvent, reservation: any) => {
@@ -183,7 +182,6 @@ const HostInterface = () => {
   return (
     <div className="min-h-screen bg-grace-dark text-grace-light p-4">
       <div className="max-w-7xl mx-auto space-y-4">
-        {/* Header */}
         <div className="flex justify-between items-center">
           <div>
             <div className="grace-logo text-2xl font-bold mb-1">grace</div>
@@ -221,7 +219,6 @@ const HostInterface = () => {
           </div>
         </div>
 
-        {/* Unallocated Reservations Alert */}
         {unallocatedReservations.length > 0 && (
           <Card className="bg-red-900/30 border-red-500/50">
             <CardContent className="p-4">
@@ -240,7 +237,6 @@ const HostInterface = () => {
           </Card>
         )}
 
-        {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <Card className="bg-grace-dark border-grace-accent/30">
             <CardContent className="p-3">
@@ -274,26 +270,20 @@ const HostInterface = () => {
           </Card>
         </div>
 
-        {/* Reservation Grid */}
         <Card className="bg-grace-dark border-grace-accent/30">
           <CardContent className="p-0">
             <div className="relative">
-              {/* Fixed table column */}
               <div className="flex">
                 <div className="flex-shrink-0 w-20 bg-grace-dark border-r border-grace-accent/30">
-                  {/* Header */}
                   <div className="h-8 flex items-center justify-center text-xs font-medium text-grace-light/70 border-b border-grace-accent/30">
                     Table
                   </div>
-                  {/* Section headers and table rows */}
                   {tablesBySection.map(section => (
                     <div key={section.id}>
-                      {/* Section header */}
                       <div className="h-6 flex items-center justify-center text-xs font-bold text-grace-light border-b border-grace-accent/30"
                            style={{ backgroundColor: `${section.color}20`, borderColor: section.color }}>
                         {section.name}
                       </div>
-                      {/* Tables in section */}
                       {section.tables.map(table => (
                         <div key={table.id} className="h-8 flex items-center justify-center bg-grace-accent/20 border-b border-grace-accent/30 text-grace-light">
                           <div className="text-center">
@@ -306,10 +296,8 @@ const HostInterface = () => {
                   ))}
                 </div>
 
-                {/* Scrollable time slots */}
                 <ScrollArea className="flex-1">
                   <div className="relative">
-                    {/* Current time line */}
                     {timeLinePosition !== null && (
                       <div 
                         className="absolute top-0 bottom-0 w-0.5 bg-grace-secondary z-10 pointer-events-none"
@@ -318,7 +306,6 @@ const HostInterface = () => {
                     )}
                     
                     <div className="flex">
-                      {/* Time header */}
                       <div className="flex h-8 border-b border-grace-accent/30">
                         {timeSlots.map(time => (
                           <div key={time} className="w-12 flex-shrink-0 flex items-center justify-center text-xs font-medium text-grace-light/70 border-r border-grace-accent/30">
@@ -328,17 +315,14 @@ const HostInterface = () => {
                       </div>
                     </div>
 
-                    {/* Section headers and table rows with time slots */}
                     {tablesBySection.map(section => (
                       <div key={section.id}>
-                        {/* Section header row */}
                         <div className="flex h-6 border-b border-grace-accent/30"
                              style={{ backgroundColor: `${section.color}10` }}>
                           {timeSlots.map(time => (
                             <div key={time} className="w-12 flex-shrink-0 border-r border-grace-accent/30" />
                           ))}
                         </div>
-                        {/* Table rows */}
                         {section.tables.map(table => (
                           <div key={table.id} className="flex h-8 border-b border-grace-accent/30">
                             {timeSlots.map(time => {

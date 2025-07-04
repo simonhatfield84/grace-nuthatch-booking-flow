@@ -48,6 +48,11 @@ const Tables = () => {
     setShowEditTableDialog(true);
   };
 
+  const handleUpdateTableWithClose = async () => {
+    await handleUpdateTable();
+    setShowEditTableDialog(false);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -129,10 +134,7 @@ const Tables = () => {
         setNewTable={setNewTable} 
         setEditingTable={setEditingTable}
         onAddTable={handleAddTable} 
-        onUpdateTable={() => {
-          handleUpdateTable();
-          setShowEditTableDialog(false);
-        }} 
+        onUpdateTable={handleUpdateTableWithClose} 
       />
 
       <GroupDialog 
