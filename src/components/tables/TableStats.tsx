@@ -1,13 +1,14 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useTables } from "@/hooks/useTables";
 
-interface TableStatsProps {
-  totalTables: number;
-  totalSeats: number;
-  onlineBookableSeats: number;
-}
+export const TableStats = () => {
+  const { tables } = useTables();
+  
+  const totalTables = tables.length;
+  const totalSeats = tables.reduce((sum, table) => sum + table.seats, 0);
+  const onlineBookableSeats = tables.filter(t => t.online_bookable).reduce((sum, table) => sum + table.seats, 0);
 
-export const TableStats = ({ totalTables, totalSeats, onlineBookableSeats }: TableStatsProps) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       <Card>

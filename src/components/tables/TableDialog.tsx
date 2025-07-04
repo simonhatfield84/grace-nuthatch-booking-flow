@@ -8,16 +8,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useSections } from "@/hooks/useSections";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { Table } from "@/hooks/useTables";
 
 interface TableDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  editingTable: any;
+  editingTable: Table | null;
   newTable: any;
   setNewTable: (table: any) => void;
-  setEditingTable: (table: any) => void;
-  onAddTable: () => void;
-  onUpdateTable: () => void;
+  setEditingTable: (table: Table | null) => void;
+  onAddTable: () => Promise<void>;
+  onUpdateTable: () => Promise<void>;
 }
 
 export const TableDialog = ({
@@ -36,7 +37,7 @@ export const TableDialog = ({
   const currentFormData = editingTable || newTable;
 
   const handleSubmit = async () => {
-    if (!currentFormData.sectionId) {
+    if (!currentFormData.section_id) {
       toast({
         title: "Section Required",
         description: "Please select a section for this table.",
@@ -113,10 +114,10 @@ export const TableDialog = ({
               <Input
                 id="priority"
                 type="number"
-                value={currentFormData.priorityRank}
+                value={currentFormData.priority_rank}
                 onChange={(e) => editingTable
-                  ? setEditingTable({...editingTable, priorityRank: parseInt(e.target.value)})
-                  : setNewTable({...newTable, priorityRank: parseInt(e.target.value)})
+                  ? setEditingTable({...editingTable, priority_rank: parseInt(e.target.value)})
+                  : setNewTable({...newTable, priority_rank: parseInt(e.target.value)})
                 }
                 min="1"
               />
@@ -126,12 +127,12 @@ export const TableDialog = ({
           <div>
             <Label htmlFor="section">Section *</Label>
             <Select 
-              value={currentFormData.sectionId ? currentFormData.sectionId.toString() : ""} 
+              value={currentFormData.section_id ? currentFormData.section_id.toString() : ""} 
               onValueChange={(value) => {
                 const sectionId = parseInt(value);
                 editingTable
-                  ? setEditingTable({...editingTable, sectionId})
-                  : setNewTable({...newTable, sectionId});
+                  ? setEditingTable({...editingTable, section_id: sectionId})
+                  : setNewTable({...newTable, section_id: sectionId});
               }}
               required
             >
@@ -157,10 +158,10 @@ export const TableDialog = ({
           <div className="flex items-center space-x-2">
             <Switch
               id="bookable"
-              checked={currentFormData.onlineBookable}
+              checked={currentFormData.online_bookable}
               onCheckedChange={(checked) => editingTable
-                ? setEditingTable({...editingTable, onlineBookable: checked})
-                : setNewTable({...newTable, onlineBookable: checked})
+                ? setEditingTable({...editingTable, online_bookable: checked})
+                : setNewTable({...newTable, online_bookable: checked})
               }
             />
             <Label htmlFor="bookable">Available for Online Booking</Label>

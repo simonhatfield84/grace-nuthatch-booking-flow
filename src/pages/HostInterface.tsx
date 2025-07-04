@@ -3,11 +3,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { MessageSquare, Ban } from "lucide-react";
+import { MessageSquare, Ban, AlertTriangle } from "lucide-react";
 import { WalkInDialog } from "@/components/WalkInDialog";
 import { BlockDialog } from "@/components/BlockDialog";
 import { ReservationPopup } from "@/components/ReservationPopup";
 import { useSections } from "@/hooks/useSections";
+import { useTables } from "@/hooks/useTables";
+import { useBookings } from "@/hooks/useBookings";
 
 const HostInterface = () => {
   const [selectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -19,6 +21,8 @@ const HostInterface = () => {
   const [selectedBlockForEdit, setSelectedBlockForEdit] = useState(null);
   
   const { sections } = useSections();
+  const { tables } = useTables();
+  const { bookings, updateBooking } = useBookings(selectedDate);
 
   // Time slots for the grid (15-minute intervals)
   const timeSlots = [
@@ -30,53 +34,32 @@ const HostInterface = () => {
     "22:00", "22:15", "22:30", "22:45"
   ];
 
-  // Updated table configuration to match sections
-  const tables = [
-    { id: 1, label: "T1", seats: 2, sectionId: 1 },
-    { id: 2, label: "T2", seats: 2, sectionId: 1 },
-    { id: 3, label: "T3", seats: 4, sectionId: 1 },
-    { id: 4, label: "T4", seats: 4, sectionId: 1 },
-    { id: 5, label: "T5", seats: 6, sectionId: 2 },
-    { id: 6, label: "T6", seats: 8, sectionId: 3 },
-    { id: 7, label: "T7", seats: 2, sectionId: 1 },
-    { id: 8, label: "T8", seats: 4, sectionId: 1 },
-    { id: 9, label: "T9", seats: 4, sectionId: 2 },
-    { id: 10, label: "T10", seats: 6, sectionId: 2 },
-    { id: 11, label: "T11", seats: 2, sectionId: 1 },
-    { id: 12, label: "T12", seats: 2, sectionId: 1 },
-    { id: 13, label: "T13", seats: 4, sectionId: 2 },
-    { id: 14, label: "T14", seats: 4, sectionId: 2 },
-    { id: 15, label: "T15", seats: 6, sectionId: 2 },
-    { id: 16, label: "T16", seats: 8, sectionId: 3 },
-    { id: 17, label: "T17", seats: 2, sectionId: 3 },
-    { id: 18, label: "T18", seats: 4, sectionId: 3 },
-    { id: 19, label: "T19", seats: 4, sectionId: 3 },
-    { id: 20, label: "T20", seats: 6, sectionId: 3 },
-    { id: 21, label: "T21", seats: 2, sectionId: 1 },
-    { id: 22, label: "T22", seats: 2, sectionId: 2 },
-    { id: 23, label: "T23", seats: 4, sectionId: 2 },
-    { id: 24, label: "T24", seats: 4, sectionId: 3 },
-    { id: 25, label: "T25", seats: 6, sectionId: 3 },
-  ];
+  const [blockedSlots, setBlockedSlots] = useState([]);
+
+  // Convert database reservations to host interface format
+  const reservations = bookings.map(booking => ({
+    id: booking.id,
+    tableId: booking.table_id,
+    startTime: booking.booking_time,
+    duration: 4, // Default duration, could be calculated
+    guest: booking.guest_name,
+    party: booking.party_size,
+    service: booking.service,
+    status: booking.status,
+    phone: booking.phone || "",
+    email: booking.email || "",
+    notes: booking.notes || "",
+    isUnallocated: booking.is_unallocated
+  }));
 
   // Group tables by section in priority order
   const getTablesBySection = () => {
     const tablesBySection = sections.map(section => ({
       ...section,
-      tables: tables.filter(table => table.sectionId === section.id)
+      tables: tables.filter(table => table.section_id === section.id)
     }));
     return tablesBySection;
   };
-
-  const [reservations, setReservations] = useState([
-    { id: 1, tableId: 1, startTime: "18:00", duration: 4, guest: "Sarah Johnson", party: 2, service: "Dinner", status: "confirmed", phone: "+44 7700 900123", email: "sarah@email.com", notes: "Vegetarian options" },
-    { id: 2, tableId: 3, startTime: "19:00", duration: 6, guest: "Mike Chen", party: 4, service: "Dinner", status: "seated", phone: "+44 7700 900456", email: "mike@email.com", notes: "Birthday celebration" },
-    { id: 3, tableId: 5, startTime: "19:30", duration: 8, guest: "Emma Wilson", party: 6, service: "Dinner", status: "confirmed", phone: "+44 7700 900789", email: "emma@email.com", notes: "Business dinner" },
-    { id: 4, tableId: 2, startTime: "20:00", duration: 6, guest: "James Brown", party: 2, service: "Dinner", status: "late", phone: "+44 7700 900012", email: "james@email.com", notes: "Anniversary" },
-    { id: 5, tableId: 4, startTime: "20:30", duration: 4, guest: "Lisa Davis", party: 4, service: "Dinner", status: "confirmed", phone: "+44 7700 900345", email: "lisa@email.com", notes: "Dietary requirements" },
-  ]);
-
-  const [blockedSlots, setBlockedSlots] = useState([]);
 
   const getReservationForTableAndTime = (tableId: number, time: string) => {
     return reservations.find(r => {
@@ -110,10 +93,8 @@ const HostInterface = () => {
     }
   };
 
-  const updateReservationStatus = (reservationId: number, newStatus: string) => {
-    setReservations(reservations.map(r => 
-      r.id === reservationId ? { ...r, status: newStatus } : r
-    ));
+  const updateReservationStatus = async (reservationId: number, newStatus: string) => {
+    await updateBooking({ id: reservationId, updates: { status: newStatus } });
   };
 
   const handleReservationDragStart = (e: React.DragEvent, reservation: any) => {
@@ -121,14 +102,16 @@ const HostInterface = () => {
     e.dataTransfer.effectAllowed = 'move';
   };
 
-  const handleReservationDrop = (e: React.DragEvent, tableId: number, time: string) => {
+  const handleReservationDrop = async (e: React.DragEvent, tableId: number, time: string) => {
     e.preventDefault();
     if (draggedReservation) {
-      setReservations(reservations.map(r => 
-        r.id === draggedReservation.id 
-          ? { ...r, tableId, startTime: time }
-          : r
-      ));
+      await updateBooking({ 
+        id: draggedReservation.id, 
+        updates: { 
+          table_id: tableId, 
+          booking_time: time 
+        } 
+      });
       setDraggedReservation(null);
     }
   };
@@ -195,6 +178,7 @@ const HostInterface = () => {
   };
 
   const tablesBySection = getTablesBySection();
+  const unallocatedReservations = reservations.filter(r => r.isUnallocated);
 
   return (
     <div className="min-h-screen bg-grace-dark text-grace-light p-4">
@@ -217,7 +201,7 @@ const HostInterface = () => {
               tables={tables}
               timeSlots={timeSlots}
               reservations={reservations}
-              setReservations={setReservations}
+              setReservations={() => {}}
               open={walkInDialogOpen}
               onOpenChange={setWalkInDialogOpen}
               preSelectedTable={selectedTableForWalkIn}
@@ -236,6 +220,25 @@ const HostInterface = () => {
             </Button>
           </div>
         </div>
+
+        {/* Unallocated Reservations Alert */}
+        {unallocatedReservations.length > 0 && (
+          <Card className="bg-red-900/30 border-red-500/50">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="h-5 w-5 text-red-400" />
+                <div>
+                  <p className="text-red-100 font-medium">
+                    {unallocatedReservations.length} Unallocated Reservation{unallocatedReservations.length > 1 ? 's' : ''}
+                  </p>
+                  <p className="text-red-200 text-sm">
+                    These reservations need table reassignment
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3">

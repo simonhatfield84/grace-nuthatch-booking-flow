@@ -1,19 +1,23 @@
 
 import { useState } from "react";
+import { useTables, Table } from "./useTables";
 
-export const useTableManagement = (initialTables: any[]) => {
-  const [tables, setTables] = useState(initialTables);
-  const [editingTable, setEditingTable] = useState(null);
+export const useTableManagement = () => {
+  const { tables, createTable, updateTable, deleteTable } = useTables();
+  const [editingTable, setEditingTable] = useState<Table | null>(null);
   const [newTable, setNewTable] = useState({
     label: "",
     seats: 2,
-    onlineBookable: true,
-    priorityRank: initialTables.length + 1,
-    sectionId: null // This will be required now
+    online_bookable: true,
+    priority_rank: 1,
+    section_id: null as number | null,
+    position_x: 100,
+    position_y: 100,
+    join_groups: [] as number[]
   });
 
   const validateTable = (table: any) => {
-    if (!table.sectionId) {
+    if (!table.section_id) {
       throw new Error("Section is required for all tables");
     }
     if (!table.label.trim()) {
@@ -25,55 +29,56 @@ export const useTableManagement = (initialTables: any[]) => {
     return true;
   };
 
-  const handleAddTable = () => {
+  const handleAddTable = async () => {
     try {
       validateTable(newTable);
-      const table = {
-        id: Date.now(),
+      const maxPriority = Math.max(...tables.map(t => t.priority_rank), 0);
+      await createTable({
         ...newTable,
-        joinGroups: [],
-        position: { x: 100 + tables.length * 50, y: 100 + tables.length * 30 }
-      };
-      setTables([...tables, table]);
+        priority_rank: maxPriority + 1
+      });
       resetTableForm();
     } catch (error) {
       throw error;
     }
   };
 
-  const handleUpdateTable = () => {
+  const handleUpdateTable = async () => {
     if (!editingTable) return;
     try {
       validateTable(editingTable);
-      setTables(tables.map(t => t.id === editingTable.id ? { ...editingTable } : t));
+      await updateTable({ id: editingTable.id, updates: editingTable });
       setEditingTable(null);
     } catch (error) {
       throw error;
     }
   };
 
-  const handleDeleteTable = (tableId: number) => {
-    setTables(tables.filter(t => t.id !== tableId));
+  const handleDeleteTable = async (tableId: number) => {
+    await deleteTable(tableId);
   };
 
-  const handleEditTable = (table: any) => {
+  const handleEditTable = (table: Table) => {
     setEditingTable({ ...table });
   };
 
   const resetTableForm = () => {
+    const maxPriority = Math.max(...tables.map(t => t.priority_rank), 0);
     setNewTable({
       label: "",
       seats: 2,
-      onlineBookable: true,
-      priorityRank: tables.length + 2,
-      sectionId: null
+      online_bookable: true,
+      priority_rank: maxPriority + 1,
+      section_id: null,
+      position_x: 100,
+      position_y: 100,
+      join_groups: []
     });
     setEditingTable(null);
   };
 
   return {
     tables,
-    setTables,
     editingTable,
     setEditingTable,
     newTable,
