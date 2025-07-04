@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -151,12 +150,35 @@ export const useGuests = () => {
     }
   });
 
+  const bulkDeleteGuestsMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase
+        .from('guests')
+        .delete()
+        .in('id', ids);
+      
+      if (error) throw error;
+    },
+    onSuccess: (_, ids) => {
+      queryClient.invalidateQueries({ queryKey: ['guests'] });
+      toast({ 
+        title: "Guests deleted", 
+        description: `${ids.length} guest${ids.length > 1 ? 's' : ''} have been removed.` 
+      });
+    },
+    onError: (error: any) => {
+      console.error('Bulk delete guests error:', error);
+      toast({ title: "Error", description: "Failed to delete guests.", variant: "destructive" });
+    }
+  });
+
   return {
     guests,
     isLoading,
     createGuest: createGuestMutation.mutateAsync,
     updateGuest: updateGuestMutation.mutateAsync,
-    deleteGuest: deleteGuestMutation.mutateAsync
+    deleteGuest: deleteGuestMutation.mutateAsync,
+    bulkDeleteGuests: bulkDeleteGuestsMutation.mutateAsync
   };
 };
 

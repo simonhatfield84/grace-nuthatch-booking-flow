@@ -4,20 +4,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Download, Upload, UserPlus, Users } from "lucide-react";
+import { Download, Upload, UserPlus, Trash2 } from "lucide-react";
 import { useGuests, Guest } from "@/hooks/useGuests";
 import { GuestsTable } from "@/components/guests/GuestsTable";
 import { GuestFilters, GuestFilters as GuestFiltersType } from "@/components/guests/GuestFilters";
 import { GuestDialog } from "@/components/guests/GuestDialog";
 import { CSVImportDialog } from "@/components/guests/CSVImportDialog";
+import { DeleteConfirmDialog } from "@/components/guests/DeleteConfirmDialog";
 
 const Guests = () => {
   const { toast } = useToast();
-  const { guests, createGuest, updateGuest, isLoading } = useGuests();
+  const { guests, createGuest, updateGuest, bulkDeleteGuests, isLoading } = useGuests();
   
   const [selectedGuests, setSelectedGuests] = useState<string[]>([]);
   const [isGuestDialogOpen, setIsGuestDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const [editingGuest, setEditingGuest] = useState<Guest | null>(null);
   
   const [filters, setFilters] = useState<GuestFiltersType>({
@@ -127,6 +130,19 @@ const Guests = () => {
     }
   };
 
+  const handleBulkDelete = async () => {
+    setIsBulkDeleting(true);
+    try {
+      await bulkDeleteGuests(selectedGuests);
+      setSelectedGuests([]);
+      setShowBulkDeleteDialog(false);
+    } catch (error) {
+      console.error('Failed to delete guests:', error);
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
+
   const handleCSVExport = () => {
     const csvData = filteredGuests.map(guest => ({
       Name: guest.name,
@@ -209,6 +225,16 @@ const Guests = () => {
           <p className="text-muted-foreground">Manage your customer database</p>
         </div>
         <div className="flex gap-2">
+          {selectedGuests.length > 0 && (
+            <Button
+              variant="outline"
+              onClick={() => setShowBulkDeleteDialog(true)}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete ({selectedGuests.length})
+            </Button>
+          )}
           <Button variant="outline" onClick={() => setIsImportDialogOpen(true)}>
             <Upload className="h-4 w-4 mr-2" />
             Import CSV
@@ -310,6 +336,15 @@ const Guests = () => {
         isOpen={isImportDialogOpen}
         onOpenChange={setIsImportDialogOpen}
         onImport={handleCSVImport}
+      />
+
+      <DeleteConfirmDialog
+        isOpen={showBulkDeleteDialog}
+        onOpenChange={setShowBulkDeleteDialog}
+        onConfirm={handleBulkDelete}
+        title="Delete Selected Guests"
+        description={`Are you sure you want to delete ${selectedGuests.length} guest${selectedGuests.length > 1 ? 's' : ''}? This action cannot be undone.`}
+        isLoading={isBulkDeleting}
       />
     </div>
   );
