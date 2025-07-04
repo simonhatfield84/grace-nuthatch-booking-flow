@@ -32,7 +32,7 @@ const Services = () => {
   });
 
   // Fetch booking windows for all services
-  const { data: allWindows = [], isLoading: isWindowsLoading, error: windowsError } = useBookingWindows();
+  const { allBookingWindows: allWindows = [], isLoadingWindows: isWindowsLoading, windowsError } = useBookingWindows();
 
   const [showDialog, setShowDialog] = useState(false);
   const [editingService, setEditingService] = useState(null);
