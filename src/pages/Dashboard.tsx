@@ -1,60 +1,40 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
 import { Button } from "@/components/ui/button";
-import { Calendar, Users, Utensils, BarChart3, Plus } from "lucide-react";
+import { Calendar, Users, Utensils, BarChart3, Plus, TrendingUp } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useDashboardData } from "@/hooks/useDashboardData";
+import { KpiCard } from "@/components/dashboard/KpiCard";
+import { ServicePopularityChart, StatusBreakdownChart } from "@/components/dashboard/DashboardCharts";
+import { AlertsPanel } from "@/components/dashboard/AlertsPanel";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
 const Dashboard = () => {
-  const stats = [{
-    title: "Today's Reservations",
-    value: "24",
-    description: "8 more than yesterday",
-    icon: Calendar,
-    color: "text-primary"
-  }, {
-    title: "Total Guests",
-    value: "1,247",
-    description: "Active in database",
-    icon: Users,
-    color: "text-secondary"
-  }, {
-    title: "Available Tables",
-    value: "12",
-    description: "Out of 18 total",
-    icon: Utensils,
-    color: "text-accent"
-  }, {
-    title: "Weekly Revenue",
-    value: "£4,250",
-    description: "From reservations",
-    icon: BarChart3,
-    color: "text-primary"
-  }];
-  const recentReservations = [{
-    id: 1,
-    guest: "Sarah Johnson",
-    time: "19:00",
-    party: 4,
-    service: "Dinner",
-    status: "Confirmed"
-  }, {
-    id: 2,
-    guest: "Mike Chen",
-    time: "20:30",
-    party: 2,
-    service: "Dinner",
-    status: "Seated"
-  }, {
-    id: 3,
-    guest: "Emma Wilson",
-    time: "15:00",
-    party: 6,
-    service: "Afternoon Tea",
-    status: "Confirmed"
-  }];
-  return <div className="space-y-6">
+  const dashboardData = useDashboardData();
+
+  const {
+    todaysBookings,
+    guests,
+    tables,
+    revenue,
+    unallocated,
+    servicePopularity,
+    isLoading
+  } = dashboardData;
+
+  const tableUtilization = tables.total > 0 
+    ? Math.round((tables.booked / tables.total) * 100) 
+    : 0;
+
+  const recentBookings = todaysBookings.bookings
+    .filter(booking => booking.status === 'confirmed')
+    .slice(0, 5);
+
+  return (
+    <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground">Welcome to Grace OS, hello....</p>
+          <p className="text-muted-foreground">Welcome to Grace OS - Restaurant Management</p>
         </div>
         <div className="flex gap-2">
           <Link to="/host">
@@ -66,39 +46,103 @@ const Dashboard = () => {
         </div>
       </div>
 
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => <Card key={index}>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-              <stat.icon className={`h-4 w-4 ${stat.color}`} strokeWidth={2} />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <p className="text-xs text-muted-foreground">{stat.description}</p>
-            </CardContent>
-          </Card>)}
+        <KpiCard
+          title="Today's Reservations"
+          value={todaysBookings.count}
+          description={`Avg ${todaysBookings.averagePartySize} guests per party`}
+          icon={Calendar}
+          trend={{
+            value: Math.abs(todaysBookings.trend),
+            isPositive: todaysBookings.trend >= 0
+          }}
+          color="text-primary"
+          isLoading={isLoading}
+        />
+
+        <KpiCard
+          title="Guest Database"
+          value={guests.total.toLocaleString()}
+          description="Total registered guests"
+          icon={Users}
+          color="text-secondary"
+          isLoading={isLoading}
+        />
+
+        <KpiCard
+          title="Table Availability"
+          value={`${tables.available}/${tables.total}`}
+          description={`${tableUtilization}% utilization`}
+          icon={Utensils}
+          color="text-accent"
+          isLoading={isLoading}
+        />
+
+        <KpiCard
+          title="Weekly Revenue"
+          value={`£${revenue.weekly.toLocaleString()}`}
+          description="Estimated from bookings"
+          icon={TrendingUp}
+          color="text-primary"
+          isLoading={isLoading}
+        />
       </div>
 
+      {/* Charts and Alerts */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <ServicePopularityChart data={servicePopularity} />
+        <StatusBreakdownChart data={todaysBookings.statusBreakdown} />
+        <AlertsPanel 
+          unallocatedBookings={unallocated} 
+          tableUtilization={tableUtilization}
+        />
+      </div>
+
+      {/* Recent Activity and Quick Actions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Recent Reservations</CardTitle>
-            <CardDescription>Latest bookings from today</CardDescription>
+            <CardTitle>Today's Confirmed Bookings</CardTitle>
+            <CardDescription>Latest confirmed reservations</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {recentReservations.map(reservation => <div key={reservation.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                  <div>
-                    <p className="font-medium">{reservation.guest}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {reservation.time} • {reservation.party} guests • {reservation.service}
-                    </p>
+            {isLoading ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center justify-between p-3 bg-muted rounded-lg animate-pulse">
+                    <div className="space-y-2">
+                      <div className="h-4 w-32 bg-muted-foreground/20 rounded" />
+                      <div className="h-3 w-48 bg-muted-foreground/20 rounded" />
+                    </div>
+                    <div className="h-6 w-16 bg-muted-foreground/20 rounded" />
                   </div>
-                  <span className={`px-2 py-1 rounded text-xs ${reservation.status === 'Confirmed' ? 'bg-blue-100 text-blue-800' : reservation.status === 'Seated' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                    {reservation.status}
-                  </span>
-                </div>)}
-            </div>
+                ))}
+              </div>
+            ) : recentBookings.length > 0 ? (
+              <div className="space-y-4">
+                {recentBookings.map(booking => (
+                  <div key={booking.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                    <div>
+                      <p className="font-medium">{booking.guest_name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {booking.booking_time} • {booking.party_size} guests • {booking.service}
+                        {booking.is_unallocated && (
+                          <span className="ml-2 text-amber-600">• Unallocated</span>
+                        )}
+                      </p>
+                    </div>
+                    <span className="px-2 py-1 rounded text-xs bg-blue-100 text-blue-800">
+                      Confirmed
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-center text-muted-foreground py-8">
+                No confirmed bookings for today
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -132,9 +176,19 @@ const Dashboard = () => {
                 Generate Reports
               </Button>
             </Link>
+            {unallocated.length > 0 && (
+              <Link to="/host" className="block">
+                <Button variant="default" className="w-full justify-start">
+                  <Calendar className="h-4 w-4 mr-2" strokeWidth={2} />
+                  Allocate {unallocated.length} Booking{unallocated.length > 1 ? 's' : ''}
+                </Button>
+              </Link>
+            )}
           </CardContent>
         </Card>
       </div>
-    </div>;
+    </div>
+  );
 };
+
 export default Dashboard;
