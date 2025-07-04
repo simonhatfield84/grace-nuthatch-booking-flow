@@ -81,6 +81,68 @@ export type Database = {
         }
         Relationships: []
       }
+      bookings: {
+        Row: {
+          booking_date: string
+          booking_time: string
+          created_at: string | null
+          email: string | null
+          guest_name: string
+          id: number
+          is_unallocated: boolean | null
+          notes: string | null
+          original_table_id: number | null
+          party_size: number
+          phone: string | null
+          service: string | null
+          status: string | null
+          table_id: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          booking_date: string
+          booking_time: string
+          created_at?: string | null
+          email?: string | null
+          guest_name: string
+          id?: number
+          is_unallocated?: boolean | null
+          notes?: string | null
+          original_table_id?: number | null
+          party_size: number
+          phone?: string | null
+          service?: string | null
+          status?: string | null
+          table_id?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          booking_date?: string
+          booking_time?: string
+          created_at?: string | null
+          email?: string | null
+          guest_name?: string
+          id?: number
+          is_unallocated?: boolean | null
+          notes?: string | null
+          original_table_id?: number | null
+          party_size?: number
+          phone?: string | null
+          service?: string | null
+          status?: string | null
+          table_id?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sections: {
         Row: {
           color: string | null
@@ -205,6 +267,62 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      tables: {
+        Row: {
+          created_at: string | null
+          deleted_at: string | null
+          id: number
+          join_groups: number[] | null
+          label: string
+          online_bookable: boolean | null
+          position_x: number | null
+          position_y: number | null
+          priority_rank: number | null
+          seats: number
+          section_id: number | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          deleted_at?: string | null
+          id?: number
+          join_groups?: number[] | null
+          label: string
+          online_bookable?: boolean | null
+          position_x?: number | null
+          position_y?: number | null
+          priority_rank?: number | null
+          seats: number
+          section_id?: number | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          deleted_at?: string | null
+          id?: number
+          join_groups?: number[] | null
+          label?: string
+          online_bookable?: boolean | null
+          position_x?: number | null
+          position_y?: number | null
+          priority_rank?: number | null
+          seats?: number
+          section_id?: number | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tables_section_id_fkey"
+            columns: ["section_id"]
+            isOneToOne: false
+            referencedRelation: "sections"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tags: {
         Row: {

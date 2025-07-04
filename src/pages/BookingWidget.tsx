@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,11 +5,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, Users, MapPin, CheckCircle } from "lucide-react";
+import { Calendar, Clock, Users, MapPin, CheckCircle, AlertCircle } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { isDateInAllowedDays, getDayOfWeek } from "@/utils/dayUtils";
 import { format, addDays, startOfDay } from "date-fns";
+import { useTables } from "@/hooks/useTables";
+import { useBookings } from "@/hooks/useBookings";
+import { useTableAvailability } from "@/hooks/useTableAvailability";
 
 const BookingWidget = () => {
   const [step, setStep] = useState(1);
@@ -58,6 +60,23 @@ const BookingWidget = () => {
     },
     enabled: !!selectedService?.id
   });
+
+  // Fetch tables and bookings for availability checking
+  const { tables } = useTables();
+  const { bookings } = useBookings(selectedDate);
+  const { checkTableAvailability, findAvailableTimeSlots } = useTableAvailability(tables, bookings);
+
+  // Get service duration for the party size
+  const getServiceDuration = () => {
+    if (!selectedService?.duration_rules) return 120; // default 2 hours
+    
+    const durationRules = selectedService.duration_rules;
+    const rule = durationRules.find((rule: any) => 
+      partySize >= rule.minGuests && partySize <= rule.maxGuests
+    );
+    
+    return rule ? rule.durationMinutes : 120;
+  };
 
   // Generate available dates based on booking windows
   const getAvailableDates = () => {
@@ -116,7 +135,7 @@ const BookingWidget = () => {
     return dates;
   };
 
-  // Generate time slots based on booking windows
+  // Generate time slots with table availability
   const getAvailableTimeSlots = () => {
     if (!selectedDate || !bookingWindows.length) return [];
     
@@ -133,26 +152,35 @@ const BookingWidget = () => {
     
     if (!applicableWindows.length) return [];
     
-    // Generate time slots for all applicable windows
-    const timeSlots = new Set<string>();
+    const serviceDuration = getServiceDuration();
+    const availableSlots: Array<{time: string, hasTable: boolean}> = [];
     
     applicableWindows.forEach(window => {
-      const startTime = window.start_time;
-      const endTime = window.end_time;
+      const timeSlots = findAvailableTimeSlots(
+        selectedDate,
+        partySize,
+        window.start_time,
+        window.end_time,
+        serviceDuration
+      );
       
-      // Parse start and end times
-      const [startHour, startMin] = startTime.split(':').map(Number);
-      const [endHour, endMin] = endTime.split(':').map(Number);
+      // Also generate all possible slots to show unavailable ones
+      const [startHour, startMin] = window.start_time.split(':').map(Number);
+      const [endHour, endMin] = window.end_time.split(':').map(Number);
       
-      // Generate 15-minute slots
       let currentHour = startHour;
       let currentMin = startMin;
       
       while (currentHour < endHour || (currentHour === endHour && currentMin < endMin)) {
         const timeSlot = `${currentHour.toString().padStart(2, '0')}:${currentMin.toString().padStart(2, '0')}`;
-        timeSlots.add(timeSlot);
         
-        // Add 15 minutes
+        if (!availableSlots.find(slot => slot.time === timeSlot)) {
+          availableSlots.push({
+            time: timeSlot,
+            hasTable: timeSlots.includes(timeSlot)
+          });
+        }
+        
         currentMin += 15;
         if (currentMin >= 60) {
           currentMin = 0;
@@ -161,11 +189,20 @@ const BookingWidget = () => {
       }
     });
     
-    return Array.from(timeSlots).sort();
+    return availableSlots.sort((a, b) => a.time.localeCompare(b.time));
   };
 
   const availableDates = getAvailableDates();
   const availableTimeSlots = getAvailableTimeSlots();
+
+  // Check if selected time has table availability
+  const selectedTimeAvailability = selectedTime && selectedDate ? 
+    checkTableAvailability({
+      date: selectedDate,
+      time: selectedTime,
+      partySize,
+      durationMinutes: getServiceDuration()
+    }) : null;
 
   const handleServiceSelect = (service: any) => {
     setSelectedService(service);
@@ -174,16 +211,40 @@ const BookingWidget = () => {
   };
 
   const handleDateTimeSelect = () => {
-    if (selectedDate && selectedTime) {
+    if (selectedDate && selectedTime && selectedTimeAvailability?.available) {
       setStep(3);
     }
   };
 
-  const handleGuestDetailsSubmit = () => {
-    if (guestDetails.name && guestDetails.email && guestDetails.phone) {
-      // Here would be the payment flow if deposit required
-      setStep(4);
-      setIsConfirmed(true);
+  const handleGuestDetailsSubmit = async () => {
+    if (guestDetails.name && guestDetails.email && guestDetails.phone && selectedTimeAvailability?.bestTable) {
+      // Create the booking
+      try {
+        const { data, error } = await supabase
+          .from('bookings')
+          .insert([{
+            table_id: selectedTimeAvailability.bestTable.id,
+            guest_name: guestDetails.name,
+            party_size: partySize,
+            booking_date: selectedDate,
+            booking_time: selectedTime,
+            phone: guestDetails.phone,
+            email: guestDetails.email,
+            notes: guestDetails.notes,
+            service: selectedService.title,
+            status: 'confirmed'
+          }])
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        setStep(4);
+        setIsConfirmed(true);
+      } catch (error) {
+        console.error('Error creating booking:', error);
+        // Handle error - could show toast notification
+      }
     }
   };
 
@@ -375,21 +436,57 @@ const BookingWidget = () => {
                       </div>
                     ) : (
                       <div className="grid grid-cols-4 gap-2 mt-2">
-                        {availableTimeSlots.map((time) => (
+                        {availableTimeSlots.map((slot) => (
                           <button
-                            key={time}
-                            className={`p-2 text-center rounded border ${
-                              selectedTime === time
-                                ? 'bg-green-600 text-white border-green-600'
-                                : 'border-gray-300 hover:border-green-500'
+                            key={slot.time}
+                            className={`p-2 text-center rounded border text-sm ${
+                              selectedTime === slot.time
+                                ? slot.hasTable 
+                                  ? 'bg-green-600 text-white border-green-600'
+                                  : 'bg-red-600 text-white border-red-600'
+                                : slot.hasTable
+                                ? 'border-gray-300 hover:border-green-500'
+                                : 'border-red-200 text-red-600 cursor-not-allowed bg-red-50'
                             }`}
-                            onClick={() => setSelectedTime(time)}
+                            onClick={() => slot.hasTable && setSelectedTime(slot.time)}
+                            disabled={!slot.hasTable}
+                            title={!slot.hasTable ? 'No tables available at this time' : ''}
                           >
-                            {time}
+                            {slot.time}
+                            {!slot.hasTable && (
+                              <div className="text-xs mt-1">No tables</div>
+                            )}
                           </button>
                         ))}
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* Table availability info */}
+                {selectedTime && selectedTimeAvailability && (
+                  <div className={`p-3 rounded-lg ${
+                    selectedTimeAvailability.available 
+                      ? 'bg-green-50 border border-green-200' 
+                      : 'bg-red-50 border border-red-200'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      {selectedTimeAvailability.available ? (
+                        <>
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          <span className="text-green-800 text-sm font-medium">
+                            Table available! ({selectedTimeAvailability.bestTable?.label})
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <AlertCircle className="h-4 w-4 text-red-600" />
+                          <span className="text-red-800 text-sm font-medium">
+                            {selectedTimeAvailability.reason}
+                          </span>
+                        </>
+                      )}
+                    </div>
                   </div>
                 )}
 
@@ -399,7 +496,7 @@ const BookingWidget = () => {
                   </Button>
                   <Button 
                     onClick={handleDateTimeSelect}
-                    disabled={!selectedDate || !selectedTime}
+                    disabled={!selectedDate || !selectedTime || !selectedTimeAvailability?.available}
                     className="flex-1"
                   >
                     Continue
@@ -418,6 +515,11 @@ const BookingWidget = () => {
                 <CardTitle>Your Details</CardTitle>
                 <CardDescription>
                   {selectedService.title} • {new Date(selectedDate).toLocaleDateString()} at {selectedTime} • {partySize} guests
+                  {selectedTimeAvailability?.bestTable && (
+                    <span className="block text-green-600 font-medium mt-1">
+                      Table {selectedTimeAvailability.bestTable.label} reserved
+                    </span>
+                  )}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -519,7 +621,7 @@ const BookingWidget = () => {
                   </div>
                   <div className="flex items-center gap-2">
                     <MapPin className="h-4 w-4 text-gray-500" strokeWidth={2} />
-                    <span>The Nuthatch Restaurant</span>
+                    <span>Table {selectedTimeAvailability?.bestTable?.label} - The Nuthatch Restaurant</span>
                   </div>
                 </div>
 

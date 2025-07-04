@@ -1,5 +1,7 @@
 
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { SectionHeader } from "./SectionHeader";
 import { SectionTablesList } from "./SectionTablesList";
 import { useSections } from "@/hooks/useSections";
@@ -19,6 +21,7 @@ export const SectionManager = ({
   onAddTableToSection 
 }: SectionManagerProps) => {
   const { sections } = useSections();
+  const [collapsedSections, setCollapsedSections] = useState<Set<number>>(new Set());
 
   const getTablesForSection = (sectionId: number) => {
     return tables.filter(table => table.section_id === sectionId);
@@ -30,25 +33,45 @@ export const SectionManager = ({
     }
   };
 
+  const toggleSection = (sectionId: number) => {
+    const newCollapsed = new Set(collapsedSections);
+    if (newCollapsed.has(sectionId)) {
+      newCollapsed.delete(sectionId);
+    } else {
+      newCollapsed.add(sectionId);
+    }
+    setCollapsedSections(newCollapsed);
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       {sections.map((section) => {
         const sectionTables = getTablesForSection(section.id);
+        const isCollapsed = collapsedSections.has(section.id);
         
         return (
           <Card key={section.id} className="overflow-hidden">
-            <SectionHeader 
-              section={section}
-              tableCount={sectionTables.length}
-              onAddTable={handleAddTable}
-            />
-            <CardContent className="p-4">
-              <SectionTablesList
-                tables={sectionTables}
-                onEditTable={onEditTable}
-                onDeleteTable={onDeleteTable}
-              />
-            </CardContent>
+            <Collapsible open={!isCollapsed} onOpenChange={() => toggleSection(section.id)}>
+              <CollapsibleTrigger asChild>
+                <div className="cursor-pointer">
+                  <SectionHeader 
+                    section={section}
+                    tableCount={sectionTables.length}
+                    onAddTable={handleAddTable}
+                    isCollapsed={isCollapsed}
+                  />
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <CardContent className="p-3">
+                  <SectionTablesList
+                    tables={sectionTables}
+                    onEditTable={onEditTable}
+                    onDeleteTable={onDeleteTable}
+                  />
+                </CardContent>
+              </CollapsibleContent>
+            </Collapsible>
           </Card>
         );
       })}

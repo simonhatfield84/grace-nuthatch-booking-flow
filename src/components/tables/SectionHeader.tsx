@@ -1,52 +1,56 @@
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { CardHeader, CardTitle } from "@/components/ui/card";
+import { Plus, ChevronDown, ChevronUp } from "lucide-react";
 
-interface SectionHeaderProps {
-  section: {
-    id: number;
-    name: string;
-    color: string;
-  };
-  tableCount: number;
-  onAddTable: (sectionId: number) => void;
+interface Section {
+  id: number;
+  name: string;
+  description?: string;
+  color?: string;
 }
 
-export const SectionHeader = ({ section, tableCount, onAddTable }: SectionHeaderProps) => {
+interface SectionHeaderProps {
+  section: Section;
+  tableCount: number;
+  onAddTable: (sectionId: number) => void;
+  isCollapsed?: boolean;
+}
+
+export const SectionHeader = ({ section, tableCount, onAddTable, isCollapsed = false }: SectionHeaderProps) => {
   return (
-    <div className="flex items-center justify-between p-4 border-b border-border/50">
-      <div className="flex items-center gap-3">
-        <div 
-          className="w-4 h-4 rounded-full" 
-          style={{ backgroundColor: section.color }}
-        />
-        <h3 className="text-lg font-semibold text-foreground">
-          {section.name}
-        </h3>
-        <Badge variant="outline" className="text-sm">
-          {tableCount} table{tableCount !== 1 ? 's' : ''}
-        </Badge>
+    <CardHeader className="pb-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            {isCollapsed ? (
+              <ChevronUp className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            )}
+            <CardTitle className="text-lg font-semibold">{section.name}</CardTitle>
+          </div>
+          <Badge variant="secondary" className="text-xs">
+            {tableCount} {tableCount === 1 ? 'table' : 'tables'}
+          </Badge>
+        </div>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={(e) => {
+            e.stopPropagation();
+            onAddTable(section.id);
+          }}
+          className="h-8"
+        >
+          <Plus className="h-4 w-4 mr-1" />
+          Add Table
+        </Button>
       </div>
-      
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => onAddTable(section.id)}
-              className="h-8 w-8 p-0"
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Add table to {section.name}</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-    </div>
+      {section.description && (
+        <p className="text-sm text-muted-foreground mt-1">{section.description}</p>
+      )}
+    </CardHeader>
   );
 };
