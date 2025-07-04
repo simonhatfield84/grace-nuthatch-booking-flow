@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +25,8 @@ export const BookingEditForm = ({ booking, onSave, onCancel }: BookingEditFormPr
     email: booking.email || "",
     notes: booking.notes || "",
     service: booking.service || "Dinner",
-    status: booking.status
+    status: booking.status,
+    duration_minutes: booking.duration_minutes?.toString() || "120"
   });
   const [isLoading, setIsLoading] = useState(false);
 
@@ -45,6 +45,7 @@ export const BookingEditForm = ({ booking, onSave, onCancel }: BookingEditFormPr
         notes: formData.notes || null,
         service: formData.service,
         status: formData.status,
+        duration_minutes: parseInt(formData.duration_minutes),
         updated_at: new Date().toISOString()
       };
 
@@ -61,7 +62,8 @@ export const BookingEditForm = ({ booking, onSave, onCancel }: BookingEditFormPr
         ...booking,
         ...updates,
         party_size: parseInt(formData.party_size),
-        status: formData.status as Booking['status']
+        status: formData.status as Booking['status'],
+        duration_minutes: parseInt(formData.duration_minutes)
       };
 
       toast({
@@ -152,19 +154,34 @@ export const BookingEditForm = ({ booking, onSave, onCancel }: BookingEditFormPr
         </div>
       </div>
 
-      <div>
-        <Label htmlFor="service">Service</Label>
-        <Select value={formData.service} onValueChange={(value) => setFormData({ ...formData, service: value })}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="Dinner">Dinner</SelectItem>
-            <SelectItem value="Lunch">Lunch</SelectItem>
-            <SelectItem value="Brunch">Brunch</SelectItem>
-            <SelectItem value="Private Event">Private Event</SelectItem>
-          </SelectContent>
-        </Select>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="service">Service</Label>
+          <Select value={formData.service} onValueChange={(value) => setFormData({ ...formData, service: value })}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Dinner">Dinner</SelectItem>
+              <SelectItem value="Lunch">Lunch</SelectItem>
+              <SelectItem value="Brunch">Brunch</SelectItem>
+              <SelectItem value="Private Event">Private Event</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="duration_minutes">Duration (minutes)</Label>
+          <Input
+            id="duration_minutes"
+            type="number"
+            min="15"
+            max="360"
+            step="15"
+            value={formData.duration_minutes}
+            onChange={(e) => setFormData({ ...formData, duration_minutes: e.target.value })}
+            required
+          />
+        </div>
       </div>
 
       <div>

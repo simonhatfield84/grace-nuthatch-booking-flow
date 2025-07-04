@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +17,7 @@ import { BookingDetailsPanel } from "@/components/host/BookingDetailsPanel";
 import { WalkInDialog } from "@/components/WalkInDialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Booking } from "@/hooks/useBookings";
+import { backfillBookingDurations } from "@/utils/backfillBookingDurations";
 
 const HostInterface = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -25,6 +25,7 @@ const HostInterface = () => {
   const [showDetails, setShowDetails] = useState(false);
   const [walkInDialogOpen, setWalkInDialogOpen] = useState(false);
   const [clickedTime, setClickedTime] = useState<string>("");
+  const [backfillComplete, setBackfillComplete] = useState(false);
   const { toast } = useToast();
 
   // Fetch venue hours, sections, and tables
@@ -48,7 +49,8 @@ const HostInterface = () => {
       // Cast the data to match our Booking interface and auto-allocate unallocated bookings
       const typedBookings = (data || []).map(booking => ({
         ...booking,
-        status: booking.status as Booking['status']
+        status: booking.status as Booking['status'],
+        duration_minutes: booking.duration_minutes || 120
       })) as Booking[];
 
       // Try to allocate any unallocated bookings
@@ -70,6 +72,28 @@ const HostInterface = () => {
       return typedBookings;
     }
   });
+
+  // Run backfill on component mount
+  useEffect(() => {
+    const runBackfill = async () => {
+      if (!backfillComplete) {
+        console.log('Running booking duration backfill...');
+        const updatedCount = await backfillBookingDurations();
+        setBackfillComplete(true);
+        
+        if (updatedCount && updatedCount > 0) {
+          toast({
+            title: "Duration Backfill Complete",
+            description: `Updated ${updatedCount} bookings with calculated durations.`,
+          });
+          // Refetch bookings to show updated durations
+          refetchBookings();
+        }
+      }
+    };
+
+    runBackfill();
+  }, [backfillComplete, toast, refetchBookings]);
 
   // Get unique booking dates for calendar indicators
   const { data: allBookings = [] } = useQuery({

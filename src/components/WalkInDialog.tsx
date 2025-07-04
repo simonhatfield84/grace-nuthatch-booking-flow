@@ -4,11 +4,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { TableAllocationService } from "@/services/tableAllocation";
+import { calculateBookingDuration, getServiceIdFromServiceName } from "@/utils/durationCalculation";
 
 interface WalkInDialogProps {
   open?: boolean;
@@ -57,7 +57,11 @@ export const WalkInDialog = ({
     setIsLoading(true);
     
     try {
-      // Create the booking
+      // Calculate duration for walk-in (default service)
+      const serviceId = await getServiceIdFromServiceName("Walk-in");
+      const duration = await calculateBookingDuration(serviceId || undefined, parseInt(formData.party));
+
+      // Create the booking with calculated duration
       const { data: booking, error } = await supabase
         .from('bookings')
         .insert([{
@@ -70,6 +74,7 @@ export const WalkInDialog = ({
           notes: formData.notes || null,
           service: "Walk-in",
           status: "seated",
+          duration_minutes: duration,
           is_unallocated: true,
           table_id: null,
           created_at: new Date().toISOString(),
@@ -90,7 +95,7 @@ export const WalkInDialog = ({
 
       toast({
         title: "Walk-in Created",
-        description: `Walk-in for ${formData.guest || "Guest"} has been created`,
+        description: `Walk-in for ${formData.guest || "Guest"} has been created with ${duration} minute duration`,
       });
 
       // Reset form

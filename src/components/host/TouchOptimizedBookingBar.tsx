@@ -9,6 +9,7 @@ interface Booking {
   party_size: number;
   booking_time: string;
   status: string;
+  duration_minutes?: number;
   phone?: string;
   email?: string;
   notes?: string;
@@ -56,7 +57,22 @@ export const TouchOptimizedBookingBar = ({
   };
 
   const leftPosition = calculatePosition();
-  const width = 120; // 2-hour duration = 8 slots * 15px each
+  
+  // Calculate width based on actual booking duration
+  const duration = booking.duration_minutes || 120; // fallback to 2 hours
+  const width = (duration / 15) * 60; // 60px per 15-minute slot
+
+  const formatDuration = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hours > 0 && mins > 0) {
+      return `${hours}h ${mins}m`;
+    } else if (hours > 0) {
+      return `${hours}h`;
+    } else {
+      return `${mins}m`;
+    }
+  };
 
   return (
     <TooltipProvider>
@@ -99,7 +115,7 @@ export const TouchOptimizedBookingBar = ({
               </div>
               <div className="flex items-center gap-2">
                 <Clock className="h-3 w-3" />
-                <span>{booking.booking_time}</span>
+                <span>{booking.booking_time} ({formatDuration(duration)})</span>
               </div>
               {booking.service && (
                 <div><strong>Service:</strong> {booking.service}</div>

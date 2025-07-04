@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { TableAllocationService } from "@/services/tableAllocation";
+import { calculateBookingDuration, getServiceIdFromServiceName } from "@/utils/durationCalculation";
 
 export interface Booking {
   id: number;
@@ -18,6 +19,8 @@ export interface Booking {
   email: string | null;
   notes: string | null;
   service: string;
+  duration_minutes: number;
+  end_time: string;
   created_at: string;
   updated_at: string;
 }
@@ -46,12 +49,17 @@ export const useBookings = (date?: string) => {
   });
 
   const createBookingMutation = useMutation({
-    mutationFn: async (newBooking: Omit<Booking, 'id' | 'created_at' | 'updated_at' | 'table_id' | 'is_unallocated'>) => {
-      // First create the booking
+    mutationFn: async (newBooking: Omit<Booking, 'id' | 'created_at' | 'updated_at' | 'table_id' | 'is_unallocated' | 'duration_minutes' | 'end_time'>) => {
+      // Calculate duration from service rules
+      const serviceId = newBooking.service ? await getServiceIdFromServiceName(newBooking.service) : null;
+      const duration = await calculateBookingDuration(serviceId || undefined, newBooking.party_size);
+
+      // First create the booking with calculated duration
       const { data: booking, error } = await supabase
         .from('bookings')
         .insert([{
           ...newBooking,
+          duration_minutes: duration,
           table_id: null,
           is_unallocated: true,
           created_at: new Date().toISOString(),
@@ -76,7 +84,7 @@ export const useBookings = (date?: string) => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       toast({ 
         title: "Booking created", 
-        description: "Booking has been created and allocated to available tables." 
+        description: "Booking has been created with calculated duration and allocated to available tables." 
       });
     },
     onError: (error: any) => {

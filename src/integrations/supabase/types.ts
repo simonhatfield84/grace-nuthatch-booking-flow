@@ -86,7 +86,9 @@ export type Database = {
           booking_date: string
           booking_time: string
           created_at: string | null
+          duration_minutes: number | null
           email: string | null
+          end_time: string | null
           guest_name: string
           id: number
           is_unallocated: boolean | null
@@ -103,7 +105,9 @@ export type Database = {
           booking_date: string
           booking_time: string
           created_at?: string | null
+          duration_minutes?: number | null
           email?: string | null
+          end_time?: string | null
           guest_name: string
           id?: number
           is_unallocated?: boolean | null
@@ -120,7 +124,9 @@ export type Database = {
           booking_date?: string
           booking_time?: string
           created_at?: string | null
+          duration_minutes?: number | null
           email?: string | null
+          end_time?: string | null
           guest_name?: string
           id?: number
           is_unallocated?: boolean | null
