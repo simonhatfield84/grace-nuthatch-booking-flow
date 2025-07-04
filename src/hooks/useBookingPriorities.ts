@@ -22,20 +22,14 @@ export const useBookingPriorities = () => {
 
   const updatePrioritiesMutation = useMutation({
     mutationFn: async (updatedPriorities: Array<{ id: number; priority_rank: number }>) => {
-      const { error } = await supabase.rpc('update_booking_priorities', {
-        priorities: updatedPriorities
-      }).catch(async () => {
-        // Fallback to individual updates if RPC function doesn't exist
-        for (const priority of updatedPriorities) {
-          const { error: updateError } = await supabase
-            .from('booking_priorities')
-            .update({ priority_rank: priority.priority_rank })
-            .eq('id', priority.id);
-          if (updateError) throw updateError;
-        }
-      });
-      
-      if (error) throw error;
+      // Update priorities individually since we don't have an RPC function
+      for (const priority of updatedPriorities) {
+        const { error: updateError } = await supabase
+          .from('booking_priorities')
+          .update({ priority_rank: priority.priority_rank })
+          .eq('id', priority.id);
+        if (updateError) throw updateError;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['booking-priorities'] });
