@@ -229,6 +229,78 @@ export type Database = {
           },
         ]
       }
+      guest_tags: {
+        Row: {
+          assigned_at: string | null
+          assigned_by: string | null
+          guest_id: string | null
+          id: string
+          tag_id: string | null
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          guest_id?: string | null
+          id?: string
+          tag_id?: string | null
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          guest_id?: string | null
+          id?: string
+          tag_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_tags_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      guests: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          opt_in_marketing: boolean | null
+          phone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          opt_in_marketing?: boolean | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          opt_in_marketing?: boolean | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       join_groups: {
         Row: {
           created_at: string
@@ -448,18 +520,21 @@ export type Database = {
           color: string | null
           created_at: string
           id: string
+          is_automatic: boolean | null
           name: string
         }
         Insert: {
           color?: string | null
           created_at?: string
           id?: string
+          is_automatic?: boolean | null
           name: string
         }
         Update: {
           color?: string | null
           created_at?: string
           id?: string
+          is_automatic?: boolean | null
           name?: string
         }
         Relationships: []
@@ -493,6 +568,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assign_automatic_tags: {
+        Args: { guest_id_param: string }
+        Returns: undefined
+      }
+      calculate_guest_stats: {
+        Args: { guest_email: string; guest_phone: string }
+        Returns: {
+          visit_count: number
+          last_visit_date: string
+          no_show_count: number
+          early_bird_count: number
+          last_minute_count: number
+          bulk_booking_count: number
+        }[]
+      }
       generate_booking_reference: {
         Args: Record<PropertyKey, never>
         Returns: string

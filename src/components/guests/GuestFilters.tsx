@@ -1,0 +1,174 @@
+
+import React from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon, Filter, X } from "lucide-react";
+import { format } from "date-fns";
+import { useTags } from "@/hooks/useGuests";
+
+export interface GuestFilters {
+  search: string;
+  tags: string[];
+  marketingOptIn: string;
+  visitCount: string;
+  lastVisitAfter: Date | null;
+  lastVisitBefore: Date | null;
+}
+
+interface GuestFiltersProps {
+  filters: GuestFilters;
+  onFiltersChange: (filters: GuestFilters) => void;
+  onClearFilters: () => void;
+}
+
+export const GuestFilters = ({ filters, onFiltersChange, onClearFilters }: GuestFiltersProps) => {
+  const { tags } = useTags();
+  
+  const updateFilter = (key: keyof GuestFilters, value: any) => {
+    onFiltersChange({ ...filters, [key]: value });
+  };
+
+  const toggleTag = (tagId: string) => {
+    const newTags = filters.tags.includes(tagId)
+      ? filters.tags.filter(id => id !== tagId)
+      : [...filters.tags, tagId];
+    updateFilter('tags', newTags);
+  };
+
+  const hasActiveFilters = () => {
+    return filters.search ||
+           filters.tags.length > 0 ||
+           filters.marketingOptIn !== 'all' ||
+           filters.visitCount !== 'all' ||
+           filters.lastVisitAfter ||
+           filters.lastVisitBefore;
+  };
+
+  return (
+    <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4" />
+          <span className="font-medium">Filters</span>
+        </div>
+        {hasActiveFilters() && (
+          <Button variant="outline" size="sm" onClick={onClearFilters}>
+            <X className="h-4 w-4 mr-1" />
+            Clear All
+          </Button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Search */}
+        <div>
+          <label className="text-sm font-medium mb-1 block">Search</label>
+          <Input
+            placeholder="Name, email, or phone..."
+            value={filters.search}
+            onChange={(e) => updateFilter('search', e.target.value)}
+          />
+        </div>
+
+        {/* Marketing Opt-in */}
+        <div>
+          <label className="text-sm font-medium mb-1 block">Marketing Opt-in</label>
+          <Select value={filters.marketingOptIn} onValueChange={(value) => updateFilter('marketingOptIn', value)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Guests</SelectItem>
+              <SelectItem value="opted_in">Opted In</SelectItem>
+              <SelectItem value="opted_out">Opted Out</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Visit Count */}
+        <div>
+          <label className="text-sm font-medium mb-1 block">Visit Count</label>
+          <Select value={filters.visitCount} onValueChange={(value) => updateFilter('visitCount', value)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Guests</SelectItem>
+              <SelectItem value="first_time">First-time (1 visit)</SelectItem>
+              <SelectItem value="repeat">Repeat (2-4 visits)</SelectItem>
+              <SelectItem value="frequent">Frequent (5+ visits)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Last Visit Date Range */}
+        <div>
+          <label className="text-sm font-medium mb-1 block">Last Visit</label>
+          <div className="flex gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="justify-start text-left font-normal">
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {filters.lastVisitAfter ? format(filters.lastVisitAfter, "MMM d") : "After"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={filters.lastVisitAfter || undefined}
+                  onSelect={(date) => updateFilter('lastVisitAfter', date || null)}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+            
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="justify-start text-left font-normal">
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {filters.lastVisitBefore ? format(filters.lastVisitBefore, "MMM d") : "Before"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={filters.lastVisitBefore || undefined}
+                  onSelect={(date) => updateFilter('lastVisitBefore', date || null)}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
+      </div>
+
+      {/* Tags Filter */}
+      <div>
+        <label className="text-sm font-medium mb-2 block">Tags</label>
+        <div className="flex flex-wrap gap-2">
+          {tags.map((tag) => {
+            const isSelected = filters.tags.includes(tag.id);
+            return (
+              <Badge
+                key={tag.id}
+                variant={isSelected ? "default" : "outline"}
+                className="cursor-pointer hover:opacity-80"
+                style={isSelected ? { backgroundColor: tag.color, borderColor: tag.color } : { borderColor: tag.color, color: tag.color }}
+                onClick={() => toggleTag(tag.id)}
+              >
+                {tag.name}
+                {tag.is_automatic && (
+                  <span className="ml-1 text-xs opacity-70">(auto)</span>
+                )}
+              </Badge>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+};
