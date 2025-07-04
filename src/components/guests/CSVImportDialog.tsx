@@ -36,13 +36,13 @@ export const CSVImportDialog = ({ isOpen, onOpenChange, onImport }: CSVImportDia
   const [csvData, setCsvData] = useState<CSVRow[]>([]);
   const [csvHeaders, setCsvHeaders] = useState<string[]>([]);
   const [columnMapping, setColumnMapping] = useState<ColumnMapping>({
-    name: '',
-    email: '',
-    phone: '',
-    opt_in_marketing: '',
-    notes: '',
-    import_visit_count: '',
-    import_last_visit_date: ''
+    name: 'none',
+    email: 'none',
+    phone: 'none',
+    opt_in_marketing: 'none',
+    notes: 'none',
+    import_visit_count: 'none',
+    import_last_visit_date: 'none'
   });
   const [errors, setErrors] = useState<string[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -95,13 +95,13 @@ export const CSVImportDialog = ({ isOpen, onOpenChange, onImport }: CSVImportDia
             // Auto-map common column names
             const headers = bestResult.meta.fields || [];
             const autoMapping: ColumnMapping = {
-              name: '',
-              email: '',
-              phone: '',
-              opt_in_marketing: '',
-              notes: '',
-              import_visit_count: '',
-              import_last_visit_date: ''
+              name: 'none',
+              email: 'none',
+              phone: 'none',
+              opt_in_marketing: 'none',
+              notes: 'none',
+              import_visit_count: 'none',
+              import_last_visit_date: 'none'
             };
 
             headers.forEach(header => {
@@ -148,7 +148,7 @@ export const CSVImportDialog = ({ isOpen, onOpenChange, onImport }: CSVImportDia
     const validationErrors: string[] = [];
     const guests: any[] = [];
 
-    if (!columnMapping.name) {
+    if (columnMapping.name === 'none') {
       validationErrors.push("Name column mapping is required");
       return { errors: validationErrors, guests: [] };
     }
@@ -165,7 +165,7 @@ export const CSVImportDialog = ({ isOpen, onOpenChange, onImport }: CSVImportDia
       guest.name = name;
 
       // Email
-      if (columnMapping.email && columnMapping.email !== '') {
+      if (columnMapping.email && columnMapping.email !== 'none') {
         const email = row[columnMapping.email]?.trim();
         if (email) {
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -178,7 +178,7 @@ export const CSVImportDialog = ({ isOpen, onOpenChange, onImport }: CSVImportDia
       }
 
       // Phone
-      if (columnMapping.phone && columnMapping.phone !== '') {
+      if (columnMapping.phone && columnMapping.phone !== 'none') {
         const phone = row[columnMapping.phone]?.trim();
         if (phone) {
           guest.phone = phone;
@@ -186,7 +186,7 @@ export const CSVImportDialog = ({ isOpen, onOpenChange, onImport }: CSVImportDia
       }
 
       // Marketing opt-in - DEFAULT TO TRUE if no value provided
-      if (columnMapping.opt_in_marketing && columnMapping.opt_in_marketing !== '') {
+      if (columnMapping.opt_in_marketing && columnMapping.opt_in_marketing !== 'none') {
         const optIn = row[columnMapping.opt_in_marketing]?.trim().toLowerCase();
         guest.opt_in_marketing = optIn ? ['true', '1', 'yes', 'y', 'on'].includes(optIn) : true;
       } else {
@@ -194,7 +194,7 @@ export const CSVImportDialog = ({ isOpen, onOpenChange, onImport }: CSVImportDia
       }
 
       // Notes
-      if (columnMapping.notes && columnMapping.notes !== '') {
+      if (columnMapping.notes && columnMapping.notes !== 'none') {
         const notes = row[columnMapping.notes]?.trim();
         if (notes) {
           guest.notes = notes;
@@ -202,7 +202,7 @@ export const CSVImportDialog = ({ isOpen, onOpenChange, onImport }: CSVImportDia
       }
 
       // Import visit count
-      if (columnMapping.import_visit_count && columnMapping.import_visit_count !== '') {
+      if (columnMapping.import_visit_count && columnMapping.import_visit_count !== 'none') {
         const visitCount = row[columnMapping.import_visit_count]?.trim();
         if (visitCount && !isNaN(parseInt(visitCount))) {
           guest.import_visit_count = parseInt(visitCount);
@@ -210,7 +210,7 @@ export const CSVImportDialog = ({ isOpen, onOpenChange, onImport }: CSVImportDia
       }
 
       // Import last visit date
-      if (columnMapping.import_last_visit_date && columnMapping.import_last_visit_date !== '') {
+      if (columnMapping.import_last_visit_date && columnMapping.import_last_visit_date !== 'none') {
         const lastVisit = row[columnMapping.import_last_visit_date]?.trim();
         if (lastVisit) {
           const date = new Date(lastVisit);
@@ -340,13 +340,13 @@ export const CSVImportDialog = ({ isOpen, onOpenChange, onImport }: CSVImportDia
     setCsvData([]);
     setCsvHeaders([]);
     setColumnMapping({ 
-      name: '', 
-      email: '', 
-      phone: '', 
-      opt_in_marketing: '', 
-      notes: '',
-      import_visit_count: '',
-      import_last_visit_date: ''
+      name: 'none', 
+      email: 'none', 
+      phone: 'none', 
+      opt_in_marketing: 'none', 
+      notes: 'none',
+      import_visit_count: 'none',
+      import_last_visit_date: 'none'
     });
     setErrors([]);
     setIsProcessing(false);
@@ -356,7 +356,7 @@ export const CSVImportDialog = ({ isOpen, onOpenChange, onImport }: CSVImportDia
     onOpenChange(false);
   };
 
-  const canImport = csvData.length > 0 && columnMapping.name && !isProcessing;
+  const canImport = csvData.length > 0 && columnMapping.name !== 'none' && !isProcessing;
 
   return (
     <>
@@ -430,7 +430,7 @@ export const CSVImportDialog = ({ isOpen, onOpenChange, onImport }: CSVImportDia
                         <SelectValue placeholder="Select column for Email" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {csvHeaders.map(header => (
                           <SelectItem key={header} value={header}>{header}</SelectItem>
                         ))}
@@ -447,7 +447,7 @@ export const CSVImportDialog = ({ isOpen, onOpenChange, onImport }: CSVImportDia
                         <SelectValue placeholder="Select column for Phone" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {csvHeaders.map(header => (
                           <SelectItem key={header} value={header}>{header}</SelectItem>
                         ))}
@@ -464,7 +464,7 @@ export const CSVImportDialog = ({ isOpen, onOpenChange, onImport }: CSVImportDia
                         <SelectValue placeholder="Select column for Marketing Opt-in" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None (defaults to Yes)</SelectItem>
+                        <SelectItem value="none">None (defaults to Yes)</SelectItem>
                         {csvHeaders.map(header => (
                           <SelectItem key={header} value={header}>{header}</SelectItem>
                         ))}
@@ -481,7 +481,7 @@ export const CSVImportDialog = ({ isOpen, onOpenChange, onImport }: CSVImportDia
                         <SelectValue placeholder="Select column for Visit Count" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {csvHeaders.map(header => (
                           <SelectItem key={header} value={header}>{header}</SelectItem>
                         ))}
@@ -498,7 +498,7 @@ export const CSVImportDialog = ({ isOpen, onOpenChange, onImport }: CSVImportDia
                         <SelectValue placeholder="Select column for Last Visit Date" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {csvHeaders.map(header => (
                           <SelectItem key={header} value={header}>{header}</SelectItem>
                         ))}
@@ -515,7 +515,7 @@ export const CSVImportDialog = ({ isOpen, onOpenChange, onImport }: CSVImportDia
                         <SelectValue placeholder="Select column for Notes" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">None</SelectItem>
+                        <SelectItem value="none">None</SelectItem>
                         {csvHeaders.map(header => (
                           <SelectItem key={header} value={header}>{header}</SelectItem>
                         ))}
@@ -527,7 +527,7 @@ export const CSVImportDialog = ({ isOpen, onOpenChange, onImport }: CSVImportDia
             )}
 
             {/* Preview */}
-            {csvData.length > 0 && columnMapping.name && (
+            {csvData.length > 0 && columnMapping.name !== 'none' && (
               <div>
                 <Label>Preview ({csvData.length} guests)</Label>
                 <div className="mt-2 border rounded-lg p-4 bg-muted/20 max-h-40 overflow-y-auto">
@@ -535,8 +535,8 @@ export const CSVImportDialog = ({ isOpen, onOpenChange, onImport }: CSVImportDia
                     {csvData.slice(0, 3).map((row, index) => (
                       <div key={index} className="grid grid-cols-3 gap-2 text-xs">
                         <div><strong>Name:</strong> {row[columnMapping.name]}</div>
-                        <div><strong>Email:</strong> {columnMapping.email ? row[columnMapping.email] : '—'}</div>
-                        <div><strong>Phone:</strong> {columnMapping.phone ? row[columnMapping.phone] : '—'}</div>
+                        <div><strong>Email:</strong> {columnMapping.email !== 'none' ? row[columnMapping.email] : '—'}</div>
+                        <div><strong>Phone:</strong> {columnMapping.phone !== 'none' ? row[columnMapping.phone] : '—'}</div>
                       </div>
                     ))}
                     {csvData.length > 3 && (
