@@ -28,7 +28,7 @@ export const useBookings = (date?: string) => {
   const { data: bookings = [], isLoading } = useQuery({
     queryKey: ['bookings', date],
     queryFn: async () => {
-      let query = supabase
+      let query = (supabase as any)
         .from('bookings')
         .select('*')
         .order('booking_time');
@@ -46,7 +46,7 @@ export const useBookings = (date?: string) => {
 
   const updateBookingMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: number, updates: Partial<Booking> }) => {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('bookings')
         .update({ ...updates, updated_at: new Date().toISOString() })
         .eq('id', id)
