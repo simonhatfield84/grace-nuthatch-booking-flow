@@ -85,11 +85,32 @@ export const useSections = () => {
     }
   });
 
+  const reorderSectionsMutation = useMutation({
+    mutationFn: async (reorderedSections: Array<{ id: number; sort_order: number }>) => {
+      for (const section of reorderedSections) {
+        const { error } = await supabase
+          .from('sections')
+          .update({ sort_order: section.sort_order })
+          .eq('id', section.id);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['sections'] });
+      toast({ title: "Sections reordered", description: "Section order has been updated." });
+    },
+    onError: (error: any) => {
+      console.error('Reorder sections error:', error);
+      toast({ title: "Error", description: "Failed to reorder sections.", variant: "destructive" });
+    }
+  });
+
   return {
     sections,
     isLoading,
     createSection: createSectionMutation.mutateAsync,
     updateSection: updateSectionMutation.mutateAsync,
-    deleteSection: deleteSectionMutation.mutateAsync
+    deleteSection: deleteSectionMutation.mutateAsync,
+    reorderSections: reorderSectionsMutation.mutateAsync
   };
 };

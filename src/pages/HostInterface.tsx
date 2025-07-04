@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,7 @@ import { MessageSquare, Ban } from "lucide-react";
 import { WalkInDialog } from "@/components/WalkInDialog";
 import { BlockDialog } from "@/components/BlockDialog";
 import { ReservationPopup } from "@/components/ReservationPopup";
+import { useSections } from "@/hooks/useSections";
 
 const HostInterface = () => {
   const [selectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -18,6 +18,8 @@ const HostInterface = () => {
   const [selectedTimeForWalkIn, setSelectedTimeForWalkIn] = useState<string | null>(null);
   const [selectedBlockForEdit, setSelectedBlockForEdit] = useState(null);
   
+  const { sections } = useSections();
+
   // Time slots for the grid (15-minute intervals)
   const timeSlots = [
     "17:00", "17:15", "17:30", "17:45", 
@@ -28,36 +30,44 @@ const HostInterface = () => {
     "22:00", "22:15", "22:30", "22:45"
   ];
 
-  // Extended table configuration for 25 tables
+  // Updated table configuration to match sections
   const tables = [
-    { id: 1, label: "T1", seats: 2 },
-    { id: 2, label: "T2", seats: 2 },
-    { id: 3, label: "T3", seats: 4 },
-    { id: 4, label: "T4", seats: 4 },
-    { id: 5, label: "T5", seats: 6 },
-    { id: 6, label: "T6", seats: 8 },
-    { id: 7, label: "T7", seats: 2 },
-    { id: 8, label: "T8", seats: 4 },
-    { id: 9, label: "T9", seats: 4 },
-    { id: 10, label: "T10", seats: 6 },
-    { id: 11, label: "T11", seats: 2 },
-    { id: 12, label: "T12", seats: 2 },
-    { id: 13, label: "T13", seats: 4 },
-    { id: 14, label: "T14", seats: 4 },
-    { id: 15, label: "T15", seats: 6 },
-    { id: 16, label: "T16", seats: 8 },
-    { id: 17, label: "T17", seats: 2 },
-    { id: 18, label: "T18", seats: 4 },
-    { id: 19, label: "T19", seats: 4 },
-    { id: 20, label: "T20", seats: 6 },
-    { id: 21, label: "T21", seats: 2 },
-    { id: 22, label: "T22", seats: 2 },
-    { id: 23, label: "T23", seats: 4 },
-    { id: 24, label: "T24", seats: 4 },
-    { id: 25, label: "T25", seats: 6 },
+    { id: 1, label: "T1", seats: 2, sectionId: 1 },
+    { id: 2, label: "T2", seats: 2, sectionId: 1 },
+    { id: 3, label: "T3", seats: 4, sectionId: 1 },
+    { id: 4, label: "T4", seats: 4, sectionId: 1 },
+    { id: 5, label: "T5", seats: 6, sectionId: 2 },
+    { id: 6, label: "T6", seats: 8, sectionId: 3 },
+    { id: 7, label: "T7", seats: 2, sectionId: 1 },
+    { id: 8, label: "T8", seats: 4, sectionId: 1 },
+    { id: 9, label: "T9", seats: 4, sectionId: 2 },
+    { id: 10, label: "T10", seats: 6, sectionId: 2 },
+    { id: 11, label: "T11", seats: 2, sectionId: 1 },
+    { id: 12, label: "T12", seats: 2, sectionId: 1 },
+    { id: 13, label: "T13", seats: 4, sectionId: 2 },
+    { id: 14, label: "T14", seats: 4, sectionId: 2 },
+    { id: 15, label: "T15", seats: 6, sectionId: 2 },
+    { id: 16, label: "T16", seats: 8, sectionId: 3 },
+    { id: 17, label: "T17", seats: 2, sectionId: 3 },
+    { id: 18, label: "T18", seats: 4, sectionId: 3 },
+    { id: 19, label: "T19", seats: 4, sectionId: 3 },
+    { id: 20, label: "T20", seats: 6, sectionId: 3 },
+    { id: 21, label: "T21", seats: 2, sectionId: 1 },
+    { id: 22, label: "T22", seats: 2, sectionId: 2 },
+    { id: 23, label: "T23", seats: 4, sectionId: 2 },
+    { id: 24, label: "T24", seats: 4, sectionId: 3 },
+    { id: 25, label: "T25", seats: 6, sectionId: 3 },
   ];
 
-  // Updated reservations with duration spans
+  // Group tables by section in priority order
+  const getTablesBySection = () => {
+    const tablesBySection = sections.map(section => ({
+      ...section,
+      tables: tables.filter(table => table.sectionId === section.id)
+    }));
+    return tablesBySection;
+  };
+
   const [reservations, setReservations] = useState([
     { id: 1, tableId: 1, startTime: "18:00", duration: 4, guest: "Sarah Johnson", party: 2, service: "Dinner", status: "confirmed", phone: "+44 7700 900123", email: "sarah@email.com", notes: "Vegetarian options" },
     { id: 2, tableId: 3, startTime: "19:00", duration: 6, guest: "Mike Chen", party: 4, service: "Dinner", status: "seated", phone: "+44 7700 900456", email: "mike@email.com", notes: "Birthday celebration" },
@@ -133,7 +143,6 @@ const HostInterface = () => {
     const isBlocked = isSlotBlocked(tableId, time);
     
     if (isBlocked) {
-      // Find the block and set it for editing
       const block = blockedSlots.find(block => {
         if (block.tableIds.includes(tableId.toString()) || block.tableIds.includes('all')) {
           const timeIndex = timeSlots.indexOf(time);
@@ -150,7 +159,6 @@ const HostInterface = () => {
     }
     
     if (!reservation) {
-      // Open walk-in dialog for empty slot
       setSelectedTableForWalkIn(tableId);
       setSelectedTimeForWalkIn(time);
       setWalkInDialogOpen(true);
@@ -163,8 +171,8 @@ const HostInterface = () => {
     const currentMinute = now.getMinutes();
     const currentTotalMinutes = currentHour * 60 + currentMinute;
     
-    const startTime = 17 * 60; // 17:00 in minutes
-    const endTime = 23 * 60; // 23:00 in minutes
+    const startTime = 17 * 60;
+    const endTime = 23 * 60;
     
     if (currentTotalMinutes < startTime || currentTotalMinutes > endTime) return null;
     
@@ -185,6 +193,8 @@ const HostInterface = () => {
       return false;
     });
   };
+
+  const tablesBySection = getTablesBySection();
 
   return (
     <div className="min-h-screen bg-grace-dark text-grace-light p-4">
@@ -267,18 +277,28 @@ const HostInterface = () => {
             <div className="relative">
               {/* Fixed table column */}
               <div className="flex">
-                <div className="flex-shrink-0 w-16 bg-grace-dark border-r border-grace-accent/30">
+                <div className="flex-shrink-0 w-20 bg-grace-dark border-r border-grace-accent/30">
                   {/* Header */}
-                  <div className="h-6 flex items-center justify-center text-xs font-medium text-grace-light/70 border-b border-grace-accent/30">
+                  <div className="h-8 flex items-center justify-center text-xs font-medium text-grace-light/70 border-b border-grace-accent/30">
                     Table
                   </div>
-                  {/* Table rows */}
-                  {tables.map(table => (
-                    <div key={table.id} className="h-8 flex items-center justify-center bg-grace-accent/20 border-b border-grace-accent/30 text-grace-light">
-                      <div className="text-center">
-                        <div className="text-xs font-bold">{table.label}</div>
-                        <div className="text-xs text-grace-light/70">{table.seats}</div>
+                  {/* Section headers and table rows */}
+                  {tablesBySection.map(section => (
+                    <div key={section.id}>
+                      {/* Section header */}
+                      <div className="h-6 flex items-center justify-center text-xs font-bold text-grace-light border-b border-grace-accent/30"
+                           style={{ backgroundColor: `${section.color}20`, borderColor: section.color }}>
+                        {section.name}
                       </div>
+                      {/* Tables in section */}
+                      {section.tables.map(table => (
+                        <div key={table.id} className="h-8 flex items-center justify-center bg-grace-accent/20 border-b border-grace-accent/30 text-grace-light">
+                          <div className="text-center">
+                            <div className="text-xs font-bold">{table.label}</div>
+                            <div className="text-xs text-grace-light/70">{table.seats}</div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   ))}
                 </div>
@@ -296,7 +316,7 @@ const HostInterface = () => {
                     
                     <div className="flex">
                       {/* Time header */}
-                      <div className="flex h-6 border-b border-grace-accent/30">
+                      <div className="flex h-8 border-b border-grace-accent/30">
                         {timeSlots.map(time => (
                           <div key={time} className="w-12 flex-shrink-0 flex items-center justify-center text-xs font-medium text-grace-light/70 border-r border-grace-accent/30">
                             {time}
@@ -305,58 +325,70 @@ const HostInterface = () => {
                       </div>
                     </div>
 
-                    {/* Table rows with time slots */}
-                    {tables.map(table => (
-                      <div key={table.id} className="flex h-8 border-b border-grace-accent/30">
-                        {timeSlots.map(time => {
-                          const reservation = getReservationForTableAndTime(table.id, time);
-                          const isStart = reservation && isReservationStart(reservation, time);
-                          const isEnd = reservation && isReservationEnd(reservation, time);
-                          const isBlocked = isSlotBlocked(table.id, time);
-                          
-                          return (
-                            <div 
-                              key={`${table.id}-${time}`}
-                              className={`w-12 flex-shrink-0 border-r border-grace-accent/30 cursor-pointer hover:bg-grace-accent/10 transition-colors flex items-center justify-center relative ${
-                                isBlocked 
-                                  ? 'bg-red-900/30 border-red-500/50' 
-                                  : reservation 
-                                    ? `${getStatusColor(reservation.status)} ${isStart ? 'rounded-l' : ''} ${isEnd ? 'rounded-r' : ''} ${!isStart && !isEnd ? 'border-l-0 border-r-0' : ''}` 
-                                    : 'bg-grace-dark hover:bg-grace-accent/10'
-                              }`}
-                              draggable={!!reservation && isStart}
-                              onDragStart={(e) => reservation && isStart && handleReservationDragStart(e, reservation)}
-                              onDrop={(e) => handleReservationDrop(e, table.id, time)}
-                              onDragOver={handleDragOver}
-                              onClick={() => handleCellClick(table.id, time)}
-                            >
-                              {reservation && (
-                                <Popover>
-                                  <PopoverTrigger asChild>
-                                    <div className="absolute inset-0 flex items-center justify-center cursor-pointer">
-                                      {isStart && (
-                                        <div className="text-xs text-center px-1 w-full h-full flex flex-col justify-center">
-                                          <div className="font-medium truncate text-xs leading-tight">{reservation.guest.split(' ')[0]}</div>
-                                          <div className="text-xs opacity-75">{reservation.party}p • {reservation.service}</div>
+                    {/* Section headers and table rows with time slots */}
+                    {tablesBySection.map(section => (
+                      <div key={section.id}>
+                        {/* Section header row */}
+                        <div className="flex h-6 border-b border-grace-accent/30"
+                             style={{ backgroundColor: `${section.color}10` }}>
+                          {timeSlots.map(time => (
+                            <div key={time} className="w-12 flex-shrink-0 border-r border-grace-accent/30" />
+                          ))}
+                        </div>
+                        {/* Table rows */}
+                        {section.tables.map(table => (
+                          <div key={table.id} className="flex h-8 border-b border-grace-accent/30">
+                            {timeSlots.map(time => {
+                              const reservation = getReservationForTableAndTime(table.id, time);
+                              const isStart = reservation && isReservationStart(reservation, time);
+                              const isEnd = reservation && isReservationEnd(reservation, time);
+                              const isBlocked = isSlotBlocked(table.id, time);
+                              
+                              return (
+                                <div 
+                                  key={`${table.id}-${time}`}
+                                  className={`w-12 flex-shrink-0 border-r border-grace-accent/30 cursor-pointer hover:bg-grace-accent/10 transition-colors flex items-center justify-center relative ${
+                                    isBlocked 
+                                      ? 'bg-red-900/30 border-red-500/50' 
+                                      : reservation 
+                                        ? `${getStatusColor(reservation.status)} ${isStart ? 'rounded-l' : ''} ${isEnd ? 'rounded-r' : ''} ${!isStart && !isEnd ? 'border-l-0 border-r-0' : ''}` 
+                                        : 'bg-grace-dark hover:bg-grace-accent/10'
+                                  }`}
+                                  draggable={!!reservation && isStart}
+                                  onDragStart={(e) => reservation && isStart && handleReservationDragStart(e, reservation)}
+                                  onDrop={(e) => handleReservationDrop(e, table.id, time)}
+                                  onDragOver={handleDragOver}
+                                  onClick={() => handleCellClick(table.id, time)}
+                                >
+                                  {reservation && (
+                                    <Popover>
+                                      <PopoverTrigger asChild>
+                                        <div className="absolute inset-0 flex items-center justify-center cursor-pointer">
+                                          {isStart && (
+                                            <div className="text-xs text-center px-1 w-full h-full flex flex-col justify-center">
+                                              <div className="font-medium truncate text-xs leading-tight">{reservation.guest.split(' ')[0]}</div>
+                                              <div className="text-xs opacity-75">{reservation.party}p • {reservation.service}</div>
+                                            </div>
+                                          )}
                                         </div>
-                                      )}
-                                    </div>
-                                  </PopoverTrigger>
-                                  <PopoverContent className="w-80 bg-grace-dark border-grace-accent/30">
-                                    <ReservationPopup 
-                                      reservation={reservation}
-                                      table={tables.find(t => t.id === reservation.tableId)}
-                                      updateReservationStatus={updateReservationStatus}
-                                    />
-                                  </PopoverContent>
-                                </Popover>
-                              )}
-                              {isBlocked && !reservation && (
-                                <Ban className="h-3 w-3 text-red-400" />
-                              )}
-                            </div>
-                          );
-                        })}
+                                      </PopoverTrigger>
+                                      <PopoverContent className="w-80 bg-grace-dark border-grace-accent/30">
+                                        <ReservationPopup 
+                                          reservation={reservation}
+                                          table={tables.find(t => t.id === reservation.tableId)}
+                                          updateReservationStatus={updateReservationStatus}
+                                        />
+                                      </PopoverContent>
+                                    </Popover>
+                                  )}
+                                  {isBlocked && !reservation && (
+                                    <Ban className="h-3 w-3 text-red-400" />
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ))}
                       </div>
                     ))}
                   </div>

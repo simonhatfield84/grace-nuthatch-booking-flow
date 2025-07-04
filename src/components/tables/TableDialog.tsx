@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useSections } from "@/hooks/useSections";
+import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 interface TableDialogProps {
   isOpen: boolean;
@@ -29,7 +31,47 @@ export const TableDialog = ({
   onUpdateTable
 }: TableDialogProps) => {
   const { sections } = useSections();
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const currentFormData = editingTable || newTable;
+
+  const handleSubmit = async () => {
+    if (!currentFormData.sectionId) {
+      toast({
+        title: "Section Required",
+        description: "Please select a section for this table.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!currentFormData.label.trim()) {
+      toast({
+        title: "Label Required",
+        description: "Please enter a table label.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      if (editingTable) {
+        await onUpdateTable();
+      } else {
+        await onAddTable();
+      }
+      onOpenChange(false);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save table.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -40,7 +82,7 @@ export const TableDialog = ({
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <Label htmlFor="label">Table Label</Label>
+              <Label htmlFor="label">Table Label *</Label>
               <Input
                 id="label"
                 value={currentFormData.label}
@@ -49,6 +91,7 @@ export const TableDialog = ({
                   : setNewTable({...newTable, label: e.target.value})
                 }
                 placeholder="e.g., T7"
+                required
               />
             </div>
             <div>
@@ -81,24 +124,30 @@ export const TableDialog = ({
           </div>
 
           <div>
-            <Label htmlFor="section">Section</Label>
+            <Label htmlFor="section">Section *</Label>
             <Select 
-              value={currentFormData.sectionId ? currentFormData.sectionId.toString() : "none"} 
+              value={currentFormData.sectionId ? currentFormData.sectionId.toString() : ""} 
               onValueChange={(value) => {
-                const sectionId = value === "none" ? null : parseInt(value);
+                const sectionId = parseInt(value);
                 editingTable
                   ? setEditingTable({...editingTable, sectionId})
                   : setNewTable({...newTable, sectionId});
               }}
+              required
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select a section" />
+                <SelectValue placeholder="Select a section (required)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">No Section</SelectItem>
                 {sections.map(section => (
                   <SelectItem key={section.id} value={section.id.toString()}>
-                    {section.name}
+                    <div className="flex items-center gap-2">
+                      <div 
+                        className="w-3 h-3 rounded-full" 
+                        style={{ backgroundColor: section.color }}
+                      />
+                      {section.name}
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -118,8 +167,8 @@ export const TableDialog = ({
           </div>
 
           <div className="flex gap-2">
-            <Button onClick={editingTable ? onUpdateTable : onAddTable}>
-              {editingTable ? 'Update Table' : 'Add Table'}
+            <Button onClick={handleSubmit} disabled={isSubmitting}>
+              {isSubmitting ? "Saving..." : editingTable ? 'Update Table' : 'Add Table'}
             </Button>
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           </div>

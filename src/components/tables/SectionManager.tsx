@@ -7,8 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { Plus, Edit, Trash2, GripVertical, Users } from "lucide-react";
+import { Plus, Edit, Trash2, GripVertical, Users, ArrowUp, ArrowDown } from "lucide-react";
 import { useSections } from "@/hooks/useSections";
+import { useToast } from "@/hooks/use-toast";
 
 interface SectionManagerProps {
   tables: any[];
@@ -25,7 +26,8 @@ export const SectionManager = ({
   onDeleteTable, 
   joinGroups 
 }: SectionManagerProps) => {
-  const { sections, createSection, updateSection, deleteSection } = useSections();
+  const { sections, createSection, updateSection, deleteSection, reorderSections } = useSections();
+  const { toast } = useToast();
   
   const [showSectionDialog, setShowSectionDialog] = useState(false);
   const [editingSection, setEditingSection] = useState<any>(null);
@@ -57,11 +59,15 @@ export const SectionManager = ({
   };
 
   const handleDeleteSection = async (sectionId: number) => {
-    // Move tables to "No Section" before deleting
-    const updatedTables = tables.map(table => 
-      table.sectionId === sectionId ? { ...table, sectionId: null } : table
-    );
-    setTables(updatedTables);
+    const tablesInSection = getTablesForSection(sectionId);
+    if (tablesInSection.length > 0) {
+      toast({
+        title: "Cannot Delete Section",
+        description: "Please move or delete all tables from this section first.",
+        variant: "destructive"
+      });
+      return;
+    }
     
     try {
       await deleteSection(sectionId);
@@ -70,12 +76,32 @@ export const SectionManager = ({
     }
   };
 
+  const handleSectionDrop = async (result: any) => {
+    if (!result.destination) return;
+
+    const items = Array.from(sections);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+
+    // Update sort_order for all sections
+    const reorderedSections = items.map((section, index) => ({
+      id: section.id,
+      sort_order: index + 1
+    }));
+
+    try {
+      await reorderSections(reorderedSections);
+    } catch (error) {
+      console.error('Error reordering sections:', error);
+    }
+  };
+
   const handleTableDrop = (result: any) => {
     if (!result.destination) return;
 
     const { draggableId, destination } = result;
     const tableId = parseInt(draggableId.replace('table-', ''));
-    const newSectionId = destination.droppableId === 'no-section' ? null : parseInt(destination.droppableId.replace('section-', ''));
+    const newSectionId = parseInt(destination.droppableId.replace('section-', ''));
 
     const updatedTables = tables.map(table =>
       table.id === tableId ? { ...table, sectionId: newSectionId } : table
@@ -83,7 +109,7 @@ export const SectionManager = ({
     setTables(updatedTables);
   };
 
-  const getTablesForSection = (sectionId: number | null) => {
+  const getTablesForSection = (sectionId: number) => {
     return tables.filter(table => table.sectionId === sectionId);
   };
 
@@ -94,7 +120,7 @@ export const SectionManager = ({
       <div className="flex justify-between items-center">
         <div>
           <h3 className="text-lg font-semibold">Sections & Tables</h3>
-          <p className="text-sm text-muted-foreground">Organize your tables by sections</p>
+          <p className="text-sm text-muted-foreground">Organize your tables by sections. All tables must be assigned to a section.</p>
         </div>
         <Button onClick={() => setShowSectionDialog(true)}>
           <Plus className="h-4 w-4 mr-2" />
@@ -102,162 +128,124 @@ export const SectionManager = ({
         </Button>
       </div>
 
-      <DragDropContext onDragEnd={handleTableDrop}>
-        <div className="space-y-4">
-          {/* No Section tables */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-gray-400"></div>
-                No Section
-              </CardTitle>
-              <CardDescription>Tables not assigned to any section</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Droppable droppableId="no-section">
-                {(provided) => (
-                  <div {...provided.droppableProps} ref={provided.innerRef} className="min-h-20">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {getTablesForSection(null).map((table, index) => (
-                        <Draggable key={table.id} draggableId={`table-${table.id}`} index={index}>
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              className={`p-3 border rounded-lg bg-background ${snapshot.isDragging ? 'shadow-lg' : ''}`}
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <div {...provided.dragHandleProps}>
-                                    <GripVertical className="h-4 w-4 text-muted-foreground" />
-                                  </div>
-                                  <div>
-                                    <p className="font-medium">{table.label}</p>
-                                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                                      <Users className="h-3 w-3" />
-                                      {table.seats} seats
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="flex gap-1">
-                                  <Button variant="ghost" size="sm" onClick={() => onEditTable(table)}>
-                                    <Edit className="h-3 w-3" />
-                                  </Button>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="sm" 
-                                    onClick={() => onDeleteTable(table.id)}
-                                    className="text-red-600 hover:text-red-700"
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </div>
+      {/* Section Ordering */}
+      <DragDropContext onDragEnd={handleSectionDrop}>
+        <Droppable droppableId="sections-list">
+          {(provided) => (
+            <div {...provided.droppableProps} ref={provided.innerRef} className="space-y-4">
+              {sections.map((section, index) => (
+                <Draggable key={section.id} draggableId={`section-${section.id}`} index={index}>
+                  {(provided, snapshot) => (
+                    <Card 
+                      ref={provided.innerRef}
+                      {...provided.draggableProps}
+                      className={snapshot.isDragging ? 'shadow-lg' : ''}
+                    >
+                      <CardHeader>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div {...provided.dragHandleProps} className="cursor-move">
+                              <GripVertical className="h-5 w-5 text-muted-foreground" />
                             </div>
-                          )}
-                        </Draggable>
-                      ))}
-                    </div>
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-            </CardContent>
-          </Card>
-
-          {/* Section cards */}
-          {sections.map((section) => (
-            <Card key={section.id}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <div 
-                      className="w-3 h-3 rounded-full" 
-                      style={{ backgroundColor: section.color }}
-                    ></div>
-                    {section.name}
-                    <Badge variant="outline">
-                      {getTablesForSection(section.id).length} tables
-                    </Badge>
-                  </CardTitle>
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => {
-                        setEditingSection(section);
-                        setShowSectionDialog(true);
-                      }}
-                    >
-                      <Edit className="h-3 w-3" />
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={() => handleDeleteSection(section.id)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                </div>
-                {section.description && (
-                  <CardDescription>{section.description}</CardDescription>
-                )}
-              </CardHeader>
-              <CardContent>
-                <Droppable droppableId={`section-${section.id}`}>
-                  {(provided) => (
-                    <div {...provided.droppableProps} ref={provided.innerRef} className="min-h-20">
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {getTablesForSection(section.id).map((table, index) => (
-                          <Draggable key={table.id} draggableId={`table-${table.id}`} index={index}>
-                            {(provided, snapshot) => (
-                              <div
-                                ref={provided.innerRef}
-                                {...provided.draggableProps}
-                                className={`p-3 border rounded-lg bg-background ${snapshot.isDragging ? 'shadow-lg' : ''}`}
-                              >
-                                <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
-                                    <div {...provided.dragHandleProps}>
-                                      <GripVertical className="h-4 w-4 text-muted-foreground" />
-                                    </div>
-                                    <div>
-                                      <p className="font-medium">{table.label}</p>
-                                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                                        <Users className="h-3 w-3" />
-                                        {table.seats} seats
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <div className="flex gap-1">
-                                    <Button variant="ghost" size="sm" onClick={() => onEditTable(table)}>
-                                      <Edit className="h-3 w-3" />
-                                    </Button>
-                                    <Button 
-                                      variant="ghost" 
-                                      size="sm" 
-                                      onClick={() => onDeleteTable(table.id)}
-                                      className="text-red-600 hover:text-red-700"
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  </div>
+                            <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <span>#{section.sort_order}</span>
+                              </div>
+                              <div 
+                                className="w-4 h-4 rounded-full" 
+                                style={{ backgroundColor: section.color }}
+                              />
+                              <CardTitle className="text-lg">{section.name}</CardTitle>
+                              <Badge variant="outline">
+                                {getTablesForSection(section.id).length} tables
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => {
+                                setEditingSection(section);
+                                setShowSectionDialog(true);
+                              }}
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              onClick={() => handleDeleteSection(section.id)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                        {section.description && (
+                          <CardDescription>{section.description}</CardDescription>
+                        )}
+                      </CardHeader>
+                      <CardContent>
+                        <DragDropContext onDragEnd={handleTableDrop}>
+                          <Droppable droppableId={`section-${section.id}`}>
+                            {(provided) => (
+                              <div {...provided.droppableProps} ref={provided.innerRef} className="min-h-20">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                                  {getTablesForSection(section.id).map((table, tableIndex) => (
+                                    <Draggable key={table.id} draggableId={`table-${table.id}`} index={tableIndex}>
+                                      {(provided, snapshot) => (
+                                        <div
+                                          ref={provided.innerRef}
+                                          {...provided.draggableProps}
+                                          className={`p-3 border rounded-lg bg-background ${snapshot.isDragging ? 'shadow-lg' : ''}`}
+                                        >
+                                          <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
+                                              <div {...provided.dragHandleProps}>
+                                                <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                              </div>
+                                              <div>
+                                                <p className="font-medium">{table.label}</p>
+                                                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                                                  <Users className="h-3 w-3" />
+                                                  {table.seats} seats
+                                                </div>
+                                              </div>
+                                            </div>
+                                            <div className="flex gap-1">
+                                              <Button variant="ghost" size="sm" onClick={() => onEditTable(table)}>
+                                                <Edit className="h-3 w-3" />
+                                              </Button>
+                                              <Button 
+                                                variant="ghost" 
+                                                size="sm" 
+                                                onClick={() => onDeleteTable(table.id)}
+                                                className="text-red-600 hover:text-red-700"
+                                              >
+                                                <Trash2 className="h-3 w-3" />
+                                              </Button>
+                                            </div>
+                                          </div>
+                                        </div>
+                                      )}
+                                    </Draggable>
+                                  ))}
                                 </div>
+                                {provided.placeholder}
                               </div>
                             )}
-                          </Draggable>
-                        ))}
-                      </div>
-                      {provided.placeholder}
-                    </div>
+                          </Droppable>
+                        </DragDropContext>
+                      </CardContent>
+                    </Card>
                   )}
-                </Droppable>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                </Draggable>
+              ))}
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
       </DragDropContext>
 
       {/* Section Dialog */}
@@ -274,7 +262,7 @@ export const SectionManager = ({
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="sectionName">Section Name</Label>
+              <Label htmlFor="sectionName">Section Name *</Label>
               <Input
                 id="sectionName"
                 value={currentFormData.name}
@@ -283,6 +271,7 @@ export const SectionManager = ({
                   : setNewSection({...newSection, name: e.target.value})
                 }
                 placeholder="e.g., Bar Area"
+                required
               />
             </div>
             <div>
