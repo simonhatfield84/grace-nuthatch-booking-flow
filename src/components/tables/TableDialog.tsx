@@ -19,6 +19,7 @@ interface TableDialogProps {
   setEditingTable: (table: Table | null) => void;
   onAddTable: () => Promise<void>;
   onUpdateTable: () => Promise<void>;
+  preSelectedSectionId?: number | null;
 }
 
 export const TableDialog = ({
@@ -29,12 +30,17 @@ export const TableDialog = ({
   setNewTable,
   setEditingTable,
   onAddTable,
-  onUpdateTable
+  onUpdateTable,
+  preSelectedSectionId
 }: TableDialogProps) => {
   const { sections } = useSections();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const currentFormData = editingTable || newTable;
+
+  const preSelectedSection = preSelectedSectionId 
+    ? sections.find(s => s.id === preSelectedSectionId)
+    : null;
 
   const handleSubmit = async () => {
     if (!currentFormData.section_id) {
@@ -64,6 +70,7 @@ export const TableDialog = ({
       }
       onOpenChange(false);
     } catch (error: any) {
+      console.error('Table save error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to save table.",
@@ -78,7 +85,14 @@ export const TableDialog = ({
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{editingTable ? 'Edit Table' : 'Add New Table'}</DialogTitle>
+          <DialogTitle>
+            {editingTable ? 'Edit Table' : 'Add New Table'}
+            {preSelectedSection && !editingTable && (
+              <span className="text-sm font-normal text-muted-foreground ml-2">
+                to {preSelectedSection.name}
+              </span>
+            )}
+          </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -135,6 +149,7 @@ export const TableDialog = ({
                   : setNewTable({...newTable, section_id: sectionId});
               }}
               required
+              disabled={!!preSelectedSectionId && !editingTable}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select a section (required)" />
@@ -153,6 +168,11 @@ export const TableDialog = ({
                 ))}
               </SelectContent>
             </Select>
+            {preSelectedSection && !editingTable && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Pre-selected: {preSelectedSection.name}
+              </p>
+            )}
           </div>
 
           <div className="flex items-center space-x-2">

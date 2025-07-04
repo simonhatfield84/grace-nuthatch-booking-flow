@@ -42,6 +42,7 @@ const Tables = () => {
   const [showAddTableDialog, setShowAddTableDialog] = useState(false);
   const [showEditTableDialog, setShowEditTableDialog] = useState(false);
   const [showAddGroupDialog, setShowAddGroupDialog] = useState(false);
+  const [preSelectedSectionId, setPreSelectedSectionId] = useState<number | null>(null);
 
   const handleEditTableClick = (table: any) => {
     handleEditTable(table);
@@ -53,6 +54,23 @@ const Tables = () => {
     setShowEditTableDialog(false);
   };
 
+  const handleAddTableToSection = (sectionId: number) => {
+    setPreSelectedSectionId(sectionId);
+    setNewTable(prev => ({ ...prev, section_id: sectionId }));
+    setShowAddTableDialog(true);
+  };
+
+  const handleGlobalAddTable = () => {
+    setPreSelectedSectionId(null);
+    setShowAddTableDialog(true);
+  };
+
+  const handleAddTableWithClose = async () => {
+    await handleAddTable();
+    setShowAddTableDialog(false);
+    setPreSelectedSectionId(null);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -61,7 +79,7 @@ const Tables = () => {
           <p className="text-muted-foreground">Manage your venue's table layout, sections, and booking priorities</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={() => setShowAddTableDialog(true)}>
+          <Button onClick={handleGlobalAddTable}>
             <Plus className="h-4 w-4 mr-2" strokeWidth={2} />
             Add Table
           </Button>
@@ -86,6 +104,7 @@ const Tables = () => {
             tables={tables}
             onEditTable={handleEditTableClick}
             onDeleteTable={handleDeleteTable}
+            onAddTableToSection={handleAddTableToSection}
           />
         </TabsContent>
 
@@ -110,14 +129,18 @@ const Tables = () => {
         isOpen={showAddTableDialog} 
         onOpenChange={(open) => {
           setShowAddTableDialog(open);
-          if (!open) resetTableForm();
+          if (!open) {
+            resetTableForm();
+            setPreSelectedSectionId(null);
+          }
         }} 
         editingTable={null}
         newTable={newTable} 
         setNewTable={setNewTable} 
         setEditingTable={setEditingTable}
-        onAddTable={handleAddTable} 
-        onUpdateTable={handleUpdateTable} 
+        onAddTable={handleAddTableWithClose} 
+        onUpdateTable={handleUpdateTable}
+        preSelectedSectionId={preSelectedSectionId}
       />
 
       <TableDialog 
