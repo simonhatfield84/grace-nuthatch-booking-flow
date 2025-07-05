@@ -1,3 +1,4 @@
+
 import { useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { getFirstValidationError } from '@/services/validationService';
@@ -9,23 +10,33 @@ import {
   sendApprovalRequest
 } from '@/services/setupService';
 import { convertToSetupError } from '@/types/setup';
-import { useSetupState } from './useSetupState';
+import { SetupState } from './useSetupState';
 
-export const useSetupActions = () => {
-  const { 
-    state, 
-    setError, 
-    setLoading, 
-    setVerifyLoading, 
-    setResendLoading, 
-    setStep,
-    setApprovalEmailStatus,
-    setVenueId
-  } = useSetupState();
-  
+interface UseSetupActionsProps {
+  state: SetupState;
+  setError: (error: string | null) => void;
+  setLoading: (loading: boolean) => void;
+  setVerifyLoading: (verifyLoading: boolean) => void;
+  setResendLoading: (resendLoading: boolean) => void;
+  setStep: (step: 'admin' | 'code-verification' | 'venue' | 'complete') => void;
+  setApprovalEmailStatus: (approvalEmailSent: boolean, approvalEmailError: string | null) => void;
+  setVenueId: (venueId: string | null) => void;
+}
+
+export const useSetupActions = ({
+  state,
+  setError,
+  setLoading,
+  setVerifyLoading,
+  setResendLoading,
+  setStep,
+  setApprovalEmailStatus,
+  setVenueId
+}: UseSetupActionsProps) => {
   const { toast } = useToast();
 
   const showError = useCallback((error: string) => {
+    console.log('🚨 [useSetupActions] showError called with:', error);
     setError(error);
     toast({
       title: "Setup Error",
@@ -35,6 +46,7 @@ export const useSetupActions = () => {
   }, [toast, setError]);
 
   const showSuccess = useCallback((message: string) => {
+    console.log('✅ [useSetupActions] showSuccess called with:', message);
     setError(null);
     toast({
       title: "Success",
@@ -43,44 +55,44 @@ export const useSetupActions = () => {
   }, [toast, setError]);
 
   const createAdminAccount = useCallback(async (): Promise<boolean> => {
-    console.log('🚀 createAdminAccount started');
-    console.log('📝 Admin data:', state.adminData);
+    console.log('🚀 [useSetupActions] createAdminAccount started');
+    console.log('📝 [useSetupActions] Admin data:', state.adminData);
     
     try {
       // Validation check with detailed logging
-      console.log('🔍 Checking validation...');
+      console.log('🔍 [useSetupActions] Checking validation...');
       const validationError = getFirstValidationError(state.adminData);
       if (validationError) {
-        console.error('❌ Validation failed:', validationError);
+        console.error('❌ [useSetupActions] Validation failed:', validationError);
         showError(validationError);
         return false;
       }
-      console.log('✅ Validation passed');
+      console.log('✅ [useSetupActions] Validation passed');
 
       // Set loading state
-      console.log('⏳ Setting loading state...');
+      console.log('⏳ [useSetupActions] Setting loading state...');
       setLoading(true);
       setError(null);
 
       // Create user account
-      console.log('👤 Creating user account...');
+      console.log('👤 [useSetupActions] Creating user account...');
       await createUserAccount(state.adminData);
-      console.log('✅ User account created successfully');
+      console.log('✅ [useSetupActions] User account created successfully');
       
       // Send verification code
-      console.log('📧 Sending verification code...');
+      console.log('📧 [useSetupActions] Sending verification code...');
       await sendVerificationCode(state.adminData.email, state.adminData.firstName);
-      console.log('✅ Verification code sent successfully');
+      console.log('✅ [useSetupActions] Verification code sent successfully');
       
       showSuccess(`Verification code sent to ${state.adminData.email}`);
       setStep('code-verification');
-      console.log('🎯 Moved to code-verification step');
+      console.log('🎯 [useSetupActions] Moved to code-verification step');
       return true;
       
     } catch (error) {
-      console.error('💥 Error in createAdminAccount:', error);
+      console.error('💥 [useSetupActions] Error in createAdminAccount:', error);
       const setupError = convertToSetupError(error);
-      console.error('📋 Converted error:', setupError);
+      console.error('📋 [useSetupActions] Converted error:', setupError);
       
       if (setupError.code === 'over_email_send_rate_limit') {
         showError("Email rate limit exceeded. Please wait before trying again.");
@@ -91,19 +103,19 @@ export const useSetupActions = () => {
       }
       return false;
     } finally {
-      console.log('🏁 Setting loading to false');
+      console.log('🏁 [useSetupActions] Setting loading to false');
       setLoading(false);
     }
   }, [state.adminData, showError, showSuccess, setLoading, setError, setStep]);
 
   const verifyCode = useCallback(async (code: string): Promise<boolean> => {
-    console.log('🔐 Starting code verification for:', state.adminData.email);
+    console.log('🔐 [useSetupActions] Starting code verification for:', state.adminData.email);
     setVerifyLoading(true);
     setError(null);
     
     try {
       const isValid = await verifyEmailCode(state.adminData.email, code);
-      console.log('📋 Code verification result:', isValid);
+      console.log('📋 [useSetupActions] Code verification result:', isValid);
 
       if (isValid) {
         showSuccess("Email verified successfully!");
@@ -114,7 +126,7 @@ export const useSetupActions = () => {
         return false;
       }
     } catch (error) {
-      console.error('💥 Code verification error:', error);
+      console.error('💥 [useSetupActions] Code verification error:', error);
       const setupError = convertToSetupError(error);
       showError("Verification failed: " + setupError.message);
       return false;
@@ -124,7 +136,7 @@ export const useSetupActions = () => {
   }, [state.adminData.email, showError, showSuccess, setVerifyLoading, setError, setStep]);
 
   const resendVerificationCode = useCallback(async () => {
-    console.log('🔄 Resending verification code to:', state.adminData.email);
+    console.log('🔄 [useSetupActions] Resending verification code to:', state.adminData.email);
     setResendLoading(true);
     setError(null);
     
@@ -132,7 +144,7 @@ export const useSetupActions = () => {
       await sendVerificationCode(state.adminData.email, state.adminData.firstName);
       showSuccess("New verification code sent!");
     } catch (error) {
-      console.error('💥 Resend code error:', error);
+      console.error('💥 [useSetupActions] Resend code error:', error);
       const setupError = convertToSetupError(error);
       showError("Failed to resend code: " + setupError.message);
     } finally {
@@ -141,16 +153,15 @@ export const useSetupActions = () => {
   }, [state.adminData.email, state.adminData.firstName, showError, showSuccess, setResendLoading, setError]);
 
   const createVenue = useCallback(async (): Promise<boolean> => {
-    console.log('🏢 Starting venue creation...');
+    console.log('🏢 [useSetupActions] Starting venue creation...');
     setLoading(true);
     setError(null);
 
     try {
-      console.log('Creating venue and sending approval request...');
+      console.log('[useSetupActions] Creating venue and sending approval request...');
       const result = await setupVenue(state.adminData, state.venueData);
-      console.log('📋 Venue creation result:', result);
+      console.log('📋 [useSetupActions] Venue creation result:', result);
       
-      // Store venue ID and approval status
       setVenueId(result.venue?.id || null);
       setApprovalEmailStatus(result.approvalEmailSent, result.approvalEmailError);
       
@@ -158,7 +169,7 @@ export const useSetupActions = () => {
       setStep('complete');
       return true;
     } catch (error) {
-      console.error('💥 Venue creation error:', error);
+      console.error('💥 [useSetupActions] Venue creation error:', error);
       const setupError = convertToSetupError(error);
       showError("Failed to create venue: " + setupError.message);
       return false;
@@ -173,7 +184,7 @@ export const useSetupActions = () => {
       return false;
     }
 
-    console.log('📧 Resending approval request for venue:', state.venueId);
+    console.log('📧 [useSetupActions] Resending approval request for venue:', state.venueId);
     setLoading(true);
     setError(null);
 
@@ -189,7 +200,7 @@ export const useSetupActions = () => {
       showSuccess("Approval request sent successfully!");
       return true;
     } catch (error) {
-      console.error('💥 Approval request error:', error);
+      console.error('💥 [useSetupActions] Approval request error:', error);
       const setupError = convertToSetupError(error);
       const errorMessage = "Failed to send approval request: " + setupError.message;
       setApprovalEmailStatus(false, errorMessage);

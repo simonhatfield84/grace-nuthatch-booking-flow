@@ -3,11 +3,43 @@ import { useSetupState } from './useSetupState';
 import { useSetupActions } from './useSetupActions';
 
 export const useSetupFlow = () => {
-  const setupState = useSetupState();
-  const setupActions = useSetupActions();
+  const {
+    state,
+    updateState,
+    updateAdminData,
+    updateVenueData,
+    setStep,
+    setError,
+    setLoading,
+    setVerifyLoading,
+    setResendLoading,
+    setApprovalEmailStatus,
+    setVenueId
+  } = useSetupState();
+
+  const setupActions = useSetupActions({
+    state,
+    setError,
+    setLoading,
+    setVerifyLoading,
+    setResendLoading,
+    setStep,
+    setApprovalEmailStatus,
+    setVenueId
+  });
 
   return {
-    ...setupState,
+    state,
+    updateState,
+    updateAdminData,
+    updateVenueData,
+    setStep,
+    setError,
+    setLoading,
+    setVerifyLoading,
+    setResendLoading,
+    setApprovalEmailStatus,
+    setVenueId,
     ...setupActions
   };
 };
