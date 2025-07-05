@@ -10,7 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { usePlatformSettings, useUpdatePlatformSetting, usePlatformAdmins } from "@/hooks/usePlatformSettings";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, Mail, Globe, Palette, Users, Save } from "lucide-react";
+import { Shield, Mail, Globe, Palette, Users, Save, CreditCard } from "lucide-react";
 
 export function PlatformSettingsContent() {
   const { toast } = useToast();
@@ -61,9 +61,10 @@ export function PlatformSettingsContent() {
       </div>
 
       <Tabs defaultValue="general" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="admins">Administrators</TabsTrigger>
+          <TabsTrigger value="billing">Billing</TabsTrigger>
           <TabsTrigger value="email">Email</TabsTrigger>
           <TabsTrigger value="branding">Branding</TabsTrigger>
         </TabsList>
@@ -151,11 +152,9 @@ export function PlatformSettingsContent() {
                         <div className="flex items-center gap-3">
                           <Shield className="h-5 w-5 text-orange-600" />
                           <div>
-                            <div className="font-medium">
-                              {admin.profiles?.first_name} {admin.profiles?.last_name}
-                            </div>
+                            <div className="font-medium">Platform Administrator</div>
                             <div className="text-sm text-muted-foreground">
-                              {admin.profiles?.email}
+                              User ID: {admin.user_id}
                             </div>
                           </div>
                         </div>
@@ -174,6 +173,83 @@ export function PlatformSettingsContent() {
                 <Button variant="outline" className="w-full">
                   Add New Administrator
                 </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="billing" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5" />
+                Billing & Subscription Management
+              </CardTitle>
+              <CardDescription>
+                Configure payment processing and subscription plans
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="stripe-publishable-key">Stripe Publishable Key</Label>
+                <Input id="stripe-publishable-key" placeholder="pk_live_..." />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="stripe-webhook-secret">Stripe Webhook Secret</Label>
+                <Input id="stripe-webhook-secret" type="password" placeholder="whsec_..." />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="trial-period">Free Trial Period (days)</Label>
+                  <Input id="trial-period" type="number" defaultValue="14" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="grace-period">Grace Period (days)</Label>
+                  <Input id="grace-period" type="number" defaultValue="7" />
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Auto-suspend overdue accounts</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Automatically suspend venues with overdue payments
+                    </p>
+                  </div>
+                  <Switch defaultChecked />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Send payment reminders</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Email reminders before payment due dates
+                    </p>
+                  </div>
+                  <Switch defaultChecked />
+                </div>
+              </div>
+
+              <div className="border-t pt-4">
+                <h4 className="font-medium mb-2">Subscription Plans</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center p-2 bg-muted rounded">
+                    <span>Starter Plan - $29/month</span>
+                    <Button variant="outline" size="sm">Edit</Button>
+                  </div>
+                  <div className="flex justify-between items-center p-2 bg-muted rounded">
+                    <span>Professional Plan - $79/month</span>
+                    <Button variant="outline" size="sm">Edit</Button>
+                  </div>
+                  <div className="flex justify-between items-center p-2 bg-muted rounded">
+                    <span>Enterprise Plan - $199/month</span>
+                    <Button variant="outline" size="sm">Edit</Button>
+                  </div>
+                  <Button variant="outline" className="w-full">Add New Plan</Button>
+                </div>
               </div>
             </CardContent>
           </Card>

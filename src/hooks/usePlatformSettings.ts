@@ -10,6 +10,14 @@ interface PlatformSetting {
   updated_at: string;
 }
 
+interface PlatformAdmin {
+  id: string;
+  user_id: string;
+  is_active: boolean;
+  created_at: string;
+  permissions: any;
+}
+
 export const usePlatformSettings = () => {
   return useQuery({
     queryKey: ['platform-settings'],
@@ -52,18 +60,11 @@ export const usePlatformAdmins = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('platform_admins')
-        .select(`
-          *,
-          profiles!platform_admins_user_id_fkey (
-            email,
-            first_name,
-            last_name
-          )
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data || [];
+      return data as PlatformAdmin[] || [];
     },
   });
 };
