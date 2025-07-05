@@ -3,12 +3,15 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams, useLocation } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Info, CheckCircle, ArrowLeft, User, Building, AlertTriangle, Mail, RefreshCw } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { AdminAccountForm } from '@/components/setup/AdminAccountForm';
+import { EmailVerificationStep } from '@/components/setup/EmailVerificationStep';
+import { VenueSetupForm } from '@/components/setup/VenueSetupForm';
+import { SetupStepIndicator } from '@/components/setup/SetupStepIndicator';
+import { SetupComplete } from '@/components/setup/SetupComplete';
 
 interface AdminData {
   email: string;
@@ -551,121 +554,13 @@ const Setup = () => {
 
   if (step === 'complete') {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="w-full max-w-2xl">
-          <div className="text-center mb-8">
-            <div className="grace-logo text-4xl font-bold mb-2">grace</div>
-            <p className="text-muted-foreground">Hospitality Venue Management System</p>
-          </div>
-
-          <Card>
-            <CardHeader className="text-center">
-              <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
-              <CardTitle>Setup Complete!</CardTitle>
-              <CardDescription>
-                {isUserActive 
-                  ? 'Your venue has been approved and is now active!'
-                  : 'Your venue account has been created and is pending approval.'
-                }
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Approval Status */}
-              {!isUserActive && (
-                <div className={`p-4 rounded-lg ${approvalEmailSent ? 'bg-blue-50 dark:bg-blue-950' : 'bg-orange-50 dark:bg-orange-950'}`}>
-                  <div className="flex items-start gap-3">
-                    {approvalEmailSent ? (
-                      <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-                    ) : (
-                      <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400 mt-0.5 flex-shrink-0" />
-                    )}
-                    <div className="flex-1">
-                      <h4 className="font-medium mb-2 text-blue-900 dark:text-blue-100">
-                        {approvalEmailSent ? 'Approval Request Sent' : 'Approval Request Pending'}
-                      </h4>
-                      <div className="text-sm text-blue-800 dark:text-blue-200 space-y-2">
-                        {approvalEmailSent ? (
-                          <p>Our team has been notified and will review your application within 24 hours. You'll receive an email once approved.</p>
-                        ) : (
-                          <>
-                            <p>There was an issue sending the approval email automatically.</p>
-                            {approvalEmailError && (
-                              <p className="text-red-600 dark:text-red-400 text-xs">Error: {approvalEmailError}</p>
-                            )}
-                            <Button 
-                              onClick={resendApprovalRequest} 
-                              disabled={loading}
-                              size="sm"
-                              variant="outline"
-                            >
-                              {loading ? (
-                                <>
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  Sending...
-                                </>
-                              ) : (
-                                'Send Approval Request'
-                              )}
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {isUserActive ? (
-                <div className="bg-green-50 dark:bg-green-950 p-4 rounded-lg">
-                  <h4 className="font-medium mb-2 text-green-900 dark:text-green-100">Ready to Get Started</h4>
-                  <div className="text-sm text-green-800 dark:text-green-200 space-y-1">
-                    <p>Your account is active and you can access the dashboard immediately.</p>
-                    <p><strong>Admin Dashboard:</strong> {window.location.origin}/admin</p>
-                    <p><strong>Host Interface:</strong> {window.location.origin}/host</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg">
-                  <h4 className="font-medium mb-2 text-blue-900 dark:text-blue-100">What happens next?</h4>
-                  <div className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
-                    <p>1. Our team will review your venue application</p>
-                    <p>2. You'll receive an email notification once approved</p>
-                    <p>3. After approval, you can access your admin dashboard</p>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-2">
-                {isUserActive ? (
-                  <>
-                    <Button 
-                      onClick={() => navigate('/admin/dashboard')} 
-                      className="flex-1"
-                    >
-                      Go to Dashboard
-                    </Button>
-                    <Button 
-                      onClick={() => navigate('/home')} 
-                      variant="outline"
-                      className="flex-1"
-                    >
-                      Return to Homepage
-                    </Button>
-                  </>
-                ) : (
-                  <Button 
-                    onClick={() => navigate('/home')} 
-                    variant="outline"
-                    className="w-full"
-                  >
-                    Return to Homepage
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      <SetupComplete
+        isUserActive={isUserActive}
+        approvalEmailSent={approvalEmailSent}
+        approvalEmailError={approvalEmailError}
+        loading={loading}
+        onResendApproval={resendApprovalRequest}
+      />
     );
   }
 
@@ -689,36 +584,7 @@ const Setup = () => {
             </div>
             
             {/* Step indicator */}
-            <div className="flex items-center justify-center space-x-4 mb-4">
-              <div className={`flex items-center space-x-2 ${step === 'admin' ? 'text-blue-600' : 'text-green-500'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step === 'admin' ? 'bg-blue-100 border-2 border-blue-600' : 'bg-green-100'}`}>
-                  {step === 'admin' ? <User className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
-                </div>
-                <span className="text-sm font-medium">Admin Account</span>
-              </div>
-              <div className={`w-8 h-0.5 ${step !== 'admin' ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
-              <div className={`flex items-center space-x-2 ${
-                step === 'email-verification' ? 'text-blue-600' : 
-                step === 'venue' ? 'text-blue-600' : 
-                step === 'complete' ? 'text-green-500' : 
-                'text-gray-400'
-              }`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  step === 'email-verification' ? 'bg-blue-100 border-2 border-blue-600' : 
-                  step === 'venue' ? 'bg-blue-100 border-2 border-blue-600' : 
-                  step === 'complete' ? 'bg-green-100' : 
-                  'bg-gray-100'
-                }`}>
-                  {step === 'email-verification' ? <Mail className="h-4 w-4" /> : 
-                   step === 'venue' ? <Building className="h-4 w-4" /> : 
-                   step === 'complete' ? <CheckCircle className="h-4 w-4" /> : 
-                   <Mail className="h-4 w-4" />}
-                </div>
-                <span className="text-sm font-medium">
-                  {step === 'email-verification' ? 'Email Verification' : 'Venue Setup'}
-                </span>
-              </div>
-            </div>
+            <SetupStepIndicator currentStep={step} />
 
             {step === 'admin' && (
               <>
@@ -750,224 +616,31 @@ const Setup = () => {
           
           <CardContent>
             {step === 'admin' && (
-              <form onSubmit={handleAdminSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="firstName">First Name</Label>
-                    <Input
-                      id="firstName"
-                      type="text"
-                      value={adminData.firstName}
-                      onChange={(e) => handleAdminInputChange('firstName', e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="lastName">Last Name</Label>
-                    <Input
-                      id="lastName"
-                      type="text"
-                      value={adminData.lastName}
-                      onChange={(e) => handleAdminInputChange('lastName', e.target.value)}
-                      required
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={adminData.email}
-                    onChange={(e) => handleAdminInputChange('email', e.target.value)}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={adminData.password}
-                    onChange={(e) => handleAdminInputChange('password', e.target.value)}
-                    required
-                    minLength={6}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="confirmPassword">Confirm Password</Label>
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    value={adminData.confirmPassword}
-                    onChange={(e) => handleAdminInputChange('confirmPassword', e.target.value)}
-                    required
-                    minLength={6}
-                  />
-                  {adminData.confirmPassword && adminData.password !== adminData.confirmPassword && (
-                    <p className="text-sm text-destructive mt-1">Passwords do not match</p>
-                  )}
-                </div>
-
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Creating Account...
-                    </>
-                  ) : (
-                    'Create Admin Account'
-                  )}
-                </Button>
-              </form>
+              <AdminAccountForm
+                adminData={adminData}
+                onInputChange={handleAdminInputChange}
+                onSubmit={handleAdminSubmit}
+                loading={loading}
+              />
             )}
 
             {step === 'email-verification' && (
-              <div className="space-y-6">
-                <div className="text-center">
-                  <Mail className="h-16 w-16 text-blue-500 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium mb-2">Check Your Email</h3>
-                  <p className="text-muted-foreground mb-4">
-                    We've sent a verification email to <strong>{adminData.email}</strong>
-                  </p>
-                  <p className="text-sm text-muted-foreground mb-6">
-                    Click the verification link in the email to continue with your venue setup. 
-                    The link will bring you back here automatically.
-                  </p>
-                </div>
-
-                <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg">
-                  <h4 className="font-medium mb-2 text-blue-900 dark:text-blue-100">
-                    Having trouble?
-                  </h4>
-                  <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
-                    <li>• Check your spam/junk folder</li>
-                    <li>• Make sure the email address is correct</li>
-                    <li>• Wait a few minutes for the email to arrive</li>
-                    <li>• Click the button below to resend if needed</li>
-                  </ul>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => setStep('admin')}
-                    className="flex-1"
-                  >
-                    Back to Account
-                  </Button>
-                  <Button 
-                    onClick={handleResendVerification}
-                    disabled={resendLoading}
-                    className="flex-1"
-                  >
-                    {resendLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Resending...
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="mr-2 h-4 w-4" />
-                        Resend Email
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
+              <EmailVerificationStep
+                email={adminData.email}
+                onBack={() => setStep('admin')}
+                onResend={handleResendVerification}
+                resendLoading={resendLoading}
+              />
             )}
 
             {step === 'venue' && (
-              <form onSubmit={handleVenueSubmit} className="space-y-4">
-                <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg">
-                  <p className="text-sm text-blue-800 dark:text-blue-200">
-                    <strong>Note:</strong> This information will be visible to your guests in booking confirmations and email communications.
-                  </p>
-                </div>
-                <div>
-                  <Label htmlFor="venueName">Venue Name</Label>
-                  <Input
-                    id="venueName"
-                    type="text"
-                    value={venueData.venueName}
-                    onChange={(e) => handleVenueInputChange('venueName', e.target.value)}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="venueSlug">URL Slug</Label>
-                  <Input
-                    id="venueSlug"
-                    type="text"
-                    value={venueData.venueSlug}
-                    onChange={(e) => handleVenueInputChange('venueSlug', e.target.value)}
-                    required
-                  />
-                  <p className="text-sm text-muted-foreground mt-1">
-                    This will be used for your email address: {venueData.venueSlug}@grace-os.co.uk
-                  </p>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="venueEmail">Contact Email</Label>
-                    <Input
-                      id="venueEmail"
-                      type="email"
-                      value={venueData.venueEmail}
-                      onChange={(e) => handleVenueInputChange('venueEmail', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="venuePhone">Phone Number</Label>
-                    <Input
-                      id="venuePhone"
-                      type="tel"
-                      value={venueData.venuePhone}
-                      onChange={(e) => handleVenueInputChange('venuePhone', e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="venueAddress">Address</Label>
-                  <Input
-                    id="venueAddress"
-                    type="text"
-                    value={venueData.venueAddress}
-                    onChange={(e) => handleVenueInputChange('venueAddress', e.target.value)}
-                  />
-                </div>
-
-                <div className="mt-4 p-4 bg-muted rounded-lg">
-                  <h4 className="font-medium mb-2">Email Setup Preview</h4>
-                  <div className="text-sm text-muted-foreground space-y-1">
-                    <p><strong>Guest emails will be sent from:</strong> {venueData.venueName || 'Your Venue'} &lt;{venueData.venueSlug || 'your-venue'}@grace-os.co.uk&gt;</p>
-                    <p><strong>Platform emails will be sent from:</strong> Grace OS &lt;noreply@grace-os.co.uk&gt;</p>
-                    <p className="text-xs mt-2 opacity-75">Email delivery is automatically configured and managed by Grace OS.</p>
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
-                    onClick={() => setStep('email-verification')}
-                    className="flex-1"
-                  >
-                    Back
-                  </Button>
-                  <Button type="submit" className="flex-1" disabled={loading}>
-                    {loading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Creating Venue...
-                      </>
-                    ) : (
-                      'Complete Setup'
-                    )}
-                  </Button>
-                </div>
-              </form>
+              <VenueSetupForm
+                venueData={venueData}
+                onInputChange={handleVenueInputChange}
+                onSubmit={handleVenueSubmit}
+                onBack={() => setStep('email-verification')}
+                loading={loading}
+              />
             )}
           </CardContent>
         </Card>
