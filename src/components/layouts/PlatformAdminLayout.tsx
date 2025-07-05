@@ -1,4 +1,3 @@
-
 import { Outlet, Navigate } from "react-router-dom";
 import { usePlatformAdmin } from "@/hooks/usePlatformAdmin";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -51,7 +50,7 @@ export function PlatformAdminLayout() {
   }
 
   if (!isPlatformAdmin) {
-    return <Navigate to="/platform/auth" replace />;
+    return <Navigate to="/platform/login" replace />;
   }
 
   return (

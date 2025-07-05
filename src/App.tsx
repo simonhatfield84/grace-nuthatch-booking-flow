@@ -59,7 +59,7 @@ function App() {
                 </Route>
 
                 {/* Platform admin auth route */}
-                <Route path="/platform/auth" element={<PlatformAuth />} />
+                <Route path="/platform/login" element={<PlatformAuth />} />
 
                 {/* Platform admin routes */}
                 <Route path="/platform" element={<PlatformAdminLayout />}>

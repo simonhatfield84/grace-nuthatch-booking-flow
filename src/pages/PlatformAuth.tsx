@@ -37,20 +37,26 @@ export default function PlatformAuth() {
     setError("");
 
     try {
+      console.log('Attempting platform admin login...');
+      
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (signInError) {
+        console.error('Sign in error:', signInError);
         setError(signInError.message);
         return;
       }
 
-      // The usePlatformAdmin hook will recheck and redirect if successful
-      navigate("/platform/dashboard");
+      console.log('Sign in successful, checking platform admin status...');
+      
+      // Force a refresh of the platform admin status
+      window.location.href = "/platform/dashboard";
     } catch (err) {
-      setError("An unexpected error occurred");
+      console.error('Unexpected error during login:', err);
+      setError("An unexpected error occurred during login");
     } finally {
       setLoading(false);
     }
