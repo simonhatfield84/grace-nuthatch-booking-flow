@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export interface EmailTemplate {
@@ -29,20 +28,19 @@ export class EmailService {
   async getEmailConfiguration(venue_id?: string) {
     // Get venue-specific email settings if venue_id provided
     if (venue_id) {
-      // Simplify the query to avoid type inference issues
       const { data: venueSettings } = await supabase
         .from('venue_settings')
         .select('setting_key, setting_value')
-        .in('setting_key', ['email_domain', 'email_from_name', 'custom_email_domain'])
-        .eq('venue_id', venue_id);
+        .eq('venue_id', venue_id)
+        .in('setting_key', ['email_domain', 'email_from_name', 'custom_email_domain']);
       
-      const settings: { [key: string]: any } = {};
-      if (venueSettings && Array.isArray(venueSettings)) {
-        for (const setting of venueSettings) {
-          if (setting && setting.setting_key && setting.setting_value) {
+      const settings: Record<string, any> = {};
+      if (venueSettings) {
+        venueSettings.forEach(setting => {
+          if (setting.setting_key && setting.setting_value) {
             settings[setting.setting_key] = setting.setting_value;
           }
-        }
+        });
       }
 
       return {
@@ -72,7 +70,6 @@ export class EmailService {
       return null;
     }
 
-    // Explicitly cast and validate the template_type
     const templateType = data.template_type;
     if (templateType !== 'platform' && templateType !== 'venue') {
       console.error('Invalid template_type:', templateType);
