@@ -31,6 +31,11 @@ interface VenueData {
 
 type SetupStep = 'admin' | 'email-verification' | 'venue' | 'complete';
 
+interface SetupError {
+  message: string;
+  code?: string;
+}
+
 const Setup = () => {
   const [step, setStep] = useState<SetupStep>('admin');
   const [isUserActive, setIsUserActive] = useState(false);
@@ -60,50 +65,43 @@ const Setup = () => {
 
   const from = (location.state as any)?.from?.pathname || '/';
 
+  const showError = (error: SetupError | Error | string) => {
+    const message = typeof error === 'string' ? error : error.message;
+    toast({
+      title: "Setup Error",
+      description: message,
+      variant: "destructive"
+    });
+  };
+
+  const showSuccess = (message: string) => {
+    toast({
+      title: "Success",
+      description: message,
+    });
+  };
+
   // Check user status and redirect appropriately
   useEffect(() => {
     const checkUserStatus = async () => {
-      console.log('Setup: Checking user status...', { user, session });
-      
-      // Handle email verification from URL
-      const access_token = searchParams.get('access_token');
-      const refresh_token = searchParams.get('refresh_token');
-      const type = searchParams.get('type');
-      
-      console.log('Setup: URL parameters:', { 
-        access_token: !!access_token, 
-        refresh_token: !!refresh_token, 
-        type,
-        fullUrl: window.location.href 
-      });
-      
-      if (access_token && refresh_token && type === 'signup') {
-        console.log('Setup: Processing email verification tokens...');
-        try {
+      try {
+        // Handle email verification from URL
+        const access_token = searchParams.get('access_token');
+        const refresh_token = searchParams.get('refresh_token');
+        const type = searchParams.get('type');
+        
+        if (access_token && refresh_token && type === 'signup') {
           const { data, error } = await supabase.auth.setSession({
             access_token,
             refresh_token
           });
           
           if (error) {
-            console.error('Setup: Session setting error:', error);
-            toast({
-              title: "Verification Error",
-              description: error.message || "Failed to verify email session.",
-              variant: "destructive"
-            });
+            showError("Failed to verify email session: " + error.message);
             return;
           }
           
-          console.log('Setup: Session set successfully:', { 
-            user: data.user?.email, 
-            confirmed: data.user?.email_confirmed_at,
-            session: !!data.session 
-          });
-          
           if (data.user?.email_confirmed_at) {
-            console.log('Setup: Email verified, updating user status');
-            
             // Update user to be active for venue setup
             const { error: profileError } = await supabase
               .from('profiles')
@@ -111,22 +109,11 @@ const Setup = () => {
               .eq('id', data.user.id);
             
             if (profileError) {
-              console.error('Setup: Profile update error:', profileError);
-              toast({
-                title: "Profile Update Failed",
-                description: "Failed to update profile status. Please try again.",
-                variant: "destructive"
-              });
-            } else {
-              console.log('Setup: Profile updated successfully');
+              showError("Failed to update profile status. Please try again.");
             }
             
             setStep('venue');
-            
-            toast({
-              title: "Email Verified!",
-              description: "Your email has been verified. Let's continue with venue setup.",
-            });
+            showSuccess("Your email has been verified. Let's continue with venue setup.");
             
             // Set admin data from user metadata
             if (data.user.user_metadata) {
@@ -138,45 +125,28 @@ const Setup = () => {
               }));
             }
           } else {
-            console.log('Setup: Email not confirmed in verification response');
-            toast({
-              title: "Verification Incomplete",
-              description: "Email verification appears incomplete. Please try clicking the link again.",
-              variant: "destructive"
-            });
+            showError("Email verification appears incomplete. Please try clicking the link again.");
           }
-        } catch (error: any) {
-          console.error('Setup: Email verification error:', error);
-          toast({
-            title: "Verification Error",
-            description: error.message || "Failed to verify email.",
-            variant: "destructive"
-          });
+          return;
         }
-        return;
-      }
 
-      // Check existing user status
-      if (user) {
-        console.log('Setup: User exists, checking profile...');
-        try {
+        // Check existing user status
+        if (user) {
           const { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('is_active, venue_id')
             .eq('id', user.id)
             .single();
           
-          if (profileError) {
-            console.error('Setup: Profile fetch error:', profileError);
+          if (profileError && profileError.code !== 'PGRST116') {
+            throw profileError;
           }
           
           if (profile) {
-            console.log('Setup: Profile found:', { is_active: profile.is_active, venue_id: profile.venue_id });
             setIsUserActive(profile.is_active);
             
             // If user is active and has a venue, check if setup is complete
             if (profile.is_active && profile.venue_id) {
-              console.log('Setup: User is active with venue, checking setup completion');
               const { data: setupComplete } = await supabase.rpc('setup_complete');
               if (setupComplete) {
                 navigate('/admin/dashboard');
@@ -186,16 +156,12 @@ const Setup = () => {
               }
             } else if (profile.is_active) {
               // User is active but no venue, go to venue setup
-              console.log('Setup: User is active, going to venue setup');
               setStep('venue');
             } else {
               // User exists but not active, check if email is verified
-              console.log('Setup: User not active, checking email verification');
               if (user.email_confirmed_at) {
-                console.log('Setup: Email confirmed, going to venue setup');
                 setStep('venue');
               } else {
-                console.log('Setup: Email not confirmed, showing verification step');
                 setStep('email-verification');
               }
             }
@@ -207,20 +173,16 @@ const Setup = () => {
               firstName: user.user_metadata?.first_name || '',
               lastName: user.user_metadata?.last_name || ''
             }));
-            
-            console.log('Setup: User status determined', { isActive: profile.is_active, hasVenue: !!profile.venue_id });
           } else {
             // No profile exists, user needs to start from beginning
-            console.log('Setup: No profile found, starting from admin step');
             setStep('admin');
           }
-        } catch (error) {
-          console.error('Setup: Error checking user status:', error);
+        } else {
+          // No user session, start from admin step
           setStep('admin');
         }
-      } else {
-        // No user session, start from admin step
-        console.log('Setup: No user session, starting from admin step');
+      } catch (error: any) {
+        showError("Error checking user status: " + error.message);
         setStep('admin');
       }
     };
@@ -242,22 +204,14 @@ const Setup = () => {
     }
   };
 
-  const validateAdminForm = () => {
+  const validateAdminForm = (): boolean => {
     if (adminData.password !== adminData.confirmPassword) {
-      toast({
-        title: "Password Mismatch",
-        description: "Passwords do not match. Please check and try again.",
-        variant: "destructive"
-      });
+      showError("Passwords do not match. Please check and try again.");
       return false;
     }
 
     if (adminData.password.length < 6) {
-      toast({
-        title: "Password Too Short",
-        description: "Password must be at least 6 characters long.",
-        variant: "destructive"
-      });
+      showError("Password must be at least 6 characters long.");
       return false;
     }
 
@@ -274,7 +228,6 @@ const Setup = () => {
     setLoading(true);
 
     try {
-      console.log('Setup: Creating admin user account...');
       // Create admin user account
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: adminData.email,
@@ -289,49 +242,27 @@ const Setup = () => {
       });
 
       if (authError) {
-        console.error('Setup: Auth error:', authError);
         if (authError.message.includes('User already registered')) {
-          toast({
-            title: "Account Exists",
-            description: "An account with this email already exists. Please sign in instead.",
-            variant: "destructive"
-          });
+          showError("An account with this email already exists. Please sign in instead.");
           return;
         }
         throw authError;
       }
 
-      console.log('Setup: User created:', { user: authData.user?.email, confirmed: authData.user?.email_confirmed_at });
-
       // Check if email confirmation is required
       if (authData.user && !authData.user.email_confirmed_at) {
-        console.log('Setup: Email confirmation required');
-        toast({
-          title: "Check Your Email",
-          description: "We've sent you a verification email. Please check your inbox to continue.",
-        });
+        showSuccess("We've sent you a verification email. Please check your inbox to continue.");
         setStep('email-verification');
       } else {
         // Email is already confirmed, move to venue setup
-        console.log('Setup: Email already confirmed, moving to venue setup');
         setStep('venue');
       }
 
     } catch (error: any) {
-      console.error('Admin setup error:', error);
-      
       if (error.code === 'over_email_send_rate_limit') {
-        toast({
-          title: "Too Many Attempts",
-          description: "Email rate limit exceeded. Please wait an hour before trying again.",
-          variant: "destructive"
-        });
+        showError("Email rate limit exceeded. Please wait an hour before trying again.");
       } else {
-        toast({
-          title: "Account Setup Failed",
-          description: error.message || "Failed to create admin account.",
-          variant: "destructive"
-        });
+        showError("Failed to create admin account: " + error.message);
       }
     } finally {
       setLoading(false);
@@ -342,7 +273,6 @@ const Setup = () => {
     setResendLoading(true);
     
     try {
-      console.log('Setup: Resending verification email...');
       const { error } = await supabase.auth.resend({
         type: 'signup',
         email: adminData.email,
@@ -352,31 +282,16 @@ const Setup = () => {
       });
 
       if (error) {
-        console.error('Setup: Resend error:', error);
         throw error;
       }
 
-      console.log('Setup: Verification email resent successfully');
-      toast({
-        title: "Email Sent",
-        description: "Verification email has been resent. Please check your inbox.",
-      });
+      showSuccess("Verification email has been resent. Please check your inbox.");
 
     } catch (error: any) {
-      console.error('Resend verification error:', error);
-      
       if (error.code === 'over_email_send_rate_limit') {
-        toast({
-          title: "Rate Limited",
-          description: "Please wait before requesting another verification email.",
-          variant: "destructive"
-        });
+        showError("Please wait before requesting another verification email.");
       } else {
-        toast({
-          title: "Failed to Resend",
-          description: error.message || "Failed to resend verification email.",
-          variant: "destructive"
-        });
+        showError("Failed to resend verification email: " + error.message);
       }
     } finally {
       setResendLoading(false);
@@ -417,25 +332,16 @@ const Setup = () => {
       });
 
       if (approvalError) {
-        console.error('Approval request failed:', approvalError);
         setApprovalEmailError(approvalError.message || 'Failed to send approval request');
         throw approvalError;
       }
 
       setApprovalEmailSent(true);
-      toast({
-        title: "Approval Request Sent",
-        description: "We've sent a new approval request to our team.",
-      });
+      showSuccess("We've sent a new approval request to our team.");
 
     } catch (error: any) {
-      console.error('Failed to resend approval request:', error);
       setApprovalEmailError(error.message || 'Failed to send approval request');
-      toast({
-        title: "Failed to Send Approval",
-        description: error.message || "Failed to send approval request.",
-        variant: "destructive"
-      });
+      showError("Failed to send approval request: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -453,8 +359,6 @@ const Setup = () => {
         throw new Error('No authenticated user found. Please verify your email first.');
       }
 
-      console.log('Creating venue for user:', user.id);
-
       // Step 1: Create venue with pending status
       const { data: venue, error: venueError } = await supabase
         .from('venues')
@@ -470,11 +374,8 @@ const Setup = () => {
         .single();
 
       if (venueError) {
-        console.error('Venue creation error:', venueError);
         throw venueError;
       }
-
-      console.log('Venue created:', venue);
 
       // Step 2: Create/Update profile with venue association
       const { error: profileError } = await supabase
@@ -490,11 +391,8 @@ const Setup = () => {
         });
 
       if (profileError) {
-        console.error('Profile creation error:', profileError);
         throw profileError;
       }
-
-      console.log('Profile updated for user:', user.id);
 
       // Step 3: Create user role
       const { error: roleError } = await supabase
@@ -506,15 +404,10 @@ const Setup = () => {
         });
 
       if (roleError) {
-        console.error('User role creation error:', roleError);
         throw roleError;
       }
 
-      console.log('User role created for user:', user.id);
-
       // Step 4: Send approval request
-      console.log('Sending approval request...');
-      
       const { data: approvalResponse, error: approvalError } = await supabase.functions.invoke('send-approval-request', {
         body: {
           venue_id: venue.id,
@@ -525,28 +418,18 @@ const Setup = () => {
       });
 
       if (approvalError) {
-        console.error('Approval request failed:', approvalError);
         setApprovalEmailError(approvalError.message || 'Failed to send approval request');
       } else {
-        console.log('Approval request sent successfully:', approvalResponse);
         setApprovalEmailSent(true);
       }
 
       // Move to completion step
       setStep('complete');
 
-      toast({
-        title: "Venue Setup Complete",
-        description: approvalEmailSent ? "Approval request sent successfully!" : "Venue created - you can resend the approval request if needed.",
-      });
+      showSuccess(approvalEmailSent ? "Approval request sent successfully!" : "Venue created - you can resend the approval request if needed.");
 
     } catch (error: any) {
-      console.error('Venue setup error:', error);
-      toast({
-        title: "Venue Setup Failed",
-        description: error.message || "An error occurred during venue setup.",
-        variant: "destructive"
-      });
+      showError("An error occurred during venue setup: " + error.message);
     } finally {
       setLoading(false);
     }
