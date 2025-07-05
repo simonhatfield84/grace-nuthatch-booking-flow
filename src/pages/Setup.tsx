@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -122,7 +121,15 @@ const Setup = () => {
       if (authError) throw authError;
       if (!authData.user) throw new Error('Failed to create user');
 
-      // Step 3: Create profile
+      // Step 3: Sign in the user immediately to create authenticated session
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password
+      });
+
+      if (signInError) throw signInError;
+
+      // Step 4: Create profile (now with authenticated session)
       const { error: profileError } = await supabase
         .from('profiles')
         .insert({
@@ -136,7 +143,7 @@ const Setup = () => {
 
       if (profileError) throw profileError;
 
-      // Step 4: Create user role
+      // Step 5: Create user role (now with authenticated session)
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert({
@@ -147,7 +154,7 @@ const Setup = () => {
 
       if (roleError) throw roleError;
 
-      // Step 5: Send approval request
+      // Step 6: Send approval request
       const { error: approvalError } = await supabase.functions.invoke('send-approval-request', {
         body: {
           venue_id: venue.id,
@@ -161,6 +168,9 @@ const Setup = () => {
         console.error('Failed to send approval request:', approvalError);
         // Don't fail the setup if approval email fails
       }
+
+      // Step 7: Sign out after setup completion (they'll need to verify email)
+      await supabase.auth.signOut();
 
       setSubmitted(true);
 
