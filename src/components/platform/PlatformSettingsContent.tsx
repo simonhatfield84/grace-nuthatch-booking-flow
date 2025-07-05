@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -234,22 +233,18 @@ export function PlatformSettingsContent() {
               </div>
 
               <div className="border-t pt-4">
-                <h4 className="font-medium mb-2">Subscription Plans</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center p-2 bg-muted rounded">
-                    <span>Starter Plan - $29/month</span>
-                    <Button variant="outline" size="sm">Edit</Button>
-                  </div>
-                  <div className="flex justify-between items-center p-2 bg-muted rounded">
-                    <span>Professional Plan - $79/month</span>
-                    <Button variant="outline" size="sm">Edit</Button>
-                  </div>
-                  <div className="flex justify-between items-center p-2 bg-muted rounded">
-                    <span>Enterprise Plan - $199/month</span>
-                    <Button variant="outline" size="sm">Edit</Button>
-                  </div>
-                  <Button variant="outline" className="w-full">Add New Plan</Button>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-medium">Quick Actions</h4>
+                  <Button variant="outline" asChild>
+                    <a href="/platform/subscriptions">
+                      Manage All Subscriptions
+                    </a>
+                  </Button>
                 </div>
+                <p className="text-sm text-muted-foreground">
+                  Use the subscription management page to create, edit, and manage subscription plans, 
+                  view billing analytics, and handle subscription issues.
+                </p>
               </div>
             </CardContent>
           </Card>
