@@ -1,5 +1,6 @@
 
 import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,9 +14,15 @@ import { LogOut, User } from "lucide-react";
 
 export function PlatformHeader() {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   const handleLogout = async () => {
-    await signOut();
+    try {
+      await signOut();
+      navigate('/platform/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   return (

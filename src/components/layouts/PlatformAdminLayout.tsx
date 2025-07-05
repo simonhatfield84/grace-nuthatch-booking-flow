@@ -1,3 +1,4 @@
+
 import { Outlet, Navigate } from "react-router-dom";
 import { usePlatformAdmin } from "@/hooks/usePlatformAdmin";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -58,7 +59,7 @@ export function PlatformAdminLayout() {
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-slate-50/40">
         <Sidebar variant="inset" className="bg-slate-800 border-slate-700">
-          <SidebarContent>
+          <SidebarContent className="bg-slate-800">
             <SidebarGroup>
               <SidebarGroupLabel className="text-lg font-semibold px-4 py-2 text-slate-100">
                 Platform Admin
