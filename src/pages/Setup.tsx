@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams, useLocation } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -52,8 +52,9 @@ const Setup = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, session } = useAuth();
+  const location = useLocation();
 
-  const from = location.state?.from?.pathname || '/';
+  const from = (location.state as any)?.from?.pathname || '/';
 
   // Check user status and redirect appropriately
   useEffect(() => {
