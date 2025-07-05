@@ -25,8 +25,12 @@ interface VenueData {
   venueAddress: string;
 }
 
+type SetupStep = 'admin' | 'email-verification' | 'venue' | 'complete';
+type UserStatus = 'pending_email_verification' | 'pending_venue_setup' | 'pending_venue_approval' | 'active';
+
 const Setup = () => {
-  const [step, setStep] = useState<'admin' | 'email-verification' | 'venue' | 'complete'>('admin');
+  const [step, setStep] = useState<SetupStep>('admin');
+  const [userStatus, setUserStatus] = useState<UserStatus | null>(null);
   const [adminData, setAdminData] = useState<AdminData>({
     email: '',
     password: '',
@@ -50,17 +54,32 @@ const Setup = () => {
   const [searchParams] = useSearchParams();
   const { user, session } = useAuth();
 
-  // Check for email verification and user state on component mount
+  // Determine the current step based on user status
+  const determineStepFromStatus = (status: UserStatus): SetupStep => {
+    switch (status) {
+      case 'pending_email_verification':
+        return 'email-verification';
+      case 'pending_venue_setup':
+        return 'venue';
+      case 'pending_venue_approval':
+        return 'complete';
+      case 'active':
+        // User is fully set up, redirect to admin
+        return 'complete';
+      default:
+        return 'admin';
+    }
+  };
+
+  // Check user status and redirect appropriately
   useEffect(() => {
-    const checkAuthAndVerification = async () => {
-      console.log('Setup: Checking auth state...', { user, session });
+    const checkUserStatus = async () => {
+      console.log('Setup: Checking user status...', { user, session });
       
-      // Check if we're returning from email verification
+      // Handle email verification from URL
       const access_token = searchParams.get('access_token');
       const refresh_token = searchParams.get('refresh_token');
       const type = searchParams.get('type');
-      
-      console.log('Setup: URL params:', { access_token: !!access_token, refresh_token: !!refresh_token, type });
       
       if (access_token && refresh_token && type === 'signup') {
         console.log('Setup: Processing email verification tokens...');
@@ -73,12 +92,21 @@ const Setup = () => {
           if (error) throw error;
           
           if (data.user?.email_confirmed_at) {
-            console.log('Setup: Email verified, advancing to venue step');
+            console.log('Setup: Email verified, updating user status');
+            
+            // Update user status to pending_venue_setup
+            await supabase
+              .from('profiles')
+              .update({ status: 'pending_venue_setup' })
+              .eq('id', data.user.id);
+            
+            setUserStatus('pending_venue_setup');
+            setStep('venue');
+            
             toast({
               title: "Email Verified!",
               description: "Your email has been verified. Let's continue with venue setup.",
             });
-            setStep('venue');
             
             // Set admin data from user metadata
             if (data.user.user_metadata) {
@@ -98,49 +126,58 @@ const Setup = () => {
             variant: "destructive"
           });
         }
-      } else if (user && user.email_confirmed_at) {
-        // User is already authenticated and verified, check if they need to complete venue setup
-        console.log('Setup: User already verified, checking venue setup status...');
-        
+        return;
+      }
+
+      // Check existing user status
+      if (user) {
         try {
           const { data: profile } = await supabase
             .from('profiles')
-            .select('venue_id')
+            .select('status, venue_id')
             .eq('id', user.id)
             .single();
           
-          if (profile?.venue_id) {
-            // User already has a venue, redirect to admin
-            console.log('Setup: User already has venue, redirecting to admin...');
-            navigate('/admin/dashboard');
-          } else {
-            // User is verified but needs to complete venue setup
-            console.log('Setup: User verified but needs venue setup');
-            setStep('venue');
+          if (profile) {
+            const currentStatus = profile.status as UserStatus;
+            setUserStatus(currentStatus);
+            
+            // If user is active, redirect to admin dashboard
+            if (currentStatus === 'active') {
+              console.log('Setup: User is active, redirecting to admin dashboard');
+              navigate('/admin/dashboard');
+              return;
+            }
+            
+            // Set step based on current status
+            const appropriateStep = determineStepFromStatus(currentStatus);
+            setStep(appropriateStep);
+            
+            // Pre-fill admin data if available
             setAdminData(prev => ({
               ...prev,
               email: user.email || '',
               firstName: user.user_metadata?.first_name || '',
               lastName: user.user_metadata?.last_name || ''
             }));
+            
+            console.log('Setup: User status determined', { status: currentStatus, step: appropriateStep });
+          } else {
+            // No profile exists, user needs to start from beginning
+            console.log('Setup: No profile found, starting from admin step');
+            setStep('admin');
           }
         } catch (error) {
-          console.error('Setup: Error checking profile:', error);
-          // Continue with venue setup if there's an error
-          setStep('venue');
+          console.error('Setup: Error checking user status:', error);
+          setStep('admin');
         }
-      } else if (user && !user.email_confirmed_at) {
-        // User exists but email not confirmed
-        console.log('Setup: User exists but email not confirmed');
-        setStep('email-verification');
-        setAdminData(prev => ({
-          ...prev,
-          email: user.email || ''
-        }));
+      } else {
+        // No user session, start from admin step
+        setStep('admin');
       }
     };
 
-    checkAuthAndVerification();
+    checkUserStatus();
   }, [searchParams, toast, navigate, user, session]);
 
   const handleAdminInputChange = (field: keyof AdminData, value: string) => {
@@ -189,7 +226,7 @@ const Setup = () => {
     setLoading(true);
 
     try {
-      // Create admin user account with proper email redirect
+      // Create admin user account
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: adminData.email,
         password: adminData.password,
@@ -221,9 +258,11 @@ const Setup = () => {
           description: "We've sent you a verification email. Please check your inbox to continue.",
         });
         setStep('email-verification');
+        setUserStatus('pending_email_verification');
       } else {
-        // Email is already confirmed, proceed to venue setup
+        // Email is already confirmed, move to venue setup
         setStep('venue');
+        setUserStatus('pending_venue_setup');
       }
 
     } catch (error: any) {
@@ -359,7 +398,7 @@ const Setup = () => {
 
       console.log('Creating venue for user:', user.id);
 
-      // Step 1: Create venue
+      // Step 1: Create venue with pending_approval status
       const { data: venue, error: venueError } = await supabase
         .from('venues')
         .insert({
@@ -368,7 +407,7 @@ const Setup = () => {
           email: venueData.venueEmail,
           phone: venueData.venuePhone,
           address: venueData.venueAddress,
-          approval_status: 'pending'
+          status: 'pending_approval'
         })
         .select()
         .single();
@@ -380,16 +419,17 @@ const Setup = () => {
 
       console.log('Venue created:', venue);
 
-      // Step 2: Create profile (with authenticated user)
+      // Step 2: Create/Update profile with venue association and pending_venue_approval status
       const { error: profileError } = await supabase
         .from('profiles')
-        .insert({
+        .upsert({
           id: user.id,
           venue_id: venue.id,
           email: adminData.email,
           first_name: adminData.firstName,
           last_name: adminData.lastName,
-          role: 'owner'
+          role: 'owner',
+          status: 'pending_venue_approval'
         });
 
       if (profileError) {
@@ -397,9 +437,9 @@ const Setup = () => {
         throw profileError;
       }
 
-      console.log('Profile created for user:', user.id);
+      console.log('Profile updated for user:', user.id);
 
-      // Step 3: Create user role (with authenticated user)
+      // Step 3: Create user role
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert({
@@ -415,7 +455,7 @@ const Setup = () => {
 
       console.log('User role created for user:', user.id);
 
-      // Step 4: Send approval request with improved error handling
+      // Step 4: Send approval request
       console.log('Sending approval request...');
       
       const { data: approvalResponse, error: approvalError } = await supabase.functions.invoke('send-approval-request', {
@@ -430,19 +470,19 @@ const Setup = () => {
       if (approvalError) {
         console.error('Approval request failed:', approvalError);
         setApprovalEmailError(approvalError.message || 'Failed to send approval request');
-        // Don't throw here - venue setup was successful, just approval email failed
       } else {
         console.log('Approval request sent successfully:', approvalResponse);
         setApprovalEmailSent(true);
       }
 
-      // Step 5: Move to completion step regardless of approval email status
+      // Update user status and move to completion step
+      setUserStatus('pending_venue_approval');
+      setStep('complete');
+
       toast({
         title: "Venue Setup Complete",
         description: approvalEmailSent ? "Approval request sent successfully!" : "Venue created - you can resend the approval request if needed.",
       });
-
-      setStep('complete');
 
     } catch (error: any) {
       console.error('Venue setup error:', error);
@@ -470,76 +510,104 @@ const Setup = () => {
               <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
               <CardTitle>Setup Complete!</CardTitle>
               <CardDescription>
-                Your venue account has been created successfully.
+                {userStatus === 'active' 
+                  ? 'Your venue has been approved and is now active!'
+                  : 'Your venue account has been created and is pending approval.'
+                }
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Approval Status */}
-              <div className={`p-4 rounded-lg ${approvalEmailSent ? 'bg-blue-50 dark:bg-blue-950' : 'bg-orange-50 dark:bg-orange-950'}`}>
-                <div className="flex items-start gap-3">
-                  {approvalEmailSent ? (
-                    <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-                  ) : (
-                    <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400 mt-0.5 flex-shrink-0" />
-                  )}
-                  <div className="flex-1">
-                    <h4 className="font-medium mb-2 text-blue-900 dark:text-blue-100">
-                      {approvalEmailSent ? 'Approval Request Sent' : 'Approval Request Pending'}
-                    </h4>
-                    <div className="text-sm text-blue-800 dark:text-blue-200 space-y-2">
-                      {approvalEmailSent ? (
-                        <p>Our team has been notified and will review your application within 24 hours. You'll receive an email once approved.</p>
-                      ) : (
-                        <>
-                          <p>There was an issue sending the approval email automatically.</p>
-                          {approvalEmailError && (
-                            <p className="text-red-600 dark:text-red-400 text-xs">Error: {approvalEmailError}</p>
-                          )}
-                          <Button 
-                            onClick={resendApprovalRequest} 
-                            disabled={loading}
-                            size="sm"
-                            variant="outline"
-                          >
-                            {loading ? (
-                              <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Sending...
-                              </>
-                            ) : (
-                              'Send Approval Request'
+              {userStatus === 'pending_venue_approval' && (
+                <div className={`p-4 rounded-lg ${approvalEmailSent ? 'bg-blue-50 dark:bg-blue-950' : 'bg-orange-50 dark:bg-orange-950'}`}>
+                  <div className="flex items-start gap-3">
+                    {approvalEmailSent ? (
+                      <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                    ) : (
+                      <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400 mt-0.5 flex-shrink-0" />
+                    )}
+                    <div className="flex-1">
+                      <h4 className="font-medium mb-2 text-blue-900 dark:text-blue-100">
+                        {approvalEmailSent ? 'Approval Request Sent' : 'Approval Request Pending'}
+                      </h4>
+                      <div className="text-sm text-blue-800 dark:text-blue-200 space-y-2">
+                        {approvalEmailSent ? (
+                          <p>Our team has been notified and will review your application within 24 hours. You'll receive an email once approved.</p>
+                        ) : (
+                          <>
+                            <p>There was an issue sending the approval email automatically.</p>
+                            {approvalEmailError && (
+                              <p className="text-red-600 dark:text-red-400 text-xs">Error: {approvalEmailError}</p>
                             )}
-                          </Button>
-                        </>
-                      )}
+                            <Button 
+                              onClick={resendApprovalRequest} 
+                              disabled={loading}
+                              size="sm"
+                              variant="outline"
+                            >
+                              {loading ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  Sending...
+                                </>
+                              ) : (
+                                'Send Approval Request'
+                              )}
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
               
-              <div className="bg-green-50 dark:bg-green-950 p-4 rounded-lg">
-                <h4 className="font-medium mb-2 text-green-900 dark:text-green-100">Ready to Get Started</h4>
-                <div className="text-sm text-green-800 dark:text-green-200 space-y-1">
-                  <p>Your account is active and you can access the dashboard immediately.</p>
-                  <p><strong>Admin Dashboard:</strong> {window.location.origin}/admin</p>
-                  <p><strong>Host Interface:</strong> {window.location.origin}/host</p>
+              {userStatus === 'active' ? (
+                <div className="bg-green-50 dark:bg-green-950 p-4 rounded-lg">
+                  <h4 className="font-medium mb-2 text-green-900 dark:text-green-100">Ready to Get Started</h4>
+                  <div className="text-sm text-green-800 dark:text-green-200 space-y-1">
+                    <p>Your account is active and you can access the dashboard immediately.</p>
+                    <p><strong>Admin Dashboard:</strong> {window.location.origin}/admin</p>
+                    <p><strong>Host Interface:</strong> {window.location.origin}/host</p>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg">
+                  <h4 className="font-medium mb-2 text-blue-900 dark:text-blue-100">What happens next?</h4>
+                  <div className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                    <p>1. Our team will review your venue application</p>
+                    <p>2. You'll receive an email notification once approved</p>
+                    <p>3. After approval, you can access your admin dashboard</p>
+                  </div>
+                </div>
+              )}
 
               <div className="flex gap-2">
-                <Button 
-                  onClick={() => navigate('/admin')} 
-                  className="flex-1"
-                >
-                  Go to Dashboard
-                </Button>
-                <Button 
-                  onClick={() => navigate('/')} 
-                  variant="outline"
-                  className="flex-1"
-                >
-                  Return to Homepage
-                </Button>
+                {userStatus === 'active' ? (
+                  <>
+                    <Button 
+                      onClick={() => navigate('/admin/dashboard')} 
+                      className="flex-1"
+                    >
+                      Go to Dashboard
+                    </Button>
+                    <Button 
+                      onClick={() => navigate('/')} 
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      Return to Homepage
+                    </Button>
+                  </>
+                ) : (
+                  <Button 
+                    onClick={() => navigate('/')} 
+                    variant="outline"
+                    className="w-full"
+                  >
+                    Return to Homepage
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -575,10 +643,23 @@ const Setup = () => {
                 </div>
                 <span className="text-sm font-medium">Admin Account</span>
               </div>
-              <div className={`w-8 h-0.5 ${step === 'email-verification' || step === 'venue' ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
-              <div className={`flex items-center space-x-2 ${step === 'email-verification' ? 'text-blue-600' : step === 'venue' ? 'text-blue-600' : step === 'admin' ? 'text-gray-400' : 'text-green-500'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step === 'email-verification' ? 'bg-blue-100 border-2 border-blue-600' : step === 'venue' ? 'bg-blue-100 border-2 border-blue-600' : step === 'admin' ? 'bg-gray-100' : 'bg-green-100'}`}>
-                  {step === 'email-verification' ? <Mail className="h-4 w-4" /> : step === 'venue' ? <Building className="h-4 w-4" /> : step === 'admin' ? <Mail className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
+              <div className={`w-8 h-0.5 ${step === 'email-verification' || step === 'venue' || step === 'complete' ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
+              <div className={`flex items-center space-x-2 ${
+                step === 'email-verification' ? 'text-blue-600' : 
+                step === 'venue' ? 'text-blue-600' : 
+                step === 'complete' ? 'text-green-500' : 
+                'text-gray-400'
+              }`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                  step === 'email-verification' ? 'bg-blue-100 border-2 border-blue-600' : 
+                  step === 'venue' ? 'bg-blue-100 border-2 border-blue-600' : 
+                  step === 'complete' ? 'bg-green-100' : 
+                  'bg-gray-100'
+                }`}>
+                  {step === 'email-verification' ? <Mail className="h-4 w-4" /> : 
+                   step === 'venue' ? <Building className="h-4 w-4" /> : 
+                   step === 'complete' ? <CheckCircle className="h-4 w-4" /> : 
+                   <Mail className="h-4 w-4" />}
                 </div>
                 <span className="text-sm font-medium">
                   {step === 'email-verification' ? 'Email Verification' : 'Venue Setup'}

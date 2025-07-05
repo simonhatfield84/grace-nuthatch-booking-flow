@@ -38,23 +38,25 @@ export function VenueManagement() {
     venue.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleStatusUpdate = async (venueId: string, status: 'approved' | 'rejected', venueName: string) => {
+  const handleStatusUpdate = async (venueId: string, status: 'active' | 'rejected', venueName: string) => {
     try {
       await updateVenueStatus.mutateAsync({ venueId, status });
-      toast.success(`Venue "${venueName}" has been ${status}`);
+      toast.success(`Venue "${venueName}" has been ${status === 'active' ? 'approved' : 'rejected'}`);
     } catch (error) {
-      toast.error(`Failed to ${status} venue`);
+      toast.error(`Failed to ${status === 'active' ? 'approve' : 'reject'} venue`);
     }
   };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'approved':
-        return <Badge className="bg-green-100 text-green-800">Approved</Badge>;
+      case 'active':
+        return <Badge className="bg-green-100 text-green-800">Active</Badge>;
       case 'rejected':
         return <Badge className="bg-red-100 text-red-800">Rejected</Badge>;
-      case 'pending':
-        return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
+      case 'pending_approval':
+        return <Badge className="bg-yellow-100 text-yellow-800">Pending Approval</Badge>;
+      case 'draft':
+        return <Badge className="bg-gray-100 text-gray-800">Draft</Badge>;
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
@@ -147,13 +149,13 @@ export function VenueManagement() {
                         <span>{venue.profiles?.length || 0}</span>
                       </div>
                     </TableCell>
-                    <TableCell>{getStatusBadge(venue.approval_status || 'pending')}</TableCell>
+                    <TableCell>{getStatusBadge(venue.status || 'draft')}</TableCell>
                     <TableCell>
                       {new Date(venue.created_at).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        {venue.approval_status === 'pending' && (
+                        {venue.status === 'pending_approval' && (
                           <>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
@@ -171,7 +173,7 @@ export function VenueManagement() {
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                                   <AlertDialogAction
-                                    onClick={() => handleStatusUpdate(venue.id, 'approved', venue.name)}
+                                    onClick={() => handleStatusUpdate(venue.id, 'active', venue.name)}
                                   >
                                     Approve
                                   </AlertDialogAction>

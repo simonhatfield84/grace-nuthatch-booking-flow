@@ -10,40 +10,43 @@ export const usePlatformVenues = () => {
         .from('venues')
         .select(`
           *,
-          profiles!profiles_venue_id_fkey (
-            email,
-            first_name,
-            last_name,
-            role,
-            is_active
-          )
+          profiles:profiles(count)
         `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      return data || [];
+      return data;
     },
   });
 };
 
 export const useUpdateVenueStatus = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: async ({ venueId, status }: { venueId: string; status: 'approved' | 'rejected' }) => {
-      const { error } = await supabase
+    mutationFn: async ({ venueId, status }: { venueId: string; status: 'active' | 'rejected' }) => {
+      // Update venue status
+      const { error: venueError } = await supabase
         .from('venues')
-        .update({
-          approval_status: status,
-          approved_at: status === 'approved' ? new Date().toISOString() : null,
-        })
+        .update({ status })
         .eq('id', venueId);
 
-      if (error) throw error;
+      if (venueError) throw venueError;
+
+      // If approving, also update all users associated with this venue to active status
+      if (status === 'active') {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ status: 'active' })
+          .eq('venue_id', venueId);
+
+        if (profileError) throw profileError;
+      }
+
+      return { venueId, status };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['platform-venues'] });
-      queryClient.invalidateQueries({ queryKey: ['platform-metrics'] });
     },
   });
 };
