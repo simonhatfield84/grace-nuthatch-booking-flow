@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -94,8 +93,8 @@ export function CreateVenueDialog() {
         throw new Error(`Failed to create venue: ${venueError.message}`);
       }
 
-      // Type cast the response to our expected interface
-      const response = venueResult as VenueSetupResponse;
+      // Safe type casting: first to unknown, then to our interface
+      const response = venueResult as unknown as VenueSetupResponse;
 
       if (!response?.success) {
         throw new Error(response?.error || 'Failed to create venue');
