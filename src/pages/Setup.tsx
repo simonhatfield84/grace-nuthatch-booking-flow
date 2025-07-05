@@ -53,6 +53,8 @@ const Setup = () => {
   const [searchParams] = useSearchParams();
   const { user, session } = useAuth();
 
+  const from = location.state?.from?.pathname || '/';
+
   // Check user status and redirect appropriately
   useEffect(() => {
     const checkUserStatus = async () => {
@@ -641,7 +643,7 @@ const Setup = () => {
                       Go to Dashboard
                     </Button>
                     <Button 
-                      onClick={() => navigate('/')} 
+                      onClick={() => navigate('/home')} 
                       variant="outline"
                       className="flex-1"
                     >
@@ -650,7 +652,7 @@ const Setup = () => {
                   </>
                 ) : (
                   <Button 
-                    onClick={() => navigate('/')} 
+                    onClick={() => navigate('/home')} 
                     variant="outline"
                     className="w-full"
                   >
@@ -676,7 +678,7 @@ const Setup = () => {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2 mb-2">
-              <Link to="/">
+              <Link to="/home">
                 <Button variant="ghost" size="sm">
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Back to Home
