@@ -29,16 +29,19 @@ export class EmailService {
   async getEmailConfiguration(venue_id?: string) {
     // Get venue-specific email settings if venue_id provided
     if (venue_id) {
+      // Simplify the query to avoid type inference issues
       const { data: venueSettings } = await supabase
         .from('venue_settings')
         .select('setting_key, setting_value')
         .in('setting_key', ['email_domain', 'email_from_name', 'custom_email_domain'])
         .eq('venue_id', venue_id);
       
-      const settings: Record<string, any> = {};
-      if (venueSettings) {
+      const settings: { [key: string]: any } = {};
+      if (venueSettings && Array.isArray(venueSettings)) {
         for (const setting of venueSettings) {
-          settings[setting.setting_key] = setting.setting_value;
+          if (setting && setting.setting_key && setting.setting_value) {
+            settings[setting.setting_key] = setting.setting_value;
+          }
         }
       }
 
@@ -60,7 +63,7 @@ export class EmailService {
   async getEmailTemplate(template_key: string): Promise<EmailTemplate | null> {
     const { data, error } = await supabase
       .from('email_templates')
-      .select('*')
+      .select('template_key, subject, html_content, text_content, template_type')
       .eq('template_key', template_key)
       .single();
 
@@ -69,13 +72,19 @@ export class EmailService {
       return null;
     }
 
-    // Cast the template_type to the expected union type
+    // Explicitly cast and validate the template_type
+    const templateType = data.template_type;
+    if (templateType !== 'platform' && templateType !== 'venue') {
+      console.error('Invalid template_type:', templateType);
+      return null;
+    }
+
     return {
       template_key: data.template_key,
       subject: data.subject,
       html_content: data.html_content,
-      text_content: data.text_content,
-      template_type: data.template_type as 'platform' | 'venue'
+      text_content: data.text_content || undefined,
+      template_type: templateType as 'platform' | 'venue'
     };
   }
 
