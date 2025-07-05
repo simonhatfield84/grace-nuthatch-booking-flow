@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Info } from 'lucide-react';
+import { Loader2, Info, CheckCircle } from 'lucide-react';
 
 interface SetupData {
   // Admin user
@@ -31,13 +31,14 @@ const Setup = () => {
     confirmPassword: '',
     firstName: '',
     lastName: '',
-    venueName: 'The Nuthatch',
-    venueSlug: 'the-nuthatch',
+    venueName: '',
+    venueSlug: '',
     venueEmail: '',
     venuePhone: '',
     venueAddress: ''
   });
   const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -97,14 +98,15 @@ const Setup = () => {
           slug: formData.venueSlug,
           email: formData.venueEmail,
           phone: formData.venuePhone,
-          address: formData.venueAddress
+          address: formData.venueAddress,
+          approval_status: 'pending'
         })
         .select()
         .single();
 
       if (venueError) throw venueError;
 
-      // Step 2: Create admin user
+      // Step 2: Create admin user with email confirmation
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -145,12 +147,23 @@ const Setup = () => {
 
       if (roleError) throw roleError;
 
-      toast({
-        title: "Setup Complete!",
-        description: "Your restaurant system has been configured successfully."
+      // Step 5: Send approval request
+      const { error: approvalError } = await supabase.functions.invoke('send-approval-request', {
+        body: {
+          venue_id: venue.id,
+          venue_name: formData.venueName,
+          owner_name: `${formData.firstName} ${formData.lastName}`,
+          owner_email: formData.email
+        }
       });
 
-      navigate('/');
+      if (approvalError) {
+        console.error('Failed to send approval request:', approvalError);
+        // Don't fail the setup if approval email fails
+      }
+
+      setSubmitted(true);
+
     } catch (error: any) {
       console.error('Setup error:', error);
       toast({
@@ -163,6 +176,54 @@ const Setup = () => {
     }
   };
 
+  if (submitted) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="w-full max-w-2xl">
+          <div className="text-center mb-8">
+            <div className="grace-logo text-4xl font-bold mb-2">grace</div>
+            <p className="text-muted-foreground">Hospitality Venue Management System</p>
+          </div>
+
+          <Card>
+            <CardHeader className="text-center">
+              <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
+              <CardTitle>Setup Complete!</CardTitle>
+              <CardDescription>
+                Your restaurant account has been created and is pending approval.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg">
+                <h4 className="font-medium mb-2 text-blue-900 dark:text-blue-100">What happens next?</h4>
+                <div className="text-sm text-blue-800 dark:text-blue-200 space-y-2">
+                  <p>1. <strong>Email Verification:</strong> Check your inbox for a verification email and click the link to confirm your account.</p>
+                  <p>2. <strong>Account Approval:</strong> Our team will review your application and approve your venue within 24 hours.</p>
+                  <p>3. <strong>Get Started:</strong> Once approved, you'll receive another email with your dashboard access.</p>
+                </div>
+              </div>
+              
+              <div className="bg-green-50 dark:bg-green-950 p-4 rounded-lg">
+                <h4 className="font-medium mb-2 text-green-900 dark:text-green-100">Your Access URLs</h4>
+                <div className="text-sm text-green-800 dark:text-green-200 space-y-1">
+                  <p><strong>Admin Dashboard:</strong> app.grace-os.co.uk</p>
+                  <p><strong>Host Interface:</strong> host.grace-os.co.uk</p>
+                </div>
+              </div>
+
+              <Button 
+                onClick={() => navigate('/')} 
+                className="w-full"
+              >
+                Return to Homepage
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
@@ -173,9 +234,9 @@ const Setup = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Initial Setup</CardTitle>
+            <CardTitle>Create Your Restaurant Account</CardTitle>
             <CardDescription>
-              Let's get your venue management system configured. This will create your admin account and set up your venue.
+              Let's get your venue management system configured. This will create your admin account and set up your venue for approval.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -316,7 +377,7 @@ const Setup = () => {
                 <div className="mt-4 p-4 bg-muted rounded-lg">
                   <h4 className="font-medium mb-2">Email Setup Preview</h4>
                   <div className="text-sm text-muted-foreground space-y-1">
-                    <p><strong>Guest emails will be sent from:</strong> {formData.venueName} &lt;{formData.venueSlug}@grace-os.co.uk&gt;</p>
+                    <p><strong>Guest emails will be sent from:</strong> {formData.venueName || 'Your Venue'} &lt;{formData.venueSlug || 'your-venue'}@grace-os.co.uk&gt;</p>
                     <p><strong>Platform emails will be sent from:</strong> Grace OS &lt;noreply@grace-os.co.uk&gt;</p>
                     <p className="text-xs mt-2 opacity-75">Email delivery is automatically configured and managed by Grace OS.</p>
                   </div>
@@ -327,10 +388,10 @@ const Setup = () => {
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Setting up...
+                    Creating Account...
                   </>
                 ) : (
-                  'Complete Setup'
+                  'Create Account & Request Approval'
                 )}
               </Button>
             </form>

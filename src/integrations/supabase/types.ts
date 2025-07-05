@@ -9,6 +9,41 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      approval_tokens: {
+        Row: {
+          created_at: string | null
+          expires_at: string
+          id: string
+          token: string
+          used_at: string | null
+          venue_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          token: string
+          used_at?: string | null
+          venue_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          token?: string
+          used_at?: string | null
+          venue_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approval_tokens_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blocks: {
         Row: {
           created_at: string
@@ -693,6 +728,9 @@ export type Database = {
       venues: {
         Row: {
           address: string | null
+          approval_status: string | null
+          approved_at: string | null
+          approved_by: string | null
           created_at: string
           email: string | null
           id: string
@@ -703,6 +741,9 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -713,6 +754,9 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           created_at?: string
           email?: string | null
           id?: string
