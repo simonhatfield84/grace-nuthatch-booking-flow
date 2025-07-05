@@ -19,8 +19,18 @@ export const AdminAccountForm: React.FC<AdminAccountFormProps> = ({
   onSubmit,
   loading
 }) => {
+  const handleSubmit = (e: React.FormEvent) => {
+    console.log('📝 Form submission started');
+    console.log('📋 Form data:', adminData);
+    console.log('⏳ Loading state:', loading);
+    
+    e.preventDefault();
+    console.log('🚀 Calling onSubmit...');
+    onSubmit(e);
+  };
+
   return (
-    <form onSubmit={onSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
           <Label htmlFor="firstName">First Name</Label>
@@ -79,7 +89,12 @@ export const AdminAccountForm: React.FC<AdminAccountFormProps> = ({
         )}
       </div>
 
-      <Button type="submit" className="w-full" disabled={loading}>
+      <Button 
+        type="submit" 
+        className="w-full" 
+        disabled={loading}
+        onClick={() => console.log('🖱️ Button clicked, loading:', loading)}
+      >
         {loading ? (
           <>
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />

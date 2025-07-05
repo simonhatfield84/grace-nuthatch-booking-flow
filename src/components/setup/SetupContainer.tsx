@@ -18,16 +18,34 @@ export const SetupContainer: React.FC = () => {
   } = useSetupFlow();
 
   const handleAdminSubmit = async (e: React.FormEvent) => {
+    console.log('🎯 handleAdminSubmit called');
+    console.log('📋 Current state:', state);
+    
     e.preventDefault();
-    await createAdminAccount();
+    console.log('📝 Form prevented default, calling createAdminAccount...');
+    
+    try {
+      const result = await createAdminAccount();
+      console.log('📋 createAdminAccount result:', result);
+    } catch (error) {
+      console.error('💥 Error in handleAdminSubmit:', error);
+    }
   };
 
   const handleVenueSubmit = async (e: React.FormEvent) => {
+    console.log('🏢 handleVenueSubmit called');
     e.preventDefault();
-    await createVenue();
+    
+    try {
+      const result = await createVenue();
+      console.log('📋 createVenue result:', result);
+    } catch (error) {
+      console.error('💥 Error in handleVenueSubmit:', error);
+    }
   };
 
   const handleBack = () => {
+    console.log('🔙 handleBack called, current step:', state.step);
     if (state.step === 'code-verification') {
       updateState({ step: 'admin' });
     } else if (state.step === 'venue') {
