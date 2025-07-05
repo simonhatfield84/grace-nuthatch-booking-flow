@@ -15,10 +15,9 @@ export interface SetupState {
   adminData: AdminData;
   venueData: VenueData;
   loading: boolean;
+  verifyLoading: boolean;
   resendLoading: boolean;
-  approvalEmailSent: boolean;
-  approvalEmailError: string | null;
-  isUserActive: boolean;
+  error: string | null;
 }
 
 const initialAdminData: AdminData = {
@@ -43,16 +42,16 @@ export const useSetupFlow = () => {
     adminData: initialAdminData,
     venueData: initialVenueData,
     loading: false,
+    verifyLoading: false,
     resendLoading: false,
-    approvalEmailSent: false,
-    approvalEmailError: null,
-    isUserActive: false
+    error: null
   });
 
   const { toast } = useToast();
 
   const showError = useCallback((error: SetupError | string) => {
     const message = typeof error === 'string' ? error : error.message;
+    setState(prev => ({ ...prev, error: message }));
     toast({
       title: "Setup Error",
       description: message,
@@ -61,6 +60,7 @@ export const useSetupFlow = () => {
   }, [toast]);
 
   const showSuccess = useCallback((message: string) => {
+    setState(prev => ({ ...prev, error: null }));
     toast({
       title: "Success",
       description: message,
@@ -106,17 +106,39 @@ export const useSetupFlow = () => {
     return true;
   }, [state.adminData, showError]);
 
+  const sendVerificationCode = useCallback(async (email: string, firstName?: string) => {
+    // Generate and store verification code
+    const { data: codeData, error: codeError } = await supabase.rpc('create_verification_code', {
+      user_email: email
+    });
+
+    if (codeError) throw codeError;
+
+    // Send code via email
+    const { error: emailError } = await supabase.functions.invoke('send-verification-code', {
+      body: {
+        email: email,
+        code: codeData,
+        firstName: firstName
+      }
+    });
+
+    if (emailError) throw emailError;
+
+    return codeData;
+  }, []);
+
   const createAdminAccount = useCallback(async () => {
     if (!validateAdminForm()) return false;
 
-    updateState({ loading: true });
+    updateState({ loading: true, error: null });
 
     try {
+      // Create the user account first
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: state.adminData.email,
         password: state.adminData.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/setup`,
           data: {
             first_name: state.adminData.firstName,
             last_name: state.adminData.lastName
@@ -134,56 +156,109 @@ export const useSetupFlow = () => {
         throw setupError;
       }
 
-      // Check if email confirmation is required
-      if (authData.user && !authData.user.email_confirmed_at) {
-        showSuccess("We've sent you a verification email. Please check your inbox to continue.");
-        updateState({ step: 'email-verification' });
-      } else {
-        updateState({ step: 'venue' });
-      }
+      // Send verification code
+      await sendVerificationCode(state.adminData.email, state.adminData.firstName);
+      
+      showSuccess(`Verification code sent to ${state.adminData.email}`);
+      updateState({ step: 'code-verification' });
 
       return true;
     } catch (error) {
       const setupError = convertToSetupError(error);
       
       if (setupError.code === 'over_email_send_rate_limit') {
-        showError("Email rate limit exceeded. Please wait an hour before trying again.");
+        showError("Email rate limit exceeded. Please wait before trying again.");
       } else {
-        showError("Failed to create admin account: " + setupError.message);
+        showError("Failed to create account: " + setupError.message);
       }
       return false;
     } finally {
       updateState({ loading: false });
     }
-  }, [state.adminData, validateAdminForm, showError, showSuccess, updateState]);
+  }, [state.adminData, validateAdminForm, showError, showSuccess, updateState, sendVerificationCode]);
 
-  const resendVerification = useCallback(async () => {
-    updateState({ resendLoading: true });
+  const verifyCode = useCallback(async (code: string): Promise<boolean> => {
+    updateState({ verifyLoading: true, error: null });
     
     try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email: state.adminData.email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/setup`
-        }
+      const { data: isValid, error } = await supabase.rpc('verify_code', {
+        user_email: state.adminData.email,
+        submitted_code: code
       });
 
       if (error) throw error;
 
-      showSuccess("Verification email has been resent. Please check your inbox.");
+      if (isValid) {
+        showSuccess("Email verified successfully!");
+        updateState({ step: 'venue' });
+        return true;
+      } else {
+        showError("Invalid or expired code. Please try again.");
+        return false;
+      }
     } catch (error) {
       const setupError = convertToSetupError(error);
-      
-      if (setupError.code === 'over_email_send_rate_limit') {
-        showError("Please wait before requesting another verification email.");
-      } else {
-        showError("Failed to resend verification email: " + setupError.message);
-      }
+      showError("Verification failed: " + setupError.message);
+      return false;
+    } finally {
+      updateState({ verifyLoading: false });
+    }
+  }, [state.adminData.email, showError, showSuccess, updateState]);
+
+  const resendVerificationCode = useCallback(async () => {
+    updateState({ resendLoading: true, error: null });
+    
+    try {
+      await sendVerificationCode(state.adminData.email, state.adminData.firstName);
+      showSuccess("New verification code sent!");
+    } catch (error) {
+      const setupError = convertToSetupError(error);
+      showError("Failed to resend code: " + setupError.message);
     } finally {
       updateState({ resendLoading: false });
     }
-  }, [state.adminData.email, showError, showSuccess, updateState]);
+  }, [state.adminData.email, state.adminData.firstName, showError, showSuccess, updateState, sendVerificationCode]);
+
+  const createVenue = useCallback(async (): Promise<boolean> => {
+    updateState({ loading: true, error: null });
+
+    try {
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        throw new Error('No authenticated user found');
+      }
+
+      // Use the atomic venue setup function
+      const { data: result, error: setupError } = await supabase.rpc('setup_venue_atomic', {
+        p_user_id: user.id,
+        p_email: state.adminData.email,
+        p_first_name: state.adminData.firstName,
+        p_last_name: state.adminData.lastName,
+        p_venue_name: state.venueData.venueName,
+        p_venue_slug: state.venueData.venueSlug,
+        p_venue_email: state.venueData.venueEmail,
+        p_venue_phone: state.venueData.venuePhone,
+        p_venue_address: state.venueData.venueAddress
+      });
+
+      if (setupError) throw setupError;
+
+      if (result?.success) {
+        showSuccess("Venue created successfully!");
+        updateState({ step: 'complete' });
+        return true;
+      } else {
+        throw new Error(result?.error || 'Venue setup failed');
+      }
+    } catch (error) {
+      const setupError = convertToSetupError(error);
+      showError("Failed to create venue: " + setupError.message);
+      return false;
+    } finally {
+      updateState({ loading: false });
+    }
+  }, [state.adminData, state.venueData, showError, showSuccess, updateState]);
 
   return {
     state,
@@ -191,7 +266,9 @@ export const useSetupFlow = () => {
     updateAdminData,
     updateVenueData,
     createAdminAccount,
-    resendVerification,
+    verifyCode,
+    resendVerificationCode,
+    createVenue,
     showError,
     showSuccess
   };

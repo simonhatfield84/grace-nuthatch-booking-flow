@@ -1,5 +1,5 @@
 
-export type SetupStep = 'admin' | 'email-verification' | 'venue' | 'complete';
+export type SetupStep = 'admin' | 'code-verification' | 'venue' | 'complete';
 
 export interface AdminData {
   email: string;

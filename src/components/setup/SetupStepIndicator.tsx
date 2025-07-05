@@ -1,8 +1,8 @@
 
 import React from 'react';
-import { User, Building, CheckCircle, Mail } from 'lucide-react';
+import { User, Building, CheckCircle, Shield } from 'lucide-react';
 
-type SetupStep = 'admin' | 'email-verification' | 'venue' | 'complete';
+type SetupStep = 'admin' | 'code-verification' | 'venue' | 'complete';
 
 interface SetupStepIndicatorProps {
   currentStep: SetupStep;
@@ -17,7 +17,7 @@ interface StepConfig {
 
 export const SetupStepIndicator: React.FC<SetupStepIndicatorProps> = ({ currentStep }) => {
   const getStepConfig = (step: SetupStep): StepConfig => {
-    const stepOrder = ['admin', 'email-verification', 'venue', 'complete'];
+    const stepOrder = ['admin', 'code-verification', 'venue', 'complete'];
     const currentIndex = stepOrder.indexOf(currentStep);
     const stepIndex = stepOrder.indexOf(step);
     
@@ -32,10 +32,10 @@ export const SetupStepIndicator: React.FC<SetupStepIndicatorProps> = ({ currentS
           isActive,
           isCompleted
         };
-      case 'email-verification':
+      case 'code-verification':
         return {
-          icon: isCompleted ? <CheckCircle className="h-4 w-4" /> : <Mail className="h-4 w-4" />,
-          label: 'Email Verification',
+          icon: isCompleted ? <CheckCircle className="h-4 w-4" /> : <Shield className="h-4 w-4" />,
+          label: 'Verify Email',
           isActive,
           isCompleted
         };
@@ -63,7 +63,7 @@ export const SetupStepIndicator: React.FC<SetupStepIndicatorProps> = ({ currentS
     }
   };
 
-  const steps: SetupStep[] = ['admin', 'email-verification', 'venue'];
+  const steps: SetupStep[] = ['admin', 'code-verification', 'venue'];
   
   return (
     <div className="flex items-center justify-center space-x-4 mb-4">

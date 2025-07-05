@@ -345,6 +345,36 @@ export type Database = {
         }
         Relationships: []
       }
+      email_verification_codes: {
+        Row: {
+          attempts: number | null
+          code: string
+          created_at: string | null
+          email: string
+          expires_at: string | null
+          id: string
+          used_at: string | null
+        }
+        Insert: {
+          attempts?: number | null
+          code: string
+          created_at?: string | null
+          email: string
+          expires_at?: string | null
+          id?: string
+          used_at?: string | null
+        }
+        Update: {
+          attempts?: number | null
+          code?: string
+          created_at?: string | null
+          email?: string
+          expires_at?: string | null
+          id?: string
+          used_at?: string | null
+        }
+        Relationships: []
+      }
       guest_tags: {
         Row: {
           assigned_at: string | null
@@ -1096,6 +1126,10 @@ export type Database = {
           bulk_booking_count: number
         }[]
       }
+      create_verification_code: {
+        Args: { user_email: string }
+        Returns: string
+      }
       find_duplicate_guests: {
         Args: { guest_email?: string; guest_phone?: string }
         Returns: {
@@ -1108,6 +1142,10 @@ export type Database = {
         }[]
       }
       generate_booking_reference: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      generate_verification_code: {
         Args: Record<PropertyKey, never>
         Returns: string
       }
@@ -1141,6 +1179,24 @@ export type Database = {
       }
       setup_complete: {
         Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      setup_venue_atomic: {
+        Args: {
+          p_user_id: string
+          p_email: string
+          p_first_name: string
+          p_last_name: string
+          p_venue_name: string
+          p_venue_slug: string
+          p_venue_email: string
+          p_venue_phone: string
+          p_venue_address: string
+        }
+        Returns: Json
+      }
+      verify_code: {
+        Args: { user_email: string; submitted_code: string }
         Returns: boolean
       }
     }
