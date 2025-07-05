@@ -14,15 +14,12 @@ const HomePage = () => {
           <div className="grace-logo text-3xl font-bold">grace</div>
           <nav className="hidden md:flex space-x-6">
             <a href="#features" className="text-gray-700 hover:text-grace-primary dark:text-gray-300">Features</a>
-            <a href="#pricing" className="text-gray-700 hover:text-grace-primary dark:text-gray-300">Pricing</a>
+            <a href="#about" className="text-gray-700 hover:text-grace-primary dark:text-gray-300">About</a>
             <a href="#contact" className="text-gray-700 hover:text-grace-primary dark:text-gray-300">Contact</a>
           </nav>
           <div className="flex gap-3">
             <Link to="/auth">
               <Button variant="outline">Sign In</Button>
-            </Link>
-            <Link to="/setup">
-              <Button>Get Started</Button>
             </Link>
           </div>
         </div>
@@ -39,21 +36,16 @@ const HomePage = () => {
           from table bookings to guest management. Everything you need to run your venue efficiently.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
-          <Link to="/setup">
-            <Button size="lg" className="text-lg px-8 py-3">
-              Start Your Free Trial
-            </Button>
-          </Link>
           <Button variant="outline" size="lg" className="text-lg px-8 py-3">
-            Watch Demo
+            Learn More
           </Button>
         </div>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Already have an account? <Link 
+          Access is by invitation only. <Link 
             to="/auth"
             className="text-grace-primary hover:underline font-medium"
           >
-            Sign in to your dashboard
+            Sign in if you have an account
           </Link>
         </p>
       </section>
@@ -114,18 +106,14 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="bg-grace-secondary text-white py-20">
+      {/* About Section */}
+      <section id="about" className="bg-grace-secondary text-white py-20">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-4">Ready to Transform Your Venue?</h2>
+          <h2 className="text-3xl font-bold mb-4">Built for Modern Hospitality</h2>
           <p className="text-xl mb-8 opacity-90">
-            Join hundreds of hospitality venues already using Grace OS to improve their operations.
+            Grace OS helps hospitality venues streamline operations, improve guest experiences, 
+            and make data-driven decisions. Our platform is trusted by venues worldwide.
           </p>
-          <Link to="/setup">
-            <Button size="lg" variant="secondary" className="text-lg px-8 py-3">
-              Get Started Today
-            </Button>
-          </Link>
         </div>
       </section>
 
@@ -142,21 +130,21 @@ const HomePage = () => {
             <div>
               <h3 className="font-semibold mb-4">Product</h3>
               <ul className="space-y-2 text-gray-400">
-                <li><a href="#" className="hover:text-white">Features</a></li>
-                <li><a href="#" className="hover:text-white">Pricing</a></li>
-                <li><a href="#" className="hover:text-white">Support</a></li>
+                <li><a href="#features" className="hover:text-white">Features</a></li>
+                <li><a href="#about" className="hover:text-white">About</a></li>
+                <li><a href="#contact" className="hover:text-white">Support</a></li>
               </ul>
             </div>
             <div>
               <h3 className="font-semibold mb-4">Company</h3>
               <ul className="space-y-2 text-gray-400">
-                <li><a href="#" className="hover:text-white">About</a></li>
-                <li><a href="#" className="hover:text-white">Contact</a></li>
+                <li><a href="#about" className="hover:text-white">About</a></li>
+                <li><a href="#contact" className="hover:text-white">Contact</a></li>
                 <li><a href="#" className="hover:text-white">Privacy</a></li>
               </ul>
             </div>
             <div>
-              <h3 className="font-semibold mb-4">Contact</h3>
+              <h3 className="font-semibold mb-4" id="contact">Contact</h3>
               <p className="text-gray-400">hello@grace-os.co.uk</p>
             </div>
           </div>

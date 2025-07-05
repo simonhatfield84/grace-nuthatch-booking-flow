@@ -2,11 +2,10 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "next-themes";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
-import Setup from "./pages/Setup";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Tables from "./pages/Tables";
@@ -41,7 +40,8 @@ function App() {
                 {/* Public routes */}
                 <Route path="/" element={<HomePage />} />
                 <Route path="/home" element={<HomePage />} />
-                <Route path="/setup" element={<Setup />} />
+                {/* Redirect setup to auth - registration is now controlled by platform admin */}
+                <Route path="/setup" element={<Navigate to="/auth" replace />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/booking/:slug" element={<BookingWidget />} />
                 <Route path="/booking/:slug/:secretSlug" element={<BookingWidget />} />

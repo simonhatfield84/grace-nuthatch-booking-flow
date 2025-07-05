@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { CheckCircle, XCircle, Search, Building2, Users, Mail, Phone } from "lucide-react";
 import { toast } from "sonner";
+import { CreateVenueDialog } from "./CreateVenueDialog";
 
 export function VenueManagement() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -78,9 +79,12 @@ export function VenueManagement() {
             Manage venue approvals and monitor platform venues
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Building2 className="h-5 w-5 text-blue-600" />
-          <span className="font-medium">{venues.length} Total Venues</span>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-blue-600" />
+            <span className="font-medium">{venues.length} Total Venues</span>
+          </div>
+          <CreateVenueDialog />
         </div>
       </div>
 
