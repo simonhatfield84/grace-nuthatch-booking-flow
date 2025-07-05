@@ -23,7 +23,7 @@ export const usePlatformSettings = () => {
     queryKey: ['platform-settings'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('venue_settings')
+        .from('platform_settings')
         .select('*')
         .order('setting_key');
 
@@ -39,10 +39,10 @@ export const useUpdatePlatformSetting = () => {
   return useMutation({
     mutationFn: async ({ key, value }: { key: string; value: any }) => {
       const { error } = await supabase
-        .from('venue_settings')
+        .from('platform_settings')
         .upsert({
           setting_key: key,
-          setting_value: value,
+          setting_value: JSON.stringify(value),
           updated_at: new Date().toISOString(),
         });
 
@@ -50,6 +50,7 @@ export const useUpdatePlatformSetting = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['platform-settings'] });
+      queryClient.invalidateQueries({ queryKey: ['platform-settings-v2'] });
     },
   });
 };
