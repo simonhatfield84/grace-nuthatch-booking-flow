@@ -145,7 +145,6 @@ export class EmailService {
     }
   }
 
-  // Convenience methods for common email types
   async sendBookingConfirmation(
     guestEmail: string, 
     bookingData: Record<string, string>, 
