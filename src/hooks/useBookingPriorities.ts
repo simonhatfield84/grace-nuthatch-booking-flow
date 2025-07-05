@@ -2,10 +2,29 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const useBookingPriorities = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  // Get user's venue ID
+  const { data: userVenue } = useQuery({
+    queryKey: ['user-venue', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('venue_id')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) throw error;
+      return data?.venue_id;
+    },
+    enabled: !!user,
+  });
 
   const { data: priorities = [], isLoading } = useQuery({
     queryKey: ['booking-priorities'],
@@ -43,6 +62,10 @@ export const useBookingPriorities = () => {
 
   const addPriorityMutation = useMutation({
     mutationFn: async (priority: { party_size: number; item_type: 'table' | 'group'; item_id: number }) => {
+      if (!userVenue) {
+        throw new Error('No venue associated with user');
+      }
+
       // Get the max priority rank for this party size
       const { data: maxRank } = await supabase
         .from('booking_priorities')
@@ -56,6 +79,7 @@ export const useBookingPriorities = () => {
         .from('booking_priorities')
         .insert([{
           ...priority,
+          venue_id: userVenue,
           priority_rank: (maxRank?.priority_rank || 0) + 1
         }])
         .select()

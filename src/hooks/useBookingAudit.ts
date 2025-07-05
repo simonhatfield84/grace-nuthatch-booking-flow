@@ -1,6 +1,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface BookingAudit {
   id: string;
@@ -12,10 +13,29 @@ export interface BookingAudit {
   changed_by: string | null;
   changed_at: string;
   notes: string | null;
+  venue_id: string;
 }
 
 export const useBookingAudit = (bookingId?: number) => {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  // Get user's venue ID
+  const { data: userVenue } = useQuery({
+    queryKey: ['user-venue', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('venue_id')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) throw error;
+      return data?.venue_id;
+    },
+    enabled: !!user,
+  });
 
   const { data: auditTrail = [] } = useQuery({
     queryKey: ['booking-audit', bookingId],
@@ -35,11 +55,16 @@ export const useBookingAudit = (bookingId?: number) => {
   });
 
   const logAuditMutation = useMutation({
-    mutationFn: async (auditData: Omit<BookingAudit, 'id' | 'changed_at'>) => {
+    mutationFn: async (auditData: Omit<BookingAudit, 'id' | 'changed_at' | 'venue_id'>) => {
+      if (!userVenue) {
+        throw new Error('No venue associated with user');
+      }
+
       const { error } = await supabase
         .from('booking_audit')
         .insert([{
           ...auditData,
+          venue_id: userVenue,
           changed_at: new Date().toISOString()
         }]);
       

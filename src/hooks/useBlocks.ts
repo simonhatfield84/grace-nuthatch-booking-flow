@@ -2,6 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 export interface Block {
   id: string;
@@ -10,6 +11,7 @@ export interface Block {
   end_time: string;
   table_ids: number[];
   reason: string | null;
+  venue_id: string;
   created_at: string;
   updated_at: string;
 }
@@ -17,6 +19,24 @@ export interface Block {
 export const useBlocks = (date?: string) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  // Get user's venue ID
+  const { data: userVenue } = useQuery({
+    queryKey: ['user-venue', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('venue_id')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) throw error;
+      return data?.venue_id;
+    },
+    enabled: !!user,
+  });
 
   const { data: blocks = [], isLoading } = useQuery({
     queryKey: ['blocks', date],
@@ -38,11 +58,16 @@ export const useBlocks = (date?: string) => {
   });
 
   const createBlockMutation = useMutation({
-    mutationFn: async (newBlock: Omit<Block, 'id' | 'created_at' | 'updated_at'>) => {
+    mutationFn: async (newBlock: Omit<Block, 'id' | 'created_at' | 'updated_at' | 'venue_id'>) => {
+      if (!userVenue) {
+        throw new Error('No venue associated with user');
+      }
+
       const { data, error } = await supabase
         .from('blocks')
         .insert([{
           ...newBlock,
+          venue_id: userVenue,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }])

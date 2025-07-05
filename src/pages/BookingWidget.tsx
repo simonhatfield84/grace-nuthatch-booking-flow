@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, addDays, addHours } from "date-fns";
+import { SafeHtml } from "@/components/SafeHtml";
 
 const BookingWidget = () => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -465,7 +466,10 @@ const BookingWidget = () => {
                   <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
                     <h3 className="font-semibold text-lg mb-2 text-gray-900 dark:text-gray-100">Terms & Conditions</h3>
                     <div className="text-sm text-gray-700 dark:text-gray-300 prose prose-sm max-w-none">
-                      <div dangerouslySetInnerHTML={{ __html: selectedService.terms_and_conditions }} />
+                      <SafeHtml 
+                        html={selectedService.terms_and_conditions}
+                        allowedTags={['p', 'br', 'strong', 'em', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6']}
+                      />
                     </div>
                   </div>
                 )}

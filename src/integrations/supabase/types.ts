@@ -102,6 +102,7 @@ export type Database = {
           start_time: string
           table_ids: number[] | null
           updated_at: string
+          venue_id: string
         }
         Insert: {
           created_at?: string
@@ -112,6 +113,7 @@ export type Database = {
           start_time: string
           table_ids?: number[] | null
           updated_at?: string
+          venue_id: string
         }
         Update: {
           created_at?: string
@@ -122,8 +124,17 @@ export type Database = {
           start_time?: string
           table_ids?: number[] | null
           updated_at?: string
+          venue_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "blocks_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       booking_audit: {
         Row: {
@@ -136,6 +147,7 @@ export type Database = {
           new_value: string | null
           notes: string | null
           old_value: string | null
+          venue_id: string | null
         }
         Insert: {
           booking_id: number
@@ -147,6 +159,7 @@ export type Database = {
           new_value?: string | null
           notes?: string | null
           old_value?: string | null
+          venue_id?: string | null
         }
         Update: {
           booking_id?: number
@@ -158,6 +171,7 @@ export type Database = {
           new_value?: string | null
           notes?: string | null
           old_value?: string | null
+          venue_id?: string | null
         }
         Relationships: [
           {
@@ -165,6 +179,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_audit_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
         ]
@@ -178,6 +199,7 @@ export type Database = {
           party_size: number
           priority_rank: number
           updated_at: string
+          venue_id: string
         }
         Insert: {
           created_at?: string
@@ -187,6 +209,7 @@ export type Database = {
           party_size: number
           priority_rank: number
           updated_at?: string
+          venue_id: string
         }
         Update: {
           created_at?: string
@@ -196,8 +219,17 @@ export type Database = {
           party_size?: number
           priority_rank?: number
           updated_at?: string
+          venue_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "booking_priorities_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       booking_windows: {
         Row: {
@@ -495,6 +527,7 @@ export type Database = {
           name: string
           table_ids: number[]
           updated_at: string
+          venue_id: string
         }
         Insert: {
           created_at?: string
@@ -505,6 +538,7 @@ export type Database = {
           name: string
           table_ids: number[]
           updated_at?: string
+          venue_id: string
         }
         Update: {
           created_at?: string
@@ -515,8 +549,17 @@ export type Database = {
           name?: string
           table_ids?: number[]
           updated_at?: string
+          venue_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "join_groups_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payment_transactions: {
         Row: {
