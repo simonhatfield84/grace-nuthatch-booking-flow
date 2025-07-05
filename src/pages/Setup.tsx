@@ -219,6 +219,8 @@ const Setup = () => {
         throw new Error('No authenticated user found. Please try again.');
       }
 
+      console.log('Creating venue for user:', user.id);
+
       // Step 1: Create venue
       const { data: venue, error: venueError } = await supabase
         .from('venues')
@@ -233,7 +235,12 @@ const Setup = () => {
         .select()
         .single();
 
-      if (venueError) throw venueError;
+      if (venueError) {
+        console.error('Venue creation error:', venueError);
+        throw venueError;
+      }
+
+      console.log('Venue created:', venue);
 
       // Step 2: Create profile (with authenticated user)
       const { error: profileError } = await supabase
@@ -247,7 +254,12 @@ const Setup = () => {
           role: 'owner'
         });
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error('Profile creation error:', profileError);
+        throw profileError;
+      }
+
+      console.log('Profile created for user:', user.id);
 
       // Step 3: Create user role (with authenticated user)
       const { error: roleError } = await supabase
@@ -258,31 +270,40 @@ const Setup = () => {
           role: 'owner'
         });
 
-      if (roleError) throw roleError;
-
-      // Step 4: Send approval request (but don't fail if it errors)
-      try {
-        const { error: approvalError } = await supabase.functions.invoke('send-approval-request', {
-          body: {
-            venue_id: venue.id,
-            venue_name: venueData.venueName,
-            owner_name: `${adminData.firstName} ${adminData.lastName}`,
-            owner_email: adminData.email
-          }
-        });
-
-        if (approvalError) {
-          console.error('Failed to send approval request:', approvalError);
-          setApprovalEmailError(approvalError.message || 'Failed to send approval request');
-        } else {
-          setApprovalEmailSent(true);
-        }
-      } catch (error: any) {
-        console.error('Approval request error:', error);
-        setApprovalEmailError(error.message || 'Failed to send approval request');
+      if (roleError) {
+        console.error('User role creation error:', roleError);
+        throw roleError;
       }
 
-      // Step 5: Move to completion step (don't sign out - let them access the dashboard)
+      console.log('User role created for user:', user.id);
+
+      // Step 4: Send approval request with improved error handling
+      console.log('Sending approval request...');
+      
+      const { data: approvalResponse, error: approvalError } = await supabase.functions.invoke('send-approval-request', {
+        body: {
+          venue_id: venue.id,
+          venue_name: venueData.venueName,
+          owner_name: `${adminData.firstName} ${adminData.lastName}`,
+          owner_email: adminData.email
+        }
+      });
+
+      if (approvalError) {
+        console.error('Approval request failed:', approvalError);
+        setApprovalEmailError(approvalError.message || 'Failed to send approval request');
+        // Don't throw here - venue setup was successful, just approval email failed
+      } else {
+        console.log('Approval request sent successfully:', approvalResponse);
+        setApprovalEmailSent(true);
+      }
+
+      // Step 5: Move to completion step regardless of approval email status
+      toast({
+        title: "Venue Setup Complete",
+        description: approvalEmailSent ? "Approval request sent successfully!" : "Venue created - you can resend the approval request if needed.",
+      });
+
       setStep('complete');
 
     } catch (error: any) {

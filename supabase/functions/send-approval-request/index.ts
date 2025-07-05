@@ -27,6 +27,8 @@ Deno.serve(async (req) => {
 
     const { venue_id, venue_name, owner_name, owner_email }: ApprovalRequestData = await req.json()
 
+    console.log(`Processing approval request for venue: ${venue_name}, owner: ${owner_name}`)
+
     // Generate approval token
     const approvalToken = crypto.randomUUID()
     
@@ -38,15 +40,20 @@ Deno.serve(async (req) => {
         token: approvalToken
       })
 
-    if (tokenError) throw tokenError
+    if (tokenError) {
+      console.error('Failed to store approval token:', tokenError)
+      throw tokenError
+    }
+
+    console.log(`Approval token created: ${approvalToken}`)
 
     // Create approval URL (now pointing to the single domain)
     const approvalUrl = `${req.headers.get('origin') || 'https://grace-os.co.uk'}/admin/approve?token=${approvalToken}`
 
-    // Send approval request email to admin
+    // Send approval request email to admin (updated to your email)
     const { error: emailError } = await supabase.functions.invoke('send-email', {
       body: {
-        to: ['hello@grace-os.co.uk'], // Replace with your admin email
+        to: ['simonhatfield@me.com'], // Updated to your email address
         from: 'Grace OS <noreply@grace-os.co.uk>',
         subject: `New Venue Approval Request: ${venue_name}`,
         html: `
@@ -78,12 +85,15 @@ Deno.serve(async (req) => {
       }
     })
 
-    if (emailError) throw emailError
+    if (emailError) {
+      console.error('Failed to send approval email:', emailError)
+      throw emailError
+    }
 
-    console.log(`Approval request sent for venue: ${venue_name}`)
+    console.log(`Approval request email sent successfully to simonhatfield@me.com for venue: ${venue_name}`)
 
     return new Response(
-      JSON.stringify({ success: true }),
+      JSON.stringify({ success: true, message: 'Approval request sent successfully' }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200 
