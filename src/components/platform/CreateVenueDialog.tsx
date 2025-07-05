@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,9 +29,11 @@ interface VenueFormData {
   adminEmail: string;
 }
 
-interface VenueSetupResponse {
+interface VenueCreationResponse {
   success: boolean;
   venue?: any;
+  tempPassword?: string;
+  message?: string;
   error?: string;
 }
 
@@ -53,48 +56,17 @@ export function CreateVenueDialog() {
     mutationFn: async (data: VenueFormData) => {
       console.log('Creating venue with data:', data);
       
-      // First create the user account
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: data.adminEmail,
-        password: 'TempPassword123!', // Generate a temporary password
-        email_confirm: true,
-        user_metadata: {
-          first_name: data.adminFirstName,
-          last_name: data.adminLastName,
-        }
+      // Call the edge function to create venue and admin user
+      const { data: result, error } = await supabase.functions.invoke('create-venue-admin', {
+        body: data
       });
 
-      if (authError) {
-        console.error('Auth error:', authError);
-        throw new Error(`Failed to create user account: ${authError.message}`);
+      if (error) {
+        console.error('Edge function error:', error);
+        throw new Error(`Failed to create venue: ${error.message}`);
       }
 
-      if (!authData.user) {
-        throw new Error('Failed to create user account');
-      }
-
-      console.log('User created:', authData.user.id);
-
-      // Use the database function to create venue and profile atomically
-      const { data: venueResult, error: venueError } = await supabase.rpc('setup_venue_atomic', {
-        p_user_id: authData.user.id,
-        p_email: data.adminEmail,
-        p_first_name: data.adminFirstName,
-        p_last_name: data.adminLastName,
-        p_venue_name: data.venueName,
-        p_venue_slug: data.venueSlug,
-        p_venue_email: data.venueEmail,
-        p_venue_phone: data.venuePhone,
-        p_venue_address: data.venueAddress,
-      });
-
-      if (venueError) {
-        console.error('Venue creation error:', venueError);
-        throw new Error(`Failed to create venue: ${venueError.message}`);
-      }
-
-      // Safe type casting: first to unknown, then to our interface
-      const response = venueResult as unknown as VenueSetupResponse;
+      const response = result as VenueCreationResponse;
 
       if (!response?.success) {
         throw new Error(response?.error || 'Failed to create venue');
@@ -104,7 +76,17 @@ export function CreateVenueDialog() {
     },
     onSuccess: (data) => {
       console.log('Venue created successfully:', data);
-      toast.success(`Venue "${formData.venueName}" created successfully!`);
+      
+      // Show success message with temporary password info
+      if (data.tempPassword) {
+        toast.success(
+          `Venue "${formData.venueName}" created successfully! Admin can log in with temporary password: ${data.tempPassword}`,
+          { duration: 10000 }
+        );
+      } else {
+        toast.success(`Venue "${formData.venueName}" created successfully!`);
+      }
+      
       queryClient.invalidateQueries({ queryKey: ['platform-venues'] });
       setOpen(false);
       setFormData({
