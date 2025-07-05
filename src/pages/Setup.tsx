@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Info, CheckCircle, ArrowLeft, User, Building } from 'lucide-react';
+import { Loader2, Info, CheckCircle, ArrowLeft, User, Building, AlertTriangle } from 'lucide-react';
 
 interface AdminData {
   email: string;
@@ -42,6 +41,8 @@ const Setup = () => {
     venueAddress: ''
   });
   const [loading, setLoading] = useState(false);
+  const [approvalEmailSent, setApprovalEmailSent] = useState(false);
+  const [approvalEmailError, setApprovalEmailError] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -148,9 +149,68 @@ const Setup = () => {
     }
   };
 
+  const resendApprovalRequest = async () => {
+    setLoading(true);
+    setApprovalEmailError(null);
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('No authenticated user found');
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('venue_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.venue_id) throw new Error('No venue found for user');
+
+      const { data: venue } = await supabase
+        .from('venues')
+        .select('*')
+        .eq('id', profile.venue_id)
+        .single();
+
+      if (!venue) throw new Error('Venue not found');
+
+      const { error: approvalError } = await supabase.functions.invoke('send-approval-request', {
+        body: {
+          venue_id: venue.id,
+          venue_name: venue.name,
+          owner_name: `${adminData.firstName} ${adminData.lastName}`,
+          owner_email: adminData.email
+        }
+      });
+
+      if (approvalError) {
+        console.error('Approval request failed:', approvalError);
+        setApprovalEmailError(approvalError.message || 'Failed to send approval request');
+        throw approvalError;
+      }
+
+      setApprovalEmailSent(true);
+      toast({
+        title: "Approval Request Sent",
+        description: "We've sent a new approval request to our team.",
+      });
+
+    } catch (error: any) {
+      console.error('Failed to resend approval request:', error);
+      setApprovalEmailError(error.message || 'Failed to send approval request');
+      toast({
+        title: "Failed to Send Approval",
+        description: error.message || "Failed to send approval request.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleVenueSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setApprovalEmailError(null);
 
     try {
       // Get current user session
@@ -200,24 +260,29 @@ const Setup = () => {
 
       if (roleError) throw roleError;
 
-      // Step 4: Send approval request
-      const { error: approvalError } = await supabase.functions.invoke('send-approval-request', {
-        body: {
-          venue_id: venue.id,
-          venue_name: venueData.venueName,
-          owner_name: `${adminData.firstName} ${adminData.lastName}`,
-          owner_email: adminData.email
-        }
-      });
+      // Step 4: Send approval request (but don't fail if it errors)
+      try {
+        const { error: approvalError } = await supabase.functions.invoke('send-approval-request', {
+          body: {
+            venue_id: venue.id,
+            venue_name: venueData.venueName,
+            owner_name: `${adminData.firstName} ${adminData.lastName}`,
+            owner_email: adminData.email
+          }
+        });
 
-      if (approvalError) {
-        console.error('Failed to send approval request:', approvalError);
-        // Don't fail the setup if approval email fails
+        if (approvalError) {
+          console.error('Failed to send approval request:', approvalError);
+          setApprovalEmailError(approvalError.message || 'Failed to send approval request');
+        } else {
+          setApprovalEmailSent(true);
+        }
+      } catch (error: any) {
+        console.error('Approval request error:', error);
+        setApprovalEmailError(error.message || 'Failed to send approval request');
       }
 
-      // Step 5: Sign out after setup completion (they'll need to verify email)
-      await supabase.auth.signOut();
-
+      // Step 5: Move to completion step (don't sign out - let them access the dashboard)
       setStep('complete');
 
     } catch (error: any) {
@@ -246,33 +311,77 @@ const Setup = () => {
               <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
               <CardTitle>Setup Complete!</CardTitle>
               <CardDescription>
-                Your venue account has been created and is pending approval.
+                Your venue account has been created successfully.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg">
-                <h4 className="font-medium mb-2 text-blue-900 dark:text-blue-100">What happens next?</h4>
-                <div className="text-sm text-blue-800 dark:text-blue-200 space-y-2">
-                  <p>1. <strong>Email Verification:</strong> Check your inbox for a verification email and click the link to confirm your account.</p>
-                  <p>2. <strong>Account Approval:</strong> Our team will review your application and approve your venue within 24 hours.</p>
-                  <p>3. <strong>Get Started:</strong> Once approved, you'll receive another email with your dashboard access.</p>
+              {/* Approval Status */}
+              <div className={`p-4 rounded-lg ${approvalEmailSent ? 'bg-blue-50 dark:bg-blue-950' : 'bg-orange-50 dark:bg-orange-950'}`}>
+                <div className="flex items-start gap-3">
+                  {approvalEmailSent ? (
+                    <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                  ) : (
+                    <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400 mt-0.5 flex-shrink-0" />
+                  )}
+                  <div className="flex-1">
+                    <h4 className="font-medium mb-2 text-blue-900 dark:text-blue-100">
+                      {approvalEmailSent ? 'Approval Request Sent' : 'Approval Request Pending'}
+                    </h4>
+                    <div className="text-sm text-blue-800 dark:text-blue-200 space-y-2">
+                      {approvalEmailSent ? (
+                        <p>Our team has been notified and will review your application within 24 hours. You'll receive an email once approved.</p>
+                      ) : (
+                        <>
+                          <p>There was an issue sending the approval email automatically.</p>
+                          {approvalEmailError && (
+                            <p className="text-red-600 dark:text-red-400 text-xs">Error: {approvalEmailError}</p>
+                          )}
+                          <Button 
+                            onClick={resendApprovalRequest} 
+                            disabled={loading}
+                            size="sm"
+                            variant="outline"
+                          >
+                            {loading ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Sending...
+                              </>
+                            ) : (
+                              'Send Approval Request'
+                            )}
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
               
               <div className="bg-green-50 dark:bg-green-950 p-4 rounded-lg">
-                <h4 className="font-medium mb-2 text-green-900 dark:text-green-100">Your Access URLs</h4>
+                <h4 className="font-medium mb-2 text-green-900 dark:text-green-100">Ready to Get Started</h4>
                 <div className="text-sm text-green-800 dark:text-green-200 space-y-1">
+                  <p>Your account is active and you can access the dashboard immediately.</p>
                   <p><strong>Admin Dashboard:</strong> {window.location.origin}/admin</p>
                   <p><strong>Host Interface:</strong> {window.location.origin}/host</p>
                 </div>
               </div>
 
-              <Button 
-                onClick={() => navigate('/')} 
-                className="w-full"
-              >
-                Return to Homepage
-              </Button>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={() => navigate('/admin')} 
+                  className="flex-1"
+                >
+                  Go to Dashboard
+                </Button>
+                <Button 
+                  onClick={() => navigate('/')} 
+                  variant="outline"
+                  className="flex-1"
+                >
+                  Return to Homepage
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
