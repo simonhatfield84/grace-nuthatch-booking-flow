@@ -245,8 +245,8 @@ export const useSetupFlow = () => {
 
       if (setupError) throw setupError;
 
-      // Type assertion for the result
-      const venueResult = result as VenueSetupResult;
+      // Type assertion for the result - convert through unknown first
+      const venueResult = result as unknown as VenueSetupResult;
 
       if (venueResult?.success) {
         showSuccess("Venue created successfully!");
