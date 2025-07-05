@@ -29,6 +29,12 @@ interface VenueFormData {
   adminEmail: string;
 }
 
+interface VenueSetupResponse {
+  success: boolean;
+  venue?: any;
+  error?: string;
+}
+
 export function CreateVenueDialog() {
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState<VenueFormData>({
@@ -88,11 +94,14 @@ export function CreateVenueDialog() {
         throw new Error(`Failed to create venue: ${venueError.message}`);
       }
 
-      if (!venueResult?.success) {
-        throw new Error(venueResult?.error || 'Failed to create venue');
+      // Type cast the response to our expected interface
+      const response = venueResult as VenueSetupResponse;
+
+      if (!response?.success) {
+        throw new Error(response?.error || 'Failed to create venue');
       }
 
-      return venueResult;
+      return response;
     },
     onSuccess: (data) => {
       console.log('Venue created successfully:', data);
