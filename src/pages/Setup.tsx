@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Info, CheckCircle, ArrowLeft, User, Building, AlertTriangle, Mail, RefreshCw } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface AdminData {
   email: string;
@@ -48,15 +48,22 @@ const Setup = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { user, session } = useAuth();
 
-  // Check for email verification on component mount
+  // Check for email verification and user state on component mount
   useEffect(() => {
-    const checkEmailVerification = async () => {
+    const checkAuthAndVerification = async () => {
+      console.log('Setup: Checking auth state...', { user, session });
+      
       // Check if we're returning from email verification
       const access_token = searchParams.get('access_token');
       const refresh_token = searchParams.get('refresh_token');
+      const type = searchParams.get('type');
       
-      if (access_token && refresh_token) {
+      console.log('Setup: URL params:', { access_token: !!access_token, refresh_token: !!refresh_token, type });
+      
+      if (access_token && refresh_token && type === 'signup') {
+        console.log('Setup: Processing email verification tokens...');
         try {
           const { data, error } = await supabase.auth.setSession({
             access_token,
@@ -66,25 +73,75 @@ const Setup = () => {
           if (error) throw error;
           
           if (data.user?.email_confirmed_at) {
+            console.log('Setup: Email verified, advancing to venue step');
             toast({
               title: "Email Verified!",
               description: "Your email has been verified. Let's continue with venue setup.",
             });
             setStep('venue');
+            
+            // Set admin data from user metadata
+            if (data.user.user_metadata) {
+              setAdminData(prev => ({
+                ...prev,
+                email: data.user.email || '',
+                firstName: data.user.user_metadata.first_name || '',
+                lastName: data.user.user_metadata.last_name || ''
+              }));
+            }
           }
         } catch (error: any) {
-          console.error('Email verification error:', error);
+          console.error('Setup: Email verification error:', error);
           toast({
             title: "Verification Error",
             description: error.message || "Failed to verify email.",
             variant: "destructive"
           });
         }
+      } else if (user && user.email_confirmed_at) {
+        // User is already authenticated and verified, check if they need to complete venue setup
+        console.log('Setup: User already verified, checking venue setup status...');
+        
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('venue_id')
+            .eq('id', user.id)
+            .single();
+          
+          if (profile?.venue_id) {
+            // User already has a venue, redirect to admin
+            console.log('Setup: User already has venue, redirecting to admin...');
+            navigate('/admin/dashboard');
+          } else {
+            // User is verified but needs to complete venue setup
+            console.log('Setup: User verified but needs venue setup');
+            setStep('venue');
+            setAdminData(prev => ({
+              ...prev,
+              email: user.email || '',
+              firstName: user.user_metadata?.first_name || '',
+              lastName: user.user_metadata?.last_name || ''
+            }));
+          }
+        } catch (error) {
+          console.error('Setup: Error checking profile:', error);
+          // Continue with venue setup if there's an error
+          setStep('venue');
+        }
+      } else if (user && !user.email_confirmed_at) {
+        // User exists but email not confirmed
+        console.log('Setup: User exists but email not confirmed');
+        setStep('email-verification');
+        setAdminData(prev => ({
+          ...prev,
+          email: user.email || ''
+        }));
       }
     };
 
-    checkEmailVerification();
-  }, [searchParams, toast]);
+    checkAuthAndVerification();
+  }, [searchParams, toast, navigate, user, session]);
 
   const handleAdminInputChange = (field: keyof AdminData, value: string) => {
     setAdminData(prev => ({ ...prev, [field]: value }));
@@ -132,7 +189,7 @@ const Setup = () => {
     setLoading(true);
 
     try {
-      // Step 1: Create admin user account with email verification
+      // Create admin user account with proper email redirect
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: adminData.email,
         password: adminData.password,
@@ -146,7 +203,6 @@ const Setup = () => {
       });
 
       if (authError) {
-        // Handle "User already registered" gracefully
         if (authError.message.includes('User already registered')) {
           toast({
             title: "Account Exists",
@@ -173,7 +229,6 @@ const Setup = () => {
     } catch (error: any) {
       console.error('Admin setup error:', error);
       
-      // Handle rate limit error more gracefully
       if (error.code === 'over_email_send_rate_limit') {
         toast({
           title: "Too Many Attempts",
