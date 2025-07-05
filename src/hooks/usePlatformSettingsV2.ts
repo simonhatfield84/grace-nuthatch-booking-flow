@@ -1,4 +1,5 @@
 
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PlatformSettingsState } from "@/types/platformSettings";
@@ -20,13 +21,13 @@ export const usePlatformSettingsV2 = () => {
       data.forEach((setting) => {
         let value = setting.setting_value;
         
-        // Parse JSON values based on type
+        // Parse JSON values based on type - only parse strings
         if (setting.setting_type === 'string') {
-          value = typeof value === 'string' ? value : JSON.parse(value);
+          value = typeof value === 'string' ? value : String(value);
         } else if (setting.setting_type === 'boolean') {
-          value = typeof value === 'boolean' ? value : JSON.parse(value);
+          value = typeof value === 'boolean' ? value : (typeof value === 'string' ? JSON.parse(value) : Boolean(value));
         } else if (setting.setting_type === 'number') {
-          value = typeof value === 'number' ? value : JSON.parse(value);
+          value = typeof value === 'number' ? value : (typeof value === 'string' ? JSON.parse(value) : Number(value));
         }
         
         (settingsObject as any)[setting.setting_key] = value;
@@ -76,3 +77,4 @@ export const useUpdatePlatformSettingsV2 = () => {
     },
   });
 };
+
