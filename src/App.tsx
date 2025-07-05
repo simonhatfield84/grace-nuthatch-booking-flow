@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "next-themes";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+import { AdminLayout } from "./components/layouts/AdminLayout";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Tables from "./pages/Tables";
@@ -25,6 +26,7 @@ import PlatformUsers from "./pages/PlatformUsers";
 import PlatformSubscriptions from "./pages/PlatformSubscriptions";
 import PlatformSupport from "./pages/PlatformSupport";
 import PlatformSettings from "./pages/PlatformSettings";
+import RootRedirect from "./components/auth/RootRedirect";
 
 const queryClient = new QueryClient();
 
@@ -37,8 +39,8 @@ function App() {
             <Toaster />
             <BrowserRouter>
               <Routes>
-                {/* Public routes */}
-                <Route path="/" element={<HomePage />} />
+                {/* Root route with smart redirect */}
+                <Route path="/" element={<RootRedirect />} />
                 <Route path="/home" element={<HomePage />} />
                 {/* Redirect setup to auth - registration is now controlled by platform admin */}
                 <Route path="/setup" element={<Navigate to="/auth" replace />} />
@@ -47,7 +49,13 @@ function App() {
                 <Route path="/booking/:slug/:secretSlug" element={<BookingWidget />} />
                 
                 {/* Protected venue admin routes */}
-                <Route path="/admin" element={<ProtectedRoute><></></ProtectedRoute>}>
+                <Route path="/admin" element={
+                  <AdminLayout>
+                    <ProtectedRoute>
+                      <></>
+                    </ProtectedRoute>
+                  </AdminLayout>
+                }>
                   <Route path="dashboard" element={<Dashboard />} />
                   <Route path="tables" element={<Tables />} />
                   <Route path="host" element={<HostInterface />} />

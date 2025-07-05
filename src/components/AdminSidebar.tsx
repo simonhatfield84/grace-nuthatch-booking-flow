@@ -1,5 +1,5 @@
 
-import { Calendar, Users, Utensils, BarChart3, Settings } from "lucide-react";
+import { Calendar, Users, Utensils, BarChart3, Settings, Home } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 
 import {
@@ -15,12 +15,13 @@ import {
 } from "@/components/ui/sidebar";
 
 const items = [
-  { title: "Dashboard", url: "/", icon: BarChart3 },
-  { title: "Services", url: "/services", icon: Calendar },
-  { title: "Tables", url: "/tables", icon: Utensils },
-  { title: "Guests", url: "/guests", icon: Users },
-  { title: "Reports", url: "/reports", icon: BarChart3 },
-  { title: "Settings", url: "/settings", icon: Settings },
+  { title: "Dashboard", url: "/admin/dashboard", icon: BarChart3 },
+  { title: "Services", url: "/admin/services", icon: Calendar },
+  { title: "Tables", url: "/admin/tables", icon: Utensils },
+  { title: "Host Interface", url: "/admin/host", icon: Home },
+  { title: "Guests", url: "/admin/guests", icon: Users },
+  { title: "Reports", url: "/admin/reports", icon: BarChart3 },
+  { title: "Settings", url: "/admin/settings", icon: Settings },
 ];
 
 export function AppSidebar() {
@@ -31,8 +32,7 @@ export function AppSidebar() {
   const isCollapsed = state === "collapsed";
 
   const isActive = (path: string) => {
-    if (path === "/") return currentPath === "/";
-    return currentPath.startsWith(path);
+    return currentPath === path || (path !== "/admin/dashboard" && currentPath.startsWith(path));
   };
 
   const getNavCls = (path: string) =>
@@ -51,7 +51,7 @@ export function AppSidebar() {
         
         <SidebarGroup>
           <SidebarGroupLabel className="text-sidebar-foreground/70 font-medium px-4 py-2">
-            {!isCollapsed && "Admin Console"}
+            {!isCollapsed && "Venue Management"}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className={isCollapsed ? "px-1" : "px-2"}>

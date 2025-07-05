@@ -5,10 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 
 const Auth = () => {
@@ -20,13 +20,52 @@ const Auth = () => {
   const location = useLocation();
   const { user } = useAuth();
 
-  const from = location.state?.from?.pathname || '/';
+  // Check user type after login to determine redirect
+  const { data: userType, isLoading: userTypeLoading } = useQuery({
+    queryKey: ['user-type', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+
+      // Check if platform admin
+      const { data: platformAdmin } = await supabase
+        .from('platform_admins')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .single();
+
+      if (platformAdmin) return 'platform_admin';
+
+      // Check if venue admin
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('venue_id, is_active')
+        .eq('id', user.id)
+        .eq('is_active', true)
+        .single();
+
+      if (profile && profile.venue_id) return 'venue_admin';
+
+      return 'unknown';
+    },
+    enabled: !!user,
+  });
 
   useEffect(() => {
-    if (user) {
-      navigate(from, { replace: true });
+    if (user && userType && !userTypeLoading) {
+      const from = location.state?.from?.pathname;
+      
+      // Redirect based on user type
+      if (userType === 'platform_admin') {
+        navigate(from || '/platform/dashboard', { replace: true });
+      } else if (userType === 'venue_admin') {
+        navigate(from || '/admin/dashboard', { replace: true });
+      } else {
+        // Unknown user type, redirect to homepage
+        navigate('/', { replace: true });
+      }
     }
-  }, [user, navigate, from]);
+  }, [user, userType, userTypeLoading, navigate, location.state]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,7 +90,6 @@ const Auth = () => {
         description: error.message || "An error occurred during sign in.",
         variant: "destructive",
       });
-    } finally {
       setLoading(false);
     }
   };
@@ -89,6 +127,15 @@ const Auth = () => {
       setLoading(false);
     }
   };
+
+  // Show loading if checking user type
+  if (user && userTypeLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
