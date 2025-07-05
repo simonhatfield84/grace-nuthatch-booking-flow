@@ -44,23 +44,23 @@ export function PlatformAdminLayout() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      <div className="flex items-center justify-center min-h-screen bg-slate-900">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-orange-500"></div>
       </div>
     );
   }
 
   if (!isPlatformAdmin) {
-    return <Navigate to="/" replace />;
+    return <Navigate to="/platform/auth" replace />;
   }
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-gray-50/40">
-        <Sidebar variant="inset">
+      <div className="min-h-screen flex w-full bg-slate-50/40">
+        <Sidebar variant="inset" className="bg-slate-800 border-slate-700">
           <SidebarContent>
             <SidebarGroup>
-              <SidebarGroupLabel className="text-lg font-semibold px-4 py-2">
+              <SidebarGroupLabel className="text-lg font-semibold px-4 py-2 text-slate-200">
                 Platform Admin
               </SidebarGroupLabel>
               <SidebarGroupContent>
@@ -70,6 +70,7 @@ export function PlatformAdminLayout() {
                       <SidebarMenuButton
                         asChild
                         isActive={location.pathname === item.url}
+                        className="text-slate-300 hover:text-white hover:bg-slate-700 data-[active=true]:bg-orange-600 data-[active=true]:text-white"
                       >
                         <Link to={item.url}>
                           <item.icon className="h-4 w-4" />
@@ -84,13 +85,19 @@ export function PlatformAdminLayout() {
           </SidebarContent>
         </Sidebar>
         <main className="flex-1 flex flex-col overflow-hidden">
-          <header className="border-b bg-white px-6 py-3">
+          <header className="border-b bg-slate-800 border-slate-700 px-6 py-3">
             <div className="flex items-center gap-4">
-              <SidebarTrigger />
-              <h1 className="text-xl font-semibold">Platform Administration</h1>
+              <SidebarTrigger className="text-slate-300 hover:text-white" />
+              <h1 className="text-xl font-semibold text-white">Platform Administration</h1>
+              <div className="ml-auto">
+                <div className="flex items-center gap-2 text-orange-400 text-sm">
+                  <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
+                  System Level Access
+                </div>
+              </div>
             </div>
           </header>
-          <div className="flex-1 overflow-auto p-6">
+          <div className="flex-1 overflow-auto p-6 bg-slate-50">
             <Outlet />
           </div>
         </main>

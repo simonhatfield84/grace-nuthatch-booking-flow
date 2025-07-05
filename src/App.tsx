@@ -20,6 +20,7 @@ import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
 import HomePage from "./pages/HomePage";
 import { PlatformAdminLayout } from "./components/layouts/PlatformAdminLayout";
+import PlatformAuth from "./pages/PlatformAuth";
 import PlatformDashboard from "./pages/PlatformDashboard";
 import PlatformVenues from "./pages/PlatformVenues";
 import PlatformUsers from "./pages/PlatformUsers";
@@ -56,6 +57,9 @@ function App() {
                   <Route path="settings" element={<Settings />} />
                   <Route path="reports" element={<Reports />} />
                 </Route>
+
+                {/* Platform admin auth route */}
+                <Route path="/platform/auth" element={<PlatformAuth />} />
 
                 {/* Platform admin routes */}
                 <Route path="/platform" element={<PlatformAdminLayout />}>
