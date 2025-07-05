@@ -7,12 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Info } from 'lucide-react';
 
 interface SetupData {
   // Admin user
   email: string;
   password: string;
+  confirmPassword: string;
   firstName: string;
   lastName: string;
   // Venue
@@ -21,22 +22,20 @@ interface SetupData {
   venueEmail: string;
   venuePhone: string;
   venueAddress: string;
-  // Resend API Key
-  resendApiKey: string;
 }
 
 const Setup = () => {
   const [formData, setFormData] = useState<SetupData>({
     email: '',
     password: '',
+    confirmPassword: '',
     firstName: '',
     lastName: '',
     venueName: 'The Nuthatch',
     venueSlug: 'the-nuthatch',
     venueEmail: '',
     venuePhone: '',
-    venueAddress: '',
-    resendApiKey: ''
+    venueAddress: ''
   });
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
@@ -58,8 +57,35 @@ const Setup = () => {
     }
   };
 
+  const validateForm = () => {
+    if (formData.password !== formData.confirmPassword) {
+      toast({
+        title: "Password Mismatch",
+        description: "Passwords do not match. Please check and try again.",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    if (formData.password.length < 6) {
+      toast({
+        title: "Password Too Short",
+        description: "Password must be at least 6 characters long.",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -118,17 +144,6 @@ const Setup = () => {
         });
 
       if (roleError) throw roleError;
-
-      // Step 5: Store Resend API key
-      const { error: settingsError } = await supabase
-        .from('venue_settings')
-        .insert({
-          setting_key: 'resend_api_key',
-          setting_value: formData.resendApiKey,
-          venue_id: venue.id
-        });
-
-      if (settingsError) throw settingsError;
 
       toast({
         title: "Setup Complete!",
@@ -211,11 +226,36 @@ const Setup = () => {
                     minLength={6}
                   />
                 </div>
+                <div>
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    value={formData.confirmPassword}
+                    onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                    required
+                    minLength={6}
+                  />
+                  {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                    <p className="text-sm text-destructive mt-1">Passwords do not match</p>
+                  )}
+                </div>
               </div>
 
               {/* Venue Section */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Venue Information</h3>
+                <div className="flex items-start gap-2">
+                  <h3 className="text-lg font-semibold">Venue Information</h3>
+                  <div className="flex items-center gap-1 text-muted-foreground">
+                    <Info className="h-4 w-4" />
+                    <span className="text-xs">Public information</span>
+                  </div>
+                </div>
+                <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg">
+                  <p className="text-sm text-blue-800 dark:text-blue-200">
+                    <strong>Note:</strong> This information will be visible to your guests in booking confirmations and email communications.
+                  </p>
+                </div>
                 <div>
                   <Label htmlFor="venueName">Restaurant Name</Label>
                   <Input
@@ -236,7 +276,7 @@ const Setup = () => {
                     required
                   />
                   <p className="text-sm text-muted-foreground mt-1">
-                    This will be used in booking URLs and email addresses: {formData.venueSlug}@grace-os.com
+                    This will be used for your email address: {formData.venueSlug}@grace-os.co.uk
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -270,28 +310,15 @@ const Setup = () => {
                 </div>
               </div>
 
-              {/* Email Configuration */}
+              {/* Email Preview */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Email Configuration</h3>
-                <div>
-                  <Label htmlFor="resendApiKey">Resend API Key</Label>
-                  <Input
-                    id="resendApiKey"
-                    type="password"
-                    value={formData.resendApiKey}
-                    onChange={(e) => handleInputChange('resendApiKey', e.target.value)}
-                    placeholder="re_..."
-                    required
-                  />
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Get your API key from <a href="https://resend.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">resend.com/api-keys</a>
-                  </p>
-                </div>
                 <div className="mt-4 p-4 bg-muted rounded-lg">
-                  <h4 className="font-medium mb-2">Email Setup</h4>
+                  <h4 className="font-medium mb-2">Email Setup Preview</h4>
                   <div className="text-sm text-muted-foreground space-y-1">
-                    <p><strong>Guest emails will be sent from:</strong> {formData.venueName} &lt;{formData.venueSlug}@grace-os.com&gt;</p>
-                    <p><strong>Platform emails will be sent from:</strong> Grace OS &lt;noreply@grace-os.com&gt;</p>
+                    <p><strong>Guest emails will be sent from:</strong> {formData.venueName} &lt;{formData.venueSlug}@grace-os.co.uk&gt;</p>
+                    <p><strong>Platform emails will be sent from:</strong> Grace OS &lt;noreply@grace-os.co.uk&gt;</p>
+                    <p className="text-xs mt-2 opacity-75">Email delivery is automatically configured and managed by Grace OS.</p>
                   </div>
                 </div>
               </div>

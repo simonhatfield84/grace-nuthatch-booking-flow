@@ -66,15 +66,15 @@ export class EmailService {
         throw new Error(`Template ${emailData.template_key} not found`);
       }
       
-      // Simplified from address logic
+      // Determine from address using simplified approach
       let fromAddress: string;
       if (template.template_type === 'platform') {
-        fromAddress = 'Grace OS <noreply@grace-os.com>';
+        fromAddress = 'Grace OS <noreply@grace-os.co.uk>';
       } else {
         // For venue templates, use venue name and slug
         const venueName = emailData.variables.venue_name || 'Restaurant';
         const venueSlug = emailData.venue_slug || 'venue';
-        fromAddress = `${venueName} <${venueSlug}@grace-os.com>`;
+        fromAddress = `${venueName} <${venueSlug}@grace-os.co.uk>`;
       }
 
       // Interpolate template with variables

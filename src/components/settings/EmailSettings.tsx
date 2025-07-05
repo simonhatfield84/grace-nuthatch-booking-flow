@@ -52,7 +52,7 @@ export const EmailSettings = () => {
       const { error } = await supabase.functions.invoke('send-email', {
         body: {
           to: [user.email],
-          from: `${venueInfo.name} <${venueInfo.slug}@grace-os.com>`,
+          from: `${venueInfo.name} <${venueInfo.slug}@grace-os.co.uk>`,
           subject: 'Email Configuration Test',
           html: `
             <h1>Email Test Successful!</h1>
@@ -60,7 +60,7 @@ export const EmailSettings = () => {
             <p><strong>Configuration:</strong></p>
             <ul>
               <li>From Name: ${venueInfo.name}</li>
-              <li>Email Address: ${venueInfo.slug}@grace-os.com</li>
+              <li>Email Address: ${venueInfo.slug}@grace-os.co.uk</li>
             </ul>
             <p>If you received this email, your configuration is working properly!</p>
           `
@@ -93,7 +93,7 @@ export const EmailSettings = () => {
           Email Configuration
         </CardTitle>
         <CardDescription>
-          Your email configuration is automatically managed. All guest emails are sent from your venue's grace-os.com address.
+          Your email configuration is automatically managed. All guest emails are sent from your venue's grace-os.co.uk address.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -102,8 +102,8 @@ export const EmailSettings = () => {
             <h4 className="font-medium mb-2">Current Email Configuration:</h4>
             <div className="text-sm text-muted-foreground space-y-1">
               <p><strong>Venue Name:</strong> {venueInfo.name}</p>
-              <p><strong>Guest Email Address:</strong> {venueInfo.slug}@grace-os.com</p>
-              <p><strong>Platform Email Address:</strong> noreply@grace-os.com</p>
+              <p><strong>Guest Email Address:</strong> {venueInfo.slug}@grace-os.co.uk</p>
+              <p><strong>Platform Email Address:</strong> noreply@grace-os.co.uk</p>
             </div>
           </div>
         )}
@@ -131,7 +131,7 @@ export const EmailSettings = () => {
         <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
           <h4 className="font-medium mb-2 text-blue-900 dark:text-blue-100">Email System Information</h4>
           <div className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
-            <p>• All emails are sent from grace-os.com addresses for consistency and deliverability</p>
+            <p>• All emails are sent from grace-os.co.uk addresses for consistency and deliverability</p>
             <p>• Guest emails appear to come from your venue name</p>
             <p>• Platform emails (like invitations) come from Grace OS</p>
             <p>• This configuration requires no additional setup or domain verification</p>
