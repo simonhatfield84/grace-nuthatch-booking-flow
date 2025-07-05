@@ -31,7 +31,7 @@ const handler = async (req: Request): Promise<Response> => {
     const { error: emailError } = await supabase.functions.invoke('send-email', {
       body: {
         to: [email],
-        from: 'Grace Setup <noreply@grace-hospitality.com>',
+        from: 'Grace Setup <noreply@grace-os.co.uk>',
         subject: 'Your Grace Setup Verification Code',
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
