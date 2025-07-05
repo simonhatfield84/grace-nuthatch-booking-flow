@@ -1,9 +1,9 @@
-
 import { Outlet, Navigate } from "react-router-dom";
 import { usePlatformAdmin } from "@/hooks/usePlatformAdmin";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Building2, Users, CreditCard, Settings, BarChart3, HeadphonesIcon } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
+import { PlatformHeader } from "@/components/platform/PlatformHeader";
 
 const platformNavItems = [
   {
@@ -89,12 +89,7 @@ export function PlatformAdminLayout() {
             <div className="flex items-center gap-4">
               <SidebarTrigger className="text-slate-100 hover:text-white" />
               <h1 className="text-xl font-semibold text-white">Platform Administration</h1>
-              <div className="ml-auto">
-                <div className="flex items-center gap-2 text-orange-400 text-sm">
-                  <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
-                  System Level Access
-                </div>
-              </div>
+              <PlatformHeader />
             </div>
           </header>
           <div className="flex-1 overflow-auto p-6 bg-slate-50">
