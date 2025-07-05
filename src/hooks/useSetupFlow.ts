@@ -2,24 +2,13 @@
 import { useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-
-export type SetupStep = 'admin' | 'email-verification' | 'venue' | 'complete';
-
-export interface AdminData {
-  email: string;
-  password: string;
-  confirmPassword: string;
-  firstName: string;
-  lastName: string;
-}
-
-export interface VenueData {
-  venueName: string;
-  venueSlug: string;
-  venueEmail: string;
-  venuePhone: string;
-  venueAddress: string;
-}
+import { 
+  SetupStep, 
+  AdminData, 
+  VenueData, 
+  SetupError,
+  convertToSetupError 
+} from '@/types/setup';
 
 export interface SetupState {
   step: SetupStep;
@@ -62,7 +51,8 @@ export const useSetupFlow = () => {
 
   const { toast } = useToast();
 
-  const showError = useCallback((message: string) => {
+  const showError = useCallback((error: SetupError | string) => {
+    const message = typeof error === 'string' ? error : error.message;
     toast({
       title: "Setup Error",
       description: message,
@@ -135,11 +125,13 @@ export const useSetupFlow = () => {
       });
 
       if (authError) {
-        if (authError.message.includes('User already registered')) {
+        const setupError = convertToSetupError(authError);
+        
+        if (setupError.message.includes('User already registered')) {
           showError("An account with this email already exists. Please sign in instead.");
           return false;
         }
-        throw authError;
+        throw setupError;
       }
 
       // Check if email confirmation is required
@@ -151,11 +143,13 @@ export const useSetupFlow = () => {
       }
 
       return true;
-    } catch (error: any) {
-      if (error.code === 'over_email_send_rate_limit') {
+    } catch (error) {
+      const setupError = convertToSetupError(error);
+      
+      if (setupError.code === 'over_email_send_rate_limit') {
         showError("Email rate limit exceeded. Please wait an hour before trying again.");
       } else {
-        showError("Failed to create admin account: " + error.message);
+        showError("Failed to create admin account: " + setupError.message);
       }
       return false;
     } finally {
@@ -178,11 +172,13 @@ export const useSetupFlow = () => {
       if (error) throw error;
 
       showSuccess("Verification email has been resent. Please check your inbox.");
-    } catch (error: any) {
-      if (error.code === 'over_email_send_rate_limit') {
+    } catch (error) {
+      const setupError = convertToSetupError(error);
+      
+      if (setupError.code === 'over_email_send_rate_limit') {
         showError("Please wait before requesting another verification email.");
       } else {
-        showError("Failed to resend verification email: " + error.message);
+        showError("Failed to resend verification email: " + setupError.message);
       }
     } finally {
       updateState({ resendLoading: false });

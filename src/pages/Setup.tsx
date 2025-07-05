@@ -12,29 +12,13 @@ import { EmailVerificationStep } from '@/components/setup/EmailVerificationStep'
 import { VenueSetupForm } from '@/components/setup/VenueSetupForm';
 import { SetupStepIndicator } from '@/components/setup/SetupStepIndicator';
 import { SetupComplete } from '@/components/setup/SetupComplete';
-
-interface AdminData {
-  email: string;
-  password: string;
-  confirmPassword: string;
-  firstName: string;
-  lastName: string;
-}
-
-interface VenueData {
-  venueName: string;
-  venueSlug: string;
-  venueEmail: string;
-  venuePhone: string;
-  venueAddress: string;
-}
-
-type SetupStep = 'admin' | 'email-verification' | 'venue' | 'complete';
-
-interface SetupError {
-  message: string;
-  code?: string;
-}
+import { 
+  SetupStep, 
+  AdminData, 
+  VenueData, 
+  SetupLocationState,
+  convertToSetupError 
+} from '@/types/setup';
 
 const Setup = () => {
   const [step, setStep] = useState<SetupStep>('admin');
@@ -63,13 +47,14 @@ const Setup = () => {
   const { user, session } = useAuth();
   const location = useLocation();
 
-  const from = (location.state as any)?.from?.pathname || '/';
+  // Properly type the location state
+  const locationState = location.state as SetupLocationState | null;
+  const from = locationState?.from?.pathname || '/';
 
-  const showError = (error: SetupError | Error | string) => {
-    const message = typeof error === 'string' ? error : error.message;
+  const showError = (error: string) => {
     toast({
       title: "Setup Error",
-      description: message,
+      description: error,
       variant: "destructive"
     });
   };
@@ -181,8 +166,9 @@ const Setup = () => {
           // No user session, start from admin step
           setStep('admin');
         }
-      } catch (error: any) {
-        showError("Error checking user status: " + error.message);
+      } catch (error) {
+        const setupError = convertToSetupError(error);
+        showError("Error checking user status: " + setupError.message);
         setStep('admin');
       }
     };
@@ -242,11 +228,13 @@ const Setup = () => {
       });
 
       if (authError) {
-        if (authError.message.includes('User already registered')) {
+        const setupError = convertToSetupError(authError);
+        
+        if (setupError.message.includes('User already registered')) {
           showError("An account with this email already exists. Please sign in instead.");
           return;
         }
-        throw authError;
+        throw setupError;
       }
 
       // Check if email confirmation is required
@@ -258,11 +246,13 @@ const Setup = () => {
         setStep('venue');
       }
 
-    } catch (error: any) {
-      if (error.code === 'over_email_send_rate_limit') {
+    } catch (error) {
+      const setupError = convertToSetupError(error);
+      
+      if (setupError.code === 'over_email_send_rate_limit') {
         showError("Email rate limit exceeded. Please wait an hour before trying again.");
       } else {
-        showError("Failed to create admin account: " + error.message);
+        showError("Failed to create admin account: " + setupError.message);
       }
     } finally {
       setLoading(false);
@@ -287,11 +277,13 @@ const Setup = () => {
 
       showSuccess("Verification email has been resent. Please check your inbox.");
 
-    } catch (error: any) {
-      if (error.code === 'over_email_send_rate_limit') {
+    } catch (error) {
+      const setupError = convertToSetupError(error);
+      
+      if (setupError.code === 'over_email_send_rate_limit') {
         showError("Please wait before requesting another verification email.");
       } else {
-        showError("Failed to resend verification email: " + error.message);
+        showError("Failed to resend verification email: " + setupError.message);
       }
     } finally {
       setResendLoading(false);
@@ -339,9 +331,10 @@ const Setup = () => {
       setApprovalEmailSent(true);
       showSuccess("We've sent a new approval request to our team.");
 
-    } catch (error: any) {
-      setApprovalEmailError(error.message || 'Failed to send approval request');
-      showError("Failed to send approval request: " + error.message);
+    } catch (error) {
+      const setupError = convertToSetupError(error);
+      setApprovalEmailError(setupError.message || 'Failed to send approval request');
+      showError("Failed to send approval request: " + setupError.message);
     } finally {
       setLoading(false);
     }
@@ -408,7 +401,7 @@ const Setup = () => {
       }
 
       // Step 4: Send approval request
-      const { data: approvalResponse, error: approvalError } = await supabase.functions.invoke('send-approval-request', {
+      const { error: approvalError } = await supabase.functions.invoke('send-approval-request', {
         body: {
           venue_id: venue.id,
           venue_name: venueData.venueName,
@@ -428,8 +421,9 @@ const Setup = () => {
 
       showSuccess(approvalEmailSent ? "Approval request sent successfully!" : "Venue created - you can resend the approval request if needed.");
 
-    } catch (error: any) {
-      showError("An error occurred during venue setup: " + error.message);
+    } catch (error) {
+      const setupError = convertToSetupError(error);
+      showError("An error occurred during venue setup: " + setupError.message);
     } finally {
       setLoading(false);
     }
