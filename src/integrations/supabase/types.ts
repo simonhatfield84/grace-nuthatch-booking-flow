@@ -212,6 +212,7 @@ export type Database = {
           start_date: string | null
           start_time: string
           updated_at: string
+          venue_id: string
         }
         Insert: {
           blackout_periods?: Json | null
@@ -225,6 +226,7 @@ export type Database = {
           start_date?: string | null
           start_time: string
           updated_at?: string
+          venue_id: string
         }
         Update: {
           blackout_periods?: Json | null
@@ -238,8 +240,17 @@ export type Database = {
           start_date?: string | null
           start_time?: string
           updated_at?: string
+          venue_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "booking_windows_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       bookings: {
         Row: {
@@ -261,6 +272,7 @@ export type Database = {
           status: string | null
           table_id: number | null
           updated_at: string | null
+          venue_id: string
         }
         Insert: {
           booking_date: string
@@ -281,6 +293,7 @@ export type Database = {
           status?: string | null
           table_id?: number | null
           updated_at?: string | null
+          venue_id: string
         }
         Update: {
           booking_date?: string
@@ -301,6 +314,7 @@ export type Database = {
           status?: string | null
           table_id?: number | null
           updated_at?: string | null
+          venue_id?: string
         }
         Relationships: [
           {
@@ -308,6 +322,13 @@ export type Database = {
             columns: ["table_id"]
             isOneToOne: false
             referencedRelation: "tables"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
         ]
@@ -426,6 +447,7 @@ export type Database = {
           opt_in_marketing: boolean | null
           phone: string | null
           updated_at: string | null
+          venue_id: string
         }
         Insert: {
           created_at?: string | null
@@ -438,6 +460,7 @@ export type Database = {
           opt_in_marketing?: boolean | null
           phone?: string | null
           updated_at?: string | null
+          venue_id: string
         }
         Update: {
           created_at?: string | null
@@ -450,8 +473,17 @@ export type Database = {
           opt_in_marketing?: boolean | null
           phone?: string | null
           updated_at?: string | null
+          venue_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "guests_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       join_groups: {
         Row: {
@@ -704,6 +736,7 @@ export type Database = {
           name: string
           sort_order: number | null
           updated_at: string
+          venue_id: string
         }
         Insert: {
           color?: string | null
@@ -713,6 +746,7 @@ export type Database = {
           name: string
           sort_order?: number | null
           updated_at?: string
+          venue_id: string
         }
         Update: {
           color?: string | null
@@ -722,8 +756,17 @@ export type Database = {
           name?: string
           sort_order?: number | null
           updated_at?: string
+          venue_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sections_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       service_tags: {
         Row: {
@@ -775,6 +818,7 @@ export type Database = {
           terms_and_conditions: string | null
           title: string
           updated_at: string
+          venue_id: string
         }
         Insert: {
           active?: boolean
@@ -796,6 +840,7 @@ export type Database = {
           terms_and_conditions?: string | null
           title: string
           updated_at?: string
+          venue_id: string
         }
         Update: {
           active?: boolean
@@ -817,8 +862,17 @@ export type Database = {
           terms_and_conditions?: string | null
           title?: string
           updated_at?: string
+          venue_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "services_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       subscription_plans: {
         Row: {
@@ -883,6 +937,7 @@ export type Database = {
           section_id: number | null
           status: string | null
           updated_at: string | null
+          venue_id: string
         }
         Insert: {
           created_at?: string | null
@@ -898,6 +953,7 @@ export type Database = {
           section_id?: number | null
           status?: string | null
           updated_at?: string | null
+          venue_id: string
         }
         Update: {
           created_at?: string | null
@@ -913,6 +969,7 @@ export type Database = {
           section_id?: number | null
           status?: string | null
           updated_at?: string | null
+          venue_id?: string
         }
         Relationships: [
           {
@@ -920,6 +977,13 @@ export type Database = {
             columns: ["section_id"]
             isOneToOne: false
             referencedRelation: "sections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tables_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
         ]
@@ -931,6 +995,7 @@ export type Database = {
           id: string
           is_automatic: boolean | null
           name: string
+          venue_id: string
         }
         Insert: {
           color?: string | null
@@ -938,6 +1003,7 @@ export type Database = {
           id?: string
           is_automatic?: boolean | null
           name: string
+          venue_id: string
         }
         Update: {
           color?: string | null
@@ -945,8 +1011,17 @@ export type Database = {
           id?: string
           is_automatic?: boolean | null
           name?: string
+          venue_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "tags_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -990,6 +1065,7 @@ export type Database = {
           setting_key: string
           setting_value: Json
           updated_at: string
+          venue_id: string
         }
         Insert: {
           created_at?: string
@@ -997,6 +1073,7 @@ export type Database = {
           setting_key: string
           setting_value: Json
           updated_at?: string
+          venue_id: string
         }
         Update: {
           created_at?: string
@@ -1004,8 +1081,17 @@ export type Database = {
           setting_key?: string
           setting_value?: Json
           updated_at?: string
+          venue_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "venue_settings_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       venue_subscriptions: {
         Row: {

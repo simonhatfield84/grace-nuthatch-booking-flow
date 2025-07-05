@@ -2,33 +2,58 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const useServices = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
-  // Fetch services from database
-  const { data: services = [], isLoading: isServicesLoading } = useQuery({
-    queryKey: ['services'],
+  // Get user's venue ID
+  const { data: userVenue } = useQuery({
+    queryKey: ['user-venue', user?.id],
     queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('venue_id')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) throw error;
+      return data?.venue_id;
+    },
+    enabled: !!user,
+  });
+
+  // Fetch services from database with venue isolation
+  const { data: services = [], isLoading: isServicesLoading } = useQuery({
+    queryKey: ['services', userVenue],
+    queryFn: async () => {
+      if (!userVenue) return [];
+      
       const { data, error } = await supabase
         .from('services')
         .select('*')
+        .eq('venue_id', userVenue)
         .order('created_at', { ascending: false });
       
       if (error) throw error;
       return data;
-    }
+    },
+    enabled: !!userVenue,
   });
 
   // Create service mutation
   const createServiceMutation = useMutation({
     mutationFn: async (newService: any) => {
-      console.log('Creating service with data:', newService);
+      if (!userVenue) throw new Error('No venue associated with user');
+      
+      console.log('Creating service with data:', { ...newService, venue_id: userVenue });
       
       const { data, error } = await supabase
         .from('services')
-        .insert([newService])
+        .insert([{ ...newService, venue_id: userVenue }])
         .select()
         .single();
       
@@ -60,6 +85,7 @@ export const useServices = () => {
           updated_at: new Date().toISOString()
         })
         .eq('id', id)
+        .eq('venue_id', userVenue) // Ensure user can only update their venue's services
         .select()
         .single();
       
@@ -85,7 +111,8 @@ export const useServices = () => {
       const { error } = await supabase
         .from('services')
         .delete()
-        .eq('id', id);
+        .eq('id', id)
+        .eq('venue_id', userVenue); // Ensure user can only delete their venue's services
       
       if (error) throw error;
     },

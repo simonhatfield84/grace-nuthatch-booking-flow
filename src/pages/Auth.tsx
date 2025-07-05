@@ -10,11 +10,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
+import { PasswordStrength } from '@/components/ui/password-strength';
 
 const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPasswordStrength, setShowPasswordStrength] = useState(false);
+  const [isPasswordValid, setIsPasswordValid] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -171,13 +174,29 @@ const Auth = () => {
                   id="password"
                   type="password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setShowPasswordStrength(e.target.value.length > 0);
+                  }}
                   required
                   disabled={loading}
+                  minLength={12}
                 />
+                {showPasswordStrength && (
+                  <div className="mt-2">
+                    <PasswordStrength 
+                      password={password} 
+                      onValidityChange={setIsPasswordValid}
+                    />
+                  </div>
+                )}
               </div>
               
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={loading || (showPasswordStrength && !isPasswordValid)}
+              >
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
