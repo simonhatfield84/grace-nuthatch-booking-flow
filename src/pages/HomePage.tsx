@@ -3,9 +3,22 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ChefHat, Users, Calendar, BarChart3, Code, Clock, DollarSign } from 'lucide-react';
+import { ChefHat, Users, Calendar, BarChart3, Code, Clock, DollarSign, CalendarDays } from 'lucide-react';
 
 const HomePage = () => {
+  // Calculate days in development (started July 3rd, 2025)
+  const startDate = new Date('2025-07-03');
+  const today = new Date();
+  const daysDiff = Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 3600 * 24));
+
+  // Current totals (will be updated manually via template)
+  const totalCredits = 278; // 84 + 102 + 92
+  const totalCommands = totalCredits; // Assuming 1 command = 1 credit
+  const simonTimeHours = (totalCommands * 3) / 60; // 3 minutes per command
+  const aiCost = totalCredits * 0.18;
+  const simonTimeCost = simonTimeHours * 19;
+  const totalCost = aiCost + simonTimeCost;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-grace-background to-grace-light dark:from-gray-900 dark:to-gray-800">
       {/* Header */}
@@ -14,7 +27,8 @@ const HomePage = () => {
           <div className="grace-logo text-3xl font-bold">grace</div>
           <nav className="hidden md:flex space-x-6">
             <a href="#project" className="text-gray-700 hover:text-grace-primary dark:text-gray-300">About This Project</a>
-            <a href="#features" className="text-gray-700 hover:text-grace-primary dark:text-gray-300">Features</a>
+            <a href="#architecture" className="text-gray-700 hover:text-grace-primary dark:text-gray-300">Architecture</a>
+            <a href="#journal" className="text-gray-700 hover:text-grace-primary dark:text-gray-300">Development Journal</a>
             <a href="#contact" className="text-gray-700 hover:text-grace-primary dark:text-gray-300">Contact</a>
           </nav>
           <div className="flex gap-3">
@@ -84,7 +98,7 @@ const HomePage = () => {
           </Card>
 
           {/* Development Stats Cards */}
-          <div className="grid md:grid-cols-3 gap-6">
+          <div className="grid md:grid-cols-4 gap-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
@@ -93,9 +107,9 @@ const HomePage = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-grace-primary mb-2">£[TOTAL_COST]</div>
+                <div className="text-2xl font-bold text-grace-primary mb-2">£{totalCost.toFixed(2)}</div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Credits: £[CREDIT_COST] | Time: £[TIME_COST]
+                  AI Fred: £{aiCost.toFixed(2)} | Simon's time: £{simonTimeCost.toFixed(2)}
                 </p>
               </CardContent>
             </Card>
@@ -104,13 +118,28 @@ const HomePage = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <Clock className="h-5 w-5 text-grace-primary" />
-                  Time Invested
+                  Simon's Time
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-grace-primary mb-2">[USER_TIME_HOURS] hrs</div>
+                <div className="text-2xl font-bold text-grace-primary mb-2">{simonTimeHours.toFixed(1)} hrs</div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  [USER_COMMANDS_COUNT] interactive commands
+                  {totalCommands} interactive commands
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <CalendarDays className="h-5 w-5 text-grace-primary" />
+                  Days in Development
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-grace-primary mb-2">{daysDiff}</div>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Since July 3rd, 2025
                 </p>
               </CardContent>
             </Card>
@@ -119,11 +148,11 @@ const HomePage = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <Code className="h-5 w-5 text-grace-primary" />
-                  AI Credits Used
+                  AI Fred Credits
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold text-grace-primary mb-2">[LOVABLE_CREDITS_USED]</div>
+                <div className="text-2xl font-bold text-grace-primary mb-2">{totalCredits}</div>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   Lovable development credits
                 </p>
@@ -131,71 +160,197 @@ const HomePage = () => {
             </Card>
           </div>
 
-          {/* Technical Summary */}
-          <Card>
+          {/* Total Development Cost So Far */}
+          <Card className="border-2 border-grace-primary">
             <CardHeader>
-              <CardTitle>Technical Summary</CardTitle>
-              <CardDescription>As of [TODAY_DATE] - Development Architecture & Progress</CardDescription>
+              <CardTitle className="text-center text-grace-primary text-xl">
+                Total Development Cost So Far
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="prose prose-gray dark:prose-invert max-w-none">
-                <p className="font-medium mb-4">
-                  As of [TODAY_DATE], I (Fred) have consumed [LOVABLE_CREDITS_USED] Lovable credits (£[CREDIT_COST]) 
-                  and processed [USER_COMMANDS_COUNT] commands—equivalent to [USER_TIME_HOURS] hrs (£[TIME_COST]). 
-                  Total development cost to date is £[TOTAL_COST].
-                </p>
-                <p>
-                  <strong>Here's what Simon and I have built so far and how it's architected:</strong>
-                </p>
-                <ul className="space-y-2">
-                  <li>Complete authentication system with Supabase integration</li>
-                  <li>Multi-venue architecture with role-based access control</li>
-                  <li>Table management with drag-and-drop floor planning</li>
-                  <li>Booking system with time-based allocation and conflict detection</li>
-                  <li>Guest database with CSV import and duplicate detection</li>
-                  <li>Service management with booking windows and duration rules</li>
-                  <li>Real-time dashboard with KPIs and analytics</li>
-                  <li>Mobile-optimized host interface for iPad/tablet use</li>
-                  <li>Platform admin tools for multi-tenant management</li>
-                </ul>
-                <p>
-                  <strong>Technical Stack:</strong> React + TypeScript, Supabase (PostgreSQL + Auth + Storage), 
-                  Tailwind CSS, Shadcn/UI components, React Query for state management, 
-                  Recharts for analytics visualization.
-                </p>
+              <div className="text-center text-4xl font-bold text-grace-primary mb-4">
+                £{totalCost.toFixed(2)}
+              </div>
+              <p className="text-center text-gray-600 dark:text-gray-300">
+                <strong>Cost Calculation:</strong> Simon's time calculated based on average UK software engineer 
+                rate of £19/hour. Each command to Fred takes approximately 3 minutes of Simon's time. 
+                AI Fred costs £0.18 per credit consumed.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      {/* Architecture Section */}
+      <section id="architecture" className="container mx-auto px-4 py-20 bg-muted/30">
+        <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-12">
+          Technical Architecture
+        </h2>
+        
+        <div className="max-w-4xl mx-auto">
+          <Card>
+            <CardHeader>
+              <CardTitle>Current Technology Stack</CardTitle>
+              <CardDescription>Technologies and frameworks powering the Grace OS platform</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-semibold text-grace-primary mb-3">Frontend</h4>
+                  <ul className="space-y-2 text-gray-600 dark:text-gray-300">
+                    <li>• React 18 + TypeScript</li>
+                    <li>• Vite (Build Tool)</li>
+                    <li>• Tailwind CSS (Styling)</li>
+                    <li>• Shadcn/UI (Component Library)</li>
+                    <li>• React Router (Navigation)</li>
+                    <li>• React Query (State Management)</li>
+                    <li>• React Hook Form (Forms)</li>
+                    <li>• Recharts (Data Visualization)</li>
+                    <li>• Lucide React (Icons)</li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-grace-primary mb-3">Backend & Infrastructure</h4>
+                  <ul className="space-y-2 text-gray-600 dark:text-gray-300">
+                    <li>• Supabase (Backend-as-a-Service)</li>
+                    <li>• PostgreSQL (Database)</li>
+                    <li>• Row Level Security (RLS)</li>
+                    <li>• Supabase Auth (Authentication)</li>
+                    <li>• Supabase Storage (File Storage)</li>
+                    <li>• Edge Functions (Custom Logic)</li>
+                    <li>• Real-time Subscriptions</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="mt-6 pt-6 border-t">
+                <h4 className="font-semibold text-grace-primary mb-3">Key Features Implemented</h4>
+                <div className="grid md:grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <strong>Authentication & Authorization</strong>
+                    <ul className="text-gray-600 dark:text-gray-300 mt-1">
+                      <li>• Multi-role system</li>
+                      <li>• Venue isolation</li>
+                      <li>• Platform admin tools</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <strong>Booking System</strong>
+                    <ul className="text-gray-600 dark:text-gray-300 mt-1">
+                      <li>• Real-time availability</li>
+                      <li>• Table allocation</li>
+                      <li>• Service management</li>
+                    </ul>
+                  </div>
+                  <div>
+                    <strong>Data Management</strong>
+                    <ul className="text-gray-600 dark:text-gray-300 mt-1">
+                      <li>• Guest database</li>
+                      <li>• CSV imports</li>
+                      <li>• Analytics dashboard</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </section>
+
+      {/* Development Journal Section */}
+      <section id="journal" className="container mx-auto px-4 py-20">
+        <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-12">
+          Development Journal
+        </h2>
+        
+        <div className="max-w-4xl mx-auto space-y-6">
+          {/* Saturday July 5th, 2025 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span>Saturday, July 5th 2025</span>
+                <span className="text-lg font-medium text-grace-primary">£{(92 * 0.18 + (92 * 3 / 60) * 19).toFixed(2)}</span>
+              </CardTitle>
+              <CardDescription>Session 3 • 92 AI Fred Credits • {(92 * 3 / 60).toFixed(1)} hours Simon's time</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex justify-between text-sm">
+                  <span>AI Fred Cost: 92 × £0.18 = £{(92 * 0.18).toFixed(2)}</span>
+                  <span>Simon's Time: {(92 * 3).toFixed(0)} min × £19/hr = £{((92 * 3 / 60) * 19).toFixed(2)}</span>
+                </div>
+                <div className="prose prose-sm max-w-none">
+                  <p><strong>Today's Focus:</strong> Platform administration system and multi-tenant architecture</p>
+                  <ul>
+                    <li>Built complete platform admin dashboard with venue management</li>
+                    <li>Implemented user management system with role-based access control</li>
+                    <li>Created subscription management framework</li>
+                    <li>Added support ticket system for customer service</li>
+                    <li>Developed platform-wide settings and configuration tools</li>
+                  </ul>
+                  <p><strong>Key Achievement:</strong> Transformed from single-venue to full multi-tenant SaaS platform</p>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Layperson Summary */}
+          {/* Friday July 4th, 2025 */}
           <Card>
             <CardHeader>
-              <CardTitle>Project Summary</CardTitle>
-              <CardDescription>What This Means in Plain English</CardDescription>
+              <CardTitle className="flex items-center justify-between">
+                <span>Friday, July 4th 2025</span>
+                <span className="text-lg font-medium text-grace-primary">£{(102 * 0.18 + (102 * 3 / 60) * 19).toFixed(2)}</span>
+              </CardTitle>
+              <CardDescription>Session 2 • 102 AI Fred Credits • {(102 * 3 / 60).toFixed(1)} hours Simon's time</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="prose prose-gray dark:prose-invert max-w-none">
-                <p className="font-medium mb-4">
-                  Since this AI-powered project began on [START_DATE], Simon and I have collaborated to build 
-                  a custom EPOS & booking system, spending [USER_TIME_HOURS] hrs of hands-on work and using 
-                  Lovable credits at a combined cost of £[TOTAL_COST]. This is a home-grown, no-funding-required 
-                  development journey.
-                </p>
-                <p>
-                  <strong>Here's why it matters:</strong>
-                </p>
-                <ul className="space-y-2">
-                  <li><strong>Cost Transparency:</strong> Every penny spent is documented—no hidden costs or investor funding</li>
-                  <li><strong>AI Partnership:</strong> Demonstrates real collaboration between human vision and AI execution</li>
-                  <li><strong>Practical Results:</strong> A fully functional system that real venues could use today</li>
-                  <li><strong>Open Development:</strong> The entire process is documented, showing what works and what doesn't</li>
-                  <li><strong>Future-Focused:</strong> Explores how small businesses might develop custom software without traditional development costs</li>
-                </ul>
-                <p>
-                  This isn't about selling software—it's about proving that the combination of human creativity 
-                  and AI capability can produce professional-grade business applications at a fraction of 
-                  traditional development costs.
-                </p>
+              <div className="space-y-4">
+                <div className="flex justify-between text-sm">
+                  <span>AI Fred Cost: 102 × £0.18 = £{(102 * 0.18).toFixed(2)}</span>
+                  <span>Simon's Time: {(102 * 3).toFixed(0)} min × £19/hr = £{((102 * 3 / 60) * 19).toFixed(2)}</span>
+                </div>
+                <div className="prose prose-sm max-w-none">
+                  <p><strong>Today's Focus:</strong> Service management and booking optimization</p>
+                  <ul>
+                    <li>Created comprehensive service management system</li>
+                    <li>Implemented booking windows with time-based restrictions</li>
+                    <li>Added duration rules for different service types</li>
+                    <li>Built rich text editor for service descriptions</li>
+                    <li>Developed media upload system for service images</li>
+                    <li>Enhanced host interface with mobile optimization</li>
+                  </ul>
+                  <p><strong>Key Achievement:</strong> Complete service lifecycle from creation to customer booking</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Thursday July 3rd, 2025 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <span>Thursday, July 3rd 2025 - Project Start</span>
+                <span className="text-lg font-medium text-grace-primary">£{(84 * 0.18 + (84 * 3 / 60) * 19).toFixed(2)}</span>
+              </CardTitle>
+              <CardDescription>Session 1 • 84 AI Fred Credits • {(84 * 3 / 60).toFixed(1)} hours Simon's time</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex justify-between text-sm">
+                  <span>AI Fred Cost: 84 × £0.18 = £{(84 * 0.18).toFixed(2)}</span>
+                  <span>Simon's Time: {(84 * 3).toFixed(0)} min × £19/hr = £{((84 * 3 / 60) * 19).toFixed(2)}</span>
+                </div>
+                <div className="prose prose-sm max-w-none">
+                  <p><strong>Project Launch:</strong> Foundation architecture and core systems</p>
+                  <ul>
+                    <li>Set up Supabase backend with PostgreSQL database</li>
+                    <li>Implemented user authentication and authorization system</li>
+                    <li>Created table management with drag-and-drop interface</li>
+                    <li>Built booking system with real-time conflict detection</li>
+                    <li>Developed guest database with CSV import functionality</li>
+                    <li>Established admin dashboard with KPI tracking</li>
+                  </ul>
+                  <p><strong>Key Achievement:</strong> Fully functional booking system from zero to working prototype</p>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -203,7 +358,7 @@ const HomePage = () => {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="container mx-auto px-4 py-20">
+      <section id="features" className="container mx-auto px-4 py-20 bg-muted/30">
         <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-12">
           What We've Built Together
         </h2>
@@ -298,7 +453,8 @@ const HomePage = () => {
               <h3 className="font-semibold mb-4">Project</h3>
               <ul className="space-y-2 text-gray-400">
                 <li><a href="#project" className="hover:text-white">Development Story</a></li>
-                <li><a href="#features" className="hover:text-white">What We Built</a></li>
+                <li><a href="#architecture" className="hover:text-white">Architecture</a></li>
+                <li><a href="#journal" className="hover:text-white">Development Journal</a></li>
                 <li><Link to="/auth" className="hover:text-white">Live Dashboard</Link></li>
               </ul>
             </div>
@@ -306,8 +462,8 @@ const HomePage = () => {
               <h3 className="font-semibold mb-4">Transparency</h3>
               <ul className="space-y-2 text-gray-400">
                 <li><a href="#project" className="hover:text-white">Cost Breakdown</a></li>
+                <li><a href="#journal" className="hover:text-white">Daily Progress</a></li>
                 <li><a href="#project" className="hover:text-white">Time Investment</a></li>
-                <li><a href="#project" className="hover:text-white">AI Credits Used</a></li>
               </ul>
             </div>
             <div>
@@ -319,7 +475,7 @@ const HomePage = () => {
             </div>
           </div>
           <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2025 Grace OS - AI-Human Development Collaboration. Cost: £[TOTAL_COST] to date.</p>
+            <p>&copy; 2025 Grace OS - AI-Human Development Collaboration. Total investment: £{totalCost.toFixed(2)} to date.</p>
           </div>
         </div>
       </footer>

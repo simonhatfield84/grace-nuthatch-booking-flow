@@ -1,46 +1,96 @@
 
-# Grace OS Project Update Template
+# Grace OS Development Journal Update Template
 
-## Manual Data Update Instructions
+## Daily Update Instructions
 
-When updating the homepage with new project data, replace the following placeholders in `src/pages/HomePage.tsx`:
+When updating the homepage with new development progress, follow this format to add a new journal entry to `src/pages/HomePage.tsx`.
 
-### Data Placeholders to Replace:
+### Required Information for Each Update:
 
-1. **[TODAY_DATE]** - Current date (e.g., "5th January 2025")
-2. **[START_DATE]** - Project start date (you'll need to determine this)
-3. **[LOVABLE_CREDITS_USED]** - Total Lovable credits consumed
-4. **[USER_COMMANDS_COUNT]** - Total interactive commands/prompts
-5. **[USER_TIME_HOURS]** - Calculated as: (USER_COMMANDS_COUNT × 5 min) ÷ 60
-6. **[CREDIT_COST]** - Calculated as: LOVABLE_CREDITS_USED × £0.18
-7. **[TIME_COST]** - Calculated as: USER_TIME_HOURS × £19.00
-8. **[TOTAL_COST]** - Calculated as: CREDIT_COST + TIME_COST
+1. **Date** - The date of the development session
+2. **AI Fred Credits Used** - Total Lovable credits consumed in the session  
+3. **Brief Description** - What was accomplished during the session
+4. **Key Features/Achievements** - Bullet points of major accomplishments
 
-### Calculation Examples:
+### Cost Calculations (Automatic):
 
+- **AI Fred Cost**: Credits × £0.18
+- **Simon's Time**: Credits × 3 minutes × £19/hour ÷ 60
+- **Session Total**: AI Fred Cost + Simon's Time Cost
+
+### Update Process:
+
+1. **Add New Journal Entry** at the top of the Development Journal section
+2. **Update Total Statistics** in the header cards:
+   - Add new credits to `totalCredits`
+   - Recalculate `totalCommands` (= totalCredits)
+   - Recalculate `simonTimeHours` using 3 minutes per command
+   - Recalculate all cost totals
+
+### Journal Entry Template:
+
+```jsx
+{/* [DATE] */}
+<Card>
+  <CardHeader>
+    <CardTitle className="flex items-center justify-between">
+      <span>[FULL_DATE]</span>
+      <span className="text-lg font-medium text-grace-primary">£{([CREDITS] * 0.18 + ([CREDITS] * 3 / 60) * 19).toFixed(2)}</span>
+    </CardTitle>
+    <CardDescription>Session [NUMBER] • [CREDITS] AI Fred Credits • {([CREDITS] * 3 / 60).toFixed(1)} hours Simon's time</CardDescription>
+  </CardHeader>
+  <CardContent>
+    <div className="space-y-4">
+      <div className="flex justify-between text-sm">
+        <span>AI Fred Cost: [CREDITS] × £0.18 = £{([CREDITS] * 0.18).toFixed(2)}</span>
+        <span>Simon's Time: {([CREDITS] * 3).toFixed(0)} min × £19/hr = £{(([CREDITS] * 3 / 60) * 19).toFixed(2)}</span>
+      </div>
+      <div className="prose prose-sm max-w-none">
+        <p><strong>Today's Focus:</strong> [BRIEF_DESCRIPTION]</p>
+        <ul>
+          [ACCOMPLISHMENT_BULLETS]
+        </ul>
+        <p><strong>Key Achievement:</strong> [MAIN_ACHIEVEMENT]</p>
+      </div>
+    </div>
+  </CardContent>
+</Card>
 ```
-If LOVABLE_CREDITS_USED = 150 and USER_COMMANDS_COUNT = 75:
 
-USER_TIME_HOURS = (75 × 5) ÷ 60 = 6.25 hours
-CREDIT_COST = 150 × £0.18 = £27.00
-TIME_COST = 6.25 × £19.00 = £118.75
-TOTAL_COST = £27.00 + £118.75 = £145.75
+### Example Usage:
+
+**Input**: "July 6th, used 95 credits working on payment integration and Stripe setup"
+
+**Result**: New journal entry with:
+- AI Fred Cost: 95 × £0.18 = £17.10
+- Simon's Time: 285 min × £19/hr = £90.25  
+- Session Total: £107.35
+- Updated running totals in header
+
+### Header Updates Needed:
+
+```javascript
+const totalCredits = [OLD_TOTAL] + [NEW_CREDITS];
+const totalCommands = totalCredits;
+const simonTimeHours = (totalCommands * 3) / 60;
+const aiCost = totalCredits * 0.18;
+const simonTimeCost = simonTimeHours * 19;
+const totalCost = aiCost + simonTimeCost;
 ```
 
-### How to Update:
+### Architecture Section Updates:
 
-1. Open `src/pages/HomePage.tsx`
-2. Use Find & Replace to update all placeholders with actual values
-3. Ensure all calculations are correct
-4. Update any narrative text in the Technical or Layperson summaries as needed
+Only update the Architecture section when:
+- New major technologies are introduced
+- Significant architectural changes are made
+- New external services are integrated
 
-### Format Guidelines:
+The Architecture section should remain relatively stable compared to the daily journal entries.
 
-- Costs: Always show as £XX.XX (two decimal places)
-- Hours: Show as X.X (one decimal place for user time)
-- Credits/Commands: Whole numbers only
-- Dates: Use full format like "5th January 2025"
+### Notes:
 
-### Optional Content Updates:
-
-You can also update the bullet points in the Technical Summary and Layperson Summary sections to reflect new features or progress made since the last update.
+- Each journal entry should be placed at the TOP of the Development Journal section
+- Keep entries chronological with most recent first
+- Always update the header statistics when adding new entries
+- Include both technical achievements and business value in descriptions
+- Simon's time is calculated at 3 minutes per command at UK software engineer rate of £19/hour
