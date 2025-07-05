@@ -2,10 +2,29 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const useSections = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  // Get user's venue ID
+  const { data: userVenue } = useQuery({
+    queryKey: ['user-venue', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('venue_id')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) throw error;
+      return data?.venue_id;
+    },
+    enabled: !!user,
+  });
 
   const { data: sections = [], isLoading } = useQuery({
     queryKey: ['sections'],
@@ -22,10 +41,15 @@ export const useSections = () => {
 
   const createSectionMutation = useMutation({
     mutationFn: async (newSection: { name: string; description?: string; color?: string }) => {
+      if (!userVenue) {
+        throw new Error('No venue associated with user');
+      }
+
       const { data, error } = await supabase
         .from('sections')
         .insert([{
           ...newSection,
+          venue_id: userVenue,
           sort_order: sections.length + 1
         }])
         .select()

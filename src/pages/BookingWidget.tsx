@@ -26,6 +26,22 @@ const BookingWidget = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Get first venue ID for public bookings (this is a temporary solution)
+  const { data: firstVenue } = useQuery({
+    queryKey: ['first-venue'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('venues')
+        .select('id')
+        .eq('approval_status', 'approved')
+        .limit(1)
+        .single();
+      
+      if (error) throw error;
+      return data?.id;
+    }
+  });
+
   // Fetch services
   const { data: services, isLoading: isServicesLoading } = useQuery({
     queryKey: ['services'],
@@ -86,8 +102,8 @@ const BookingWidget = () => {
   // Create booking mutation
   const createBookingMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedService || !selectedDate || !selectedTime) {
-        throw new Error("Missing required booking details.");
+      if (!selectedService || !selectedDate || !selectedTime || !firstVenue) {
+        throw new Error("Missing required booking details or venue information.");
       }
 
       const bookingData = {
@@ -99,6 +115,12 @@ const BookingWidget = () => {
         phone: phone,
         email: email,
         notes: notes,
+        venue_id: firstVenue,
+        status: 'confirmed',
+        is_unallocated: true,
+        table_id: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       };
 
       const { data, error } = await supabase

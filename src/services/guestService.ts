@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { Guest, DuplicateGuest } from "@/types/guest";
 
@@ -68,9 +69,26 @@ export const guestService = {
   },
 
   async createGuest(newGuest: Omit<Guest, 'id' | 'created_at' | 'updated_at'>) {
+    // Get the user's venue ID from their profile
+    const { data: profile, error: profileError } = await supabase.auth.getUser();
+    
+    if (profileError || !profile.user) {
+      throw new Error('User not authenticated');
+    }
+
+    const { data: userProfile, error: userProfileError } = await supabase
+      .from('profiles')
+      .select('venue_id')
+      .eq('id', profile.user.id)
+      .single();
+
+    if (userProfileError || !userProfile?.venue_id) {
+      throw new Error('No venue associated with user');
+    }
+
     const { data, error } = await supabase
       .from('guests')
-      .insert([newGuest])
+      .insert([{ ...newGuest, venue_id: userProfile.venue_id }])
       .select()
       .single();
     
