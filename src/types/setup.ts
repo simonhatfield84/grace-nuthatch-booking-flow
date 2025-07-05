@@ -1,4 +1,3 @@
-
 export type SetupStep = 'admin' | 'code-verification' | 'venue' | 'complete';
 
 export interface AdminData {
@@ -15,6 +14,13 @@ export interface VenueData {
   venueEmail: string;
   venuePhone: string;
   venueAddress: string;
+}
+
+// Add venue setup result interface
+export interface VenueSetupResult {
+  success: boolean;
+  venue?: any;
+  error?: string;
 }
 
 // Comprehensive error type definitions

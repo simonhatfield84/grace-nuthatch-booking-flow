@@ -7,6 +7,7 @@ import {
   AdminData, 
   VenueData, 
   SetupError,
+  VenueSetupResult,
   convertToSetupError 
 } from '@/types/setup';
 
@@ -244,12 +245,15 @@ export const useSetupFlow = () => {
 
       if (setupError) throw setupError;
 
-      if (result?.success) {
+      // Type assertion for the result
+      const venueResult = result as VenueSetupResult;
+
+      if (venueResult?.success) {
         showSuccess("Venue created successfully!");
         updateState({ step: 'complete' });
         return true;
       } else {
-        throw new Error(result?.error || 'Venue setup failed');
+        throw new Error(venueResult?.error || 'Venue setup failed');
       }
     } catch (error) {
       const setupError = convertToSetupError(error);
