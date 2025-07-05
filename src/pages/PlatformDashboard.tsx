@@ -3,7 +3,7 @@ import { usePlatformMetrics } from "@/hooks/usePlatformMetrics";
 import { usePlatformVenues } from "@/hooks/usePlatformVenues";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Building2, Users, Calendar, CheckCircle, Clock, AlertCircle, TrendingUp } from "lucide-react";
+import { Building2, Users, Calendar, CheckCircle, Clock, AlertCircle, TrendingUp, Settings } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export default function PlatformDashboard() {
