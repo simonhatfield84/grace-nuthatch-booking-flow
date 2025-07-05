@@ -72,7 +72,7 @@ export const SetupStepIndicator: React.FC<SetupStepIndicatorProps> = ({ currentS
         const isLast = index === steps.length - 1;
         
         return (
-          <React.Fragment key={step}>
+          <div key={step} className="flex items-center space-x-2">
             <div className={`flex items-center space-x-2 ${
               config.isActive ? 'text-blue-600' : 
               config.isCompleted ? 'text-green-500' : 
@@ -92,7 +92,7 @@ export const SetupStepIndicator: React.FC<SetupStepIndicatorProps> = ({ currentS
                 config.isCompleted ? 'bg-green-500' : 'bg-gray-300'
               }`}></div>
             )}
-          </React.Fragment>
+          </div>
         );
       })}
     </div>
