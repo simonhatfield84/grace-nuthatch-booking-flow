@@ -47,18 +47,16 @@ export function VenueManagement() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'active':
+  const getStatusBadge = (approvalStatus: string) => {
+    switch (approvalStatus) {
+      case 'approved':
         return <Badge className="bg-green-100 text-green-800">Active</Badge>;
       case 'rejected':
         return <Badge className="bg-red-100 text-red-800">Rejected</Badge>;
-      case 'pending_approval':
+      case 'pending':
         return <Badge className="bg-yellow-100 text-yellow-800">Pending Approval</Badge>;
-      case 'draft':
-        return <Badge className="bg-gray-100 text-gray-800">Draft</Badge>;
       default:
-        return <Badge variant="secondary">{status}</Badge>;
+        return <Badge variant="secondary">{approvalStatus}</Badge>;
     }
   };
 
@@ -149,13 +147,13 @@ export function VenueManagement() {
                         <span>{venue.profiles?.length || 0}</span>
                       </div>
                     </TableCell>
-                    <TableCell>{getStatusBadge(venue.status || 'draft')}</TableCell>
+                    <TableCell>{getStatusBadge(venue.approval_status || 'pending')}</TableCell>
                     <TableCell>
                       {new Date(venue.created_at).toLocaleDateString()}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        {venue.status === 'pending_approval' && (
+                        {venue.approval_status === 'pending' && (
                           <>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>

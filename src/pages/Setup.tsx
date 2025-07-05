@@ -26,11 +26,10 @@ interface VenueData {
 }
 
 type SetupStep = 'admin' | 'email-verification' | 'venue' | 'complete';
-type UserStatus = 'pending_email_verification' | 'pending_venue_setup' | 'pending_venue_approval' | 'active';
 
 const Setup = () => {
   const [step, setStep] = useState<SetupStep>('admin');
-  const [userStatus, setUserStatus] = useState<UserStatus | null>(null);
+  const [isUserActive, setIsUserActive] = useState(false);
   const [adminData, setAdminData] = useState<AdminData>({
     email: '',
     password: '',
@@ -53,23 +52,6 @@ const Setup = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, session } = useAuth();
-
-  // Determine the current step based on user status
-  const determineStepFromStatus = (status: UserStatus): SetupStep => {
-    switch (status) {
-      case 'pending_email_verification':
-        return 'email-verification';
-      case 'pending_venue_setup':
-        return 'venue';
-      case 'pending_venue_approval':
-        return 'complete';
-      case 'active':
-        // User is fully set up, redirect to admin
-        return 'complete';
-      default:
-        return 'admin';
-    }
-  };
 
   // Check user status and redirect appropriately
   useEffect(() => {
@@ -94,13 +76,12 @@ const Setup = () => {
           if (data.user?.email_confirmed_at) {
             console.log('Setup: Email verified, updating user status');
             
-            // Update user status to pending_venue_setup
+            // Update user to be active for venue setup
             await supabase
               .from('profiles')
-              .update({ status: 'pending_venue_setup' })
+              .update({ is_active: true })
               .eq('id', data.user.id);
             
-            setUserStatus('pending_venue_setup');
             setStep('venue');
             
             toast({
@@ -134,24 +115,34 @@ const Setup = () => {
         try {
           const { data: profile } = await supabase
             .from('profiles')
-            .select('status, venue_id')
+            .select('is_active, venue_id')
             .eq('id', user.id)
             .single();
           
           if (profile) {
-            const currentStatus = profile.status as UserStatus;
-            setUserStatus(currentStatus);
+            setIsUserActive(profile.is_active);
             
-            // If user is active, redirect to admin dashboard
-            if (currentStatus === 'active') {
-              console.log('Setup: User is active, redirecting to admin dashboard');
-              navigate('/admin/dashboard');
-              return;
+            // If user is active and has a venue, check if setup is complete
+            if (profile.is_active && profile.venue_id) {
+              console.log('Setup: User is active with venue, checking setup completion');
+              const { data: setupComplete } = await supabase.rpc('setup_complete');
+              if (setupComplete) {
+                navigate('/admin/dashboard');
+                return;
+              } else {
+                setStep('complete');
+              }
+            } else if (profile.is_active) {
+              // User is active but no venue, go to venue setup
+              setStep('venue');
+            } else {
+              // User exists but not active, check if email is verified
+              if (user.email_confirmed_at) {
+                setStep('venue');
+              } else {
+                setStep('email-verification');
+              }
             }
-            
-            // Set step based on current status
-            const appropriateStep = determineStepFromStatus(currentStatus);
-            setStep(appropriateStep);
             
             // Pre-fill admin data if available
             setAdminData(prev => ({
@@ -161,7 +152,7 @@ const Setup = () => {
               lastName: user.user_metadata?.last_name || ''
             }));
             
-            console.log('Setup: User status determined', { status: currentStatus, step: appropriateStep });
+            console.log('Setup: User status determined', { isActive: profile.is_active, hasVenue: !!profile.venue_id });
           } else {
             // No profile exists, user needs to start from beginning
             console.log('Setup: No profile found, starting from admin step');
@@ -258,11 +249,9 @@ const Setup = () => {
           description: "We've sent you a verification email. Please check your inbox to continue.",
         });
         setStep('email-verification');
-        setUserStatus('pending_email_verification');
       } else {
         // Email is already confirmed, move to venue setup
         setStep('venue');
-        setUserStatus('pending_venue_setup');
       }
 
     } catch (error: any) {
@@ -398,7 +387,7 @@ const Setup = () => {
 
       console.log('Creating venue for user:', user.id);
 
-      // Step 1: Create venue with pending_approval status
+      // Step 1: Create venue with pending status
       const { data: venue, error: venueError } = await supabase
         .from('venues')
         .insert({
@@ -407,7 +396,7 @@ const Setup = () => {
           email: venueData.venueEmail,
           phone: venueData.venuePhone,
           address: venueData.venueAddress,
-          status: 'pending_approval'
+          approval_status: 'pending'
         })
         .select()
         .single();
@@ -419,7 +408,7 @@ const Setup = () => {
 
       console.log('Venue created:', venue);
 
-      // Step 2: Create/Update profile with venue association and pending_venue_approval status
+      // Step 2: Create/Update profile with venue association
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert({
@@ -429,7 +418,7 @@ const Setup = () => {
           first_name: adminData.firstName,
           last_name: adminData.lastName,
           role: 'owner',
-          status: 'pending_venue_approval'
+          is_active: true
         });
 
       if (profileError) {
@@ -475,8 +464,7 @@ const Setup = () => {
         setApprovalEmailSent(true);
       }
 
-      // Update user status and move to completion step
-      setUserStatus('pending_venue_approval');
+      // Move to completion step
       setStep('complete');
 
       toast({
@@ -510,7 +498,7 @@ const Setup = () => {
               <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
               <CardTitle>Setup Complete!</CardTitle>
               <CardDescription>
-                {userStatus === 'active' 
+                {isUserActive 
                   ? 'Your venue has been approved and is now active!'
                   : 'Your venue account has been created and is pending approval.'
                 }
@@ -518,7 +506,7 @@ const Setup = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Approval Status */}
-              {userStatus === 'pending_venue_approval' && (
+              {!isUserActive && (
                 <div className={`p-4 rounded-lg ${approvalEmailSent ? 'bg-blue-50 dark:bg-blue-950' : 'bg-orange-50 dark:bg-orange-950'}`}>
                   <div className="flex items-start gap-3">
                     {approvalEmailSent ? (
@@ -562,7 +550,7 @@ const Setup = () => {
                 </div>
               )}
               
-              {userStatus === 'active' ? (
+              {isUserActive ? (
                 <div className="bg-green-50 dark:bg-green-950 p-4 rounded-lg">
                   <h4 className="font-medium mb-2 text-green-900 dark:text-green-100">Ready to Get Started</h4>
                   <div className="text-sm text-green-800 dark:text-green-200 space-y-1">
@@ -583,7 +571,7 @@ const Setup = () => {
               )}
 
               <div className="flex gap-2">
-                {userStatus === 'active' ? (
+                {isUserActive ? (
                   <>
                     <Button 
                       onClick={() => navigate('/admin/dashboard')} 

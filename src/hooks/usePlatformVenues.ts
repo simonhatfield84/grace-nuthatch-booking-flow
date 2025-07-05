@@ -25,10 +25,10 @@ export const useUpdateVenueStatus = () => {
 
   return useMutation({
     mutationFn: async ({ venueId, status }: { venueId: string; status: 'active' | 'rejected' }) => {
-      // Update venue status
+      // Update venue status - use approval_status for now until types are updated
       const { error: venueError } = await supabase
         .from('venues')
-        .update({ status })
+        .update({ approval_status: status === 'active' ? 'approved' : 'rejected' })
         .eq('id', venueId);
 
       if (venueError) throw venueError;
@@ -37,7 +37,7 @@ export const useUpdateVenueStatus = () => {
       if (status === 'active') {
         const { error: profileError } = await supabase
           .from('profiles')
-          .update({ status: 'active' })
+          .update({ is_active: true })
           .eq('venue_id', venueId);
 
         if (profileError) throw profileError;

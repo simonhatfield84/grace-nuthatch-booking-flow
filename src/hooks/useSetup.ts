@@ -23,7 +23,7 @@ export const useUserStatus = () => {
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('status, venue_id')
+        .select('is_active, venue_id')
         .eq('id', user.id)
         .single();
 
