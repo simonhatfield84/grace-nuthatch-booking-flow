@@ -1,7 +1,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { PlatformSetting, PlatformSettingsState } from "@/types/platformSettings";
+import { PlatformSettingsState } from "@/types/platformSettings";
 import { useToast } from "@/hooks/use-toast";
 
 export const usePlatformSettingsV2 = () => {
@@ -17,7 +17,7 @@ export const usePlatformSettingsV2 = () => {
       
       // Transform array of settings into a more usable object
       const settingsObject: Partial<PlatformSettingsState> = {};
-      data.forEach((setting: PlatformSetting) => {
+      data.forEach((setting) => {
         let value = setting.setting_value;
         
         // Parse JSON values based on type
@@ -29,7 +29,7 @@ export const usePlatformSettingsV2 = () => {
           value = typeof value === 'number' ? value : JSON.parse(value);
         }
         
-        settingsObject[setting.setting_key as keyof PlatformSettingsState] = value;
+        (settingsObject as any)[setting.setting_key] = value;
       });
       
       return settingsObject as PlatformSettingsState;

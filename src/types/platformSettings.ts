@@ -3,7 +3,7 @@ export interface PlatformSetting {
   id: string;
   setting_key: string;
   setting_value: any;
-  setting_type: 'string' | 'boolean' | 'number' | 'object';
+  setting_type: string; // Changed from union type to string to match database
   description?: string;
   is_public: boolean;
   created_at: string;
