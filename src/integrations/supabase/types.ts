@@ -408,6 +408,69 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_admins: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          permissions: Json | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          permissions?: Json | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          permissions?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      platform_metrics: {
+        Row: {
+          active_venues: number | null
+          created_at: string
+          id: string
+          metric_date: string
+          pending_venues: number | null
+          total_bookings: number | null
+          total_revenue_cents: number | null
+          total_users: number | null
+          total_venues: number | null
+        }
+        Insert: {
+          active_venues?: number | null
+          created_at?: string
+          id?: string
+          metric_date?: string
+          pending_venues?: number | null
+          total_bookings?: number | null
+          total_revenue_cents?: number | null
+          total_users?: number | null
+          total_venues?: number | null
+        }
+        Update: {
+          active_venues?: number | null
+          created_at?: string
+          id?: string
+          metric_date?: string
+          pending_venues?: number | null
+          total_bookings?: number | null
+          total_revenue_cents?: number | null
+          total_users?: number | null
+          total_venues?: number | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -822,6 +885,10 @@ export type Database = {
         Args: { _user_id: string; _venue_id: string }
         Returns: boolean
       }
+      is_super_admin: {
+        Args: { _user_id: string }
+        Returns: boolean
+      }
       merge_guests: {
         Args: { primary_guest_id: string; duplicate_guest_id: string }
         Returns: string
@@ -832,7 +899,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "owner" | "manager" | "host" | "staff"
+      app_role: "owner" | "manager" | "host" | "staff" | "super_admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -948,7 +1015,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["owner", "manager", "host", "staff"],
+      app_role: ["owner", "manager", "host", "staff", "super_admin"],
     },
   },
 } as const

@@ -1,96 +1,81 @@
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { AdminLayout } from "@/components/layouts/AdminLayout";
-import { ThemeProvider } from "@/components/theme-provider";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-import Dashboard from "./pages/Dashboard";
-import Services from "./pages/Services";
-import Tables from "./pages/Tables";
-import Guests from "./pages/Guests";
-import Reports from "./pages/Reports";
-import Settings from "./pages/Settings";
-import HostInterface from "./pages/HostInterface";
-import BookingWidget from "./pages/BookingWidget";
+import { AuthProvider } from "./contexts/AuthContext";
+import { ThemeProvider } from "next-themes";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
+import Index from "./pages/Index";
 import Setup from "./pages/Setup";
 import Auth from "./pages/Auth";
-import HomePage from "./pages/HomePage";
+import Dashboard from "./pages/Dashboard";
+import Tables from "./pages/Tables";
+import HostInterface from "./pages/HostInterface";
+import Guests from "./pages/Guests";
+import BookingWidget from "./pages/BookingWidget";
+import Services from "./pages/Services";
+import Settings from "./pages/Settings";
+import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
+import HomePage from "./pages/HomePage";
+import { PlatformAdminLayout } from "./components/layouts/PlatformAdminLayout";
+import PlatformDashboard from "./pages/PlatformDashboard";
+import PlatformVenues from "./pages/PlatformVenues";
+import PlatformUsers from "./pages/PlatformUsers";
+import PlatformSubscriptions from "./pages/PlatformSubscriptions";
+import PlatformSupport from "./pages/PlatformSupport";
+import PlatformSettings from "./pages/PlatformSettings";
 
 const queryClient = new QueryClient();
 
-const App = () => {
+function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <ThemeProvider defaultTheme="system" storageKey="grace-ui-theme">
+      <AuthProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           <TooltipProvider>
-            <AuthProvider>
-              <Toaster />
-              <Sonner />
+            <Toaster />
+            <BrowserRouter>
               <Routes>
-                {/* Marketing homepage */}
-                <Route path="/" element={<HomePage />} />
-                
-                {/* Setup Route */}
+                {/* Public routes */}
+                <Route path="/" element={<Index />} />
                 <Route path="/setup" element={<Setup />} />
-                
-                {/* Auth Route */}
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/home" element={<HomePage />} />
+                <Route path="/booking/:slug" element={<BookingWidget />} />
+                <Route path="/booking/:slug/:secretSlug" element={<BookingWidget />} />
                 
-                {/* Host Interface */}
-                <Route path="/host" element={
-                  <ProtectedRoute>
-                    <HostInterface />
-                  </ProtectedRoute>
-                } />
-                
-                {/* Public Booking Widget */}
-                <Route path="/widget" element={<BookingWidget />} />
-                <Route path="/widget/*" element={<BookingWidget />} />
-                
-                {/* Admin Dashboard Routes */}
-                <Route path="/admin/*" element={
-                  <ProtectedRoute>
-                    <SidebarProvider>
-                      <div className="min-h-screen flex w-full">
-                        <AdminLayout />
-                      </div>
-                    </SidebarProvider>
-                  </ProtectedRoute>
-                }>
-                  <Route index element={<Dashboard />} />
+                {/* Protected venue admin routes */}
+                <Route path="/admin" element={<ProtectedRoute />}>
                   <Route path="dashboard" element={<Dashboard />} />
-                  <Route path="services" element={<Services />} />
                   <Route path="tables" element={<Tables />} />
+                  <Route path="host" element={<HostInterface />} />
                   <Route path="guests" element={<Guests />} />
-                  <Route path="reports" element={<Reports />} />
+                  <Route path="services" element={<Services />} />
                   <Route path="settings" element={<Settings />} />
+                  <Route path="reports" element={<Reports />} />
                 </Route>
-                
-                {/* Admin approval endpoint */}
-                <Route path="/admin/approve" element={
-                  <div className="min-h-screen flex items-center justify-center">
-                    <div className="text-center">
-                      <h1 className="text-2xl font-bold mb-4">Processing Approval...</h1>
-                      <p>Please wait while we process the venue approval.</p>
-                    </div>
-                  </div>
-                } />
-                
+
+                {/* Platform admin routes */}
+                <Route path="/platform" element={<PlatformAdminLayout />}>
+                  <Route path="dashboard" element={<PlatformDashboard />} />
+                  <Route path="venues" element={<PlatformVenues />} />
+                  <Route path="users" element={<PlatformUsers />} />
+                  <Route path="subscriptions" element={<PlatformSubscriptions />} />
+                  <Route path="support" element={<PlatformSupport />} />
+                  <Route path="settings" element={<PlatformSettings />} />
+                </Route>
+
+                {/* 404 route */}
                 <Route path="*" element={<NotFound />} />
               </Routes>
-            </AuthProvider>
+            </BrowserRouter>
           </TooltipProvider>
         </ThemeProvider>
-      </BrowserRouter>
+      </AuthProvider>
     </QueryClientProvider>
   );
-};
+}
 
 export default App;
