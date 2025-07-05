@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -63,7 +64,12 @@ const Setup = () => {
       const refresh_token = searchParams.get('refresh_token');
       const type = searchParams.get('type');
       
-      console.log('Setup: URL parameters:', { access_token: !!access_token, refresh_token: !!refresh_token, type });
+      console.log('Setup: URL parameters:', { 
+        access_token: !!access_token, 
+        refresh_token: !!refresh_token, 
+        type,
+        fullUrl: window.location.href 
+      });
       
       if (access_token && refresh_token && type === 'signup') {
         console.log('Setup: Processing email verification tokens...');
@@ -75,10 +81,19 @@ const Setup = () => {
           
           if (error) {
             console.error('Setup: Session setting error:', error);
-            throw error;
+            toast({
+              title: "Verification Error",
+              description: error.message || "Failed to verify email session.",
+              variant: "destructive"
+            });
+            return;
           }
           
-          console.log('Setup: Session set successfully:', { user: data.user?.email, confirmed: data.user?.email_confirmed_at });
+          console.log('Setup: Session set successfully:', { 
+            user: data.user?.email, 
+            confirmed: data.user?.email_confirmed_at,
+            session: !!data.session 
+          });
           
           if (data.user?.email_confirmed_at) {
             console.log('Setup: Email verified, updating user status');
@@ -91,6 +106,11 @@ const Setup = () => {
             
             if (profileError) {
               console.error('Setup: Profile update error:', profileError);
+              toast({
+                title: "Profile Update Failed",
+                description: "Failed to update profile status. Please try again.",
+                variant: "destructive"
+              });
             } else {
               console.log('Setup: Profile updated successfully');
             }
@@ -111,6 +131,13 @@ const Setup = () => {
                 lastName: data.user.user_metadata.last_name || ''
               }));
             }
+          } else {
+            console.log('Setup: Email not confirmed in verification response');
+            toast({
+              title: "Verification Incomplete",
+              description: "Email verification appears incomplete. Please try clicking the link again.",
+              variant: "destructive"
+            });
           }
         } catch (error: any) {
           console.error('Setup: Email verification error:', error);
