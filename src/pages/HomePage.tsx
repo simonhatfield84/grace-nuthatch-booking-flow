@@ -7,19 +7,27 @@ import { ChefHat, Users, Calendar, BarChart3 } from 'lucide-react';
 
 const HomePage = () => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
+    <div className="min-h-screen bg-gradient-to-br from-grace-background to-grace-light dark:from-gray-900 dark:to-gray-800">
       {/* Header */}
       <header className="border-b bg-white/80 backdrop-blur-sm dark:bg-gray-900/80">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="grace-logo text-3xl font-bold">grace</div>
           <nav className="hidden md:flex space-x-6">
-            <a href="#features" className="text-gray-700 hover:text-gray-900 dark:text-gray-300">Features</a>
-            <a href="#pricing" className="text-gray-700 hover:text-gray-900 dark:text-gray-300">Pricing</a>
-            <a href="#contact" className="text-gray-700 hover:text-gray-900 dark:text-gray-300">Contact</a>
+            <a href="#features" className="text-gray-700 hover:text-grace-primary dark:text-gray-300">Features</a>
+            <a href="#pricing" className="text-gray-700 hover:text-grace-primary dark:text-gray-300">Pricing</a>
+            <a href="#contact" className="text-gray-700 hover:text-grace-primary dark:text-gray-300">Contact</a>
           </nav>
-          <Link to="/setup">
-            <Button>Get Started</Button>
-          </Link>
+          <div className="flex gap-3">
+            <Button 
+              variant="outline" 
+              onClick={() => window.location.href = 'https://app.grace-os.co.uk/auth'}
+            >
+              Sign In
+            </Button>
+            <Link to="/setup">
+              <Button>Get Started</Button>
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -27,13 +35,13 @@ const HomePage = () => {
       <section className="container mx-auto px-4 py-20 text-center">
         <h1 className="text-5xl md:text-6xl font-bold text-gray-900 dark:text-white mb-6">
           Hospitality Management
-          <span className="block text-blue-600">Made Simple</span>
+          <span className="block text-grace-primary">Made Simple</span>
         </h1>
         <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto">
-          Grace OS is the complete restaurant management platform that streamlines your operations, 
+          Grace OS is the complete hospitality venue management platform that streamlines your operations, 
           from table bookings to guest management. Everything you need to run your venue efficiently.
         </p>
-        <div className="flex flex-col sm:flex-row gap-4 justify-center">
+        <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
           <Link to="/setup">
             <Button size="lg" className="text-lg px-8 py-3">
               Start Your Free Trial
@@ -43,17 +51,25 @@ const HomePage = () => {
             Watch Demo
           </Button>
         </div>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          Already have an account? <button 
+            onClick={() => window.location.href = 'https://app.grace-os.co.uk/auth'}
+            className="text-grace-primary hover:underline font-medium"
+          >
+            Sign in to your dashboard
+          </button>
+        </p>
       </section>
 
       {/* Features Section */}
       <section id="features" className="container mx-auto px-4 py-20">
         <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-12">
-          Everything Your Restaurant Needs
+          Everything Your Venue Needs
         </h2>
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
           <Card>
             <CardHeader>
-              <Calendar className="h-8 w-8 text-blue-600 mb-2" />
+              <Calendar className="h-8 w-8 text-grace-primary mb-2" />
               <CardTitle>Booking Management</CardTitle>
             </CardHeader>
             <CardContent>
@@ -65,7 +81,7 @@ const HomePage = () => {
           
           <Card>
             <CardHeader>
-              <Users className="h-8 w-8 text-blue-600 mb-2" />
+              <Users className="h-8 w-8 text-grace-primary mb-2" />
               <CardTitle>Guest Database</CardTitle>
             </CardHeader>
             <CardContent>
@@ -77,7 +93,7 @@ const HomePage = () => {
           
           <Card>
             <CardHeader>
-              <ChefHat className="h-8 w-8 text-blue-600 mb-2" />
+              <ChefHat className="h-8 w-8 text-grace-primary mb-2" />
               <CardTitle>Service Management</CardTitle>
             </CardHeader>
             <CardContent>
@@ -89,12 +105,12 @@ const HomePage = () => {
           
           <Card>
             <CardHeader>
-              <BarChart3 className="h-8 w-8 text-blue-600 mb-2" />
+              <BarChart3 className="h-8 w-8 text-grace-primary mb-2" />
               <CardTitle>Analytics & Reports</CardTitle>
             </CardHeader>
             <CardContent>
               <CardDescription>
-                Make data-driven decisions with detailed insights into your restaurant's performance.
+                Make data-driven decisions with detailed insights into your venue's performance.
               </CardDescription>
             </CardContent>
           </Card>
@@ -102,11 +118,11 @@ const HomePage = () => {
       </section>
 
       {/* CTA Section */}
-      <section className="bg-blue-600 text-white py-20">
+      <section className="bg-grace-secondary text-white py-20">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-4">Ready to Transform Your Restaurant?</h2>
+          <h2 className="text-3xl font-bold mb-4">Ready to Transform Your Venue?</h2>
           <p className="text-xl mb-8 opacity-90">
-            Join hundreds of restaurants already using Grace OS to improve their operations.
+            Join hundreds of hospitality venues already using Grace OS to improve their operations.
           </p>
           <Link to="/setup">
             <Button size="lg" variant="secondary" className="text-lg px-8 py-3">
@@ -123,7 +139,7 @@ const HomePage = () => {
             <div>
               <div className="grace-logo text-2xl font-bold mb-4">grace</div>
               <p className="text-gray-400">
-                The complete hospitality management platform for modern restaurants.
+                The complete hospitality management platform for modern venues.
               </p>
             </div>
             <div>

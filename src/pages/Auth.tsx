@@ -95,7 +95,7 @@ const Auth = () => {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="grace-logo text-4xl font-bold mb-2">grace</div>
-          <p className="text-muted-foreground">Restaurant Management System</p>
+          <p className="text-muted-foreground">Hospitality Venue Management System</p>
         </div>
 
         <Card>
