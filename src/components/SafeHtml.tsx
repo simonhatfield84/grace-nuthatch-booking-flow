@@ -17,7 +17,6 @@ export const SafeHtml: React.FC<SafeHtmlProps> = ({
     return DOMPurify.sanitize(htmlContent, {
       ALLOWED_TAGS: allowedTags,
       ALLOWED_ATTR: ['class'],
-      FORBID_SCRIPT: true,
       FORBID_TAGS: ['script', 'object', 'embed', 'form', 'input', 'textarea', 'select'],
       FORBID_ATTR: ['onload', 'onerror', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'onchange', 'onsubmit']
     });

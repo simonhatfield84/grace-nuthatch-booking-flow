@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface JoinGroup {
   id: number;
@@ -11,6 +12,7 @@ interface JoinGroup {
   min_party_size: number;
   max_party_size: number;
   description?: string;
+  venue_id: string;
   created_at: string;
   updated_at: string;
 }
@@ -18,6 +20,24 @@ interface JoinGroup {
 export const useGroupManagement = (initialGroups: any[], tables: any[], updateTableFunction: (params: { id: number, updates: any }) => Promise<any>) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  // Get user's venue ID
+  const { data: userVenue } = useQuery({
+    queryKey: ['user-venue', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('venue_id')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) throw error;
+      return data?.venue_id;
+    },
+    enabled: !!user,
+  });
 
   // Fetch join groups from database
   const { data: joinGroups = [] } = useQuery({
@@ -72,9 +92,16 @@ export const useGroupManagement = (initialGroups: any[], tables: any[], updateTa
       max_party_size: number;
       description?: string;
     }) => {
+      if (!userVenue) {
+        throw new Error('No venue associated with user');
+      }
+
       const { data, error } = await supabase
         .from('join_groups')
-        .insert([groupData])
+        .insert([{
+          ...groupData,
+          venue_id: userVenue
+        }])
         .select()
         .single();
       
