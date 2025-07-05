@@ -15,6 +15,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface BlackoutPeriod {
   id?: string;
@@ -33,6 +34,7 @@ interface BookingWindow {
   start_date?: Date | null;
   end_date?: Date | null;
   blackout_periods: BlackoutPeriod[];
+  venue_id: string;
 }
 
 interface BookingWindowManagerProps {
@@ -66,11 +68,29 @@ const timeSlots = [
 export function BookingWindowManager({ serviceId, open, onOpenChange }: BookingWindowManagerProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [editingWindow, setEditingWindow] = useState<BookingWindow | null>(null);
   const [showWindowDialog, setShowWindowDialog] = useState(false);
   const [startToday, setStartToday] = useState(false);
   const [openEnded, setOpenEnded] = useState(true);
   const [newBlackoutPeriod, setNewBlackoutPeriod] = useState<Partial<BlackoutPeriod>>({});
+
+  // Get user's venue ID
+  const { data: userVenue } = useQuery({
+    queryKey: ['user-venue', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('venue_id')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) throw error;
+      return data?.venue_id;
+    },
+    enabled: !!user,
+  });
 
   console.log('BookingWindowManager serviceId:', serviceId);
   console.log('BookingWindowManager open:', open);
@@ -116,14 +136,15 @@ export function BookingWindowManager({ serviceId, open, onOpenChange }: BookingW
     mutationFn: async (window: Omit<BookingWindow, 'id'>) => {
       console.log('Creating booking window with data:', window);
       
-      if (!window.service_id) {
-        throw new Error('Service ID is required');
+      if (!window.service_id || !userVenue) {
+        throw new Error('Service ID and venue ID are required');
       }
 
       const { data, error } = await supabase
         .from('booking_windows')
         .insert({
           service_id: window.service_id,
+          venue_id: userVenue,
           days: window.days,
           start_time: window.start_time,
           end_time: window.end_time,
@@ -172,8 +193,8 @@ export function BookingWindowManager({ serviceId, open, onOpenChange }: BookingW
     mutationFn: async (window: BookingWindow) => {
       console.log('Updating booking window with data:', window);
       
-      if (!window.service_id) {
-        throw new Error('Service ID is required');
+      if (!window.service_id || !userVenue) {
+        throw new Error('Service ID and venue ID are required');
       }
 
       const { data, error } = await supabase
@@ -254,6 +275,7 @@ export function BookingWindowManager({ serviceId, open, onOpenChange }: BookingW
 
   const [formData, setFormData] = useState<Partial<BookingWindow>>({
     service_id: serviceId || '',
+    venue_id: userVenue || '',
     days: [],
     start_time: "",
     end_time: "",
@@ -263,18 +285,19 @@ export function BookingWindowManager({ serviceId, open, onOpenChange }: BookingW
     blackout_periods: []
   });
 
-  // Update formData when serviceId changes
+  // Update formData when serviceId or userVenue changes
   useEffect(() => {
-    if (serviceId) {
-      console.log('Setting formData service_id to:', serviceId);
-      setFormData(prev => ({ ...prev, service_id: serviceId }));
+    if (serviceId && userVenue) {
+      console.log('Setting formData service_id to:', serviceId, 'and venue_id to:', userVenue);
+      setFormData(prev => ({ ...prev, service_id: serviceId, venue_id: userVenue }));
     }
-  }, [serviceId]);
+  }, [serviceId, userVenue]);
 
   const resetWindowForm = () => {
-    console.log('Resetting form with serviceId:', serviceId);
+    console.log('Resetting form with serviceId:', serviceId, 'and venue_id:', userVenue);
     setFormData({
       service_id: serviceId || '',
+      venue_id: userVenue || '',
       days: [],
       start_time: "",
       end_time: "",
@@ -324,11 +347,12 @@ export function BookingWindowManager({ serviceId, open, onOpenChange }: BookingW
   const handleSubmit = () => {
     console.log('Submitting form with data:', formData);
     console.log('Current serviceId:', serviceId);
+    console.log('Current userVenue:', userVenue);
     
-    if (!serviceId) {
+    if (!serviceId || !userVenue) {
       toast({
         title: "Error",
-        description: "Service ID is missing. Please close and reopen the dialog.",
+        description: "Service ID or venue ID is missing. Please close and reopen the dialog.",
         variant: "destructive"
       });
       return;
@@ -346,6 +370,7 @@ export function BookingWindowManager({ serviceId, open, onOpenChange }: BookingW
     const windowData = {
       ...formData,
       service_id: serviceId,
+      venue_id: userVenue,
       start_date: startToday ? new Date() : formData.start_date,
       end_date: openEnded ? null : formData.end_date
     } as BookingWindow;
@@ -365,6 +390,7 @@ export function BookingWindowManager({ serviceId, open, onOpenChange }: BookingW
     setFormData({
       ...window,
       service_id: serviceId || '',
+      venue_id: userVenue || '',
       blackout_periods: window.blackout_periods || []
     });
     setStartToday(false);
@@ -384,8 +410,8 @@ export function BookingWindowManager({ serviceId, open, onOpenChange }: BookingW
     }
   }, [openEnded]);
 
-  // Don't render the dialog if serviceId is null or undefined
-  if (!serviceId) {
+  // Don't render the dialog if serviceId or userVenue is null or undefined
+  if (!serviceId || !userVenue) {
     return null;
   }
 
@@ -764,7 +790,7 @@ export function BookingWindowManager({ serviceId, open, onOpenChange }: BookingW
               <div className="flex gap-2 pt-4 border-t">
                 <Button 
                   onClick={handleSubmit}
-                  disabled={!formData.start_time || !formData.end_time || !formData.days?.length || createWindowMutation.isPending || updateWindowMutation.isPending}
+                  disabled={!formData.start_time || !formData.end_time || !formData.days?.length || createWindowMutation.isPending || updateWindowMutation.isPending || !userVenue}
                 >
                   {createWindowMutation.isPending || updateWindowMutation.isPending 
                     ? 'Saving...' 

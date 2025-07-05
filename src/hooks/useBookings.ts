@@ -2,6 +2,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { TableAllocationService } from "@/services/tableAllocation";
 import { calculateBookingDuration, getServiceIdFromServiceName } from "@/utils/durationCalculation";
 
@@ -24,11 +25,30 @@ export interface Booking {
   booking_reference: string | null;
   created_at: string;
   updated_at: string;
+  venue_id: string;
 }
 
 export const useBookings = (date?: string) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  // Get user's venue ID
+  const { data: userVenue } = useQuery({
+    queryKey: ['user-venue', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('venue_id')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) throw error;
+      return data?.venue_id;
+    },
+    enabled: !!user,
+  });
 
   const { data: bookings = [], isLoading } = useQuery({
     queryKey: ['bookings', date],
@@ -50,7 +70,11 @@ export const useBookings = (date?: string) => {
   });
 
   const createBookingMutation = useMutation({
-    mutationFn: async (newBooking: Omit<Booking, 'id' | 'created_at' | 'updated_at' | 'table_id' | 'is_unallocated' | 'duration_minutes' | 'end_time' | 'booking_reference'>) => {
+    mutationFn: async (newBooking: Omit<Booking, 'id' | 'created_at' | 'updated_at' | 'table_id' | 'is_unallocated' | 'duration_minutes' | 'end_time' | 'booking_reference' | 'venue_id'>) => {
+      if (!userVenue) {
+        throw new Error('No venue associated with user');
+      }
+
       // Calculate duration from service rules
       const serviceId = newBooking.service ? await getServiceIdFromServiceName(newBooking.service) : null;
       const duration = await calculateBookingDuration(serviceId || undefined, newBooking.party_size);
@@ -63,6 +87,7 @@ export const useBookings = (date?: string) => {
           duration_minutes: duration,
           table_id: null,
           is_unallocated: true,
+          venue_id: userVenue,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }])

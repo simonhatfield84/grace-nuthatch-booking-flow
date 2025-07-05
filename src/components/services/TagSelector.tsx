@@ -10,6 +10,7 @@ import { Plus, Tag as TagIcon } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Tag {
   id: string;
@@ -32,6 +33,24 @@ export const TagSelector = ({ selectedTagIds, onTagsChange }: TagSelectorProps) 
   const [newTag, setNewTag] = useState({ name: "", color: "#3B82F6" });
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  // Get user's venue ID
+  const { data: userVenue } = useQuery({
+    queryKey: ['user-venue', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('venue_id')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) throw error;
+      return data?.venue_id;
+    },
+    enabled: !!user,
+  });
 
   const { data: tags = [] } = useQuery({
     queryKey: ['tags'],
@@ -48,9 +67,13 @@ export const TagSelector = ({ selectedTagIds, onTagsChange }: TagSelectorProps) 
 
   const createTagMutation = useMutation({
     mutationFn: async (tag: { name: string; color: string }) => {
+      if (!userVenue) {
+        throw new Error('No venue associated with user');
+      }
+
       const { data, error } = await supabase
         .from('tags')
-        .insert([tag])
+        .insert([{ ...tag, venue_id: userVenue }])
         .select()
         .single();
       
@@ -144,6 +167,7 @@ export const TagSelector = ({ selectedTagIds, onTagsChange }: TagSelectorProps) 
         size="sm"
         onClick={() => setShowCreateDialog(true)}
         className="w-full"
+        disabled={!userVenue}
       >
         <Plus className="h-3 w-3 mr-2" />
         Create New Tag
@@ -185,7 +209,7 @@ export const TagSelector = ({ selectedTagIds, onTagsChange }: TagSelectorProps) 
             <div className="flex gap-2">
               <Button 
                 onClick={handleCreateTag}
-                disabled={!newTag.name.trim() || createTagMutation.isPending}
+                disabled={!newTag.name.trim() || createTagMutation.isPending || !userVenue}
               >
                 Create & Add to Service
               </Button>

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { useQuery } from "@tanstack/react-query";
 import { TableAllocationService } from "@/services/tableAllocation";
 import { calculateBookingDuration, getServiceIdFromServiceName } from "@/utils/durationCalculation";
 
@@ -37,6 +38,24 @@ export const WalkInDialog = ({
   });
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  // Get user's venue ID
+  const { data: userVenue } = useQuery({
+    queryKey: ['user-venue', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('venue_id')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) throw error;
+      return data?.venue_id;
+    },
+    enabled: !!user,
+  });
 
   // Use controlled or internal state
   const isOpen = controlledOpen !== undefined ? controlledOpen : internalOpen;
@@ -54,6 +73,16 @@ export const WalkInDialog = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!userVenue) {
+      toast({
+        title: "Error",
+        description: "No venue associated with user",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setIsLoading(true);
     
     try {
@@ -77,6 +106,7 @@ export const WalkInDialog = ({
           duration_minutes: duration,
           is_unallocated: true,
           table_id: null,
+          venue_id: userVenue,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         }])
@@ -215,7 +245,7 @@ export const WalkInDialog = ({
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading}>
+            <Button type="submit" disabled={isLoading || !userVenue}>
               {isLoading ? "Creating..." : "Add Walk-in"}
             </Button>
           </div>

@@ -10,6 +10,7 @@ import { Plus, Edit, Trash2, Tag as TagIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Tag {
   id: string;
@@ -31,6 +32,24 @@ export const TagManagement = () => {
   const [newTag, setNewTag] = useState({ name: "", color: "#3B82F6" });
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  // Get user's venue ID
+  const { data: userVenue } = useQuery({
+    queryKey: ['user-venue', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('venue_id')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) throw error;
+      return data?.venue_id;
+    },
+    enabled: !!user,
+  });
 
   const { data: tags = [], isLoading } = useQuery({
     queryKey: ['tags'],
@@ -61,9 +80,13 @@ export const TagManagement = () => {
 
   const createTagMutation = useMutation({
     mutationFn: async (tag: { name: string; color: string }) => {
+      if (!userVenue) {
+        throw new Error('No venue associated with user');
+      }
+
       const { data, error } = await supabase
         .from('tags')
-        .insert([tag])
+        .insert([{ ...tag, venue_id: userVenue }])
         .select()
         .single();
       
@@ -190,7 +213,7 @@ export const TagManagement = () => {
               Manage service tags used across your booking system
             </CardDescription>
           </div>
-          <Button onClick={() => setShowTagDialog(true)}>
+          <Button onClick={() => setShowTagDialog(true)} disabled={!userVenue}>
             <Plus className="h-4 w-4 mr-2" />
             Add Tag
           </Button>
@@ -292,7 +315,7 @@ export const TagManagement = () => {
               <div className="flex gap-2">
                 <Button 
                   onClick={editingTag ? handleUpdateTag : handleCreateTag}
-                  disabled={!currentFormData.name.trim() || createTagMutation.isPending || updateTagMutation.isPending}
+                  disabled={!currentFormData.name.trim() || createTagMutation.isPending || updateTagMutation.isPending || !userVenue}
                 >
                   {editingTag ? 'Update Tag' : 'Create Tag'}
                 </Button>

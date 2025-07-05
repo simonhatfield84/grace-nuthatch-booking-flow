@@ -7,13 +7,32 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 export const VenueHoursSettings = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   
   const [startTime, setStartTime] = useState("17:00");
   const [endTime, setEndTime] = useState("23:00");
+
+  // Get user's venue ID
+  const { data: userVenue } = useQuery({
+    queryKey: ['user-venue', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('venue_id')
+        .eq('id', user.id)
+        .single();
+      
+      if (error) throw error;
+      return data?.venue_id;
+    },
+    enabled: !!user,
+  });
 
   // Fetch current venue hours
   const { data: venueHours, isLoading } = useQuery({
@@ -41,11 +60,16 @@ export const VenueHoursSettings = () => {
   // Update venue hours mutation
   const updateHoursMutation = useMutation({
     mutationFn: async ({ start_time, end_time }: { start_time: string; end_time: string }) => {
+      if (!userVenue) {
+        throw new Error('No venue associated with user');
+      }
+
       const { data, error } = await supabase
         .from('venue_settings')
         .upsert({
           setting_key: 'operating_hours',
-          setting_value: { start_time, end_time }
+          setting_value: { start_time, end_time },
+          venue_id: userVenue
         })
         .select()
         .single();
@@ -118,7 +142,7 @@ export const VenueHoursSettings = () => {
         
         <Button 
           onClick={handleSave}
-          disabled={updateHoursMutation.isPending}
+          disabled={updateHoursMutation.isPending || !userVenue}
         >
           {updateHoursMutation.isPending ? "Saving..." : "Save Operating Hours"}
         </Button>
