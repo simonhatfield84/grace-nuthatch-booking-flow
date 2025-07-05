@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,16 +7,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Info, CheckCircle, ArrowLeft } from 'lucide-react';
+import { Loader2, Info, CheckCircle, ArrowLeft, User, Building } from 'lucide-react';
 
-interface SetupData {
-  // Admin user
+interface AdminData {
   email: string;
   password: string;
   confirmPassword: string;
   firstName: string;
   lastName: string;
-  // Venue
+}
+
+interface VenueData {
   venueName: string;
   venueSlug: string;
   venueEmail: string;
@@ -24,12 +26,15 @@ interface SetupData {
 }
 
 const Setup = () => {
-  const [formData, setFormData] = useState<SetupData>({
+  const [step, setStep] = useState<'admin' | 'venue' | 'complete'>('admin');
+  const [adminData, setAdminData] = useState<AdminData>({
     email: '',
     password: '',
     confirmPassword: '',
     firstName: '',
-    lastName: '',
+    lastName: ''
+  });
+  const [venueData, setVenueData] = useState<VenueData>({
     venueName: '',
     venueSlug: '',
     venueEmail: '',
@@ -37,28 +42,25 @@ const Setup = () => {
     venueAddress: ''
   });
   const [loading, setLoading] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const handleInputChange = (field: keyof SetupData, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  const handleAdminInputChange = (field: keyof AdminData, value: string) => {
+    setAdminData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleVenueInputChange = (field: keyof VenueData, value: string) => {
+    setVenueData(prev => ({ ...prev, [field]: value }));
 
     // Auto-generate slug from venue name
     if (field === 'venueName') {
       const slug = value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-      setFormData(prev => ({
-        ...prev,
-        venueSlug: slug
-      }));
+      setVenueData(prev => ({ ...prev, venueSlug: slug }));
     }
   };
 
-  const validateForm = () => {
-    if (formData.password !== formData.confirmPassword) {
+  const validateAdminForm = () => {
+    if (adminData.password !== adminData.confirmPassword) {
       toast({
         title: "Password Mismatch",
         description: "Passwords do not match. Please check and try again.",
@@ -67,7 +69,7 @@ const Setup = () => {
       return false;
     }
 
-    if (formData.password.length < 6) {
+    if (adminData.password.length < 6) {
       toast({
         title: "Password Too Short",
         description: "Password must be at least 6 characters long.",
@@ -79,25 +81,93 @@ const Setup = () => {
     return true;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleAdminSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!validateForm()) {
+    if (!validateAdminForm()) {
       return;
     }
 
     setLoading(true);
 
     try {
+      // Step 1: Create admin user account
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: adminData.email,
+        password: adminData.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth`,
+          data: {
+            first_name: adminData.firstName,
+            last_name: adminData.lastName
+          }
+        }
+      });
+
+      if (authError) {
+        // Handle "User already registered" gracefully
+        if (authError.message.includes('User already registered')) {
+          // Try to sign in instead
+          const { error: signInError } = await supabase.auth.signInWithPassword({
+            email: adminData.email,
+            password: adminData.password
+          });
+
+          if (signInError) {
+            throw new Error('Account exists but password is incorrect. Please use the correct password or reset it.');
+          }
+        } else {
+          throw authError;
+        }
+      }
+
+      // Step 2: Sign in immediately to establish session
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: adminData.email,
+        password: adminData.password
+      });
+
+      if (signInError) throw signInError;
+
+      toast({
+        title: "Admin Account Created",
+        description: "Now let's set up your venue information.",
+      });
+
+      setStep('venue');
+
+    } catch (error: any) {
+      console.error('Admin setup error:', error);
+      toast({
+        title: "Account Setup Failed",
+        description: error.message || "Failed to create admin account.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleVenueSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      // Get current user session
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        throw new Error('No authenticated user found. Please try again.');
+      }
+
       // Step 1: Create venue
       const { data: venue, error: venueError } = await supabase
         .from('venues')
         .insert({
-          name: formData.venueName,
-          slug: formData.venueSlug,
-          email: formData.venueEmail,
-          phone: formData.venuePhone,
-          address: formData.venueAddress,
+          name: venueData.venueName,
+          slug: venueData.venueSlug,
+          email: venueData.venueEmail,
+          phone: venueData.venuePhone,
+          address: venueData.venueAddress,
           approval_status: 'pending'
         })
         .select()
@@ -105,62 +175,38 @@ const Setup = () => {
 
       if (venueError) throw venueError;
 
-      // Step 2: Create admin user with email confirmation
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth`,
-          data: {
-            first_name: formData.firstName,
-            last_name: formData.lastName
-          }
-        }
-      });
-
-      if (authError) throw authError;
-      if (!authData.user) throw new Error('Failed to create user');
-
-      // Step 3: Sign in the user immediately to create authenticated session
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password
-      });
-
-      if (signInError) throw signInError;
-
-      // Step 4: Create profile (now with authenticated session)
+      // Step 2: Create profile (with authenticated user)
       const { error: profileError } = await supabase
         .from('profiles')
         .insert({
-          id: authData.user.id,
+          id: user.id,
           venue_id: venue.id,
-          email: formData.email,
-          first_name: formData.firstName,
-          last_name: formData.lastName,
+          email: adminData.email,
+          first_name: adminData.firstName,
+          last_name: adminData.lastName,
           role: 'owner'
         });
 
       if (profileError) throw profileError;
 
-      // Step 5: Create user role (now with authenticated session)
+      // Step 3: Create user role (with authenticated user)
       const { error: roleError } = await supabase
         .from('user_roles')
         .insert({
-          user_id: authData.user.id,
+          user_id: user.id,
           venue_id: venue.id,
           role: 'owner'
         });
 
       if (roleError) throw roleError;
 
-      // Step 6: Send approval request
+      // Step 4: Send approval request
       const { error: approvalError } = await supabase.functions.invoke('send-approval-request', {
         body: {
           venue_id: venue.id,
-          venue_name: formData.venueName,
-          owner_name: `${formData.firstName} ${formData.lastName}`,
-          owner_email: formData.email
+          venue_name: venueData.venueName,
+          owner_name: `${adminData.firstName} ${adminData.lastName}`,
+          owner_email: adminData.email
         }
       });
 
@@ -169,16 +215,16 @@ const Setup = () => {
         // Don't fail the setup if approval email fails
       }
 
-      // Step 7: Sign out after setup completion (they'll need to verify email)
+      // Step 5: Sign out after setup completion (they'll need to verify email)
       await supabase.auth.signOut();
 
-      setSubmitted(true);
+      setStep('complete');
 
     } catch (error: any) {
-      console.error('Setup error:', error);
+      console.error('Venue setup error:', error);
       toast({
-        title: "Setup Failed",
-        description: error.message || "An error occurred during setup.",
+        title: "Venue Setup Failed",
+        description: error.message || "An error occurred during venue setup.",
         variant: "destructive"
       });
     } finally {
@@ -186,7 +232,7 @@ const Setup = () => {
     }
   };
 
-  if (submitted) {
+  if (step === 'complete') {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="w-full max-w-2xl">
@@ -252,24 +298,54 @@ const Setup = () => {
                 </Button>
               </Link>
             </div>
-            <CardTitle>Create Your Venue Account</CardTitle>
-            <CardDescription>
-              Let's get your venue management system configured. This will create your admin account and set up your venue for approval.
-            </CardDescription>
+            
+            {/* Step indicator */}
+            <div className="flex items-center justify-center space-x-4 mb-4">
+              <div className={`flex items-center space-x-2 ${step === 'admin' ? 'text-blue-600' : 'text-green-500'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step === 'admin' ? 'bg-blue-100 border-2 border-blue-600' : 'bg-green-100'}`}>
+                  {step === 'admin' ? <User className="h-4 w-4" /> : <CheckCircle className="h-4 w-4" />}
+                </div>
+                <span className="text-sm font-medium">Admin Account</span>
+              </div>
+              <div className={`w-12 h-0.5 ${step === 'venue' ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
+              <div className={`flex items-center space-x-2 ${step === 'venue' ? 'text-blue-600' : 'text-gray-400'}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${step === 'venue' ? 'bg-blue-100 border-2 border-blue-600' : 'bg-gray-100'}`}>
+                  <Building className="h-4 w-4" />
+                </div>
+                <span className="text-sm font-medium">Venue Setup</span>
+              </div>
+            </div>
+
+            {step === 'admin' && (
+              <>
+                <CardTitle>Create Admin Account</CardTitle>
+                <CardDescription>
+                  First, let's create your administrator account that will manage the venue.
+                </CardDescription>
+              </>
+            )}
+
+            {step === 'venue' && (
+              <>
+                <CardTitle>Setup Your Venue</CardTitle>
+                <CardDescription>
+                  Now let's configure your venue information for guests and bookings.
+                </CardDescription>
+              </>
+            )}
           </CardHeader>
+          
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Admin User Section */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Admin Account</h3>
+            {step === 'admin' && (
+              <form onSubmit={handleAdminSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="firstName">First Name</Label>
                     <Input
                       id="firstName"
                       type="text"
-                      value={formData.firstName}
-                      onChange={(e) => handleInputChange('firstName', e.target.value)}
+                      value={adminData.firstName}
+                      onChange={(e) => handleAdminInputChange('firstName', e.target.value)}
                       required
                     />
                   </div>
@@ -278,8 +354,8 @@ const Setup = () => {
                     <Input
                       id="lastName"
                       type="text"
-                      value={formData.lastName}
-                      onChange={(e) => handleInputChange('lastName', e.target.value)}
+                      value={adminData.lastName}
+                      onChange={(e) => handleAdminInputChange('lastName', e.target.value)}
                       required
                     />
                   </div>
@@ -289,8 +365,8 @@ const Setup = () => {
                   <Input
                     id="email"
                     type="email"
-                    value={formData.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    value={adminData.email}
+                    onChange={(e) => handleAdminInputChange('email', e.target.value)}
                     required
                   />
                 </div>
@@ -299,8 +375,8 @@ const Setup = () => {
                   <Input
                     id="password"
                     type="password"
-                    value={formData.password}
-                    onChange={(e) => handleInputChange('password', e.target.value)}
+                    value={adminData.password}
+                    onChange={(e) => handleAdminInputChange('password', e.target.value)}
                     required
                     minLength={6}
                   />
@@ -310,26 +386,31 @@ const Setup = () => {
                   <Input
                     id="confirmPassword"
                     type="password"
-                    value={formData.confirmPassword}
-                    onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
+                    value={adminData.confirmPassword}
+                    onChange={(e) => handleAdminInputChange('confirmPassword', e.target.value)}
                     required
                     minLength={6}
                   />
-                  {formData.confirmPassword && formData.password !== formData.confirmPassword && (
+                  {adminData.confirmPassword && adminData.password !== adminData.confirmPassword && (
                     <p className="text-sm text-destructive mt-1">Passwords do not match</p>
                   )}
                 </div>
-              </div>
 
-              {/* Venue Section */}
-              <div className="space-y-4">
-                <div className="flex items-start gap-2">
-                  <h3 className="text-lg font-semibold">Venue Information</h3>
-                  <div className="flex items-center gap-1 text-muted-foreground">
-                    <Info className="h-4 w-4" />
-                    <span className="text-xs">Public information</span>
-                  </div>
-                </div>
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating Account...
+                    </>
+                  ) : (
+                    'Create Admin Account'
+                  )}
+                </Button>
+              </form>
+            )}
+
+            {step === 'venue' && (
+              <form onSubmit={handleVenueSubmit} className="space-y-4">
                 <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg">
                   <p className="text-sm text-blue-800 dark:text-blue-200">
                     <strong>Note:</strong> This information will be visible to your guests in booking confirmations and email communications.
@@ -340,8 +421,8 @@ const Setup = () => {
                   <Input
                     id="venueName"
                     type="text"
-                    value={formData.venueName}
-                    onChange={(e) => handleInputChange('venueName', e.target.value)}
+                    value={venueData.venueName}
+                    onChange={(e) => handleVenueInputChange('venueName', e.target.value)}
                     required
                   />
                 </div>
@@ -350,12 +431,12 @@ const Setup = () => {
                   <Input
                     id="venueSlug"
                     type="text"
-                    value={formData.venueSlug}
-                    onChange={(e) => handleInputChange('venueSlug', e.target.value)}
+                    value={venueData.venueSlug}
+                    onChange={(e) => handleVenueInputChange('venueSlug', e.target.value)}
                     required
                   />
                   <p className="text-sm text-muted-foreground mt-1">
-                    This will be used for your email address: {formData.venueSlug}@grace-os.co.uk
+                    This will be used for your email address: {venueData.venueSlug}@grace-os.co.uk
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -364,8 +445,8 @@ const Setup = () => {
                     <Input
                       id="venueEmail"
                       type="email"
-                      value={formData.venueEmail}
-                      onChange={(e) => handleInputChange('venueEmail', e.target.value)}
+                      value={venueData.venueEmail}
+                      onChange={(e) => handleVenueInputChange('venueEmail', e.target.value)}
                     />
                   </div>
                   <div>
@@ -373,8 +454,8 @@ const Setup = () => {
                     <Input
                       id="venuePhone"
                       type="tel"
-                      value={formData.venuePhone}
-                      onChange={(e) => handleInputChange('venuePhone', e.target.value)}
+                      value={venueData.venuePhone}
+                      onChange={(e) => handleVenueInputChange('venuePhone', e.target.value)}
                     />
                   </div>
                 </div>
@@ -383,36 +464,42 @@ const Setup = () => {
                   <Input
                     id="venueAddress"
                     type="text"
-                    value={formData.venueAddress}
-                    onChange={(e) => handleInputChange('venueAddress', e.target.value)}
+                    value={venueData.venueAddress}
+                    onChange={(e) => handleVenueInputChange('venueAddress', e.target.value)}
                   />
                 </div>
-              </div>
 
-              {/* Email Preview */}
-              <div className="space-y-4">
-                <h3 className="text-lg font-semibold">Email Configuration</h3>
                 <div className="mt-4 p-4 bg-muted rounded-lg">
                   <h4 className="font-medium mb-2">Email Setup Preview</h4>
                   <div className="text-sm text-muted-foreground space-y-1">
-                    <p><strong>Guest emails will be sent from:</strong> {formData.venueName || 'Your Venue'} &lt;{formData.venueSlug || 'your-venue'}@grace-os.co.uk&gt;</p>
+                    <p><strong>Guest emails will be sent from:</strong> {venueData.venueName || 'Your Venue'} &lt;{venueData.venueSlug || 'your-venue'}@grace-os.co.uk&gt;</p>
                     <p><strong>Platform emails will be sent from:</strong> Grace OS &lt;noreply@grace-os.co.uk&gt;</p>
                     <p className="text-xs mt-2 opacity-75">Email delivery is automatically configured and managed by Grace OS.</p>
                   </div>
                 </div>
-              </div>
 
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating Account...
-                  </>
-                ) : (
-                  'Create Account & Request Approval'
-                )}
-              </Button>
-            </form>
+                <div className="flex gap-2">
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => setStep('admin')}
+                    className="flex-1"
+                  >
+                    Back to Admin
+                  </Button>
+                  <Button type="submit" className="flex-1" disabled={loading}>
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Creating Venue...
+                      </>
+                    ) : (
+                      'Complete Setup'
+                    )}
+                  </Button>
+                </div>
+              </form>
+            )}
           </CardContent>
         </Card>
       </div>
