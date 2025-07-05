@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams, useLocation } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -695,7 +696,7 @@ const Setup = () => {
                 </div>
                 <span className="text-sm font-medium">Admin Account</span>
               </div>
-              <div className={`w-8 h-0.5 ${step === 'email-verification' || step === 'venue' || step === 'complete' ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
+              <div className={`w-8 h-0.5 ${step !== 'admin' ? 'bg-blue-600' : 'bg-gray-300'}`}></div>
               <div className={`flex items-center space-x-2 ${
                 step === 'email-verification' ? 'text-blue-600' : 
                 step === 'venue' ? 'text-blue-600' : 
