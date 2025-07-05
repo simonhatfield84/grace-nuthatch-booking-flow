@@ -56,7 +56,12 @@ export const verifyEmailCode = async (email: string, code: string): Promise<bool
   return isValid;
 };
 
-export const setupVenue = async (adminData: AdminData, venueData: VenueData): Promise<VenueSetupResult> => {
+export interface VenueSetupWithApprovalResult extends VenueSetupResult {
+  approvalEmailSent: boolean;
+  approvalEmailError: string | null;
+}
+
+export const setupVenue = async (adminData: AdminData, venueData: VenueData): Promise<VenueSetupWithApprovalResult> => {
   // Get current user
   const { data: { user }, error: userError } = await supabase.auth.getUser();
   if (userError || !user) {
@@ -78,12 +83,64 @@ export const setupVenue = async (adminData: AdminData, venueData: VenueData): Pr
 
   if (setupError) throw setupError;
 
-  // Type assertion for the result - convert through unknown first
+  // Type assertion for the result
   const venueResult = result as unknown as VenueSetupResult;
 
   if (!venueResult?.success) {
     throw new Error(venueResult?.error || 'Venue setup failed');
   }
 
-  return venueResult;
+  console.log('Venue created successfully, sending approval request...');
+
+  // Send approval request email
+  let approvalEmailSent = false;
+  let approvalEmailError: string | null = null;
+
+  try {
+    const { error: approvalError } = await supabase.functions.invoke('send-approval-request', {
+      body: {
+        venue_id: venueResult.venue.id,
+        venue_name: venueData.venueName,
+        owner_name: `${adminData.firstName} ${adminData.lastName}`,
+        owner_email: adminData.email
+      }
+    });
+
+    if (approvalError) {
+      console.error('Failed to send approval request:', approvalError);
+      approvalEmailError = approvalError.message || 'Failed to send approval email';
+    } else {
+      console.log('Approval request sent successfully');
+      approvalEmailSent = true;
+    }
+  } catch (error) {
+    console.error('Error sending approval request:', error);
+    approvalEmailError = error instanceof Error ? error.message : 'Unknown error sending approval email';
+  }
+
+  return {
+    ...venueResult,
+    approvalEmailSent,
+    approvalEmailError
+  };
+};
+
+export const sendApprovalRequest = async (venueId: string, venueName: string, ownerName: string, ownerEmail: string): Promise<void> => {
+  console.log('Sending approval request for venue:', venueName);
+  
+  const { error } = await supabase.functions.invoke('send-approval-request', {
+    body: {
+      venue_id: venueId,
+      venue_name: venueName,
+      owner_name: ownerName,
+      owner_email: ownerEmail
+    }
+  });
+
+  if (error) {
+    console.error('Failed to send approval request:', error);
+    throw new Error(error.message || 'Failed to send approval request');
+  }
+
+  console.log('Approval request sent successfully');
 };

@@ -6,7 +6,8 @@ import {
   createUserAccount, 
   sendVerificationCode, 
   verifyEmailCode, 
-  setupVenue 
+  setupVenue,
+  sendApprovalRequest
 } from '@/services/setupService';
 import { convertToSetupError } from '@/types/setup';
 import { useSetupState } from './useSetupState';
@@ -18,7 +19,9 @@ export const useSetupActions = () => {
     setLoading, 
     setVerifyLoading, 
     setResendLoading, 
-    setStep 
+    setStep,
+    setApprovalEmailStatus,
+    setVenueId
   } = useSetupState();
   
   const { toast } = useToast();
@@ -115,7 +118,13 @@ export const useSetupActions = () => {
     setError(null);
 
     try {
-      await setupVenue(state.adminData, state.venueData);
+      console.log('Creating venue and sending approval request...');
+      const result = await setupVenue(state.adminData, state.venueData);
+      
+      // Store venue ID and approval status
+      setVenueId(result.venue?.id || null);
+      setApprovalEmailStatus(result.approvalEmailSent, result.approvalEmailError);
+      
       showSuccess("Venue created successfully!");
       setStep('complete');
       return true;
@@ -126,13 +135,46 @@ export const useSetupActions = () => {
     } finally {
       setLoading(false);
     }
-  }, [state.adminData, state.venueData, showError, showSuccess, setLoading, setError, setStep]);
+  }, [state.adminData, state.venueData, showError, showSuccess, setLoading, setError, setStep, setApprovalEmailStatus, setVenueId]);
+
+  const resendApprovalRequest = useCallback(async (): Promise<boolean> => {
+    if (!state.venueId) {
+      showError("No venue ID found. Cannot resend approval request.");
+      return false;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      console.log('Resending approval request for venue:', state.venueId);
+      await sendApprovalRequest(
+        state.venueId,
+        state.venueData.venueName,
+        `${state.adminData.firstName} ${state.adminData.lastName}`,
+        state.adminData.email
+      );
+      
+      setApprovalEmailStatus(true, null);
+      showSuccess("Approval request sent successfully!");
+      return true;
+    } catch (error) {
+      const setupError = convertToSetupError(error);
+      const errorMessage = "Failed to send approval request: " + setupError.message;
+      setApprovalEmailStatus(false, errorMessage);
+      showError(errorMessage);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [state.venueId, state.venueData.venueName, state.adminData, showError, showSuccess, setLoading, setError, setApprovalEmailStatus]);
 
   return {
     createAdminAccount,
     verifyCode,
     resendVerificationCode,
     createVenue,
+    resendApprovalRequest,
     showError,
     showSuccess
   };

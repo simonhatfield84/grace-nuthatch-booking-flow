@@ -12,6 +12,9 @@ export interface SetupState {
   verifyLoading: boolean;
   resendLoading: boolean;
   error: string | null;
+  approvalEmailSent: boolean;
+  approvalEmailError: string | null;
+  venueId: string | null;
 }
 
 export const useSetupState = () => {
@@ -22,7 +25,10 @@ export const useSetupState = () => {
     loading: false,
     verifyLoading: false,
     resendLoading: false,
-    error: null
+    error: null,
+    approvalEmailSent: false,
+    approvalEmailError: null,
+    venueId: null
   });
 
   const updateState = useCallback((updates: Partial<SetupState>) => {
@@ -70,6 +76,14 @@ export const useSetupState = () => {
     setState(prev => ({ ...prev, resendLoading }));
   }, []);
 
+  const setApprovalEmailStatus = useCallback((approvalEmailSent: boolean, approvalEmailError: string | null) => {
+    setState(prev => ({ ...prev, approvalEmailSent, approvalEmailError }));
+  }, []);
+
+  const setVenueId = useCallback((venueId: string | null) => {
+    setState(prev => ({ ...prev, venueId }));
+  }, []);
+
   return {
     state,
     updateState,
@@ -79,6 +93,8 @@ export const useSetupState = () => {
     setError,
     setLoading,
     setVerifyLoading,
-    setResendLoading
+    setResendLoading,
+    setApprovalEmailStatus,
+    setVenueId
   };
 };

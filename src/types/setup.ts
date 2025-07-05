@@ -1,3 +1,4 @@
+
 export type SetupStep = 'admin' | 'code-verification' | 'venue' | 'complete';
 
 export interface AdminData {

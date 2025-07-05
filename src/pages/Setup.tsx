@@ -4,19 +4,21 @@ import { useNavigate } from 'react-router-dom';
 import { SetupContainer } from '@/components/setup/SetupContainer';
 import { SetupComplete } from '@/components/setup/SetupComplete';
 import { useSetupFlow } from '@/hooks/useSetupFlow';
+import { useUserStatus } from '@/hooks/useSetup';
 
 const Setup = () => {
   const navigate = useNavigate();
-  const { state } = useSetupFlow();
+  const { state, resendApprovalRequest } = useSetupFlow();
+  const { data: userStatus, isLoading: statusLoading } = useUserStatus();
 
   if (state.step === 'complete') {
     return (
       <SetupComplete
-        isUserActive={true}
-        approvalEmailSent={true}
-        approvalEmailError={null}
-        loading={false}
-        onResendApproval={() => {}}
+        isUserActive={userStatus?.is_active || false}
+        approvalEmailSent={state.approvalEmailSent}
+        approvalEmailError={state.approvalEmailError}
+        loading={state.loading}
+        onResendApproval={resendApprovalRequest}
       />
     );
   }
