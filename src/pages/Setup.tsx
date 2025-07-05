@@ -178,9 +178,7 @@ const Setup = () => {
         <Card>
           <CardHeader>
             <CardTitle>Initial Setup</CardTitle>
-            <CardDescription>
-              Let's get your restaurant management system configured. This will create your admin account and set up your venue.
-            </CardDescription>
+            <CardDescription>Let's get your venue management system configured. This will create your admin account and set up your venue.</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
