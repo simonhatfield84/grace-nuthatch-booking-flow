@@ -1,3 +1,4 @@
+
 import { Outlet, Navigate } from "react-router-dom";
 import { usePlatformAdmin } from "@/hooks/usePlatformAdmin";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
@@ -59,7 +60,7 @@ export function PlatformAdminLayout() {
         <Sidebar variant="inset" className="bg-slate-800 border-slate-700">
           <SidebarContent>
             <SidebarGroup>
-              <SidebarGroupLabel className="text-lg font-semibold px-4 py-2 text-slate-200">
+              <SidebarGroupLabel className="text-lg font-semibold px-4 py-2 text-slate-100">
                 Platform Admin
               </SidebarGroupLabel>
               <SidebarGroupContent>
@@ -69,7 +70,7 @@ export function PlatformAdminLayout() {
                       <SidebarMenuButton
                         asChild
                         isActive={location.pathname === item.url}
-                        className="text-slate-300 hover:text-white hover:bg-slate-700 data-[active=true]:bg-orange-600 data-[active=true]:text-white"
+                        className="text-slate-100 hover:text-white hover:bg-slate-700 data-[active=true]:bg-orange-600 data-[active=true]:text-white"
                       >
                         <Link to={item.url}>
                           <item.icon className="h-4 w-4" />
@@ -86,7 +87,7 @@ export function PlatformAdminLayout() {
         <main className="flex-1 flex flex-col overflow-hidden">
           <header className="border-b bg-slate-800 border-slate-700 px-6 py-3">
             <div className="flex items-center gap-4">
-              <SidebarTrigger className="text-slate-300 hover:text-white" />
+              <SidebarTrigger className="text-slate-100 hover:text-white" />
               <h1 className="text-xl font-semibold text-white">Platform Administration</h1>
               <div className="ml-auto">
                 <div className="flex items-center gap-2 text-orange-400 text-sm">

@@ -77,7 +77,7 @@ export default function PlatformAuth() {
           <CardHeader className="text-center">
             <CardTitle className="text-white">Administrator Login</CardTitle>
             <CardDescription className="text-slate-400">
-              Access restricted to authorized platform administrators
+              Access restricted to authorised platform administrators
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -144,7 +144,7 @@ export default function PlatformAuth() {
 
             <div className="mt-6 text-center">
               <p className="text-xs text-slate-500">
-                Unauthorized access attempts will be reported
+                Unauthorised access attempts will be reported
               </p>
             </div>
           </CardContent>
