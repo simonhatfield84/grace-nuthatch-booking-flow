@@ -15,13 +15,13 @@ export const useEmailService = () => {
       party_size: string;
       booking_reference: string;
     },
-    venue_id: string
+    venue_slug: string
   ) => {
     try {
       const success = await emailService.sendBookingConfirmation(
         guestEmail,
         bookingData,
-        venue_id
+        venue_slug
       );
 
       if (success) {
@@ -55,13 +55,13 @@ export const useEmailService = () => {
       party_size: string;
       booking_reference: string;
     },
-    venue_id: string
+    venue_slug: string
   ) => {
     try {
       const success = await emailService.sendBookingReminder(
         guestEmail,
         bookingData,
-        venue_id
+        venue_slug
       );
 
       if (success) {

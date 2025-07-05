@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 export interface EmailTemplate {
@@ -12,7 +13,7 @@ export interface EmailData {
   to: string[];
   template_key: string;
   variables: Record<string, string>;
-  venue_id?: string;
+  venue_slug?: string;
 }
 
 export class EmailService {
@@ -23,39 +24,6 @@ export class EmailService {
       EmailService.instance = new EmailService();
     }
     return EmailService.instance;
-  }
-
-  async getEmailConfiguration(venue_id?: string) {
-    // Get venue-specific email settings if venue_id provided
-    if (venue_id) {
-      const { data: venueSettings } = await supabase
-        .from('venue_settings')
-        .select('setting_key, setting_value')
-        .eq('venue_id', venue_id)
-        .in('setting_key', ['email_domain', 'email_from_name', 'custom_email_domain']);
-      
-      const settings: Record<string, any> = {};
-      if (venueSettings) {
-        venueSettings.forEach(setting => {
-          if (setting.setting_key && setting.setting_value) {
-            settings[setting.setting_key] = setting.setting_value;
-          }
-        });
-      }
-
-      return {
-        domain: settings.custom_email_domain || settings.email_domain || 'grace-os.com',
-        fromName: settings.email_from_name || 'Grace',
-        isCustomDomain: !!settings.custom_email_domain
-      };
-    }
-
-    // Default platform configuration
-    return {
-      domain: 'grace-os.com',
-      fromName: 'Grace OS',
-      isCustomDomain: false
-    };
   }
 
   async getEmailTemplate(template_key: string): Promise<EmailTemplate | null> {
@@ -97,22 +65,16 @@ export class EmailService {
       if (!template) {
         throw new Error(`Template ${emailData.template_key} not found`);
       }
-
-      const emailConfig = await this.getEmailConfiguration(emailData.venue_id);
       
-      // Determine the from address based on template type
+      // Simplified from address logic
       let fromAddress: string;
       if (template.template_type === 'platform') {
-        fromAddress = `${emailConfig.fromName} <noreply@grace-os.com>`;
+        fromAddress = 'Grace OS <noreply@grace-os.com>';
       } else {
-        // For venue templates, use custom domain or fallback to grace-os.com subdomain
-        if (emailConfig.isCustomDomain) {
-          fromAddress = `${emailConfig.fromName} <noreply@${emailConfig.domain}>`;
-        } else {
-          // Get venue name for fallback
-          const venueName = emailData.variables.venue_name?.toLowerCase().replace(/\s+/g, '') || 'venue';
-          fromAddress = `${emailConfig.fromName} <${venueName}@grace-os.com>`;
-        }
+        // For venue templates, use venue name and slug
+        const venueName = emailData.variables.venue_name || 'Restaurant';
+        const venueSlug = emailData.venue_slug || 'venue';
+        fromAddress = `${venueName} <${venueSlug}@grace-os.com>`;
       }
 
       // Interpolate template with variables
@@ -148,26 +110,26 @@ export class EmailService {
   async sendBookingConfirmation(
     guestEmail: string, 
     bookingData: Record<string, string>, 
-    venue_id: string
+    venue_slug: string
   ): Promise<boolean> {
     return this.sendEmail({
       to: [guestEmail],
       template_key: 'booking_confirmation',
       variables: bookingData,
-      venue_id
+      venue_slug
     });
   }
 
   async sendBookingReminder(
     guestEmail: string, 
     bookingData: Record<string, string>, 
-    venue_id: string
+    venue_slug: string
   ): Promise<boolean> {
     return this.sendEmail({
       to: [guestEmail],
       template_key: 'booking_reminder',
       variables: bookingData,
-      venue_id
+      venue_slug
     });
   }
 
