@@ -2,26 +2,27 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Globe } from "lucide-react";
+import { Settings } from "lucide-react";
 import { usePlatformSettingsV2, useUpdatePlatformSettingsV2 } from "@/hooks/usePlatformSettingsV2";
 import { GeneralSettingsData, generalSettingsSchema } from "@/lib/validations/platformSettings";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 
 export function GeneralSettingsTab() {
   const { data: settings, isLoading } = usePlatformSettingsV2();
   const updateSettings = useUpdatePlatformSettingsV2();
 
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    watch,
-    formState: { errors, isDirty }
-  } = useForm<GeneralSettingsData>({
+  const form = useForm<GeneralSettingsData>({
     resolver: zodResolver(generalSettingsSchema),
     defaultValues: {
       platform_name: "Grace Platform",
@@ -31,17 +32,16 @@ export function GeneralSettingsTab() {
     },
   });
 
-  const maintenanceMode = watch("maintenance_mode");
-  const allowNewVenues = watch("allow_new_venues");
-
   useEffect(() => {
     if (settings) {
-      setValue("platform_name", settings.platform_name || "Grace Platform");
-      setValue("support_email", settings.support_email || "support@graceplatform.com");
-      setValue("maintenance_mode", settings.maintenance_mode || false);
-      setValue("allow_new_venues", settings.allow_new_venues !== false);
+      form.reset({
+        platform_name: settings.platform_name || "Grace Platform",
+        support_email: settings.support_email || "support@graceplatform.com",
+        maintenance_mode: settings.maintenance_mode || false,
+        allow_new_venues: settings.allow_new_venues !== false,
+      });
     }
-  }, [settings, setValue]);
+  }, [settings, form]);
 
   const onSubmit = (data: GeneralSettingsData) => {
     updateSettings.mutate(data);
@@ -55,71 +55,97 @@ export function GeneralSettingsTab() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Globe className="h-5 w-5" />
+          <Settings className="h-5 w-5" />
           General Settings
         </CardTitle>
         <CardDescription>
-          Core platform configuration options
+          Configure basic platform settings and system preferences
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="platform-name">Platform Name</Label>
-              <Input
-                id="platform-name"
-                {...register("platform_name")}
-                error={errors.platform_name?.message}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="support-email">Support Email</Label>
-              <Input
-                id="support-email"
-                type="email"
-                {...register("support_email")}
-                error={errors.support_email?.message}
-              />
-            </div>
-          </div>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="platform_name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Platform Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Grace Platform" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Maintenance Mode</Label>
-                <p className="text-sm text-muted-foreground">
-                  Temporarily disable platform access for maintenance
-                </p>
-              </div>
-              <Switch
-                checked={maintenanceMode}
-                onCheckedChange={(checked) => setValue("maintenance_mode", checked, { shouldDirty: true })}
+            <FormField
+              control={form.control}
+              name="support_email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Support Email</FormLabel>
+                  <FormControl>
+                    <Input type="email" placeholder="support@graceplatform.com" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="space-y-4">
+              <FormField
+                control={form.control}
+                name="maintenance_mode"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <FormLabel>Maintenance Mode</FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        Put the platform in maintenance mode
+                      </p>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="allow_new_venues"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <FormLabel>Allow New Venues</FormLabel>
+                      <p className="text-sm text-muted-foreground">
+                        Allow new venue registrations
+                      </p>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
               />
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="space-y-0.5">
-                <Label>Allow New Venue Registration</Label>
-                <p className="text-sm text-muted-foreground">
-                  Enable new venues to register on the platform
-                </p>
-              </div>
-              <Switch
-                checked={allowNewVenues}
-                onCheckedChange={(checked) => setValue("allow_new_venues", checked, { shouldDirty: true })}
-              />
-            </div>
-          </div>
-
-          <Button 
-            type="submit" 
-            disabled={!isDirty || updateSettings.isPending}
-            className="w-full"
-          >
-            {updateSettings.isPending ? "Saving..." : "Save General Settings"}
-          </Button>
-        </form>
+            <Button 
+              type="submit" 
+              disabled={!form.formState.isDirty || updateSettings.isPending}
+              className="w-full"
+            >
+              {updateSettings.isPending ? "Saving..." : "Save General Settings"}
+            </Button>
+          </form>
+        </Form>
       </CardContent>
     </Card>
   );

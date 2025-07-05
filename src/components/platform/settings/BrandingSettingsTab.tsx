@@ -2,24 +2,26 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Palette } from "lucide-react";
 import { usePlatformSettingsV2, useUpdatePlatformSettingsV2 } from "@/hooks/usePlatformSettingsV2";
 import { BrandingSettingsData, brandingSettingsSchema } from "@/lib/validations/platformSettings";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 
 export function BrandingSettingsTab() {
   const { data: settings, isLoading } = usePlatformSettingsV2();
   const updateSettings = useUpdatePlatformSettingsV2();
 
-  const {
-    register,
-    handleSubmit,
-    setValue,
-    formState: { errors, isDirty }
-  } = useForm<BrandingSettingsData>({
+  const form = useForm<BrandingSettingsData>({
     resolver: zodResolver(brandingSettingsSchema),
     defaultValues: {
       platform_logo_url: "",
@@ -33,14 +35,16 @@ export function BrandingSettingsTab() {
 
   useEffect(() => {
     if (settings) {
-      setValue("platform_logo_url", settings.platform_logo_url || "");
-      setValue("primary_color", settings.primary_color || "#ea580c");
-      setValue("secondary_color", settings.secondary_color || "#1e293b");
-      setValue("footer_text", settings.footer_text || "© 2024 Grace Platform. All rights reserved.");
-      setValue("privacy_policy_url", settings.privacy_policy_url || "");
-      setValue("terms_of_service_url", settings.terms_of_service_url || "");
+      form.reset({
+        platform_logo_url: settings.platform_logo_url || "",
+        primary_color: settings.primary_color || "#ea580c",
+        secondary_color: settings.secondary_color || "#1e293b",
+        footer_text: settings.footer_text || "© 2024 Grace Platform. All rights reserved.",
+        privacy_policy_url: settings.privacy_policy_url || "",
+        terms_of_service_url: settings.terms_of_service_url || "",
+      });
     }
-  }, [settings, setValue]);
+  }, [settings, form]);
 
   const onSubmit = (data: BrandingSettingsData) => {
     updateSettings.mutate(data);
@@ -62,76 +66,103 @@ export function BrandingSettingsTab() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="platform-logo">Platform Logo URL</Label>
-            <Input 
-              id="platform-logo" 
-              placeholder="https://example.com/logo.png"
-              {...register("platform_logo_url")}
-              error={errors.platform_logo_url?.message}
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="platform_logo_url"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Platform Logo URL</FormLabel>
+                  <FormControl>
+                    <Input placeholder="https://example.com/logo.png" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="primary-color">Primary Colour</Label>
-              <Input 
-                id="primary-color" 
-                type="color"
-                {...register("primary_color")}
-                error={errors.primary_color?.message}
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="primary_color"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Primary Colour</FormLabel>
+                    <FormControl>
+                      <Input type="color" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="secondary_color"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Secondary Colour</FormLabel>
+                    <FormControl>
+                      <Input type="color" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="secondary-color">Secondary Colour</Label>
-              <Input 
-                id="secondary-color" 
-                type="color"
-                {...register("secondary_color")}
-                error={errors.secondary_color?.message}
-              />
-            </div>
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="footer-text">Footer Text</Label>
-            <Input 
-              id="footer-text" 
-              placeholder="© 2024 Grace Platform. All rights reserved."
-              {...register("footer_text")}
-              error={errors.footer_text?.message}
+            <FormField
+              control={form.control}
+              name="footer_text"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Footer Text</FormLabel>
+                  <FormControl>
+                    <Input placeholder="© 2024 Grace Platform. All rights reserved." {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="privacy-url">Privacy Policy URL</Label>
-            <Input 
-              id="privacy-url" 
-              placeholder="https://graceplatform.com/privacy"
-              {...register("privacy_policy_url")}
-              error={errors.privacy_policy_url?.message}
+            <FormField
+              control={form.control}
+              name="privacy_policy_url"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Privacy Policy URL</FormLabel>
+                  <FormControl>
+                    <Input placeholder="https://graceplatform.com/privacy" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="terms-url">Terms of Service URL</Label>
-            <Input 
-              id="terms-url" 
-              placeholder="https://graceplatform.com/terms"
-              {...register("terms_of_service_url")}
-              error={errors.terms_of_service_url?.message}
+            <FormField
+              control={form.control}
+              name="terms_of_service_url"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Terms of Service URL</FormLabel>
+                  <FormControl>
+                    <Input placeholder="https://graceplatform.com/terms" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-          <Button 
-            type="submit" 
-            disabled={!isDirty || updateSettings.isPending}
-            className="w-full"
-          >
-            {updateSettings.isPending ? "Saving..." : "Save Branding Settings"}
-          </Button>
-        </form>
+            <Button 
+              type="submit" 
+              disabled={!form.formState.isDirty || updateSettings.isPending}
+              className="w-full"
+            >
+              {updateSettings.isPending ? "Saving..." : "Save Branding Settings"}
+            </Button>
+          </form>
+        </Form>
       </CardContent>
     </Card>
   );
