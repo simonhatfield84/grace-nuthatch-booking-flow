@@ -1,13 +1,13 @@
 
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Info, CheckCircle } from 'lucide-react';
+import { Loader2, Info, CheckCircle, ArrowLeft } from 'lucide-react';
 
 interface SetupData {
   // Admin user
@@ -111,7 +111,7 @@ const Setup = () => {
         email: formData.email,
         password: formData.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: `${window.location.origin}/auth`,
           data: {
             first_name: formData.firstName,
             last_name: formData.lastName
@@ -190,7 +190,7 @@ const Setup = () => {
               <CheckCircle className="h-12 w-12 text-green-500 mx-auto mb-4" />
               <CardTitle>Setup Complete!</CardTitle>
               <CardDescription>
-                Your restaurant account has been created and is pending approval.
+                Your venue account has been created and is pending approval.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -206,8 +206,8 @@ const Setup = () => {
               <div className="bg-green-50 dark:bg-green-950 p-4 rounded-lg">
                 <h4 className="font-medium mb-2 text-green-900 dark:text-green-100">Your Access URLs</h4>
                 <div className="text-sm text-green-800 dark:text-green-200 space-y-1">
-                  <p><strong>Admin Dashboard:</strong> app.grace-os.co.uk</p>
-                  <p><strong>Host Interface:</strong> host.grace-os.co.uk</p>
+                  <p><strong>Admin Dashboard:</strong> {window.location.origin}/admin</p>
+                  <p><strong>Host Interface:</strong> {window.location.origin}/host</p>
                 </div>
               </div>
 
@@ -234,7 +234,15 @@ const Setup = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Create Your Restaurant Account</CardTitle>
+            <div className="flex items-center gap-2 mb-2">
+              <Link to="/">
+                <Button variant="ghost" size="sm">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to Home
+                </Button>
+              </Link>
+            </div>
+            <CardTitle>Create Your Venue Account</CardTitle>
             <CardDescription>
               Let's get your venue management system configured. This will create your admin account and set up your venue for approval.
             </CardDescription>
@@ -318,7 +326,7 @@ const Setup = () => {
                   </p>
                 </div>
                 <div>
-                  <Label htmlFor="venueName">Restaurant Name</Label>
+                  <Label htmlFor="venueName">Venue Name</Label>
                   <Input
                     id="venueName"
                     type="text"

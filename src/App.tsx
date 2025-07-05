@@ -24,99 +24,7 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-// Get subdomain to determine app mode
-const getSubdomain = () => {
-  const hostname = window.location.hostname;
-  const parts = hostname.split('.');
-  
-  // For development (localhost)
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'main';
-  }
-  
-  // For production subdomains
-  if (parts.length >= 3) {
-    return parts[0]; // e.g., 'app' from 'app.grace-os.co.uk'
-  }
-  
-  return 'main'; // Default to main site
-};
-
 const App = () => {
-  const subdomain = getSubdomain();
-
-  // Host-only interface
-  if (subdomain === 'host') {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <ThemeProvider defaultTheme="system" storageKey="grace-ui-theme">
-            <TooltipProvider>
-              <AuthProvider>
-                <Toaster />
-                <Sonner />
-                <ProtectedRoute>
-                  <HostInterface />
-                </ProtectedRoute>
-              </AuthProvider>
-            </TooltipProvider>
-          </ThemeProvider>
-        </BrowserRouter>
-      </QueryClientProvider>
-    );
-  }
-
-  // Admin dashboard
-  if (subdomain === 'app') {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <ThemeProvider defaultTheme="system" storageKey="grace-ui-theme">
-            <TooltipProvider>
-              <AuthProvider>
-                <Toaster />
-                <Sonner />
-                <Routes>
-                  {/* Auth Route */}
-                  <Route path="/auth" element={<Auth />} />
-                  
-                  {/* Admin approval endpoint */}
-                  <Route path="/admin/approve" element={
-                    <div className="min-h-screen flex items-center justify-center">
-                      <div className="text-center">
-                        <h1 className="text-2xl font-bold mb-4">Processing Approval...</h1>
-                        <p>Please wait while we process the venue approval.</p>
-                      </div>
-                    </div>
-                  } />
-                  
-                  {/* Protected Admin Routes */}
-                  <Route path="/*" element={
-                    <ProtectedRoute>
-                      <SidebarProvider>
-                        <div className="min-h-screen flex w-full">
-                          <AdminLayout />
-                        </div>
-                      </SidebarProvider>
-                    </ProtectedRoute>
-                  }>
-                    <Route index element={<Dashboard />} />
-                    <Route path="services" element={<Services />} />
-                    <Route path="tables" element={<Tables />} />
-                    <Route path="guests" element={<Guests />} />
-                    <Route path="reports" element={<Reports />} />
-                    <Route path="settings" element={<Settings />} />
-                  </Route>
-                </Routes>
-              </AuthProvider>
-            </TooltipProvider>
-          </ThemeProvider>
-        </BrowserRouter>
-      </QueryClientProvider>
-    );
-  }
-
-  // Main marketing site (grace-os.co.uk)
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
@@ -135,9 +43,45 @@ const App = () => {
                 {/* Auth Route */}
                 <Route path="/auth" element={<Auth />} />
                 
+                {/* Host Interface */}
+                <Route path="/host" element={
+                  <ProtectedRoute>
+                    <HostInterface />
+                  </ProtectedRoute>
+                } />
+                
                 {/* Public Booking Widget */}
                 <Route path="/widget" element={<BookingWidget />} />
                 <Route path="/widget/*" element={<BookingWidget />} />
+                
+                {/* Admin Dashboard Routes */}
+                <Route path="/admin/*" element={
+                  <ProtectedRoute>
+                    <SidebarProvider>
+                      <div className="min-h-screen flex w-full">
+                        <AdminLayout />
+                      </div>
+                    </SidebarProvider>
+                  </ProtectedRoute>
+                }>
+                  <Route index element={<Dashboard />} />
+                  <Route path="dashboard" element={<Dashboard />} />
+                  <Route path="services" element={<Services />} />
+                  <Route path="tables" element={<Tables />} />
+                  <Route path="guests" element={<Guests />} />
+                  <Route path="reports" element={<Reports />} />
+                  <Route path="settings" element={<Settings />} />
+                </Route>
+                
+                {/* Admin approval endpoint */}
+                <Route path="/admin/approve" element={
+                  <div className="min-h-screen flex items-center justify-center">
+                    <div className="text-center">
+                      <h1 className="text-2xl font-bold mb-4">Processing Approval...</h1>
+                      <p>Please wait while we process the venue approval.</p>
+                    </div>
+                  </div>
+                } />
                 
                 <Route path="*" element={<NotFound />} />
               </Routes>

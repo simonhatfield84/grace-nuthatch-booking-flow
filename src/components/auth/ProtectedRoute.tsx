@@ -30,17 +30,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // If not authenticated, redirect to login
   if (!user) {
-    // Determine correct auth URL based on subdomain
-    const hostname = window.location.hostname;
-    const isApp = hostname.startsWith('app.');
-    const authUrl = isApp ? '/auth' : 'https://app.grace-os.co.uk/auth';
-    
-    if (isApp) {
-      return <Navigate to="/auth" state={{ from: location }} replace />;
-    } else {
-      window.location.href = authUrl;
-      return <div>Redirecting...</div>;
-    }
+    return <Navigate to="/auth" state={{ from: location }} replace />;
   }
 
   // If setup is not complete, show pending approval screen
@@ -80,7 +70,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
               </div>
 
               <Button 
-                onClick={() => window.location.href = 'https://grace-os.co.uk'} 
+                onClick={() => window.location.href = '/'} 
                 variant="outline"
                 className="w-full"
               >

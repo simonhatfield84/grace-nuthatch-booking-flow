@@ -40,8 +40,8 @@ Deno.serve(async (req) => {
 
     if (tokenError) throw tokenError
 
-    // Create approval URL (this will be the admin approval endpoint)
-    const approvalUrl = `https://app.grace-os.co.uk/admin/approve?token=${approvalToken}`
+    // Create approval URL (now pointing to the single domain)
+    const approvalUrl = `${req.headers.get('origin') || 'https://grace-os.co.uk'}/admin/approve?token=${approvalToken}`
 
     // Send approval request email to admin
     const { error: emailError } = await supabase.functions.invoke('send-email', {

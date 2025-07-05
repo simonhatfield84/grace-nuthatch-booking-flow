@@ -18,12 +18,9 @@ const HomePage = () => {
             <a href="#contact" className="text-gray-700 hover:text-grace-primary dark:text-gray-300">Contact</a>
           </nav>
           <div className="flex gap-3">
-            <Button 
-              variant="outline" 
-              onClick={() => window.location.href = 'https://app.grace-os.co.uk/auth'}
-            >
-              Sign In
-            </Button>
+            <Link to="/auth">
+              <Button variant="outline">Sign In</Button>
+            </Link>
             <Link to="/setup">
               <Button>Get Started</Button>
             </Link>
@@ -52,12 +49,12 @@ const HomePage = () => {
           </Button>
         </div>
         <p className="text-sm text-gray-500 dark:text-gray-400">
-          Already have an account? <button 
-            onClick={() => window.location.href = 'https://app.grace-os.co.uk/auth'}
+          Already have an account? <Link 
+            to="/auth"
             className="text-grace-primary hover:underline font-medium"
           >
             Sign in to your dashboard
-          </button>
+          </Link>
         </p>
       </section>
 
