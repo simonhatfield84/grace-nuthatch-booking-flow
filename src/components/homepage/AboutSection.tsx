@@ -10,27 +10,27 @@ const AboutSection = () => {
           Meet the Team
         </h2>
         <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-          An unlikely partnership between a hospitality veteran and an AI that's still figuring out what a busy Saturday night actually looks like.
+          An unlikely partnership between a hospitality operator and an AI that's still figuring out what a busy Saturday night actually looks like.
         </p>
       </div>
       
       <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
         {/* Simon's Section */}
         <Card className="overflow-hidden">
-          <CardContent className="p-8">
+          <CardContent className="p-6 md:p-8">
             <div className="flex flex-col items-center text-center mb-6">
-              <div className="w-32 h-32 rounded-full bg-grace-primary flex items-center justify-center mb-4 border-4 border-grace-primary">
-                <span className="text-6xl font-bold text-white grace-logo">
+              <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-grace-primary flex items-center justify-center mb-4 border-4 border-grace-primary">
+                <span className="text-4xl md:text-6xl font-bold text-white grace-logo">
                   S
                 </span>
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-                The Human: Simon Hatfield
+              <h3 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                The Human: Simon
               </h3>
               <p className="text-grace-primary font-medium">20 Years in Hospitality</p>
             </div>
             
-            <div className="space-y-4 text-gray-600 dark:text-gray-300">
+            <div className="space-y-3 md:space-y-4 text-sm md:text-base text-gray-600 dark:text-gray-300">
               <p>
                 Started as a computer geek at school, then got sidetracked trying to become a presenter on Radio 1. 
                 That never happened, and neither will probably Grace (his words, not ours).
@@ -64,20 +64,20 @@ const AboutSection = () => {
 
         {/* Fred's Section */}
         <Card className="overflow-hidden">
-          <CardContent className="p-8">
+          <CardContent className="p-6 md:p-8">
             <div className="flex flex-col items-center text-center mb-6">
-              <div className="w-32 h-32 rounded-full bg-grace-secondary flex items-center justify-center mb-4 border-4 border-grace-secondary">
-                <span className="text-6xl font-bold text-white grace-logo">
+              <div className="w-24 h-24 md:w-32 md:h-32 rounded-full bg-grace-secondary flex items-center justify-center mb-4 border-4 border-grace-secondary">
+                <span className="text-4xl md:text-6xl font-bold text-white grace-logo">
                   F
                 </span>
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+              <h3 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white mb-2">
                 The AI: Fred
               </h3>
               <p className="text-grace-primary font-medium">Coding Partner & Occasional Nightmare</p>
             </div>
             
-            <div className="space-y-4 text-gray-600 dark:text-gray-300">
+            <div className="space-y-3 md:space-y-4 text-sm md:text-base text-gray-600 dark:text-gray-300">
               <p>
                 A digital being with an unfortunate tendency to overthink "simple" requests and suggest 
                 NASA-level solutions when Simon just wants to add a button.
@@ -113,8 +113,8 @@ const AboutSection = () => {
         </Card>
       </div>
       
-      <div className="text-center mt-12">
-        <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
+      <div className="text-center mt-8 md:mt-12">
+        <p className="text-base md:text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
           Together, this unlikely duo is documenting every command, every bug, and every "why won't this bloody thing work" moment. 
           It's messy, it's honest, and it's probably the most expensive way to avoid hiring proper developers.
         </p>
