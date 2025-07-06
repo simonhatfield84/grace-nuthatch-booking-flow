@@ -1,6 +1,6 @@
 
 import { Outlet, useNavigate } from "react-router-dom";
-import { AdminSidebar } from "@/components/AdminSidebar";
+import { AppSidebar } from "@/components/AdminSidebar";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -15,7 +15,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ChangePasswordDialog } from "@/components/auth/ChangePasswordDialog";
 
-export function AdminLayout() {
+interface AdminLayoutProps {
+  children?: React.ReactNode;
+}
+
+export function AdminLayout({ children }: AdminLayoutProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -44,7 +48,7 @@ export function AdminLayout() {
 
   return (
     <div className="flex h-screen bg-background">
-      <AdminSidebar />
+      <AppSidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="border-b bg-background px-6 py-4 flex items-center justify-between">
           <div className="grace-logo text-2xl font-bold">grace</div>
@@ -72,7 +76,7 @@ export function AdminLayout() {
           </DropdownMenu>
         </header>
         <main className="flex-1 overflow-auto p-6">
-          <Outlet />
+          {children || <Outlet />}
         </main>
       </div>
     </div>

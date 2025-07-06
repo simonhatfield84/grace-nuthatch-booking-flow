@@ -24,9 +24,13 @@ export const emailService = {
       const platformSettings: Record<string, string> = {};
       settings?.forEach(setting => {
         try {
-          platformSettings[setting.setting_key] = JSON.parse(setting.setting_value);
+          // Parse JSON values and ensure they are strings
+          const parsedValue = typeof setting.setting_value === 'string' 
+            ? JSON.parse(setting.setting_value) 
+            : setting.setting_value;
+          platformSettings[setting.setting_key] = String(parsedValue || '');
         } catch {
-          platformSettings[setting.setting_key] = setting.setting_value;
+          platformSettings[setting.setting_key] = String(setting.setting_value || '');
         }
       });
 
@@ -98,9 +102,13 @@ export const emailService = {
       const platformSettings: Record<string, string> = {};
       settings?.forEach(setting => {
         try {
-          platformSettings[setting.setting_key] = JSON.parse(setting.setting_value);
+          // Parse JSON values and ensure they are strings
+          const parsedValue = typeof setting.setting_value === 'string' 
+            ? JSON.parse(setting.setting_value) 
+            : setting.setting_value;
+          platformSettings[setting.setting_key] = String(parsedValue || '');
         } catch {
-          platformSettings[setting.setting_key] = setting.setting_value;
+          platformSettings[setting.setting_key] = String(setting.setting_value || '');
         }
       });
 
@@ -167,9 +175,13 @@ export const emailService = {
       const platformSettings: Record<string, string> = {};
       settings?.forEach(setting => {
         try {
-          platformSettings[setting.setting_key] = JSON.parse(setting.setting_value);
+          // Parse JSON values and ensure they are strings
+          const parsedValue = typeof setting.setting_value === 'string' 
+            ? JSON.parse(setting.setting_value) 
+            : setting.setting_value;
+          platformSettings[setting.setting_key] = String(parsedValue || '');
         } catch {
-          platformSettings[setting.setting_key] = setting.setting_value;
+          platformSettings[setting.setting_key] = String(setting.setting_value || '');
         }
       });
 
