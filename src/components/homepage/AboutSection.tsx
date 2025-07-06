@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -19,8 +18,12 @@ const AboutSection = () => {
         <Card className="overflow-hidden">
           <CardContent className="p-8">
             <div className="flex flex-col items-center text-center mb-6">
-              <div className="w-32 h-32 rounded-full bg-gradient-to-br from-grace-primary to-grace-secondary mb-4 flex items-center justify-center">
-                <span className="text-4xl font-bold text-white">SH</span>
+              <div className="w-32 h-32 rounded-full overflow-hidden mb-4 border-4 border-grace-primary">
+                <img 
+                  src="/lovable-uploads/ea097850-d954-4282-a258-537b8d0ea756.png" 
+                  alt="Simon Hatfield - Hospitality veteran and Grace OS co-creator" 
+                  className="w-full h-full object-cover"
+                />
               </div>
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
                 The Human: Simon Hatfield
@@ -66,8 +69,8 @@ const AboutSection = () => {
             <div className="flex flex-col items-center text-center mb-6">
               <div className="w-32 h-32 rounded-full overflow-hidden mb-4 border-4 border-grace-primary">
                 <img 
-                  src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=128&h=128&fit=crop&crop=face" 
-                  alt="Fred the AI" 
+                  src="/lovable-uploads/629dca92-ecc7-4e24-a71c-37e3679ca839.png" 
+                  alt="Fred the AI - Grace OS co-creator and coding partner" 
                   className="w-full h-full object-cover"
                 />
               </div>
