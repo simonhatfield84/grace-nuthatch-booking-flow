@@ -2,6 +2,14 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 
 const AboutSection = () => {
+  const handleImageError = (imageName: string) => {
+    console.log(`Failed to load image: ${imageName}`);
+  };
+
+  const handleImageLoad = (imageName: string) => {
+    console.log(`Successfully loaded image: ${imageName}`);
+  };
+
   return (
     <section className="container mx-auto px-4 py-20 bg-muted/30">
       <div className="text-center mb-12">
@@ -23,6 +31,8 @@ const AboutSection = () => {
                   src="/lovable-uploads/ea097850-d954-4282-a258-537b8d0ea756.png" 
                   alt="Simon Hatfield - Hospitality veteran and Grace OS co-creator" 
                   className="w-full h-full object-cover"
+                  onError={() => handleImageError('Simon')}
+                  onLoad={() => handleImageLoad('Simon')}
                 />
               </div>
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
@@ -72,6 +82,8 @@ const AboutSection = () => {
                   src="/lovable-uploads/629dca92-ecc7-4e24-a71c-37e3679ca839.png" 
                   alt="Fred the AI - Grace OS co-creator and coding partner" 
                   className="w-full h-full object-cover"
+                  onError={() => handleImageError('Fred')}
+                  onLoad={() => handleImageLoad('Fred')}
                 />
               </div>
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
