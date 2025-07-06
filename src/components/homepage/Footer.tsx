@@ -5,6 +5,11 @@ import { calculateStats } from '@/data/developmentStats';
 const Footer = () => {
   const stats = calculateStats();
 
+  const scrollToSection = (sectionId: string) => {
+    const element = document.getElementById(sectionId);
+    element?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
     <footer className="bg-gray-900 text-white py-12">
       <div className="container mx-auto px-4">
@@ -19,17 +24,59 @@ const Footer = () => {
           <div>
             <h3 className="font-semibold mb-4">Project</h3>
             <ul className="space-y-2 text-gray-400">
-              <li><a href="#project" className="hover:text-white">Development Story</a></li>
-              <li><a href="#architecture" className="hover:text-white">Architecture</a></li>
-              <li><a href="#journal" className="hover:text-white">Latest Updates</a></li>
+              <li>
+                <button 
+                  onClick={() => scrollToSection('about')}
+                  className="hover:text-white transition-colors"
+                >
+                  Development Story
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => scrollToSection('architecture')}
+                  className="hover:text-white transition-colors"
+                >
+                  Architecture
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => scrollToSection('journal')}
+                  className="hover:text-white transition-colors"
+                >
+                  Latest Updates
+                </button>
+              </li>
             </ul>
           </div>
           <div>
             <h3 className="font-semibold mb-4">Transparency</h3>
             <ul className="space-y-2 text-gray-400">
-              <li><a href="#project" className="hover:text-white">Cost Breakdown</a></li>
-              <li><a href="#journal" className="hover:text-white">Daily Progress</a></li>
-              <li><a href="#project" className="hover:text-white">Time Investment</a></li>
+              <li>
+                <button 
+                  onClick={() => scrollToSection('stats')}
+                  className="hover:text-white transition-colors"
+                >
+                  Cost Breakdown
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => scrollToSection('journal')}
+                  className="hover:text-white transition-colors"
+                >
+                  Daily Progress
+                </button>
+              </li>
+              <li>
+                <button 
+                  onClick={() => scrollToSection('stats')}
+                  className="hover:text-white transition-colors"
+                >
+                  Time Investment
+                </button>
+              </li>
             </ul>
           </div>
           <div>

@@ -3,16 +3,8 @@ import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 
 const AboutSection = () => {
-  const handleImageError = (imageName: string) => {
-    console.log(`Failed to load image: ${imageName}`);
-  };
-
-  const handleImageLoad = (imageName: string) => {
-    console.log(`Successfully loaded image: ${imageName}`);
-  };
-
   return (
-    <section className="container mx-auto px-4 py-20 bg-muted/30">
+    <section id="about" className="container mx-auto px-4 py-20 bg-muted/30">
       <div className="text-center mb-12">
         <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
           Meet the Team
@@ -27,14 +19,10 @@ const AboutSection = () => {
         <Card className="overflow-hidden">
           <CardContent className="p-8">
             <div className="flex flex-col items-center text-center mb-6">
-              <div className="w-32 h-32 rounded-full overflow-hidden mb-4 border-4 border-grace-primary">
-                <img 
-                  src="/simon.png" 
-                  alt="Simon Hatfield - Hospitality veteran and Grace OS co-creator" 
-                  className="w-full h-full object-cover"
-                  onError={() => handleImageError('Simon')}
-                  onLoad={() => handleImageLoad('Simon')}
-                />
+              <div className="w-32 h-32 rounded-full bg-grace-primary flex items-center justify-center mb-4 border-4 border-grace-primary">
+                <span className="text-6xl font-bold text-white grace-logo">
+                  S
+                </span>
               </div>
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
                 The Human: Simon Hatfield
@@ -78,14 +66,10 @@ const AboutSection = () => {
         <Card className="overflow-hidden">
           <CardContent className="p-8">
             <div className="flex flex-col items-center text-center mb-6">
-              <div className="w-32 h-32 rounded-full overflow-hidden mb-4 border-4 border-grace-primary">
-                <img 
-                  src="/fred.png" 
-                  alt="Fred the AI - Grace OS co-creator and coding partner" 
-                  className="w-full h-full object-cover"
-                  onError={() => handleImageError('Fred')}
-                  onLoad={() => handleImageLoad('Fred')}
-                />
+              <div className="w-32 h-32 rounded-full bg-grace-secondary flex items-center justify-center mb-4 border-4 border-grace-secondary">
+                <span className="text-6xl font-bold text-white grace-logo">
+                  F
+                </span>
               </div>
               <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
                 The AI: Fred

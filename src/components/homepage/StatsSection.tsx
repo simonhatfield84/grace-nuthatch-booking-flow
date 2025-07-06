@@ -2,9 +2,11 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { calculateStats } from '@/data/developmentStats';
+import { journalEntries } from '@/data/journalEntries';
 
 const StatsSection = () => {
   const stats = calculateStats();
+  const sessionCount = journalEntries.length;
 
   return (
     <section id="stats" className="container mx-auto px-4 py-20 bg-muted/30">
@@ -54,9 +56,9 @@ const StatsSection = () => {
             <CardTitle className="text-sm font-medium">Development Sessions</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">3</div>
+            <div className="text-2xl font-bold">{sessionCount}</div>
             <p className="text-xs text-muted-foreground">
-              Avg £{(stats.totalCost / 3).toFixed(2)} per session
+              Avg £{(stats.totalCost / sessionCount).toFixed(2)} per session
             </p>
           </CardContent>
         </Card>
