@@ -1,63 +1,71 @@
 
-import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { LogOut, User } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { ChangePasswordDialog } from "@/components/auth/ChangePasswordDialog";
 
 export function PlatformHeader() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   const handleLogout = async () => {
     try {
-      await signOut();
-      navigate('/platform/login');
-    } catch (error) {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      toast({
+        title: "Signed out successfully",
+        description: "You have been logged out of your account.",
+      });
+      
+      // Redirect to platform login
+      navigate('/platform/login', { replace: true });
+    } catch (error: any) {
       console.error('Logout error:', error);
+      toast({
+        title: "Logout Failed",
+        description: error.message || "An error occurred during logout.",
+        variant: "destructive",
+      });
     }
   };
 
   return (
-    <div className="ml-auto flex items-center gap-4">
-      <div className="flex items-center gap-2 text-sm">
-        <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-        <span className="text-slate-300">System Online</span>
-      </div>
-      
+    <header className="border-b bg-slate-800 px-6 py-4 flex items-center justify-between">
+      <div className="grace-logo text-2xl font-bold text-white">grace</div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button 
-            variant="ghost" 
-            className="flex items-center gap-2 text-slate-100 hover:text-white hover:bg-slate-700"
-          >
-            <User className="h-4 w-4" />
-            <span className="hidden sm:inline">
-              Welcome, {user?.email?.split('@')[0] || 'Admin'}
-            </span>
+          <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+            <Avatar className="h-8 w-8">
+              <AvatarFallback className="bg-orange-600 text-white">
+                {user?.email?.charAt(0).toUpperCase() || 'U'}
+              </AvatarFallback>
+            </Avatar>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="bg-slate-800 border-slate-700">
-          <DropdownMenuLabel className="text-slate-100">
-            Platform Administrator
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator className="bg-slate-700" />
-          <DropdownMenuItem 
-            onClick={handleLogout}
-            className="text-slate-300 hover:text-white hover:bg-slate-700 cursor-pointer"
-          >
-            <LogOut className="h-4 w-4 mr-2" />
-            Sign Out
+        <DropdownMenuContent className="w-56" align="end">
+          <DropdownMenuItem disabled className="font-normal">
+            <User className="mr-2 h-4 w-4" />
+            {user?.email}
+          </DropdownMenuItem>
+          <ChangePasswordDialog />
+          <DropdownMenuItem onClick={handleLogout}>
+            <LogOut className="mr-2 h-4 w-4" />
+            Sign out
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-    </div>
+    </header>
   );
 }

@@ -1,5 +1,4 @@
 
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PlatformSettingsState } from "@/types/platformSettings";
@@ -45,11 +44,20 @@ export const useUpdatePlatformSettingsV2 = () => {
   return useMutation({
     mutationFn: async (settings: Partial<PlatformSettingsState>) => {
       const promises = Object.entries(settings).map(([key, value]) => {
+        // Determine the setting type
+        let settingType = 'string';
+        if (typeof value === 'boolean') {
+          settingType = 'boolean';
+        } else if (typeof value === 'number') {
+          settingType = 'number';
+        }
+
         return supabase
           .from('platform_settings')
           .upsert({
             setting_key: key,
             setting_value: JSON.stringify(value),
+            setting_type: settingType,
             updated_at: new Date().toISOString(),
           });
       });
@@ -63,6 +71,7 @@ export const useUpdatePlatformSettingsV2 = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['platform-settings-v2'] });
+      queryClient.invalidateQueries({ queryKey: ['platform-settings'] });
       toast({
         title: "Settings updated",
         description: "Platform settings have been updated successfully.",
@@ -77,4 +86,3 @@ export const useUpdatePlatformSettingsV2 = () => {
     },
   });
 };
-

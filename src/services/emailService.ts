@@ -1,148 +1,216 @@
 
 import { supabase } from "@/integrations/supabase/client";
 
-export interface EmailTemplate {
-  template_key: string;
-  subject: string;
-  html_content: string;
-  text_content?: string;
-  template_type: 'platform' | 'venue';
-}
-
-export interface EmailData {
-  to: string[];
-  template_key: string;
-  variables: Record<string, string>;
-  venue_slug?: string;
-}
-
-export class EmailService {
-  private static instance: EmailService;
-  
-  static getInstance(): EmailService {
-    if (!EmailService.instance) {
-      EmailService.instance = new EmailService();
-    }
-    return EmailService.instance;
-  }
-
-  async getEmailTemplate(template_key: string): Promise<EmailTemplate | null> {
-    const { data, error } = await supabase
-      .from('email_templates')
-      .select('template_key, subject, html_content, text_content, template_type')
-      .eq('template_key', template_key)
-      .single();
-
-    if (error || !data) {
-      console.error('Failed to get email template:', error);
-      return null;
-    }
-
-    const templateType = data.template_type;
-    if (templateType !== 'platform' && templateType !== 'venue') {
-      console.error('Invalid template_type:', templateType);
-      return null;
-    }
-
-    return {
-      template_key: data.template_key,
-      subject: data.subject,
-      html_content: data.html_content,
-      text_content: data.text_content || undefined,
-      template_type: templateType as 'platform' | 'venue'
-    };
-  }
-
-  private interpolateTemplate(template: string, variables: Record<string, string>): string {
-    return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
-      return variables[key] || match;
-    });
-  }
-
-  async sendEmail(emailData: EmailData): Promise<boolean> {
+export const emailService = {
+  async sendBookingConfirmation(
+    guestEmail: string,
+    bookingData: {
+      guest_name: string;
+      venue_name: string;
+      booking_date: string;
+      booking_time: string;
+      party_size: string;
+      booking_reference: string;
+    },
+    venue_slug: string
+  ) {
     try {
-      const template = await this.getEmailTemplate(emailData.template_key);
-      if (!template) {
-        throw new Error(`Template ${emailData.template_key} not found`);
-      }
-      
-      // Determine from address using simplified approach
-      let fromAddress: string;
-      if (template.template_type === 'platform') {
-        fromAddress = 'Grace OS <noreply@grace-os.co.uk>';
-      } else {
-        // For venue templates, use venue name and slug
-        const venueName = emailData.variables.venue_name || 'Restaurant';
-        const venueSlug = emailData.venue_slug || 'venue';
-        fromAddress = `${venueName} <${venueSlug}@grace-os.co.uk>`;
-      }
+      // Get platform settings for branding
+      const { data: settings } = await supabase
+        .from('platform_settings')
+        .select('setting_key, setting_value')
+        .in('setting_key', ['from_email', 'from_name', 'email_signature']);
 
-      // Interpolate template with variables
-      const subject = this.interpolateTemplate(template.subject, emailData.variables);
-      const htmlContent = this.interpolateTemplate(template.html_content, emailData.variables);
-      const textContent = template.text_content 
-        ? this.interpolateTemplate(template.text_content, emailData.variables) 
-        : undefined;
-
-      // Call the send-email edge function
-      const { error } = await supabase.functions.invoke('send-email', {
-        body: {
-          to: emailData.to,
-          from: fromAddress,
-          subject,
-          html: htmlContent,
-          text: textContent
+      const platformSettings: Record<string, string> = {};
+      settings?.forEach(setting => {
+        try {
+          platformSettings[setting.setting_key] = JSON.parse(setting.setting_value);
+        } catch {
+          platformSettings[setting.setting_key] = setting.setting_value;
         }
       });
 
-      if (error) {
-        console.error('Failed to send email:', error);
-        return false;
-      }
+      const { data, error } = await supabase.functions.invoke('send-email', {
+        body: {
+          to: guestEmail,
+          subject: `Booking Confirmation - ${bookingData.venue_name}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <div style="text-align: center; margin-bottom: 30px;">
+                <h1 style="color: #ea580c; font-size: 32px; margin: 0;">grace</h1>
+                <p style="color: #64748b; margin: 5px 0;">Booking Confirmation</p>
+              </div>
+              
+              <div style="background: #f8fafc; padding: 30px; border-radius: 8px;">
+                <h2 style="color: #1e293b; margin-top: 0;">Your booking is confirmed!</h2>
+                <p>Dear ${bookingData.guest_name},</p>
+                <p>Thank you for your booking at ${bookingData.venue_name}.</p>
+                
+                <div style="background: white; padding: 20px; border-radius: 5px; margin: 20px 0;">
+                  <h3 style="margin-top: 0; color: #ea580c;">Booking Details</h3>
+                  <p><strong>Reference:</strong> ${bookingData.booking_reference}</p>
+                  <p><strong>Date:</strong> ${bookingData.booking_date}</p>
+                  <p><strong>Time:</strong> ${bookingData.booking_time}</p>
+                  <p><strong>Party Size:</strong> ${bookingData.party_size}</p>
+                  <p><strong>Venue:</strong> ${bookingData.venue_name}</p>
+                </div>
+                
+                <p>We look forward to seeing you!</p>
+              </div>
+              
+              <div style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 30px;">
+                <p>${platformSettings.email_signature || 'Best regards,\nFred at Grace OS'}</p>
+              </div>
+            </div>
+          `,
+          from_email: platformSettings.from_email || 'noreply@grace-os.co.uk',
+          from_name: platformSettings.from_name || 'Fred at Grace OS',
+        },
+      });
 
+      if (error) throw error;
       return true;
     } catch (error) {
-      console.error('Email service error:', error);
+      console.error('Failed to send booking confirmation:', error);
       return false;
     }
-  }
-
-  async sendBookingConfirmation(
-    guestEmail: string, 
-    bookingData: Record<string, string>, 
-    venue_slug: string
-  ): Promise<boolean> {
-    return this.sendEmail({
-      to: [guestEmail],
-      template_key: 'booking_confirmation',
-      variables: bookingData,
-      venue_slug
-    });
-  }
+  },
 
   async sendBookingReminder(
-    guestEmail: string, 
-    bookingData: Record<string, string>, 
+    guestEmail: string,
+    bookingData: {
+      guest_name: string;
+      venue_name: string;
+      booking_date: string;
+      booking_time: string;
+      party_size: string;
+      booking_reference: string;
+    },
     venue_slug: string
-  ): Promise<boolean> {
-    return this.sendEmail({
-      to: [guestEmail],
-      template_key: 'booking_reminder',
-      variables: bookingData,
-      venue_slug
-    });
-  }
+  ) {
+    try {
+      // Get platform settings for branding
+      const { data: settings } = await supabase
+        .from('platform_settings')
+        .select('setting_key, setting_value')
+        .in('setting_key', ['from_email', 'from_name', 'email_signature']);
+
+      const platformSettings: Record<string, string> = {};
+      settings?.forEach(setting => {
+        try {
+          platformSettings[setting.setting_key] = JSON.parse(setting.setting_value);
+        } catch {
+          platformSettings[setting.setting_key] = setting.setting_value;
+        }
+      });
+
+      const { data, error } = await supabase.functions.invoke('send-email', {
+        body: {
+          to: guestEmail,
+          subject: `Booking Reminder - ${bookingData.venue_name}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <div style="text-align: center; margin-bottom: 30px;">
+                <h1 style="color: #ea580c; font-size: 32px; margin: 0;">grace</h1>
+                <p style="color: #64748b; margin: 5px 0;">Booking Reminder</p>
+              </div>
+              
+              <div style="background: #f8fafc; padding: 30px; border-radius: 8px;">
+                <h2 style="color: #1e293b; margin-top: 0;">Don't forget your booking!</h2>
+                <p>Dear ${bookingData.guest_name},</p>
+                <p>This is a friendly reminder about your upcoming booking at ${bookingData.venue_name}.</p>
+                
+                <div style="background: white; padding: 20px; border-radius: 5px; margin: 20px 0;">
+                  <h3 style="margin-top: 0; color: #ea580c;">Booking Details</h3>
+                  <p><strong>Reference:</strong> ${bookingData.booking_reference}</p>
+                  <p><strong>Date:</strong> ${bookingData.booking_date}</p>
+                  <p><strong>Time:</strong> ${bookingData.booking_time}</p>
+                  <p><strong>Party Size:</strong> ${bookingData.party_size}</p>
+                  <p><strong>Venue:</strong> ${bookingData.venue_name}</p>
+                </div>
+                
+                <p>We look forward to seeing you!</p>
+              </div>
+              
+              <div style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 30px;">
+                <p>${platformSettings.email_signature || 'Best regards,\nFred at Grace OS'}</p>
+              </div>
+            </div>
+          `,
+          from_email: platformSettings.from_email || 'noreply@grace-os.co.uk',
+          from_name: platformSettings.from_name || 'Fred at Grace OS',
+        },
+      });
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Failed to send booking reminder:', error);
+      return false;
+    }
+  },
 
   async sendUserInvitation(
-    userEmail: string, 
-    invitationData: Record<string, string>
-  ): Promise<boolean> {
-    return this.sendEmail({
-      to: [userEmail],
-      template_key: 'user_invitation',
-      variables: invitationData
-    });
-  }
-}
+    userEmail: string,
+    invitationData: {
+      venue_name: string;
+      invitation_link: string;
+    }
+  ) {
+    try {
+      // Get platform settings for branding
+      const { data: settings } = await supabase
+        .from('platform_settings')
+        .select('setting_key, setting_value')
+        .in('setting_key', ['from_email', 'from_name', 'email_signature']);
 
-export const emailService = EmailService.getInstance();
+      const platformSettings: Record<string, string> = {};
+      settings?.forEach(setting => {
+        try {
+          platformSettings[setting.setting_key] = JSON.parse(setting.setting_value);
+        } catch {
+          platformSettings[setting.setting_key] = setting.setting_value;
+        }
+      });
+
+      const { data, error } = await supabase.functions.invoke('send-email', {
+        body: {
+          to: userEmail,
+          subject: `You're invited to join ${invitationData.venue_name} on Grace OS`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <div style="text-align: center; margin-bottom: 30px;">
+                <h1 style="color: #ea580c; font-size: 32px; margin: 0;">grace</h1>
+                <p style="color: #64748b; margin: 5px 0;">You're Invited!</p>
+              </div>
+              
+              <div style="background: #f8fafc; padding: 30px; border-radius: 8px;">
+                <h2 style="color: #1e293b; margin-top: 0;">Join ${invitationData.venue_name}</h2>
+                <p>You've been invited to join ${invitationData.venue_name} on Grace OS, the modern hospitality management platform.</p>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                  <a href="${invitationData.invitation_link}" style="background: #ea580c; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">Accept Invitation</a>
+                </div>
+                
+                <p>If the button doesn't work, copy and paste this link:</p>
+                <p style="word-break: break-all; color: #ea580c;">${invitationData.invitation_link}</p>
+              </div>
+              
+              <div style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 30px;">
+                <p>${platformSettings.email_signature || 'Best regards,\nFred at Grace OS'}</p>
+              </div>
+            </div>
+          `,
+          from_email: platformSettings.from_email || 'noreply@grace-os.co.uk',
+          from_name: platformSettings.from_name || 'Fred at Grace OS',
+        },
+      });
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Failed to send user invitation:', error);
+      return false;
+    }
+  },
+};

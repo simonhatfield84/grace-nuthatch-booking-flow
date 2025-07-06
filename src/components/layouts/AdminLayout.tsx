@@ -1,81 +1,80 @@
 
-import { AppSidebar } from "@/components/AdminSidebar";
-import { SidebarProvider } from "@/components/ui/sidebar";
-import { SidebarTrigger } from "@/components/ui/sidebar";
+import { Outlet, useNavigate } from "react-router-dom";
+import { AdminSidebar } from "@/components/AdminSidebar";
 import { Button } from "@/components/ui/button";
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { LogOut, User } from "lucide-react";
-import { Outlet } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { ChangePasswordDialog } from "@/components/auth/ChangePasswordDialog";
 
-export function AdminLayout({ children }: { children?: React.ReactNode }) {
-  const { user, signOut } = useAuth();
+export function AdminLayout() {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
-  const handleSignOut = async () => {
-    await signOut();
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      toast({
+        title: "Signed out successfully",
+        description: "You have been logged out of your account.",
+      });
+      
+      // Redirect to homepage
+      navigate('/', { replace: true });
+    } catch (error: any) {
+      console.error('Logout error:', error);
+      toast({
+        title: "Logout Failed",
+        description: error.message || "An error occurred during logout.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const userInitials = user?.user_metadata?.first_name && user?.user_metadata?.last_name
-    ? `${user.user_metadata.first_name[0]}${user.user_metadata.last_name[0]}`
-    : user?.email?.[0].toUpperCase() || 'U';
-
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full">
-        <AppSidebar />
-        <main className="flex-1 flex flex-col">
-          <header className="h-16 flex items-center justify-between px-6 border-b bg-card shadow-sm">
-            <div className="flex items-center">
-              <SidebarTrigger className="mr-4 text-primary hover:bg-accent" />
-              <div className="grace-logo text-3xl font-bold">
-                grace
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              <div className="text-sm text-muted-foreground font-poppins">
-                Grace OS Dashboard
-              </div>
-              
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback className="text-xs">
-                        {userInitials}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
-                  <DropdownMenuItem className="flex-col items-start">
-                    <div className="text-sm font-medium">
-                      {user?.user_metadata?.first_name} {user?.user_metadata?.last_name}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {user?.email}
-                    </div>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleSignOut}>
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Log out</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </header>
-          <div className="flex-1 p-6 bg-background">
-            {children}
-            <Outlet />
-          </div>
+    <div className="flex h-screen bg-background">
+      <AdminSidebar />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <header className="border-b bg-background px-6 py-4 flex items-center justify-between">
+          <div className="grace-logo text-2xl font-bold">grace</div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                <Avatar className="h-8 w-8">
+                  <AvatarFallback>
+                    {user?.email?.charAt(0).toUpperCase() || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56" align="end">
+              <DropdownMenuItem disabled className="font-normal">
+                <User className="mr-2 h-4 w-4" />
+                {user?.email}
+              </DropdownMenuItem>
+              <ChangePasswordDialog />
+              <DropdownMenuItem onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </header>
+        <main className="flex-1 overflow-auto p-6">
+          <Outlet />
         </main>
       </div>
-    </SidebarProvider>
+    </div>
   );
 }

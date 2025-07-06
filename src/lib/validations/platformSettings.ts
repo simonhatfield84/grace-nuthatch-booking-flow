@@ -14,7 +14,11 @@ export const emailSettingsSchema = z.object({
   smtp_username: z.string().optional(),
   smtp_password: z.string().optional(),
   from_email: z.string().email("Invalid email address"),
+  from_name: z.string().min(1, "From name is required"),
   email_signature: z.string().optional(),
+  email_logo_url: z.string().optional(),
+  email_primary_color: z.string().min(1, "Primary color is required"),
+  email_secondary_color: z.string().min(1, "Secondary color is required"),
 });
 
 export const billingSettingsSchema = z.object({

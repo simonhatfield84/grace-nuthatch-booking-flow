@@ -20,7 +20,11 @@ export interface PlatformSettingsState {
   smtp_username: string;
   smtp_password: string;
   from_email: string;
+  from_name: string;
   email_signature: string;
+  email_logo_url: string;
+  email_primary_color: string;
+  email_secondary_color: string;
   platform_logo_url: string;
   primary_color: string;
   secondary_color: string;

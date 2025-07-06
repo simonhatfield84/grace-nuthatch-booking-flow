@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { PasswordStrength } from '@/components/ui/password-strength';
+import { PasswordResetForm } from '@/components/auth/PasswordResetForm';
 
 const Auth = () => {
   const [loading, setLoading] = useState(false);
@@ -22,6 +23,13 @@ const Auth = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+
+  // Check for password reset tokens in URL
+  const accessToken = searchParams.get('access_token');
+  const refreshToken = searchParams.get('refresh_token');
+  const type = searchParams.get('type');
+  const isPasswordReset = type === 'recovery' && accessToken && refreshToken;
 
   // Check user type after login to determine redirect
   const { data: userType, isLoading: userTypeLoading } = useQuery({
@@ -110,7 +118,7 @@ const Auth = () => {
     setLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth`,
+        redirectTo: `https://grace-os.co.uk/auth`,
       });
 
       if (error) throw error;
@@ -136,6 +144,21 @@ const Auth = () => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  // Show password reset form if tokens are present
+  if (isPasswordReset) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="grace-logo text-4xl font-bold mb-2">grace</div>
+            <p className="text-muted-foreground">Reset Your Password</p>
+          </div>
+          <PasswordResetForm accessToken={accessToken} refreshToken={refreshToken} />
+        </div>
       </div>
     );
   }
