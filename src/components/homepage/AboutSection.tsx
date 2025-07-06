@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -28,7 +29,7 @@ const AboutSection = () => {
             <div className="flex flex-col items-center text-center mb-6">
               <div className="w-32 h-32 rounded-full overflow-hidden mb-4 border-4 border-grace-primary">
                 <img 
-                  src="/lovable-uploads/ea097850-d954-4282-a258-537b8d0ea756.png" 
+                  src="/simon.png" 
                   alt="Simon Hatfield - Hospitality veteran and Grace OS co-creator" 
                   className="w-full h-full object-cover"
                   onError={() => handleImageError('Simon')}
@@ -79,7 +80,7 @@ const AboutSection = () => {
             <div className="flex flex-col items-center text-center mb-6">
               <div className="w-32 h-32 rounded-full overflow-hidden mb-4 border-4 border-grace-primary">
                 <img 
-                  src="/lovable-uploads/629dca92-ecc7-4e24-a71c-37e3679ca839.png" 
+                  src="/fred.png" 
                   alt="Fred the AI - Grace OS co-creator and coding partner" 
                   className="w-full h-full object-cover"
                   onError={() => handleImageError('Fred')}
