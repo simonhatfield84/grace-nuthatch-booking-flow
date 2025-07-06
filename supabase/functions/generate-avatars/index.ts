@@ -20,14 +20,14 @@ serve(async (req) => {
     
     let prompt = '';
     if (character === 'simon') {
-      prompt = 'Professional portrait of a friendly British hospitality manager in his 40s, warm smile, business casual attire, confident but approachable demeanor, high quality digital art style, circular crop, clean background';
+      prompt = 'Professional business portrait, friendly smile, business attire, confident demeanor, digital art style';
     } else if (character === 'fred') {
-      prompt = 'Friendly AI assistant character, modern digital avatar, tech-inspired design with warm colors, approachable robotic features, professional but playful, high quality digital art style, circular crop, clean background';
+      prompt = 'Friendly robot mascot character, modern tech design, colorful and approachable, digital art style';
     } else {
       throw new Error('Invalid character specified');
     }
 
-    console.log(`Generating avatar for ${character} with prompt:`, prompt);
+    console.log(`Generating avatar for ${character} with simplified prompt:`, prompt);
 
     const response = await fetch('https://api.openai.com/v1/images/generations', {
       method: 'POST',
@@ -47,12 +47,18 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorData = await response.text();
-      console.error('OpenAI API error:', errorData);
+      console.error('OpenAI API error details:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorData: errorData,
+        character: character,
+        prompt: prompt
+      });
       throw new Error(`OpenAI API error: ${response.status} - ${errorData}`);
     }
 
     const data = await response.json();
-    console.log('OpenAI response received for', character);
+    console.log('OpenAI response received successfully for', character);
     
     const imageBase64 = data.data[0].b64_json;
     
@@ -63,7 +69,11 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
-    console.error('Error in generate-avatars function:', error);
+    console.error('Error in generate-avatars function:', {
+      message: error.message,
+      stack: error.stack,
+      timestamp: new Date().toISOString()
+    });
     return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
