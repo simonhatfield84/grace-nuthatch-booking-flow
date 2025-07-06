@@ -13,12 +13,7 @@ const ContactSection = () => {
           We're documenting the entire journey—costs, challenges, and breakthroughs.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          <Link to="/auth">
-            <Button size="lg" className="text-lg px-8 py-3 bg-white text-grace-secondary hover:bg-gray-100">
-              View Live Dashboard
-            </Button>
-          </Link>
-          <Button variant="outline" size="lg" className="text-lg px-8 py-3 border-white text-white hover:bg-white hover:text-grace-secondary">
+          <Button size="lg" className="text-lg px-8 py-3 bg-white text-grace-secondary hover:bg-gray-100">
             <a href="mailto:hello@grace-os.co.uk">Get In Touch</a>
           </Button>
         </div>

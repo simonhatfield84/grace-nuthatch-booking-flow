@@ -12,7 +12,7 @@ const DevelopmentJournal = () => {
     <section id="journal" className="container mx-auto px-4 py-20">
       <div className="text-center mb-12">
         <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-          Daily Development Updates
+          Latest System Updates
         </h2>
         <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
           Real conversations between Simon and Fred, documenting the ups, downs, 

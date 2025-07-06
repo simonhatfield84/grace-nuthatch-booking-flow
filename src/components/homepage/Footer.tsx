@@ -1,6 +1,5 @@
 
 import React from 'react';
-import { Link } from 'react-router-dom';
 import { calculateStats } from '@/data/developmentStats';
 
 const Footer = () => {
@@ -22,8 +21,7 @@ const Footer = () => {
             <ul className="space-y-2 text-gray-400">
               <li><a href="#project" className="hover:text-white">Development Story</a></li>
               <li><a href="#architecture" className="hover:text-white">Architecture</a></li>
-              <li><a href="#journal" className="hover:text-white">Development Journal</a></li>
-              <li><Link to="/auth" className="hover:text-white">Live Dashboard</Link></li>
+              <li><a href="#journal" className="hover:text-white">Latest Updates</a></li>
             </ul>
           </div>
           <div>

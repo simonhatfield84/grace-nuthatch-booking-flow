@@ -9,19 +9,15 @@ const HeroSection = () => {
         AI-Assisted Hospitality
         <span className="block text-grace-primary">Management System</span>
       </h1>
-      <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto">
-        This ongoing AI-assisted collaboration between Fred (the AI developer) and Simon Hatfield 
-        demonstrates what's possible when human creativity meets AI coding capability. We're building 
-        a complete hospitality management system—EPOS, booking system, guest management, and more—
-        with full transparency about costs, time, and development process.
+      <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-4xl mx-auto">
+        This is a live, behind-the-scenes collaboration between Simon Hatfield—20 years in hospitality—and Fred, his AI coding partner. Together we're building a full hospitality management system from the ground up: reservations today, with CRM, marketing, guest Wi-Fi and EPOS on the roadmap. There's no outside funding, no marketing fluff—just honest, day-by-day documentation of what we actually build, the bugs we squash, and the lessons we learn.
       </p>
-      <p className="text-lg text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto">
-        This isn't a product sales page. It's a live documentation of an AI-human development 
-        partnership, showing real costs, real time investment, and real results.
+      <p className="text-lg text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto">
+        We track every "command" Simon gives Fred and log our time and costs in real time. You'll see exactly how many hours we've spent and how much it's all costing, because this isn't a product launch—it's an experiment in human-AI teamwork. Follow along to watch Grace OS grow piece by piece.
       </p>
       <div className="flex justify-center mb-8">
         <Button size="lg" className="text-lg px-8 py-3">
-          <a href="#journal">View Today's Update</a>
+          <a href="#journal">View Latest Updates</a>
         </Button>
       </div>
       <p className="text-sm text-gray-500 dark:text-gray-400">
