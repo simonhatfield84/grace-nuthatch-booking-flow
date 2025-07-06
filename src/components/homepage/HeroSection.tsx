@@ -16,14 +16,14 @@ const HeroSection = () => {
         just transparent development documenting what's possible with AI coding assistance.
       </p>
       <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
+        <Button size="lg" className="text-lg px-8 py-3">
+          <a href="#journal">View Today's Update</a>
+        </Button>
         <Link to="/auth">
-          <Button size="lg" className="text-lg px-8 py-3">
+          <Button variant="outline" size="lg" className="text-lg px-8 py-3">
             View Live Dashboard
           </Button>
         </Link>
-        <Button variant="outline" size="lg" className="text-lg px-8 py-3">
-          <a href="#project">See Development Progress</a>
-        </Button>
       </div>
       <p className="text-sm text-gray-500 dark:text-gray-400">
         Questions about this AI build project? Email{' '}
