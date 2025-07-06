@@ -7,7 +7,7 @@ const StatsSection = () => {
   const stats = calculateStats();
 
   return (
-    <section id="project" className="container mx-auto px-4 py-20 bg-muted/30">
+    <section id="stats" className="container mx-auto px-4 py-20 bg-muted/30">
       <h2 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-12">
         Development Transparency
       </h2>

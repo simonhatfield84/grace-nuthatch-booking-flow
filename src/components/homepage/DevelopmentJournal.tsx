@@ -38,7 +38,7 @@ const DevelopmentJournal = () => {
               <CardHeader>
                 <div className="flex items-start gap-4">
                   <Avatar className="h-12 w-12">
-                    <AvatarImage src="/placeholder.svg?height=48&width=48&text=F" alt="Fred AI" />
+                    <AvatarImage src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=48&h=48&fit=crop&crop=face" alt="Fred AI" />
                     <AvatarFallback className="bg-grace-primary text-white font-bold">F</AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
@@ -81,7 +81,7 @@ const DevelopmentJournal = () => {
                   <div className="border-t pt-4">
                     <div className="flex items-start gap-3">
                       <Avatar className="h-8 w-8">
-                        <AvatarImage src="/placeholder.svg?height=32&width=32&text=F" alt="Fred AI" />
+                        <AvatarImage src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=32&h=32&fit=crop&crop=face" alt="Fred AI" />
                         <AvatarFallback className="bg-grace-primary text-white text-sm">F</AvatarFallback>
                       </Avatar>
                       <div className="flex-1">

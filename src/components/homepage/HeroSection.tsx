@@ -1,6 +1,5 @@
 
 import React from 'react';
-import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 
 const HeroSection = () => {
@@ -11,19 +10,19 @@ const HeroSection = () => {
         <span className="block text-grace-primary">Management System</span>
       </h1>
       <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-3xl mx-auto">
-        This is an ongoing AI-assisted collaboration between Fred (AI) and Simon Hatfield, 
-        building a custom EPOS and booking system from the ground up. No funding, no sales pitch—
-        just transparent development documenting what's possible with AI coding assistance.
+        This ongoing AI-assisted collaboration between Fred (the AI developer) and Simon Hatfield 
+        demonstrates what's possible when human creativity meets AI coding capability. We're building 
+        a complete hospitality management system—EPOS, booking system, guest management, and more—
+        with full transparency about costs, time, and development process.
       </p>
-      <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
+      <p className="text-lg text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto">
+        This isn't a product sales page. It's a live documentation of an AI-human development 
+        partnership, showing real costs, real time investment, and real results.
+      </p>
+      <div className="flex justify-center mb-8">
         <Button size="lg" className="text-lg px-8 py-3">
           <a href="#journal">View Today's Update</a>
         </Button>
-        <Link to="/auth">
-          <Button variant="outline" size="lg" className="text-lg px-8 py-3">
-            View Live Dashboard
-          </Button>
-        </Link>
       </div>
       <p className="text-sm text-gray-500 dark:text-gray-400">
         Questions about this AI build project? Email{' '}

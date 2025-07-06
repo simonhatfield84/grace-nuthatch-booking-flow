@@ -4,7 +4,6 @@ import Header from '@/components/homepage/Header';
 import HeroSection from '@/components/homepage/HeroSection';
 import DevelopmentJournal from '@/components/homepage/DevelopmentJournal';
 import StatsSection from '@/components/homepage/StatsSection';
-import FeaturesSection from '@/components/homepage/FeaturesSection';
 import ContactSection from '@/components/homepage/ContactSection';
 import Footer from '@/components/homepage/Footer';
 
@@ -15,7 +14,6 @@ const HomePage = () => {
       <HeroSection />
       <DevelopmentJournal />
       <StatsSection />
-      <FeaturesSection />
       <ContactSection />
       <Footer />
     </div>

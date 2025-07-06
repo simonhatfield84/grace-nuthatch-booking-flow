@@ -9,8 +9,7 @@ const Header = () => {
       <div className="container mx-auto px-4 py-4 flex justify-between items-center">
         <div className="grace-logo text-3xl font-bold">grace</div>
         <nav className="hidden md:flex space-x-6">
-          <a href="#project" className="text-gray-700 hover:text-grace-primary dark:text-gray-300">About This Project</a>
-          <a href="#architecture" className="text-gray-700 hover:text-grace-primary dark:text-gray-300">Architecture</a>
+          <a href="#stats" className="text-gray-700 hover:text-grace-primary dark:text-gray-300">Development Transparency</a>
           <a href="#journal" className="text-gray-700 hover:text-grace-primary dark:text-gray-300">Development Journal</a>
           <a href="#contact" className="text-gray-700 hover:text-grace-primary dark:text-gray-300">Contact</a>
         </nav>
