@@ -15,15 +15,20 @@ export const BlockOverlay = ({ selectedDate, venueHours, tableId }: BlockOverlay
   if (!venueHours) return null;
 
   const calculateLeftPixels = (blockStartTime: string) => {
-    const [startHour, startMin] = venueHours.start_time.split(':').map(Number);
-    const [blockHour, blockMin] = blockStartTime.split(':').map(Number);
+    // Generate the same time slots as in NewTimeGrid
+    const timeSlots: string[] = [];
+    const startHour = 12;
+    const endHour = 23;
     
-    const startTotalMin = startHour * 60 + startMin;
-    const blockTotalMin = blockHour * 60 + blockMin;
-    const diffMin = Math.max(0, blockTotalMin - startTotalMin);
-    
-    // Each 15-minute slot is 60px wide
-    return (diffMin / 15) * 60;
+    for (let hour = startHour; hour <= endHour; hour++) {
+      for (let minute = 0; minute < 60; minute += 15) {
+        const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+        timeSlots.push(timeString);
+      }
+    }
+
+    const startIndex = timeSlots.findIndex(slot => slot === blockStartTime);
+    return startIndex * 40; // 40px per slot
   };
 
   const calculateWidthPixels = (startTime: string, endTime: string) => {
@@ -34,8 +39,8 @@ export const BlockOverlay = ({ selectedDate, venueHours, tableId }: BlockOverlay
     const endTotalMin = endHour * 60 + endMin;
     const durationMin = endTotalMin - startTotalMin;
     
-    // Each 15-minute slot is 60px wide
-    return (durationMin / 15) * 60;
+    // Each 15-minute slot is 40px wide
+    return (durationMin / 15) * 40;
   };
 
   const relevantBlocks = blocks.filter(block => 
@@ -51,17 +56,16 @@ export const BlockOverlay = ({ selectedDate, venueHours, tableId }: BlockOverlay
         return (
           <div
             key={block.id}
-            className="absolute bg-red-500/30 border-2 border-red-500 rounded-sm flex items-center justify-center"
+            className="absolute bg-red-400/30 border border-red-400 rounded flex items-center justify-center z-15"
             style={{
               left: `${leftPixels}px`,
               width: `${widthPixels}px`,
-              top: '0px',
-              height: '44px',
-              zIndex: 5
+              top: '2px',
+              height: '44px'
             }}
             title={`Blocked: ${block.reason || 'No reason specified'}`}
           >
-            <Ban className="h-4 w-4 text-red-600" strokeWidth={3} />
+            <Ban className="h-3 w-3 text-red-600" strokeWidth={2} />
           </div>
         );
       })}
