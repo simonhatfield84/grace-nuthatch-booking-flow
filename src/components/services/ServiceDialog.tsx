@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -22,40 +23,58 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DurationRules } from "@/components/services/DurationRules";
 
 interface ServiceDialogProps {
-  service?: any;
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: () => void;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  editingService?: any;
+  newService: any;
+  setEditingService: (service: any) => void;
+  setNewService: (service: any) => void;
+  onAddService: () => Promise<boolean>;
+  onUpdateService: () => Promise<boolean>;
+  createServiceMutation: any;
+  updateServiceMutation: any;
+  onReset: () => void;
 }
 
-const ServiceDialog = ({ service, isOpen, onClose, onSave }: ServiceDialogProps) => {
+const ServiceDialog = ({ 
+  open, 
+  onOpenChange, 
+  editingService, 
+  newService, 
+  setEditingService, 
+  setNewService, 
+  onAddService, 
+  onUpdateService, 
+  createServiceMutation, 
+  updateServiceMutation, 
+  onReset 
+}: ServiceDialogProps) => {
   const { toast } = useToast();
-  const { createServiceMutation, updateServiceMutation } = useServices();
   const { tags, isLoading: isTagsLoading } = useTags();
 
-  const [title, setTitle] = useState(service?.title || '');
-  const [description, setDescription] = useState(service?.description || '');
-  const [minGuests, setMinGuests] = useState(service?.min_guests || 1);
-  const [maxGuests, setMaxGuests] = useState(service?.max_guests || 10);
-  const [leadTimeHours, setLeadTimeHours] = useState(service?.lead_time_hours || 24);
-  const [cancellationWindowHours, setCancellationWindowHours] = useState(service?.cancellation_window_hours || 24);
-  const [requiresDeposit, setRequiresDeposit] = useState(service?.requires_deposit || false);
-  const [depositPerGuest, setDepositPerGuest] = useState(service?.deposit_per_guest || 0);
-  const [onlineBookable, setOnlineBookable] = useState(service?.online_bookable || true);
-  const [active, setActive] = useState(service?.active || true);
-  const [isSecret, setIsSecret] = useState(service?.is_secret || false);
-  const [secretSlug, setSecretSlug] = useState(service?.secret_slug || '');
-  const [imageUrl, setImageUrl] = useState(service?.image_url || '');
-  const [selectedTags, setSelectedTags] = useState<string[]>(service?.tag_ids || []);
-  const [durationRules, setDurationRules] = useState(service?.duration_rules || []);
-  const [termsAndConditions, setTermsAndConditions] = useState(service?.terms_and_conditions || '');
+  const [title, setTitle] = useState(editingService?.title || newService?.title || '');
+  const [description, setDescription] = useState(editingService?.description || newService?.description || '');
+  const [minGuests, setMinGuests] = useState(editingService?.min_guests || newService?.min_guests || 1);
+  const [maxGuests, setMaxGuests] = useState(editingService?.max_guests || newService?.max_guests || 10);
+  const [leadTimeHours, setLeadTimeHours] = useState(editingService?.lead_time_hours || newService?.lead_time_hours || 24);
+  const [cancellationWindowHours, setCancellationWindowHours] = useState(editingService?.cancellation_window_hours || newService?.cancellation_window_hours || 24);
+  const [requiresDeposit, setRequiresDeposit] = useState(editingService?.requires_deposit || newService?.requires_deposit || false);
+  const [depositPerGuest, setDepositPerGuest] = useState(editingService?.deposit_per_guest || newService?.deposit_per_guest || 0);
+  const [onlineBookable, setOnlineBookable] = useState(editingService?.online_bookable ?? newService?.online_bookable ?? true);
+  const [active, setActive] = useState(editingService?.active ?? newService?.active ?? true);
+  const [isSecret, setIsSecret] = useState(editingService?.is_secret || newService?.is_secret || false);
+  const [secretSlug, setSecretSlug] = useState(editingService?.secret_slug || newService?.secret_slug || '');
+  const [imageUrl, setImageUrl] = useState(editingService?.image_url || newService?.image_url || '');
+  const [selectedTags, setSelectedTags] = useState<string[]>(editingService?.tag_ids || newService?.tag_ids || []);
+  const [durationRules, setDurationRules] = useState(editingService?.duration_rules || newService?.duration_rules || []);
+  const [termsAndConditions, setTermsAndConditions] = useState(editingService?.terms_and_conditions || newService?.terms_and_conditions || '');
 
   // Add payment-related form state
   const [paymentSettings, setPaymentSettings] = useState({
-    requires_payment: service?.requires_payment || false,
-    charge_type: service?.charge_type || 'venue_default',
-    minimum_guests_for_charge: service?.minimum_guests_for_charge || 8,
-    charge_amount_per_guest: service?.charge_amount_per_guest || 0,
+    requires_payment: editingService?.requires_payment || newService?.requires_payment || false,
+    charge_type: editingService?.charge_type || newService?.charge_type || 'venue_default',
+    minimum_guests_for_charge: editingService?.minimum_guests_for_charge || newService?.minimum_guests_for_charge || 8,
+    charge_amount_per_guest: editingService?.charge_amount_per_guest || newService?.charge_amount_per_guest || 0,
   });
 
   const handleTagToggle = (tagId: string) => {
@@ -102,19 +121,26 @@ const ServiceDialog = ({ service, isOpen, onClose, onSave }: ServiceDialogProps)
         charge_amount_per_guest: paymentSettings.charge_amount_per_guest,
       };
 
-      if (service?.id) {
-        await updateServiceMutation.mutateAsync({ id: service.id, updates: serviceData });
+      if (editingService?.id) {
+        const success = await onUpdateService();
+        if (success) {
+          onOpenChange(false);
+          onReset();
+        }
       } else {
-        await createServiceMutation.mutateAsync(serviceData);
+        const success = await onAddService();
+        if (success) {
+          onOpenChange(false);
+          onReset();
+        }
       }
-      
-      onClose();
     } catch (error) {
       console.error('Service save error:', error);
     }
   };
 
   useEffect(() => {
+    const service = editingService || newService;
     if (service) {
       setTitle(service.title || '');
       setDescription(service.description || '');
@@ -124,8 +150,8 @@ const ServiceDialog = ({ service, isOpen, onClose, onSave }: ServiceDialogProps)
       setCancellationWindowHours(service.cancellation_window_hours || 24);
       setRequiresDeposit(service.requires_deposit || false);
       setDepositPerGuest(service.deposit_per_guest || 0);
-      setOnlineBookable(service.online_bookable || true);
-      setActive(service.active || true);
+      setOnlineBookable(service.online_bookable ?? true);
+      setActive(service.active ?? true);
       setIsSecret(service.is_secret || false);
       setSecretSlug(service.secret_slug || '');
       setImageUrl(service.image_url || '');
@@ -139,14 +165,14 @@ const ServiceDialog = ({ service, isOpen, onClose, onSave }: ServiceDialogProps)
         charge_amount_per_guest: service.charge_amount_per_guest || 0,
       });
     }
-  }, [service]);
+  }, [editingService, newService]);
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <form onSubmit={handleSubmit} className="space-y-6">
           <DialogHeader>
-            <DialogTitle>{service ? 'Edit Service' : 'Create New Service'}</DialogTitle>
+            <DialogTitle>{editingService ? 'Edit Service' : 'Create New Service'}</DialogTitle>
             <DialogDescription>
               Configure your service settings and availability
             </DialogDescription>
@@ -422,6 +448,7 @@ const ServiceDialog = ({ service, isOpen, onClose, onSave }: ServiceDialogProps)
                     tags.map((tag) => (
                       <Button
                         key={tag.id}
+                        type="button"
                         variant={selectedTags.includes(tag.id) ? "default" : "outline"}
                         onClick={() => handleTagToggle(tag.id)}
                       >
@@ -446,7 +473,7 @@ const ServiceDialog = ({ service, isOpen, onClose, onSave }: ServiceDialogProps)
           </Tabs>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button 
