@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { NewTimeGrid } from "@/components/host/NewTimeGrid";
 import { BookingListView } from "@/components/host/BookingListView";
 import { QuickWalkInDialog } from "@/components/host/QuickWalkInDialog";
-import { BookingActionsPanel } from "@/components/host/BookingActionsPanel";
+import { BookingDetailsPanel } from "@/components/host/BookingDetailsPanel";
 import { IPadCalendar } from "@/components/host/IPadCalendar";
 import { Users, Calendar, Plus, Grid, List, ToggleLeft, ToggleRight } from "lucide-react";
 
@@ -130,38 +130,6 @@ const NewHostInterface = () => {
     }
   };
 
-  const handleExtendBooking = async (bookingId: number, minutes: number) => {
-    const booking = bookings.find(b => b.id === bookingId);
-    if (!booking) return;
-
-    try {
-      await updateBooking({
-        id: bookingId,
-        updates: {
-          duration_minutes: booking.duration_minutes + minutes
-        }
-      });
-
-      toast({
-        title: "Booking extended",
-        description: `Added ${minutes} minutes to booking`,
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to extend booking",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const handleExtendUntilNext = async (bookingId: number) => {
-    toast({
-      title: "Feature coming soon",
-      description: "Extend until next booking feature is being implemented",
-    });
-  };
-
   const handleStatusChange = async (booking: Booking, newStatus: string) => {
     try {
       const updateData: any = { status: newStatus };
@@ -195,6 +163,11 @@ const NewHostInterface = () => {
 
   const handleBookingClick = (booking: Booking) => {
     setSelectedBooking(booking);
+  };
+
+  const handleBookingUpdate = () => {
+    // Refresh bookings after update
+    // The useBookings hook will automatically refetch
   };
 
   const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
@@ -280,12 +253,11 @@ const NewHostInterface = () => {
         {/* Side Panel */}
         <div className={`${selectedBooking ? 'col-span-4' : 'col-span-3'} space-y-4`}>
           {selectedBooking ? (
-            <BookingActionsPanel
+            <BookingDetailsPanel
               booking={selectedBooking}
               onClose={() => setSelectedBooking(null)}
-              onExtendBooking={handleExtendBooking}
-              onExtendUntilNext={handleExtendUntilNext}
               onStatusChange={handleStatusChange}
+              onBookingUpdate={handleBookingUpdate}
             />
           ) : (
             <div className="bg-gray-800 rounded-lg shadow-sm p-4 border border-gray-700">
