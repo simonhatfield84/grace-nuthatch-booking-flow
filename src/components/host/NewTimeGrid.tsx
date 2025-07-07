@@ -60,21 +60,6 @@ export const NewTimeGrid = ({
     return () => clearInterval(interval);
   }, []);
 
-  // Debug logging
-  console.log('🔍 TimeGrid Debug:', {
-    selectedDate: format(selectedDate, 'yyyy-MM-dd'),
-    bookingsReceived: bookings.length,
-    bookingsDetails: bookings.map(b => ({
-      id: b.id,
-      guest_name: b.guest_name,
-      table_id: b.table_id,
-      status: b.status,
-      booking_time: b.booking_time
-    })),
-    tablesCount: tables.length,
-    sectionsCount: sections.length
-  });
-
   const generateTimeSlots = () => {
     if (!venueHours) return [];
     
@@ -173,9 +158,34 @@ export const NewTimeGrid = ({
     }
   };
 
+  // Create a flat array of tables with their row positions
+  const getTablesWithPositions = () => {
+    const tablesWithPositions: Array<Table & { rowIndex: number }> = [];
+    let currentRow = 0;
+    
+    sections.forEach((section) => {
+      const sectionTables = tables.filter(t => t.section_id === section.id && t.status === 'active');
+      sectionTables.forEach((table) => {
+        tablesWithPositions.push({ ...table, rowIndex: currentRow });
+        currentRow += 1;
+      });
+    });
+    
+    return tablesWithPositions;
+  };
+
+  const tablesWithPositions = getTablesWithPositions();
   const currentTimePosition = getCurrentTimePosition();
   const totalWidth = timeSlots.length * 60;
   const activeTables = tables.filter(t => t.status === 'active');
+
+  console.log('🔍 TimeGrid Debug:', {
+    selectedDate: format(selectedDate, 'yyyy-MM-dd'),
+    bookingsReceived: bookings.length,
+    tablesCount: activeTables.length,
+    sectionsCount: sections.length,
+    tablesWithPositions: tablesWithPositions.map(t => ({ id: t.id, label: t.label, rowIndex: t.rowIndex }))
+  });
 
   return (
     <div className="h-full flex flex-col bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
@@ -252,87 +262,47 @@ export const NewTimeGrid = ({
           <ScrollArea className="h-full w-full">
             <div 
               className="relative"
-              style={{ minWidth: `${totalWidth}px`, height: `${activeTables.length * 48}px` }}
+              style={{ minWidth: `${totalWidth}px`, height: `${tablesWithPositions.length * 48}px` }}
             >
               {/* Time Grid Background */}
-              {sections.map((section) => {
-                const sectionTables = activeTables.filter(table => table.section_id === section.id);
-                
-                return sectionTables.map((table, tableIndex) => {
-                  const rowTop = sections.slice(0, sections.indexOf(section)).reduce((acc, s) => 
-                    acc + activeTables.filter(t => t.section_id === s.id).length, 0
-                  ) * 48 + tableIndex * 48;
+              {tablesWithPositions.map((table) => {
+                const rowTop = table.rowIndex * 48;
 
-                  return (
-                    <div key={table.id}>
-                      {/* Clickable Time Slots */}
-                      {timeSlots.map((time) => (
-                        <div
-                          key={`${table.id}-${time}`}
-                          className="absolute h-12 w-[60px] border-r border-gray-700 hover:bg-gray-600 cursor-pointer"
-                          style={{
-                            top: `${rowTop}px`,
-                            left: `${timeSlots.indexOf(time) * 60}px`
-                          }}
-                          data-time={time}
-                          data-table-id={table.id}
-                          onClick={(e) => handleTimeSlotClick(time, table.id, e)}
-                        />
-                      ))}
-                      
-                      {/* Table Row Border */}
+                return (
+                  <div key={table.id}>
+                    {/* Clickable Time Slots */}
+                    {timeSlots.map((time) => (
                       <div
-                        className="absolute w-full h-px bg-gray-700"
-                        style={{ top: `${rowTop + 48}px` }}
+                        key={`${table.id}-${time}`}
+                        className="absolute h-12 w-[60px] border-r border-gray-700 hover:bg-gray-600 cursor-pointer"
+                        style={{
+                          top: `${rowTop}px`,
+                          left: `${timeSlots.indexOf(time) * 60}px`
+                        }}
+                        data-time={time}
+                        data-table-id={table.id}
+                        onClick={(e) => handleTimeSlotClick(time, table.id, e)}
                       />
-                    </div>
-                  );
-                });
+                    ))}
+                    
+                    {/* Table Row Border */}
+                    <div
+                      className="absolute w-full h-px bg-gray-700"
+                      style={{ top: `${rowTop + 48}px` }}
+                    />
+                  </div>
+                );
               })}
 
               {/* Bookings */}
               {bookings.map((booking) => {
-                console.log('🎯 Rendering booking:', {
-                  id: booking.id,
-                  guest_name: booking.guest_name,
-                  table_id: booking.table_id,
-                  status: booking.status
-                });
-
-                if (!booking.table_id) {
-                  console.log('⚠️ Booking has no table_id:', booking.id);
-                  return null;
-                }
+                if (!booking.table_id) return null;
                 
-                const table = activeTables.find(t => t.id === booking.table_id);
-                if (!table) {
-                  console.log('⚠️ Table not found for booking:', booking.id, 'table_id:', booking.table_id);
-                  return null;
-                }
+                const tableWithPosition = tablesWithPositions.find(t => t.id === booking.table_id);
+                if (!tableWithPosition) return null;
                 
-                const section = sections.find(s => s.id === table.section_id);
-                if (!section) {
-                  console.log('⚠️ Section not found for table:', table.id);
-                  return null;
-                }
-                
-                const sectionIndex = sections.indexOf(section);
-                const tableIndex = activeTables.filter(t => t.section_id === section.id).indexOf(table);
-                
-                const rowTop = sections.slice(0, sectionIndex).reduce((acc, s) => 
-                  acc + activeTables.filter(t => t.section_id === s.id).length, 0
-                ) * 48 + tableIndex * 48;
-
+                const rowTop = tableWithPosition.rowIndex * 48;
                 const { left, width } = calculateBookingPosition(booking);
-
-                console.log('📍 Booking position:', {
-                  booking_id: booking.id,
-                  table: table.label,
-                  section: section.name,
-                  rowTop,
-                  left,
-                  width
-                });
 
                 return (
                   <div

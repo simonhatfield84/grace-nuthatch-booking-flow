@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -9,10 +10,11 @@ import { useTables } from "@/hooks/useTables";
 import { useBookings, Booking } from "@/hooks/useBookings";
 import { useToast } from "@/hooks/use-toast";
 import { NewTimeGrid } from "@/components/host/NewTimeGrid";
+import { BookingListView } from "@/components/host/BookingListView";
 import { QuickWalkInDialog } from "@/components/host/QuickWalkInDialog";
 import { BookingActionsPanel } from "@/components/host/BookingActionsPanel";
 import { IPadCalendar } from "@/components/host/IPadCalendar";
-import { Users, Calendar, Plus } from "lucide-react";
+import { Users, Calendar, Plus, Grid, List, ToggleLeft, ToggleRight } from "lucide-react";
 
 const NewHostInterface = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -20,6 +22,7 @@ const NewHostInterface = () => {
   const [walkInDialogOpen, setWalkInDialogOpen] = useState(false);
   const [selectedTable, setSelectedTable] = useState<any>(null);
   const [selectedTime, setSelectedTime] = useState('');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const { toast } = useToast();
 
   const { data: venueHours } = useVenueHours();
@@ -215,7 +218,29 @@ const NewHostInterface = () => {
           </div>
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
+          {/* View Toggle */}
+          <div className="flex items-center gap-2 bg-gray-800 p-1 rounded-lg border border-gray-700">
+            <Button 
+              variant={viewMode === 'grid' ? 'secondary' : 'ghost'} 
+              size="sm"
+              onClick={() => setViewMode('grid')}
+              className="h-8"
+            >
+              <Grid className="h-4 w-4 mr-1" />
+              Grid
+            </Button>
+            <Button 
+              variant={viewMode === 'list' ? 'secondary' : 'ghost'} 
+              size="sm"
+              onClick={() => setViewMode('list')}
+              className="h-8"
+            >
+              <List className="h-4 w-4 mr-1" />
+              List
+            </Button>
+          </div>
+          
           {isToday && (
             <Button onClick={() => setWalkInDialogOpen(true)} className="bg-grace-primary hover:bg-grace-primary/80">
               <Plus className="h-4 w-4 mr-2" />
@@ -230,18 +255,26 @@ const NewHostInterface = () => {
 
       {/* Main Interface */}
       <div className="grid grid-cols-12 gap-4 h-[calc(100vh-200px)]">
-        {/* Timeline Grid */}
+        {/* Main Content Area */}
         <div className={`${selectedBooking ? 'col-span-8' : 'col-span-9'} bg-gray-800 rounded-lg shadow-sm overflow-hidden border border-gray-700`}>
-          <NewTimeGrid
-            venueHours={venueHours}
-            tables={tables}
-            sections={sections}
-            bookings={bookings}
-            onWalkInClick={handleWalkInClick}
-            onBookingClick={handleBookingClick}
-            onBookingDrag={handleBookingDrag}
-            selectedDate={selectedDate}
-          />
+          {viewMode === 'grid' ? (
+            <NewTimeGrid
+              venueHours={venueHours}
+              tables={tables}
+              sections={sections}
+              bookings={bookings}
+              onWalkInClick={handleWalkInClick}
+              onBookingClick={handleBookingClick}
+              onBookingDrag={handleBookingDrag}
+              selectedDate={selectedDate}
+            />
+          ) : (
+            <BookingListView
+              bookings={bookings}
+              tables={tables}
+              onBookingClick={handleBookingClick}
+            />
+          )}
         </div>
 
         {/* Side Panel */}

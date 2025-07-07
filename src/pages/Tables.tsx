@@ -3,9 +3,8 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Plus, Layout, List } from "lucide-react";
+import { Plus, List } from "lucide-react";
 import { SectionManager } from "@/components/tables/SectionManager";
-import { FloorPlanCanvas } from "@/components/tables/FloorPlanCanvas";
 import { TableDialog } from "@/components/tables/TableDialog";
 import { SectionDialog } from "@/components/tables/SectionDialog";
 import { GroupDialog } from "@/components/tables/GroupDialog";
@@ -22,10 +21,9 @@ const Tables = () => {
   const [editingTable, setEditingTable] = useState<any>(null);
   const [editingSection, setEditingSection] = useState<any>(null);
   const [editingGroup, setEditingGroup] = useState<any>(null);
-  const [selectedTable, setSelectedTable] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState("list"); // Default to list view
+  const [activeTab, setActiveTab] = useState("list");
 
-  const { tables, createTable, updateTable, deleteTable, updateTablePositions } = useTables();
+  const { tables, createTable, updateTable, deleteTable } = useTables();
   const { sections, createSection, updateSection, deleteSection } = useSections();
   const {
     joinGroups,
@@ -70,15 +68,11 @@ const Tables = () => {
     setGroupDialogOpen(true);
   };
 
-  const handleUpdateTablePosition = async (tableId: number, x: number, y: number) => {
-    await updateTablePositions([{ id: tableId, position_x: x, position_y: y }]);
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Tables & Floor Plan</h1>
+          <h1 className="text-3xl font-bold">Tables Management</h1>
           <p className="text-muted-foreground">Manage your restaurant tables, sections, and seating arrangements</p>
         </div>
         <div className="flex gap-2">
@@ -105,10 +99,6 @@ const Tables = () => {
             <List className="h-4 w-4 mr-2" />
             List View
           </TabsTrigger>
-          <TabsTrigger value="floorplan">
-            <Layout className="h-4 w-4 mr-2" />
-            Floor Plan
-          </TabsTrigger>
           <TabsTrigger value="priorities">
             Booking Priorities
           </TabsTrigger>
@@ -120,29 +110,9 @@ const Tables = () => {
             onEditTable={handleEditTable}
             onDeleteTable={deleteTable}
             onAddTableToSection={handleCreateTable}
+            onEditSection={handleEditSection}
+            onDeleteSection={deleteSection}
           />
-        </TabsContent>
-
-        <TabsContent value="floorplan" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Layout className="h-5 w-5" />
-                Floor Plan Designer
-              </CardTitle>
-              <CardDescription>
-                Drag and drop tables to design your restaurant layout
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <FloorPlanCanvas 
-                tables={tables}
-                onUpdateTablePosition={handleUpdateTablePosition}
-                onTableSelect={setSelectedTable}
-                selectedTable={selectedTable}
-              />
-            </CardContent>
-          </Card>
         </TabsContent>
 
         <TabsContent value="priorities" className="space-y-6">

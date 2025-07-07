@@ -12,13 +12,17 @@ interface SectionManagerProps {
   onEditTable: (table: Table) => void;
   onDeleteTable: (tableId: number) => void;
   onAddTableToSection?: (sectionId: number) => void;
+  onEditSection: (section: any) => void;
+  onDeleteSection: (sectionId: number) => void;
 }
 
 export const SectionManager = ({ 
   tables, 
   onEditTable, 
   onDeleteTable,
-  onAddTableToSection 
+  onAddTableToSection,
+  onEditSection,
+  onDeleteSection
 }: SectionManagerProps) => {
   const { sections } = useSections();
   const [collapsedSections, setCollapsedSections] = useState<Set<number>>(new Set());
@@ -58,6 +62,8 @@ export const SectionManager = ({
                     section={section}
                     tableCount={sectionTables.length}
                     onAddTable={handleAddTable}
+                    onEditSection={onEditSection}
+                    onDeleteSection={onDeleteSection}
                     isCollapsed={isCollapsed}
                   />
                 </div>
