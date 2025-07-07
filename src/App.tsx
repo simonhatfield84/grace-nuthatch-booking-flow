@@ -26,7 +26,7 @@ import PlatformUsers from "./pages/PlatformUsers";
 import PlatformVenues from "./pages/PlatformVenues";
 import PlatformSubscriptions from "./pages/PlatformSubscriptions";
 import PlatformSupport from "./pages/PlatformSupport";
-import ProtectedRoute from "./components/auth/ProtectedRoute";
+import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import RootRedirect from "./components/auth/RootRedirect";
 
 const queryClient = new QueryClient();

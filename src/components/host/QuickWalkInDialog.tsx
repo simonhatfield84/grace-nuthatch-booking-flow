@@ -85,6 +85,10 @@ export const QuickWalkInDialog = ({
     onOpenChange(false);
   };
 
+  const handleGuestCheckChange = (checked: boolean | 'indeterminate') => {
+    setIncludeGuest(checked === true);
+  };
+
   if (!table) return null;
 
   return (
@@ -162,7 +166,7 @@ export const QuickWalkInDialog = ({
               <Checkbox
                 id="includeGuest"
                 checked={includeGuest}
-                onCheckedChange={setIncludeGuest}
+                onCheckedChange={handleGuestCheckChange}
               />
               <Label htmlFor="includeGuest" className="text-sm">
                 Add guest details

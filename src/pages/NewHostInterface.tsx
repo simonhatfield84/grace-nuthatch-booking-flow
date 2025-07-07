@@ -70,7 +70,8 @@ const NewHostInterface = () => {
         phone: null,
         email: null,
         notes: 'Walk-in customer',
-        service: 'Walk-In'
+        service: 'Walk-In',
+        original_table_id: null
       });
 
       toast({
@@ -158,7 +159,8 @@ const NewHostInterface = () => {
         updates: updateData
       });
 
-      setSelectedBooking({ ...booking, status: newStatus as Booking['status'] });
+      const updatedBooking = { ...booking, status: newStatus as Booking['status'] };
+      setSelectedBooking(updatedBooking);
       
       toast({
         title: "Status updated",
@@ -171,6 +173,10 @@ const NewHostInterface = () => {
         variant: "destructive"
       });
     }
+  };
+
+  const handleBookingClick = (booking: Booking) => {
+    setSelectedBooking(booking);
   };
 
   const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
@@ -217,7 +223,7 @@ const NewHostInterface = () => {
             sections={sections}
             bookings={bookings}
             onWalkInClick={handleWalkInClick}
-            onBookingClick={setSelectedBooking}
+            onBookingClick={handleBookingClick}
             onBookingDrag={handleBookingDrag}
             selectedDate={selectedDate}
           />

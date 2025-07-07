@@ -1,6 +1,6 @@
 
 import { Outlet, useNavigate } from "react-router-dom";
-import { AppSidebar } from "@/components/AdminSidebar";
+import AdminSidebar from "@/components/AdminSidebar";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -48,7 +48,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <div className="flex h-screen bg-background">
-      <AppSidebar />
+      <AdminSidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="border-b bg-background px-6 py-4 flex items-center justify-between">
           <div className="grace-logo text-2xl font-bold">grace</div>
