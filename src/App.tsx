@@ -36,7 +36,7 @@ const queryClient = new QueryClient();
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <ThemeProvider defaultTheme="light" storageKey="grace-theme">
+      <ThemeProvider defaultTheme="light" storageKey="grace-ui-theme">
         <TooltipProvider>
           <AuthProvider>
             <BrowserRouter>

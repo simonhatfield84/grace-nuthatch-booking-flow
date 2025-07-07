@@ -102,7 +102,7 @@ const Auth = () => {
     }
   }, [user, userType, userTypeLoading, navigate, location.state, searchParams, isPasswordReset]);
 
-  // Handle password input change - FIXED: Only show strength during sign up, not login
+  // Handle password input change
   const handlePasswordInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newPassword = e.target.value;
     setPassword(newPassword);
@@ -385,7 +385,7 @@ const Auth = () => {
                   minLength={isSignUp ? 12 : undefined}
                 />
                 {/* FIXED: Only show password strength during sign up */}
-                {isSignUp && password.length > 0 && (
+                {isSignUp && (
                   <div className="mt-2">
                     <PasswordStrength 
                       password={password} 
@@ -398,7 +398,7 @@ const Auth = () => {
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={loading || (isSignUp && password.length > 0 && !isPasswordValid)}
+                disabled={loading || (isSignUp && !isPasswordValid)}
               >
                 {loading ? (
                   <>
