@@ -10,9 +10,6 @@ export interface StripeSettings {
   stripe_account_id?: string;
   webhook_endpoint_secret?: string;
   is_active: boolean;
-  charge_type: 'none' | 'all_reservations' | 'large_groups';
-  minimum_guests_for_charge?: number;
-  charge_amount_per_guest: number;
   test_mode: boolean;
 }
 
