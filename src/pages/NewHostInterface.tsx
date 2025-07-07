@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -12,13 +11,13 @@ import { useServices } from "@/hooks/useServices";
 import { useToast } from "@/hooks/use-toast";
 import { NewTimeGrid } from "@/components/host/NewTimeGrid";
 import { BookingListView } from "@/components/host/BookingListView";
-import { EnhancedWalkInDialog } from "@/components/host/EnhancedWalkInDialog";
+import { QuickWalkInDialog } from "@/components/host/QuickWalkInDialog";
 import { BookingDetailsPanel } from "@/components/host/BookingDetailsPanel";
 import { CollapsibleCalendar } from "@/components/host/CollapsibleCalendar";
 import { BlockDialog } from "@/components/host/BlockDialog";
 import { BlockManagementDialog } from "@/components/host/BlockManagementDialog";
 import { FullBookingDialog } from "@/components/host/FullBookingDialog";
-import { Users, Grid, List, Ban, PlusCircle, BarChart3, Clock, CheckCircle, UserCheck } from "lucide-react";
+import { Users, Grid, List, Ban, PlusCircle, BarChart3, Clock, CheckCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Block } from "@/hooks/useBlocks";
 
@@ -64,16 +63,10 @@ const NewHostInterface = () => {
     sectionsCount: sections.length
   });
 
-  // Fixed statistics calculation
   const totalBookings = bookings.length;
-  const confirmedAndLateBookings = bookings.filter(booking => 
-    booking.status === 'confirmed' || booking.status === 'late'
-  );
-  const remainingCovers = confirmedAndLateBookings.reduce((sum, booking) => sum + booking.party_size, 0);
-  const seatedBookings = bookings.filter(booking => booking.status === 'seated');
-  const currentlySeatedCovers = seatedBookings.reduce((sum, booking) => sum + booking.party_size, 0);
-  const finishedBookings = bookings.filter(booking => booking.status === 'finished');
-  const finishedCovers = finishedBookings.reduce((sum, booking) => sum + booking.party_size, 0);
+  const remainingBookings = bookings.filter(booking => booking.status === 'confirmed').length;
+  const currentlySeated = bookings.filter(booking => booking.status === 'seated').length;
+  const finishedBookings = bookings.filter(booking => booking.status === 'finished').length;
 
   const handleWalkInClick = (tableId: number, time: string) => {
     const table = tables.find(t => t.id === tableId);
@@ -206,20 +199,22 @@ const NewHostInterface = () => {
   const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
 
   return (
-    <div className="space-y-3 bg-background text-foreground p-3">
-      {/* Compact Header */}
-      <div className="bg-card border border-border rounded-lg p-3 shadow-sm">
+    <div className="space-y-6 bg-background text-foreground">
+      {/* Header */}
+      <div className="bg-card border border-border rounded-lg p-4 shadow-sm">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <span className="text-base font-medium text-foreground">
-                {format(selectedDate, 'EEEE, MMMM do, yyyy')}
-              </span>
-              {isToday && <span className="ml-2 text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full font-medium">TODAY</span>}
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-4 text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-medium text-foreground">
+                  {format(selectedDate, 'EEEE, MMMM do, yyyy')}
+                </span>
+                {isToday && <span className="ml-2 text-xs bg-primary text-primary-foreground px-2 py-1 rounded-full font-medium">TODAY</span>}
+              </div>
             </div>
           </div>
           
-          <div className="flex gap-2 items-center">
+          <div className="flex gap-3 items-center">
             <CollapsibleCalendar
               selectedDate={selectedDate}
               onDateSelect={setSelectedDate}
@@ -231,18 +226,18 @@ const NewHostInterface = () => {
                 variant={viewMode === 'grid' ? 'default' : 'ghost'} 
                 size="sm"
                 onClick={() => setViewMode('grid')}
-                className="h-8 text-xs px-2"
+                className="h-9 text-sm"
               >
-                <Grid className="h-3 w-3 mr-1" />
+                <Grid className="h-4 w-4 mr-1" />
                 Grid
               </Button>
               <Button 
                 variant={viewMode === 'list' ? 'default' : 'ghost'} 
                 size="sm"
                 onClick={() => setViewMode('list')}
-                className="h-8 text-xs px-2"
+                className="h-9 text-sm"
               >
-                <List className="h-3 w-3 mr-1" />
+                <List className="h-4 w-4 mr-1" />
                 List
               </Button>
             </div>
@@ -251,9 +246,9 @@ const NewHostInterface = () => {
               onClick={() => navigate('/dashboard')} 
               variant="outline"
               size="sm"
-              className="text-xs px-2 h-8"
+              className="text-sm"
             >
-              <BarChart3 className="h-3 w-3 mr-1" />
+              <BarChart3 className="h-4 w-4 mr-1" />
               Dashboard
             </Button>
             
@@ -261,56 +256,51 @@ const NewHostInterface = () => {
               onClick={() => setFullBookingDialogOpen(true)} 
               variant="outline"
               size="sm"
-              className="text-xs px-2 h-8"
+              className="text-sm"
             >
-              <PlusCircle className="h-3 w-3 mr-1" />
-              New
+              <PlusCircle className="h-4 w-4 mr-1" />
+              New Booking
             </Button>
             
             <Button 
               onClick={() => setBlockDialogOpen(true)} 
               variant="outline"
               size="sm"
-              className="text-xs px-2 h-8"
+              className="text-sm"
             >
-              <Ban className="h-3 w-3 mr-1" />
+              <Ban className="h-4 w-4 mr-1" />
               Block
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Compact Statistics Bar */}
-      <div className="bg-card border border-border rounded-lg p-2 shadow-sm">
-        <div className="flex items-center justify-between text-sm">
-          <div className="flex items-center gap-4 text-muted-foreground">
-            <div className="flex items-center gap-1">
-              <Clock className="h-4 w-4 text-primary" />
-              <span className="text-foreground font-medium">{remainingCovers}</span>
-              <span className="text-xs">covers remaining</span>
+      {/* Statistics Bar */}
+      <div className="bg-card border border-border rounded-lg p-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-6 text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-primary" />
+              <span className="text-foreground">{remainingBookings} remaining</span>
             </div>
-            <div className="flex items-center gap-1">
-              <UserCheck className="h-4 w-4 text-green-600" />
-              <span className="text-foreground font-medium">{currentlySeatedCovers}</span>
-              <span className="text-xs">seated</span>
+            <div className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-green-600" />
+              <span className="text-foreground">{currentlySeated} seated</span>
             </div>
-            <div className="flex items-center gap-1">
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
-              <span className="text-foreground font-medium">{finishedCovers}</span>
-              <span className="text-xs">finished</span>
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-muted-foreground" />
+              <span className="text-foreground">{finishedBookings} finished</span>
             </div>
-            <div className="flex items-center gap-1">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <span className="text-foreground font-medium">{totalBookings}</span>
-              <span className="text-xs">total bookings</span>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">{totalBookings} total today</span>
             </div>
           </div>
-          <div className="text-sm font-semibold text-foreground">Tables</div>
+          <div className="text-base font-semibold text-foreground">Tables</div>
         </div>
       </div>
 
       {/* Main Interface */}
-      <div className="grid grid-cols-12 gap-3">
+      <div className="grid grid-cols-12 gap-6">
         <div className={`${selectedBooking ? 'col-span-8' : 'col-span-12'}`}>
           {viewMode === 'grid' ? (
             <NewTimeGrid
@@ -323,9 +313,9 @@ const NewHostInterface = () => {
               onBookingDrag={handleBookingDrag}
               onBlockClick={handleBlockClick}
               selectedDate={selectedDate}
-              remainingBookings={confirmedAndLateBookings.length}
-              currentlySeated={seatedBookings.length}
-              finishedBookings={finishedBookings.length}
+              remainingBookings={remainingBookings}
+              currentlySeated={currentlySeated}
+              finishedBookings={finishedBookings}
             />
           ) : (
             <BookingListView
@@ -337,7 +327,7 @@ const NewHostInterface = () => {
         </div>
 
         {selectedBooking && (
-          <div className="col-span-4 space-y-3">
+          <div className="col-span-4 space-y-4">
             <BookingDetailsPanel
               booking={selectedBooking}
               onClose={() => setSelectedBooking(null)}
@@ -348,13 +338,13 @@ const NewHostInterface = () => {
         )}
       </div>
 
-      <EnhancedWalkInDialog
+      <QuickWalkInDialog
         open={walkInDialogOpen}
         onOpenChange={setWalkInDialogOpen}
         table={selectedTable}
         time={selectedTime}
-        selectedDate={selectedDate}
         onCreateWalkIn={handleCreateWalkIn}
+        defaultDuration={120}
       />
       
       <BlockDialog
