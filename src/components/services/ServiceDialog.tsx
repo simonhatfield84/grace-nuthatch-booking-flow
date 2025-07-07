@@ -1,337 +1,465 @@
-
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
+import React, { useState, useEffect } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
+import { Switch } from "@/components/ui/switch"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { useToast } from "@/hooks/use-toast"
+import { useServices } from "@/hooks/useServices";
+import { useTags } from "@/hooks/useTags";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DurationRulesManager } from "@/components/services/DurationRulesManager";
-import { MediaUpload } from "@/components/services/MediaUpload";
-import { TermsEditor } from "@/components/services/TermsEditor";
-import { RichTextEditor } from "@/components/services/RichTextEditor";
-import { TagSelector } from "@/components/services/TagSelector";
-
-const guestOptions = Array.from({length: 20}, (_, i) => i + 1);
-const leadTimeOptions = [1, 2, 4, 6, 12, 24, 48, 72];
-const cancellationOptions = [24, 48, 72];
+import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { DurationRules } from "@/components/services/DurationRules";
 
 interface ServiceDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  editingService: any;
-  newService: any;
-  setEditingService: (service: any) => void;
-  setNewService: (service: any) => void;
-  onAddService: () => void;
-  onUpdateService: () => void;
-  createServiceMutation: any;
-  updateServiceMutation: any;
-  onReset: () => void;
+  service?: any;
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: () => void;
 }
 
-export const ServiceDialog = ({
-  open,
-  onOpenChange,
-  editingService,
-  newService,
-  setEditingService,
-  setNewService,
-  onAddService,
-  onUpdateService,
-  createServiceMutation,
-  updateServiceMutation,
-  onReset
-}: ServiceDialogProps) => {
-  const currentFormData = editingService || newService;
+const ServiceDialog = ({ service, isOpen, onClose, onSave }: ServiceDialogProps) => {
+  const { toast } = useToast();
+  const { createServiceMutation, updateServiceMutation } = useServices();
+  const { tags, isTagsLoading } = useTags();
 
-  const getStandardTerms = () => {
-    return localStorage.getItem('standardTerms') || '';
+  const [title, setTitle] = useState(service?.title || '');
+  const [description, setDescription] = useState(service?.description || '');
+  const [minGuests, setMinGuests] = useState(service?.min_guests || 1);
+  const [maxGuests, setMaxGuests] = useState(service?.max_guests || 10);
+  const [leadTimeHours, setLeadTimeHours] = useState(service?.lead_time_hours || 24);
+  const [cancellationWindowHours, setCancellationWindowHours] = useState(service?.cancellation_window_hours || 24);
+  const [requiresDeposit, setRequiresDeposit] = useState(service?.requires_deposit || false);
+  const [depositPerGuest, setDepositPerGuest] = useState(service?.deposit_per_guest || 0);
+  const [onlineBookable, setOnlineBookable] = useState(service?.online_bookable || true);
+  const [active, setActive] = useState(service?.active || true);
+  const [isSecret, setIsSecret] = useState(service?.is_secret || false);
+  const [secretSlug, setSecretSlug] = useState(service?.secret_slug || '');
+  const [imageUrl, setImageUrl] = useState(service?.image_url || '');
+  const [selectedTags, setSelectedTags] = useState<string[]>(service?.tag_ids || []);
+  const [durationRules, setDurationRules] = useState(service?.duration_rules || []);
+  const [termsAndConditions, setTermsAndConditions] = useState(service?.terms_and_conditions || '');
+
+  // Add payment-related form state
+  const [paymentSettings, setPaymentSettings] = useState({
+    requires_payment: service?.requires_payment || false,
+    charge_type: service?.charge_type || 'venue_default',
+    minimum_guests_for_charge: service?.minimum_guests_for_charge || 8,
+    charge_amount_per_guest: service?.charge_amount_per_guest || 0,
+  });
+
+  const handleTagToggle = (tagId: string) => {
+    setSelectedTags((prevSelected) =>
+      prevSelected.includes(tagId)
+        ? prevSelected.filter((id) => id !== tagId)
+        : [...prevSelected, tagId]
+    );
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) {
+      toast({
+        title: "Error",
+        description: "Service title is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const serviceData = {
+        title: title.trim(),
+        description: description.trim() || null,
+        min_guests: minGuests,
+        max_guests: maxGuests,
+        lead_time_hours: leadTimeHours,
+        cancellation_window_hours: cancellationWindowHours,
+        requires_deposit: requiresDeposit,
+        deposit_per_guest: requiresDeposit ? depositPerGuest : 0,
+        online_bookable: onlineBookable,
+        active,
+        is_secret: isSecret,
+        secret_slug: isSecret ? secretSlug : null,
+        image_url: imageUrl,
+        tag_ids: selectedTags,
+        duration_rules: durationRules,
+        terms_and_conditions: termsAndConditions,
+        // Add payment settings
+        requires_payment: paymentSettings.requires_payment,
+        charge_type: paymentSettings.charge_type,
+        minimum_guests_for_charge: paymentSettings.minimum_guests_for_charge,
+        charge_amount_per_guest: paymentSettings.charge_amount_per_guest,
+      };
+
+      if (service?.id) {
+        await updateServiceMutation.mutateAsync({ id: service.id, updates: serviceData });
+      } else {
+        await createServiceMutation.mutateAsync(serviceData);
+      }
+      
+      onClose();
+    } catch (error) {
+      console.error('Service save error:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (service) {
+      setTitle(service.title || '');
+      setDescription(service.description || '');
+      setMinGuests(service.min_guests || 1);
+      setMaxGuests(service.max_guests || 10);
+      setLeadTimeHours(service.lead_time_hours || 24);
+      setCancellationWindowHours(service.cancellation_window_hours || 24);
+      setRequiresDeposit(service.requires_deposit || false);
+      setDepositPerGuest(service.deposit_per_guest || 0);
+      setOnlineBookable(service.online_bookable || true);
+      setActive(service.active || true);
+      setIsSecret(service.is_secret || false);
+      setSecretSlug(service.secret_slug || '');
+      setImageUrl(service.image_url || '');
+      setSelectedTags(service.tag_ids || []);
+      setDurationRules(service.duration_rules || []);
+      setTermsAndConditions(service.terms_and_conditions || '');
+      setPaymentSettings({
+        requires_payment: service.requires_payment || false,
+        charge_type: service.charge_type || 'venue_default',
+        minimum_guests_for_charge: service.minimum_guests_for_charge || 8,
+        charge_amount_per_guest: service.charge_amount_per_guest || 0,
+      });
+    }
+  }, [service]);
+
   return (
-    <Dialog open={open} onOpenChange={(open) => {
-      onOpenChange(open);
-      if (!open) onReset();
-    }}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{editingService ? 'Edit Service' : 'Add New Service'}</DialogTitle>
-        </DialogHeader>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Column - Basic Info */}
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="title">Service Title</Label>
-                <Input
-                  id="title"
-                  value={currentFormData.title}
-                  onChange={(e) => editingService
-                    ? setEditingService({...editingService, title: e.target.value})
-                    : setNewService({...newService, title: e.target.value})
-                  }
-                  placeholder="e.g., Dinner Service"
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <DialogHeader>
+            <DialogTitle>{service ? 'Edit Service' : 'Create New Service'}</DialogTitle>
+            <DialogDescription>
+              Configure your service settings and availability
+            </DialogDescription>
+          </DialogHeader>
+
+          <Tabs defaultValue="basic" className="w-full">
+            <TabsList className="grid w-full grid-cols-5">
+              <TabsTrigger value="basic">Basic</TabsTrigger>
+              <TabsTrigger value="booking">Booking</TabsTrigger>
+              <TabsTrigger value="payments">Payments</TabsTrigger>
+              <TabsTrigger value="media">Media</TabsTrigger>
+              <TabsTrigger value="advanced">Advanced</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="basic" className="space-y-6">
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="title">Service Title</Label>
+                  <Input
+                    type="text"
+                    id="title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="description">Description</Label>
+                  <Textarea
+                    id="description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                  />
+                </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="booking" className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="minGuests">Minimum Guests</Label>
+                  <Input
+                    type="number"
+                    id="minGuests"
+                    value={minGuests}
+                    onChange={(e) => setMinGuests(parseInt(e.target.value))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="maxGuests">Maximum Guests</Label>
+                  <Input
+                    type="number"
+                    id="maxGuests"
+                    value={maxGuests}
+                    onChange={(e) => setMaxGuests(parseInt(e.target.value))}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="leadTimeHours">Lead Time (Hours)</Label>
+                  <Input
+                    type="number"
+                    id="leadTimeHours"
+                    value={leadTimeHours}
+                    onChange={(e) => setLeadTimeHours(parseInt(e.target.value))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="cancellationWindowHours">Cancellation Window (Hours)</Label>
+                  <Input
+                    type="number"
+                    id="cancellationWindowHours"
+                    value={cancellationWindowHours}
+                    onChange={(e) => setCancellationWindowHours(parseInt(e.target.value))}
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="requiresDeposit"
+                  checked={requiresDeposit}
+                  onCheckedChange={(checked) => setRequiresDeposit(checked)}
+                />
+                <div className="grid gap-1.5 leading-none">
+                  <Label htmlFor="requiresDeposit">Requires Deposit</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Require a deposit to secure the booking
+                  </p>
+                </div>
+              </div>
+
+              {requiresDeposit && (
+                <div className="space-y-2">
+                  <Label htmlFor="depositPerGuest">Deposit Per Guest</Label>
+                  <Input
+                    type="number"
+                    id="depositPerGuest"
+                    value={depositPerGuest}
+                    onChange={(e) => setDepositPerGuest(parseInt(e.target.value))}
+                  />
+                </div>
+              )}
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="onlineBookable"
+                  checked={onlineBookable}
+                  onCheckedChange={(checked) => setOnlineBookable(checked)}
+                />
+                <div className="grid gap-1.5 leading-none">
+                  <Label htmlFor="onlineBookable">Online Bookable</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Allow customers to book this service online
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Duration Rules</Label>
+                <DurationRules
+                  rules={durationRules}
+                  onChange={setDurationRules}
                 />
               </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="secret"
-                  checked={currentFormData.is_secret}
-                  onCheckedChange={(checked) => editingService
-                    ? setEditingService({...editingService, is_secret: checked})
-                    : setNewService({...newService, is_secret: checked})
-                  }
-                />
-                <Label htmlFor="secret">Secret Service</Label>
-                {currentFormData.is_secret && (
-                  <Badge variant="secondary" className="text-xs">
-                    {currentFormData.secret_slug || 'auto-generated'}
-                  </Badge>
+            </TabsContent>
+
+            <TabsContent value="payments" className="space-y-6">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Require Payment</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Charge customers when they book this service
+                    </p>
+                  </div>
+                  <Switch
+                    checked={paymentSettings.requires_payment}
+                    onCheckedChange={(checked) =>
+                      setPaymentSettings(prev => ({ ...prev, requires_payment: checked }))
+                    }
+                  />
+                </div>
+
+                {paymentSettings.requires_payment && (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Payment Rule</Label>
+                      <Select
+                        value={paymentSettings.charge_type}
+                        onValueChange={(value: 'venue_default' | 'all_reservations' | 'large_groups') =>
+                          setPaymentSettings(prev => ({ ...prev, charge_type: value }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="venue_default">Use venue default</SelectItem>
+                          <SelectItem value="all_reservations">All reservations</SelectItem>
+                          <SelectItem value="large_groups">Large groups only</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {paymentSettings.charge_type === 'large_groups' && (
+                      <div className="space-y-2">
+                        <Label>Minimum Guests for Charge</Label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={paymentSettings.minimum_guests_for_charge}
+                          onChange={(e) =>
+                            setPaymentSettings(prev => ({
+                              ...prev,
+                              minimum_guests_for_charge: parseInt(e.target.value) || 8
+                            }))
+                          }
+                        />
+                      </div>
+                    )}
+
+                    {paymentSettings.charge_type !== 'venue_default' && (
+                      <div className="space-y-2">
+                        <Label>Charge Amount per Guest</Label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">£</span>
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={paymentSettings.charge_amount_per_guest / 100}
+                            onChange={(e) =>
+                              setPaymentSettings(prev => ({
+                                ...prev,
+                                charge_amount_per_guest: Math.round(parseFloat(e.target.value || '0') * 100)
+                              }))
+                            }
+                            className="pl-8"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
-            </div>
-            
-            <RichTextEditor
-              value={currentFormData.description || ""}
-              onChange={(value) => editingService
-                ? setEditingService({...editingService, description: value})
-                : setNewService({...newService, description: value})
-              }
-              label="Service Description"
-              placeholder="Describe your service... Use **bold**, _italic_, and [links](url) for rich formatting."
-              minHeight="min-h-[120px]"
-            />
+            </TabsContent>
 
-            {/* Tag Selector */}
-            <TagSelector
-              selectedTagIds={currentFormData.tag_ids || []}
-              onTagsChange={(tagIds) => editingService
-                ? setEditingService({...editingService, tag_ids: tagIds})
-                : setNewService({...newService, tag_ids: tagIds})
-              }
-            />
-
-            {/* Enhanced Image Upload */}
-            <MediaUpload
-              imageUrl={currentFormData.image_url || ""}
-              onImageChange={(url) => editingService
-                ? setEditingService({...editingService, image_url: url})
-                : setNewService({...newService, image_url: url})
-              }
-              onRemove={() => editingService
-                ? setEditingService({...editingService, image_url: ""})
-                : setNewService({...newService, image_url: ""})
-              }
-            />
-
-            {/* Guest and Time Controls */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <Label htmlFor="minGuests">Min Guests</Label>
-                <Select 
-                  value={currentFormData.min_guests?.toString()} 
-                  onValueChange={(value) => editingService
-                    ? setEditingService({...editingService, min_guests: parseInt(value)})
-                    : setNewService({...newService, min_guests: parseInt(value)})
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {guestOptions.map(num => (
-                      <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="maxGuests">Max Guests</Label>
-                <Select 
-                  value={currentFormData.max_guests?.toString()} 
-                  onValueChange={(value) => editingService
-                    ? setEditingService({...editingService, max_guests: parseInt(value)})
-                    : setNewService({...newService, max_guests: parseInt(value)})
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {guestOptions.map(num => (
-                      <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="leadTime">Lead Time (hrs)</Label>
-                <Select 
-                  value={currentFormData.lead_time_hours?.toString()} 
-                  onValueChange={(value) => editingService
-                    ? setEditingService({...editingService, lead_time_hours: parseInt(value)})
-                    : setNewService({...newService, lead_time_hours: parseInt(value)})
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {leadTimeOptions.map(hours => (
-                      <SelectItem key={hours} value={hours.toString()}>{hours}h</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="cancellation">Cancel Window</Label>
-                <Select 
-                  value={currentFormData.cancellation_window_hours?.toString()} 
-                  onValueChange={(value) => editingService
-                    ? setEditingService({...editingService, cancellation_window_hours: parseInt(value)})
-                    : setNewService({...newService, cancellation_window_hours: parseInt(value)})
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {cancellationOptions.map(hours => (
-                      <SelectItem key={hours} value={hours.toString()}>{hours}h</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Switches */}
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="deposit"
-                  checked={currentFormData.requires_deposit}
-                  onCheckedChange={(checked) => editingService
-                    ? setEditingService({...editingService, requires_deposit: checked})
-                    : setNewService({...newService, requires_deposit: checked})
-                  }
-                />
-                <Label htmlFor="deposit">Requires Deposit</Label>
-              </div>
-              {currentFormData.requires_deposit && (
-                <div className="flex items-center space-x-2">
-                  <Label htmlFor="depositAmount">Amount per guest (£)</Label>
+            <TabsContent value="media" className="space-y-6">
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="imageUrl">Image URL</Label>
                   <Input
-                    id="depositAmount"
-                    type="number"
-                    className="w-20"
-                    value={currentFormData.deposit_per_guest}
-                    onChange={(e) => editingService
-                      ? setEditingService({...editingService, deposit_per_guest: parseInt(e.target.value)})
-                      : setNewService({...newService, deposit_per_guest: parseInt(e.target.value)})
-                    }
+                    type="text"
+                    id="imageUrl"
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
                   />
                 </div>
-              )}
-            </div>
-
-            <div className="flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="bookable"
-                  checked={currentFormData.online_bookable}
-                  onCheckedChange={(checked) => editingService
-                    ? setEditingService({...editingService, online_bookable: checked})
-                    : setNewService({...newService, online_bookable: checked})
-                  }
-                />
-                <Label htmlFor="bookable">Online Bookable</Label>
               </div>
+            </TabsContent>
+
+            <TabsContent value="advanced" className="space-y-6">
               <div className="flex items-center space-x-2">
-                <Switch
+                <Checkbox
                   id="active"
-                  checked={currentFormData.active}
-                  onCheckedChange={(checked) => editingService
-                    ? setEditingService({...editingService, active: checked})
-                    : setNewService({...newService, active: checked})
-                  }
+                  checked={active}
+                  onCheckedChange={(checked) => setActive(checked)}
                 />
-                <Label htmlFor="active">Active</Label>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column - Advanced Features */}
-          <div className="space-y-4">
-            {/* Duration Rules */}
-            <DurationRulesManager
-              rules={currentFormData.duration_rules || []}
-              maxGuests={currentFormData.max_guests}
-              onChange={(rules) => editingService
-                ? setEditingService({...editingService, duration_rules: rules})
-                : setNewService({...newService, duration_rules: rules})
-              }
-            />
-
-            {/* Terms & Conditions Section */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label>Terms & Conditions</Label>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="useStandardTerms"
-                    checked={currentFormData.useStandardTerms !== false}
-                    onCheckedChange={(checked) => editingService
-                      ? setEditingService({
-                          ...editingService, 
-                          useStandardTerms: checked,
-                          terms_and_conditions: checked ? getStandardTerms() : editingService.terms_and_conditions
-                        })
-                      : setNewService({
-                          ...newService, 
-                          useStandardTerms: checked,
-                          terms_and_conditions: checked ? getStandardTerms() : newService.terms_and_conditions
-                        })
-                    }
-                  />
-                  <Label htmlFor="useStandardTerms" className="text-sm">Use Standard Terms</Label>
+                <div className="grid gap-1.5 leading-none">
+                  <Label htmlFor="active">Active</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Service is available for booking
+                  </p>
                 </div>
               </div>
-              
-              {currentFormData.useStandardTerms !== false ? (
-                <div className="p-3 bg-muted rounded-md">
-                  <p className="text-sm text-muted-foreground mb-2">Using standard terms & conditions</p>
-                  <div className="max-h-32 overflow-y-auto text-xs bg-background p-2 rounded border">
-                    {getStandardTerms() || 'No standard terms defined. Go to Settings to set them up.'}
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="isSecret"
+                  checked={isSecret}
+                  onCheckedChange={(checked) => setIsSecret(checked)}
+                />
+                <div className="grid gap-1.5 leading-none">
+                  <Label htmlFor="isSecret">Secret Service</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Only accessible via a secret link
+                  </p>
+                </div>
+              </div>
+
+              {isSecret && (
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="secretSlug">Secret Slug</Label>
+                    <Input
+                      type="text"
+                      id="secretSlug"
+                      value={secretSlug}
+                      onChange={(e) => setSecretSlug(e.target.value)}
+                    />
                   </div>
                 </div>
-              ) : (
-                <TermsEditor
-                  value={currentFormData.terms_and_conditions || ""}
-                  onChange={(value) => editingService
-                    ? setEditingService({...editingService, terms_and_conditions: value})
-                    : setNewService({...newService, terms_and_conditions: value})
-                  }
-                />
               )}
-            </div>
-          </div>
-        </div>
 
-        <div className="flex gap-2 pt-4 border-t">
-          <Button 
-            onClick={editingService ? onUpdateService : onAddService}
-            disabled={createServiceMutation.isPending || updateServiceMutation.isPending}
-          >
-            {createServiceMutation.isPending || updateServiceMutation.isPending 
-              ? "Saving..." 
-              : editingService ? 'Update Service' : 'Add Service'
-            }
-          </Button>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-        </div>
+              <div className="space-y-4">
+                <Label>Tags</Label>
+                <div className="flex flex-wrap gap-2">
+                  {isTagsLoading ? (
+                    <div>Loading tags...</div>
+                  ) : (
+                    tags.map((tag) => (
+                      <Button
+                        key={tag.id}
+                        variant={selectedTags.includes(tag.id) ? "default" : "outline"}
+                        onClick={() => handleTagToggle(tag.id)}
+                      >
+                        {tag.name}
+                      </Button>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="termsAndConditions">Terms and Conditions</Label>
+                  <Textarea
+                    id="termsAndConditions"
+                    value={termsAndConditions}
+                    onChange={(e) => setTermsAndConditions(e.target.value)}
+                  />
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              disabled={createServiceMutation.isPending || updateServiceMutation.isPending}
+            >
+              {createServiceMutation.isPending || updateServiceMutation.isPending ? 'Saving...' : 'Save Service'}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
 };
+
+export default ServiceDialog;
