@@ -60,6 +60,21 @@ export const NewTimeGrid = ({
     return () => clearInterval(interval);
   }, []);
 
+  // Debug logging
+  console.log('🔍 TimeGrid Debug:', {
+    selectedDate: format(selectedDate, 'yyyy-MM-dd'),
+    bookingsReceived: bookings.length,
+    bookingsDetails: bookings.map(b => ({
+      id: b.id,
+      guest_name: b.guest_name,
+      table_id: b.table_id,
+      status: b.status,
+      booking_time: b.booking_time
+    })),
+    tablesCount: tables.length,
+    sectionsCount: sections.length
+  });
+
   const generateTimeSlots = () => {
     if (!venueHours) return [];
     
@@ -160,20 +175,21 @@ export const NewTimeGrid = ({
 
   const currentTimePosition = getCurrentTimePosition();
   const totalWidth = timeSlots.length * 60;
+  const activeTables = tables.filter(t => t.status === 'active');
 
   return (
-    <div className="h-full flex flex-col bg-white rounded-lg border overflow-hidden">
+    <div className="h-full flex flex-col bg-gray-800 rounded-lg border border-gray-700 overflow-hidden">
       {/* Time Header */}
-      <div className="flex border-b bg-gray-50 sticky top-0 z-20">
-        <div className="w-48 p-3 border-r bg-gray-100 flex-shrink-0">
-          <span className="font-semibold text-sm">Tables</span>
+      <div className="flex border-b border-gray-600 bg-gray-700 sticky top-0 z-20">
+        <div className="w-48 p-3 border-r border-gray-600 bg-gray-800 flex-shrink-0">
+          <span className="font-semibold text-sm text-white">Tables</span>
         </div>
         <ScrollArea className="flex-1">
           <div className="flex" style={{ minWidth: `${totalWidth}px` }}>
             {timeSlots.map((time, index) => (
               <div
                 key={time}
-                className="w-[60px] p-2 text-xs font-medium text-center border-r border-gray-200 last:border-r-0 relative"
+                className="w-[60px] p-2 text-xs font-medium text-center border-r border-gray-600 last:border-r-0 relative text-gray-300"
               >
                 {time}
                 {/* Current time indicator in header */}
@@ -196,11 +212,9 @@ export const NewTimeGrid = ({
       {/* Content Area */}
       <div className="flex-1 flex overflow-hidden" onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}>
         {/* Fixed Table List */}
-        <div className="w-48 flex-shrink-0 border-r bg-white overflow-y-auto">
+        <div className="w-48 flex-shrink-0 border-r border-gray-600 bg-gray-800 overflow-y-auto">
           {sections.map((section) => {
-            const sectionTables = tables.filter(table => 
-              table.section_id === section.id && table.status === 'active'
-            );
+            const sectionTables = activeTables.filter(table => table.section_id === section.id);
             
             if (sectionTables.length === 0) return null;
 
@@ -208,7 +222,7 @@ export const NewTimeGrid = ({
               <div key={section.id}>
                 {/* Section Header */}
                 <div 
-                  className="px-3 py-2 bg-gray-50 border-b text-sm font-semibold"
+                  className="px-3 py-2 bg-gray-700 border-b border-gray-600 text-sm font-semibold text-white"
                   style={{ borderLeftColor: section.color, borderLeftWidth: '3px' }}
                 >
                   {section.name} ({sectionTables.length})
@@ -218,11 +232,11 @@ export const NewTimeGrid = ({
                 {sectionTables.map((table) => (
                   <div
                     key={table.id}
-                    className="h-12 px-3 border-b border-gray-100 flex items-center hover:bg-gray-50"
+                    className="h-12 px-3 border-b border-gray-700 flex items-center hover:bg-gray-700 text-white"
                   >
                     <div className="flex items-center justify-between w-full">
                       <span className="font-medium text-sm">{table.label}</span>
-                      <span className="text-xs text-gray-500 px-1 py-0 border border-gray-300 rounded">
+                      <span className="text-xs text-gray-400 px-1 py-0 border border-gray-500 rounded">
                         {table.seats}
                       </span>
                     </div>
@@ -238,17 +252,15 @@ export const NewTimeGrid = ({
           <ScrollArea className="h-full w-full">
             <div 
               className="relative"
-              style={{ minWidth: `${totalWidth}px`, height: `${tables.filter(t => t.status === 'active').length * 48}px` }}
+              style={{ minWidth: `${totalWidth}px`, height: `${activeTables.length * 48}px` }}
             >
               {/* Time Grid Background */}
               {sections.map((section) => {
-                const sectionTables = tables.filter(table => 
-                  table.section_id === section.id && table.status === 'active'
-                );
+                const sectionTables = activeTables.filter(table => table.section_id === section.id);
                 
                 return sectionTables.map((table, tableIndex) => {
                   const rowTop = sections.slice(0, sections.indexOf(section)).reduce((acc, s) => 
-                    acc + tables.filter(t => t.section_id === s.id && t.status === 'active').length, 0
+                    acc + activeTables.filter(t => t.section_id === s.id).length, 0
                   ) * 48 + tableIndex * 48;
 
                   return (
@@ -257,7 +269,7 @@ export const NewTimeGrid = ({
                       {timeSlots.map((time) => (
                         <div
                           key={`${table.id}-${time}`}
-                          className="absolute h-12 w-[60px] border-r border-gray-100 hover:bg-blue-50 cursor-pointer"
+                          className="absolute h-12 w-[60px] border-r border-gray-700 hover:bg-gray-600 cursor-pointer"
                           style={{
                             top: `${rowTop}px`,
                             left: `${timeSlots.indexOf(time) * 60}px`
@@ -270,7 +282,7 @@ export const NewTimeGrid = ({
                       
                       {/* Table Row Border */}
                       <div
-                        className="absolute w-full h-px bg-gray-100"
+                        className="absolute w-full h-px bg-gray-700"
                         style={{ top: `${rowTop + 48}px` }}
                       />
                     </div>
@@ -280,24 +292,47 @@ export const NewTimeGrid = ({
 
               {/* Bookings */}
               {bookings.map((booking) => {
-                if (!booking.table_id) return null;
+                console.log('🎯 Rendering booking:', {
+                  id: booking.id,
+                  guest_name: booking.guest_name,
+                  table_id: booking.table_id,
+                  status: booking.status
+                });
+
+                if (!booking.table_id) {
+                  console.log('⚠️ Booking has no table_id:', booking.id);
+                  return null;
+                }
                 
-                const table = tables.find(t => t.id === booking.table_id);
-                if (!table) return null;
+                const table = activeTables.find(t => t.id === booking.table_id);
+                if (!table) {
+                  console.log('⚠️ Table not found for booking:', booking.id, 'table_id:', booking.table_id);
+                  return null;
+                }
                 
                 const section = sections.find(s => s.id === table.section_id);
-                if (!section) return null;
+                if (!section) {
+                  console.log('⚠️ Section not found for table:', table.id);
+                  return null;
+                }
                 
                 const sectionIndex = sections.indexOf(section);
-                const tableIndex = tables.filter(t => 
-                  t.section_id === section.id && t.status === 'active'
-                ).indexOf(table);
+                const tableIndex = activeTables.filter(t => t.section_id === section.id).indexOf(table);
                 
                 const rowTop = sections.slice(0, sectionIndex).reduce((acc, s) => 
-                  acc + tables.filter(t => t.section_id === s.id && t.status === 'active').length, 0
+                  acc + activeTables.filter(t => t.section_id === s.id).length, 0
                 ) * 48 + tableIndex * 48;
 
                 const { left, width } = calculateBookingPosition(booking);
+
+                console.log('📍 Booking position:', {
+                  booking_id: booking.id,
+                  table: table.label,
+                  section: section.name,
+                  rowTop,
+                  left,
+                  width
+                });
 
                 return (
                   <div

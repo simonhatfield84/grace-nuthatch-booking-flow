@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -44,6 +43,21 @@ const NewHostInterface = () => {
 
   const bookingDates = [...new Set(allBookings.map(b => b.booking_date))];
 
+  console.log('📅 Host Interface Debug:', {
+    selectedDate: format(selectedDate, 'yyyy-MM-dd'),
+    bookingsCount: bookings.length,
+    bookings: bookings.map(b => ({
+      id: b.id,
+      guest_name: b.guest_name,
+      booking_date: b.booking_date,
+      booking_time: b.booking_time,
+      table_id: b.table_id,
+      status: b.status
+    })),
+    tablesCount: tables.length,
+    sectionsCount: sections.length
+  });
+
   const handleWalkInClick = (tableId: number, time: string) => {
     const table = tables.find(t => t.id === tableId);
     if (table) {
@@ -61,6 +75,8 @@ const NewHostInterface = () => {
     duration: number;
   }) => {
     try {
+      console.log('🚶‍♂️ Creating walk-in:', walkInData);
+      
       await createBooking({
         guest_name: walkInData.guestName || 'WALK-IN',
         party_size: walkInData.partySize,
@@ -71,7 +87,7 @@ const NewHostInterface = () => {
         email: null,
         notes: 'Walk-in customer',
         service: 'Walk-In',
-        original_table_id: null
+        original_table_id: walkInData.tableId
       });
 
       toast({
@@ -79,6 +95,7 @@ const NewHostInterface = () => {
         description: `${walkInData.partySize} guests seated at table ${selectedTable?.label}`,
       });
     } catch (error) {
+      console.error('❌ Walk-in creation error:', error);
       toast({
         title: "Error",
         description: "Failed to create walk-in",
@@ -136,8 +153,6 @@ const NewHostInterface = () => {
   };
 
   const handleExtendUntilNext = async (bookingId: number) => {
-    // Implementation for extending until next booking
-    // This would calculate the time until the next booking on the same table
     toast({
       title: "Feature coming soon",
       description: "Extend until next booking feature is being implemented",
@@ -182,16 +197,16 @@ const NewHostInterface = () => {
   const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
+    <div className="min-h-screen bg-gray-900 text-white p-4">
       {/* Header */}
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Host Interface</h1>
-          <div className="flex items-center gap-4 text-gray-600">
+          <h1 className="text-3xl font-bold text-white">Host Interface</h1>
+          <div className="flex items-center gap-4 text-gray-300">
             <div className="flex items-center gap-1">
               <Calendar className="h-4 w-4" />
               {format(selectedDate, 'EEEE, MMMM do, yyyy')}
-              {isToday && <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">TODAY</span>}
+              {isToday && <span className="ml-2 text-xs bg-blue-600 text-white px-2 py-1 rounded">TODAY</span>}
             </div>
             <div className="flex items-center gap-1">
               <Users className="h-4 w-4" />
@@ -202,12 +217,12 @@ const NewHostInterface = () => {
         
         <div className="flex gap-2">
           {isToday && (
-            <Button onClick={() => setWalkInDialogOpen(true)}>
+            <Button onClick={() => setWalkInDialogOpen(true)} className="bg-grace-primary hover:bg-grace-primary/80">
               <Plus className="h-4 w-4 mr-2" />
               Walk-In
             </Button>
           )}
-          <div className="grace-logo text-2xl font-bold text-blue-600">
+          <div className="grace-logo text-2xl font-bold">
             grace
           </div>
         </div>
@@ -216,7 +231,7 @@ const NewHostInterface = () => {
       {/* Main Interface */}
       <div className="grid grid-cols-12 gap-4 h-[calc(100vh-200px)]">
         {/* Timeline Grid */}
-        <div className={`${selectedBooking ? 'col-span-8' : 'col-span-9'} bg-white rounded-lg shadow-sm overflow-hidden`}>
+        <div className={`${selectedBooking ? 'col-span-8' : 'col-span-9'} bg-gray-800 rounded-lg shadow-sm overflow-hidden border border-gray-700`}>
           <NewTimeGrid
             venueHours={venueHours}
             tables={tables}
@@ -240,7 +255,7 @@ const NewHostInterface = () => {
               onStatusChange={handleStatusChange}
             />
           ) : (
-            <div className="bg-white rounded-lg shadow-sm p-4">
+            <div className="bg-gray-800 rounded-lg shadow-sm p-4 border border-gray-700">
               <IPadCalendar
                 selectedDate={selectedDate}
                 onDateSelect={setSelectedDate}

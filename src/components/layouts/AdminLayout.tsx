@@ -9,11 +9,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LogOut, User } from "lucide-react";
+import { LogOut, User, Menu } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ChangePasswordDialog } from "@/components/auth/ChangePasswordDialog";
+import { useState } from "react";
 
 interface AdminLayoutProps {
   children?: React.ReactNode;
@@ -23,6 +24,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -48,10 +50,20 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <div className="flex h-screen bg-background">
-      <AdminSidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <AdminSidebar collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} />
+      <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'ml-64'}`}>
         <header className="border-b bg-background px-6 py-4 flex items-center justify-between">
-          <div className="grace-logo text-2xl font-bold">grace</div>
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="lg:hidden"
+            >
+              <Menu className="h-4 w-4" />
+            </Button>
+            <div className="grace-logo text-2xl font-bold">grace</div>
+          </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-8 w-8 rounded-full">

@@ -51,11 +51,14 @@ export const useBookings = (date?: string) => {
   });
 
   const { data: bookings = [], isLoading } = useQuery({
-    queryKey: ['bookings', date],
+    queryKey: ['bookings', date, userVenue],
     queryFn: async () => {
+      if (!userVenue) return [];
+      
       let query = supabase
         .from('bookings')
         .select('*')
+        .eq('venue_id', userVenue)
         .order('booking_time');
       
       if (date) {
@@ -64,9 +67,28 @@ export const useBookings = (date?: string) => {
       
       const { data, error } = await query;
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Bookings query error:', error);
+        throw error;
+      }
+      
+      console.log('📚 Bookings fetched:', {
+        date,
+        userVenue,
+        count: data?.length || 0,
+        bookings: data?.map(b => ({
+          id: b.id,
+          guest_name: b.guest_name,
+          table_id: b.table_id,
+          status: b.status,
+          booking_date: b.booking_date,
+          booking_time: b.booking_time
+        }))
+      });
+      
       return (data || []) as Booking[];
-    }
+    },
+    enabled: !!userVenue,
   });
 
   const createBookingMutation = useMutation({
@@ -75,9 +97,16 @@ export const useBookings = (date?: string) => {
         throw new Error('No venue associated with user');
       }
 
+      console.log('🚶‍♂️ Creating booking with data:', newBooking);
+
       // Calculate duration from service rules
       const serviceId = newBooking.service ? await getServiceIdFromServiceName(newBooking.service) : null;
       const duration = await calculateBookingDuration(serviceId || undefined, newBooking.party_size);
+
+      // For walk-ins, assign table immediately if original_table_id is provided
+      const tableId = newBooking.status === 'seated' && newBooking.original_table_id 
+        ? newBooking.original_table_id 
+        : null;
 
       // First create the booking with calculated duration
       const { data: booking, error } = await supabase
@@ -85,8 +114,8 @@ export const useBookings = (date?: string) => {
         .insert([{
           ...newBooking,
           duration_minutes: duration,
-          table_id: null,
-          is_unallocated: true,
+          table_id: tableId,
+          is_unallocated: !tableId,
           venue_id: userVenue,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
@@ -94,15 +123,27 @@ export const useBookings = (date?: string) => {
         .select()
         .single();
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Booking creation error:', error);
+        throw error;
+      }
 
-      // Then try to allocate it to a table
-      await TableAllocationService.allocateBookingToTables(
-        booking.id,
-        booking.party_size,
-        booking.booking_date,
-        booking.booking_time
-      );
+      console.log('✅ Booking created:', booking);
+
+      // If not a walk-in, try to allocate it to a table
+      if (newBooking.status !== 'seated' && !tableId) {
+        try {
+          await TableAllocationService.allocateBookingToTables(
+            booking.id,
+            booking.party_size,
+            booking.booking_date,
+            booking.booking_time
+          );
+        } catch (allocationError) {
+          console.warn('⚠️ Table allocation failed:', allocationError);
+          // Don't throw - booking was created successfully
+        }
+      }
 
       return booking;
     },
@@ -110,11 +151,11 @@ export const useBookings = (date?: string) => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
       toast({ 
         title: "Booking created", 
-        description: "Booking has been created with calculated duration and allocated to available tables." 
+        description: "Booking has been created successfully." 
       });
     },
     onError: (error: any) => {
-      console.error('Create booking error:', error);
+      console.error('❌ Create booking error:', error);
       toast({ 
         title: "Error", 
         description: "Failed to create booking.", 
@@ -129,6 +170,7 @@ export const useBookings = (date?: string) => {
         .from('bookings')
         .update({ ...updates, updated_at: new Date().toISOString() })
         .eq('id', id)
+        .eq('venue_id', userVenue)
         .select()
         .single();
       
