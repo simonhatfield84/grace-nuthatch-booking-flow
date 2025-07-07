@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,6 +7,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeHandler } from "@/components/ThemeHandler";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AdminLayout } from "@/components/layouts/AdminLayout";
+import { HostLayout } from "@/components/layouts/HostLayout";
 import HomePage from "./pages/HomePage";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -65,9 +65,9 @@ function App() {
                 } />
                 <Route path="/host-new" element={
                   <ProtectedRoute>
-                    <AdminLayout>
+                    <HostLayout>
                       <NewHostInterface />
-                    </AdminLayout>
+                    </HostLayout>
                   </ProtectedRoute>
                 } />
                 <Route path="/settings" element={

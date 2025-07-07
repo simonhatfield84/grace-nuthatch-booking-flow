@@ -63,10 +63,27 @@ const NewHostInterface = () => {
     sectionsCount: sections.length
   });
 
-  const totalBookings = bookings.length;
-  const remainingBookings = bookings.filter(booking => booking.status === 'confirmed').length;
-  const currentlySeated = bookings.filter(booking => booking.status === 'seated').length;
-  const finishedBookings = bookings.filter(booking => booking.status === 'finished').length;
+  // Calculate covers (party_size) instead of bookings
+  const remainingCovers = bookings
+    .filter(booking => booking.status === 'confirmed')
+    .reduce((sum, booking) => sum + booking.party_size, 0);
+  
+  const seatedCovers = bookings
+    .filter(booking => booking.status === 'seated')
+    .reduce((sum, booking) => sum + booking.party_size, 0);
+  
+  const finishedCovers = bookings
+    .filter(booking => booking.status === 'finished')
+    .reduce((sum, booking) => sum + booking.party_size, 0);
+  
+  const totalCovers = bookings
+    .reduce((sum, booking) => sum + booking.party_size, 0);
+
+  // Get names of parties yet to be seated for display
+  const remainingParties = bookings
+    .filter(booking => booking.status === 'confirmed')
+    .map(booking => booking.guest_name)
+    .slice(0, 2); // Show first 2 names
 
   const handleWalkInClick = (tableId: number, time: string) => {
     const table = tables.find(t => t.id === tableId);
@@ -199,12 +216,12 @@ const NewHostInterface = () => {
   const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
 
   return (
-    <div className="space-y-6 bg-background text-foreground">
-      {/* Header */}
-      <div className="bg-card border border-border rounded-lg p-4 shadow-sm">
+    <div className="space-y-4 bg-background text-foreground">
+      {/* Compact Header */}
+      <div className="bg-card border border-border rounded-lg p-3 shadow-sm">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <div className="flex items-center gap-4 text-muted-foreground">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 text-muted-foreground">
               <div className="flex items-center gap-2">
                 <span className="text-lg font-medium text-foreground">
                   {format(selectedDate, 'EEEE, MMMM do, yyyy')}
@@ -214,7 +231,7 @@ const NewHostInterface = () => {
             </div>
           </div>
           
-          <div className="flex gap-3 items-center">
+          <div className="flex gap-2 items-center">
             <CollapsibleCalendar
               selectedDate={selectedDate}
               onDateSelect={setSelectedDate}
@@ -226,7 +243,7 @@ const NewHostInterface = () => {
                 variant={viewMode === 'grid' ? 'default' : 'ghost'} 
                 size="sm"
                 onClick={() => setViewMode('grid')}
-                className="h-9 text-sm"
+                className="h-8 text-sm px-3"
               >
                 <Grid className="h-4 w-4 mr-1" />
                 Grid
@@ -235,7 +252,7 @@ const NewHostInterface = () => {
                 variant={viewMode === 'list' ? 'default' : 'ghost'} 
                 size="sm"
                 onClick={() => setViewMode('list')}
-                className="h-9 text-sm"
+                className="h-8 text-sm px-3"
               >
                 <List className="h-4 w-4 mr-1" />
                 List
@@ -246,7 +263,7 @@ const NewHostInterface = () => {
               onClick={() => navigate('/dashboard')} 
               variant="outline"
               size="sm"
-              className="text-sm"
+              className="text-sm h-8 px-3"
             >
               <BarChart3 className="h-4 w-4 mr-1" />
               Dashboard
@@ -256,7 +273,7 @@ const NewHostInterface = () => {
               onClick={() => setFullBookingDialogOpen(true)} 
               variant="outline"
               size="sm"
-              className="text-sm"
+              className="text-sm h-8 px-3"
             >
               <PlusCircle className="h-4 w-4 mr-1" />
               New Booking
@@ -266,7 +283,7 @@ const NewHostInterface = () => {
               onClick={() => setBlockDialogOpen(true)} 
               variant="outline"
               size="sm"
-              className="text-sm"
+              className="text-sm h-8 px-3"
             >
               <Ban className="h-4 w-4 mr-1" />
               Block
@@ -275,32 +292,37 @@ const NewHostInterface = () => {
         </div>
       </div>
 
-      {/* Statistics Bar */}
-      <div className="bg-card border border-border rounded-lg p-4 shadow-sm">
+      {/* Compact Statistics Bar - Covers instead of bookings */}
+      <div className="bg-card border border-border rounded-lg p-3 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-6 text-muted-foreground">
             <div className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-primary" />
-              <span className="text-foreground">{remainingBookings} remaining</span>
+              <Clock className="h-4 w-4 text-primary" />
+              <span className="text-foreground font-medium">{remainingCovers} remaining</span>
+              {remainingParties.length > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  ({remainingParties.join(', ')}{remainingParties.length === 2 ? ' + others' : ''} yet to be seated)
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-green-600" />
-              <span className="text-foreground">{currentlySeated} seated</span>
+              <Users className="h-4 w-4 text-green-600" />
+              <span className="text-foreground font-medium">{seatedCovers} seated</span>
             </div>
             <div className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-muted-foreground" />
-              <span className="text-foreground">{finishedBookings} finished</span>
+              <CheckCircle className="h-4 w-4 text-muted-foreground" />
+              <span className="text-foreground font-medium">{finishedCovers} finished</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-muted-foreground">{totalBookings} total today</span>
+              <span className="text-muted-foreground">{totalCovers} total covers today</span>
             </div>
           </div>
-          <div className="text-base font-semibold text-foreground">Tables</div>
+          <div className="text-sm font-medium text-foreground">Tables</div>
         </div>
       </div>
 
       {/* Main Interface */}
-      <div className="grid grid-cols-12 gap-6">
+      <div className="grid grid-cols-12 gap-4">
         <div className={`${selectedBooking ? 'col-span-8' : 'col-span-12'}`}>
           {viewMode === 'grid' ? (
             <NewTimeGrid
@@ -313,9 +335,9 @@ const NewHostInterface = () => {
               onBookingDrag={handleBookingDrag}
               onBlockClick={handleBlockClick}
               selectedDate={selectedDate}
-              remainingBookings={remainingBookings}
-              currentlySeated={currentlySeated}
-              finishedBookings={finishedBookings}
+              remainingBookings={remainingCovers}
+              currentlySeated={seatedCovers}
+              finishedBookings={finishedCovers}
             />
           ) : (
             <BookingListView

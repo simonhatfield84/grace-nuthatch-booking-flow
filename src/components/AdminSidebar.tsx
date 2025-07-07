@@ -1,10 +1,17 @@
 
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { 
   LayoutDashboard, 
   Calendar, 
@@ -18,8 +25,14 @@ import {
   X,
   TestTube,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  LogOut,
+  User
 } from 'lucide-react';
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { ChangePasswordDialog } from "@/components/auth/ChangePasswordDialog";
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -35,11 +48,36 @@ const navigation = [
 interface AdminSidebarProps {
   collapsed?: boolean;
   onToggleCollapse?: () => void;
+  showUserProfile?: boolean; // New prop for host interface
 }
 
-const AdminSidebar = ({ collapsed = false, onToggleCollapse }: AdminSidebarProps) => {
+const AdminSidebar = ({ collapsed = false, onToggleCollapse, showUserProfile = false }: AdminSidebarProps) => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      toast({
+        title: "Signed out successfully",
+        description: "You have been logged out of your account.",
+      });
+      
+      navigate('/', { replace: true });
+    } catch (error: any) {
+      console.error('Logout error:', error);
+      toast({
+        title: "Logout Failed",
+        description: error.message || "An error occurred during logout.",
+        variant: "destructive",
+      });
+    }
+  };
 
   const isActive = (href: string) => {
     if (href === '/dashboard') {
@@ -51,8 +89,8 @@ const AdminSidebar = ({ collapsed = false, onToggleCollapse }: AdminSidebarProps
   const SidebarContent = () => (
     <>
       {/* Logo */}
-      <div className={`flex items-center justify-between p-4 border-b ${collapsed ? 'px-2' : ''}`}>
-        {!collapsed && <div className="grace-logo text-2xl font-bold">grace</div>}
+      <div className={`flex items-center justify-between p-3 border-b ${collapsed ? 'px-2' : ''}`}>
+        {!collapsed && <div className="grace-logo text-xl font-bold">grace</div>}
         <Button
           variant="ghost"
           size="sm"
@@ -64,7 +102,7 @@ const AdminSidebar = ({ collapsed = false, onToggleCollapse }: AdminSidebarProps
       </div>
 
       {/* Navigation */}
-      <ScrollArea className="flex-1 py-4">
+      <ScrollArea className="flex-1 py-3">
         <nav className={`space-y-1 ${collapsed ? 'px-2' : 'px-3'}`}>
           {navigation.map((item) => {
             const Icon = item.icon;
@@ -99,8 +137,56 @@ const AdminSidebar = ({ collapsed = false, onToggleCollapse }: AdminSidebarProps
         </nav>
       </ScrollArea>
 
+      {/* User Profile Section - only show if showUserProfile is true */}
+      {showUserProfile && (
+        <div className={`p-3 border-t ${collapsed ? 'px-2' : ''}`}>
+          {collapsed ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="w-full h-10 p-0">
+                  <Avatar className="h-6 w-6">
+                    <AvatarFallback className="text-xs">
+                      {user?.email?.charAt(0).toUpperCase() || 'U'}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" side="right">
+                <DropdownMenuItem disabled className="font-normal">
+                  <User className="mr-2 h-4 w-4" />
+                  {user?.email}
+                </DropdownMenuItem>
+                <ChangePasswordDialog />
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Sign out
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
+                <Avatar className="h-6 w-6">
+                  <AvatarFallback className="text-xs">
+                    {user?.email?.charAt(0).toUpperCase() || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+                <span className="text-xs truncate flex-1">{user?.email}</span>
+              </div>
+              <div className="flex gap-1">
+                <ChangePasswordDialog />
+                <Button variant="ghost" size="sm" onClick={handleLogout} className="flex-1 text-xs">
+                  <LogOut className="h-3 w-3 mr-1" />
+                  Sign out
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Collapse Toggle */}
-      <div className={`p-4 border-t ${collapsed ? 'px-2' : ''}`}>
+      <div className={`p-3 border-t ${collapsed ? 'px-2' : ''}`}>
         <Button
           variant="ghost"
           size="sm"
@@ -121,7 +207,7 @@ const AdminSidebar = ({ collapsed = false, onToggleCollapse }: AdminSidebarProps
 
       {/* Footer */}
       {!collapsed && (
-        <div className="p-4 border-t">
+        <div className="p-3 border-t">
           <p className="text-xs text-muted-foreground">
             Grace OS • Restaurant Management
           </p>
