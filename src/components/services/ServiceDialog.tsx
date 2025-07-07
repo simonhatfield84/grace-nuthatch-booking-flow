@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -69,7 +68,7 @@ const ServiceDialog = ({
   const [durationRules, setDurationRules] = useState(editingService?.duration_rules || newService?.duration_rules || []);
   const [termsAndConditions, setTermsAndConditions] = useState(editingService?.terms_and_conditions || newService?.terms_and_conditions || '');
 
-  // Add payment-related form state
+  // Simplified payment-related form state
   const [paymentSettings, setPaymentSettings] = useState({
     requires_payment: editingService?.requires_payment || newService?.requires_payment || false,
     charge_type: editingService?.charge_type || newService?.charge_type || 'all_reservations',
@@ -114,7 +113,7 @@ const ServiceDialog = ({
         tag_ids: selectedTags,
         duration_rules: durationRules,
         terms_and_conditions: termsAndConditions,
-        // Add payment settings
+        // Fixed payment settings logic
         requires_payment: paymentSettings.requires_payment,
         charge_type: paymentSettings.requires_payment ? paymentSettings.charge_type : 'none',
         minimum_guests_for_charge: paymentSettings.minimum_guests_for_charge,
@@ -161,6 +160,8 @@ const ServiceDialog = ({
       setSelectedTags(service.tag_ids || []);
       setDurationRules(service.duration_rules || []);
       setTermsAndConditions(service.terms_and_conditions || '');
+      
+      // Fixed payment settings initialization - keep charge_type as-is, don't convert 'none'
       setPaymentSettings({
         requires_payment: service.requires_payment || false,
         charge_type: service.charge_type === 'none' ? 'all_reservations' : (service.charge_type || 'all_reservations'),
@@ -321,6 +322,7 @@ const ServiceDialog = ({
                   />
                 </div>
 
+                {/* Only show payment options when payment is required */}
                 {paymentSettings.requires_payment && (
                   <>
                     <div className="space-y-2">
