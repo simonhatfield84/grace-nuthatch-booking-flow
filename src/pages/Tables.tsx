@@ -22,9 +22,23 @@ const Tables = () => {
   const [editingSection, setEditingSection] = useState<any>(null);
   const [editingGroup, setEditingGroup] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("list");
+  const [preSelectedSectionId, setPreSelectedSectionId] = useState<number | null>(null);
 
   const { tables, createTable, updateTable, deleteTable } = useTables();
   const { sections, createSection, updateSection, deleteSection } = useSections();
+  
+  // Initialize newTable with proper defaults
+  const [newTable, setNewTable] = useState({
+    label: "",
+    seats: 2,
+    online_bookable: true,
+    priority_rank: 1,
+    section_id: null as number | null,
+    position_x: 100,
+    position_y: 100,
+    join_groups: [] as number[]
+  });
+
   const {
     joinGroups,
     editingGroup: groupEditingState,
@@ -38,13 +52,43 @@ const Tables = () => {
     resetGroupForm
   } = useGroupManagement([], tables, updateTable);
 
-  const handleCreateTable = () => {
+  const resetTableForm = () => {
+    const maxPriority = Math.max(...tables.map(t => t.priority_rank), 0);
+    setNewTable({
+      label: "",
+      seats: 2,
+      online_bookable: true,
+      priority_rank: maxPriority + 1,
+      section_id: preSelectedSectionId,
+      position_x: 100,
+      position_y: 100,
+      join_groups: []
+    });
+  };
+
+  const handleCreateTable = (sectionId?: number) => {
     setEditingTable(null);
+    setPreSelectedSectionId(sectionId || null);
+    
+    // Reset and prepare the form with pre-selected section if provided
+    const maxPriority = Math.max(...tables.map(t => t.priority_rank), 0);
+    setNewTable({
+      label: "",
+      seats: 2,
+      online_bookable: true,
+      priority_rank: maxPriority + 1,
+      section_id: sectionId || null,
+      position_x: 100,
+      position_y: 100,
+      join_groups: []
+    });
+    
     setTableDialogOpen(true);
   };
 
   const handleEditTable = (table: any) => {
     setEditingTable(table);
+    setPreSelectedSectionId(null);
     setTableDialogOpen(true);
   };
 
@@ -68,6 +112,40 @@ const Tables = () => {
     setGroupDialogOpen(true);
   };
 
+  const handleAddTable = async () => {
+    try {
+      const tableData = editingTable || newTable;
+      if (!tableData.section_id) {
+        throw new Error("Section is required");
+      }
+      if (!tableData.label.trim()) {
+        throw new Error("Table label is required");
+      }
+
+      if (editingTable) {
+        await updateTable({ id: editingTable.id, updates: editingTable });
+      } else {
+        await createTable(newTable);
+      }
+      
+      setTableDialogOpen(false);
+      setEditingTable(null);
+      setPreSelectedSectionId(null);
+      resetTableForm();
+    } catch (error) {
+      throw error; // Let the dialog handle the error display
+    }
+  };
+
+  const handleTableDialogClose = (open: boolean) => {
+    setTableDialogOpen(open);
+    if (!open) {
+      setEditingTable(null);
+      setPreSelectedSectionId(null);
+      resetTableForm();
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -76,7 +154,7 @@ const Tables = () => {
           <p className="text-muted-foreground">Manage your restaurant tables, sections, and seating arrangements</p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={handleCreateTable}>
+          <Button onClick={() => handleCreateTable()}>
             <Plus className="h-4 w-4 mr-2" />
             Add Table
           </Button>
@@ -122,41 +200,14 @@ const Tables = () => {
 
       <TableDialog
         isOpen={tableDialogOpen}
-        onOpenChange={setTableDialogOpen}
+        onOpenChange={handleTableDialogClose}
         editingTable={editingTable}
-        newTable={{
-          label: "",
-          seats: 2,
-          online_bookable: true,
-          priority_rank: 1,
-          section_id: null,
-          position_x: 100,
-          position_y: 100,
-          join_groups: []
-        }}
-        setNewTable={() => {}}
+        newTable={newTable}
+        setNewTable={setNewTable}
         setEditingTable={setEditingTable}
-        onAddTable={async () => {
-          if (editingTable) {
-            await updateTable({ id: editingTable.id, updates: editingTable });
-          } else {
-            await createTable({
-              label: "",
-              seats: 2,
-              online_bookable: true,
-              priority_rank: tables.length + 1,
-              section_id: null,
-              position_x: 100,
-              position_y: 100,
-              join_groups: []
-            });
-          }
-        }}
-        onUpdateTable={async () => {
-          if (editingTable) {
-            await updateTable({ id: editingTable.id, updates: editingTable });
-          }
-        }}
+        onAddTable={handleAddTable}
+        onUpdateTable={handleAddTable}
+        preSelectedSectionId={preSelectedSectionId}
       />
 
       <SectionDialog

@@ -36,8 +36,8 @@ export const TableDialog = ({
   const { sections } = useSections();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const currentFormData = editingTable || newTable;
-
   const preSelectedSection = preSelectedSectionId 
     ? sections.find(s => s.id === preSelectedSectionId)
     : null;
@@ -81,6 +81,14 @@ export const TableDialog = ({
     }
   };
 
+  const updateFormData = (field: string, value: any) => {
+    if (editingTable) {
+      setEditingTable({ ...editingTable, [field]: value });
+    } else {
+      setNewTable({ ...newTable, [field]: value });
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -101,10 +109,7 @@ export const TableDialog = ({
               <Input
                 id="label"
                 value={currentFormData.label}
-                onChange={(e) => editingTable 
-                  ? setEditingTable({...editingTable, label: e.target.value})
-                  : setNewTable({...newTable, label: e.target.value})
-                }
+                onChange={(e) => updateFormData('label', e.target.value)}
                 placeholder="e.g., T7"
                 required
               />
@@ -115,10 +120,7 @@ export const TableDialog = ({
                 id="seats"
                 type="number"
                 value={currentFormData.seats}
-                onChange={(e) => editingTable
-                  ? setEditingTable({...editingTable, seats: parseInt(e.target.value)})
-                  : setNewTable({...newTable, seats: parseInt(e.target.value)})
-                }
+                onChange={(e) => updateFormData('seats', parseInt(e.target.value) || 2)}
                 min="1"
                 max="20"
               />
@@ -129,10 +131,7 @@ export const TableDialog = ({
                 id="priority"
                 type="number"
                 value={currentFormData.priority_rank}
-                onChange={(e) => editingTable
-                  ? setEditingTable({...editingTable, priority_rank: parseInt(e.target.value)})
-                  : setNewTable({...newTable, priority_rank: parseInt(e.target.value)})
-                }
+                onChange={(e) => updateFormData('priority_rank', parseInt(e.target.value) || 1)}
                 min="1"
               />
             </div>
@@ -142,12 +141,7 @@ export const TableDialog = ({
             <Label htmlFor="section">Section *</Label>
             <Select 
               value={currentFormData.section_id ? currentFormData.section_id.toString() : ""} 
-              onValueChange={(value) => {
-                const sectionId = parseInt(value);
-                editingTable
-                  ? setEditingTable({...editingTable, section_id: sectionId})
-                  : setNewTable({...newTable, section_id: sectionId});
-              }}
+              onValueChange={(value) => updateFormData('section_id', parseInt(value))}
               required
               disabled={!!preSelectedSectionId && !editingTable}
             >
@@ -179,10 +173,7 @@ export const TableDialog = ({
             <Switch
               id="bookable"
               checked={currentFormData.online_bookable}
-              onCheckedChange={(checked) => editingTable
-                ? setEditingTable({...editingTable, online_bookable: checked})
-                : setNewTable({...newTable, online_bookable: checked})
-              }
+              onCheckedChange={(checked) => updateFormData('online_bookable', checked)}
             />
             <Label htmlFor="bookable">Available for Online Booking</Label>
           </div>
