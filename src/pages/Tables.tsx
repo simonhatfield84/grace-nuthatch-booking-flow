@@ -26,7 +26,18 @@ const Tables = () => {
 
   const { tables, createTable, updateTable, deleteTable, updateTablePositions } = useTables();
   const { sections, createSection, updateSection, deleteSection } = useSections();
-  const { groups, createGroup, updateGroup, deleteGroup } = useGroupManagement();
+  const {
+    joinGroups,
+    editingGroup: groupEditingState,
+    setEditingGroup: setGroupEditingState,
+    newGroup,
+    setNewGroup,
+    handleAddGroup,
+    handleUpdateGroup,
+    handleDeleteGroup,
+    handleEditGroup,
+    resetGroupForm
+  } = useGroupManagement([], tables, updateTable);
 
   const handleCreateTable = () => {
     setEditingTable(null);
@@ -100,14 +111,10 @@ const Tables = () => {
 
         <TabsContent value="list" className="space-y-6">
           <SectionManager
-            sections={sections}
             tables={tables}
             onEditTable={handleEditTable}
-            onEditSection={handleEditSection}
-            onDeleteSection={deleteSection}
-            groups={groups}
-            onEditGroup={handleEditGroup}
-            onDeleteGroup={deleteGroup}
+            onDeleteTable={deleteTable}
+            onAddTableToSection={handleCreateTable}
           />
         </TabsContent>
 
@@ -125,7 +132,6 @@ const Tables = () => {
             <CardContent>
               <FloorPlanCanvas 
                 tables={tables}
-                sections={sections}
                 onUpdatePositions={updateTablePositions}
                 onEditTable={handleEditTable}
               />
@@ -134,33 +140,69 @@ const Tables = () => {
         </TabsContent>
 
         <TabsContent value="priorities" className="space-y-6">
-          <BookingPriorityManager />
+          <BookingPriorityManager tables={tables} joinGroups={joinGroups} />
         </TabsContent>
       </Tabs>
 
       <TableDialog
-        open={tableDialogOpen}
+        isOpen={tableDialogOpen}
         onOpenChange={setTableDialogOpen}
-        table={editingTable}
-        sections={sections}
-        groups={groups}
-        onSave={editingTable ? updateTable : createTable}
-        onDelete={editingTable ? () => deleteTable(editingTable.id) : undefined}
+        editingTable={editingTable}
+        newTable={{
+          label: "",
+          seats: 2,
+          online_bookable: true,
+          priority_rank: 1,
+          section_id: null,
+          position_x: 100,
+          position_y: 100,
+          join_groups: []
+        }}
+        setNewTable={() => {}}
+        setEditingTable={setEditingTable}
+        onAddTable={async () => {
+          if (editingTable) {
+            await updateTable({ id: editingTable.id, updates: editingTable });
+          } else {
+            await createTable({
+              label: "",
+              seats: 2,
+              online_bookable: true,
+              priority_rank: tables.length + 1,
+              section_id: null,
+              position_x: 100,
+              position_y: 100,
+              join_groups: []
+            });
+          }
+        }}
+        onUpdateTable={async () => {
+          if (editingTable) {
+            await updateTable({ id: editingTable.id, updates: editingTable });
+          }
+        }}
       />
 
       <SectionDialog
-        open={sectionDialogOpen}
+        isOpen={sectionDialogOpen}
         onOpenChange={setSectionDialogOpen}
-        section={editingSection}
-        onSave={editingSection ? updateSection : createSection}
+        editingSection={editingSection}
+        onSectionSaved={() => {
+          setSectionDialogOpen(false);
+          setEditingSection(null);
+        }}
       />
 
       <GroupDialog
-        open={groupDialogOpen}
+        isOpen={groupDialogOpen}
         onOpenChange={setGroupDialogOpen}
-        group={editingGroup}
+        editingGroup={editingGroup}
+        newGroup={newGroup}
+        setNewGroup={setNewGroup}
+        setEditingGroup={setEditingGroup}
+        onAddGroup={handleAddGroup}
+        onUpdateGroup={handleUpdateGroup}
         tables={tables}
-        onSave={editingGroup ? updateGroup : createGroup}
       />
     </div>
   );
