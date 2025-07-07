@@ -22,6 +22,7 @@ const Tables = () => {
   const [editingTable, setEditingTable] = useState<any>(null);
   const [editingSection, setEditingSection] = useState<any>(null);
   const [editingGroup, setEditingGroup] = useState<any>(null);
+  const [selectedTable, setSelectedTable] = useState<any>(null);
   const [activeTab, setActiveTab] = useState("list"); // Default to list view
 
   const { tables, createTable, updateTable, deleteTable, updateTablePositions } = useTables();
@@ -64,9 +65,13 @@ const Tables = () => {
     setGroupDialogOpen(true);
   };
 
-  const handleEditGroup = (group: any) => {
+  const handleEditGroupLocal = (group: any) => {
     setEditingGroup(group);
     setGroupDialogOpen(true);
+  };
+
+  const handleUpdateTablePosition = async (tableId: number, x: number, y: number) => {
+    await updateTablePositions([{ id: tableId, position_x: x, position_y: y }]);
   };
 
   return (
@@ -132,7 +137,9 @@ const Tables = () => {
             <CardContent>
               <FloorPlanCanvas 
                 tables={tables}
-                onUpdatePositions={updateTablePositions}
+                onUpdateTablePosition={handleUpdateTablePosition}
+                onTableSelect={setSelectedTable}
+                selectedTable={selectedTable}
                 onEditTable={handleEditTable}
               />
             </CardContent>
