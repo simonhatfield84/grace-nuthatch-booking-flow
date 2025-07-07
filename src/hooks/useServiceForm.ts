@@ -67,37 +67,39 @@ export const useServiceForm = () => {
     return localStorage.getItem('standardTerms') || '';
   };
 
-  const handleAddService = async () => {
+  // Modified to accept serviceData directly
+  const handleAddService = async (serviceData = null) => {
     try {
-      const termsToUse = newService.useStandardTerms !== false 
+      const dataToUse = serviceData || newService;
+      const termsToUse = dataToUse.useStandardTerms !== false 
         ? getStandardTerms() 
-        : newService.terms_and_conditions;
+        : dataToUse.terms_and_conditions;
 
-      const serviceData = {
-        title: newService.title,
-        description: newService.description,
-        image_url: newService.image_url,
-        tag_ids: newService.tag_ids,
-        min_guests: newService.min_guests,
-        max_guests: newService.max_guests,
-        lead_time_hours: newService.lead_time_hours,
-        cancellation_window_hours: newService.cancellation_window_hours,
-        requires_deposit: newService.requires_deposit,
-        deposit_per_guest: newService.deposit_per_guest,
-        online_bookable: newService.online_bookable,
-        active: newService.active,
-        is_secret: newService.is_secret,
-        secret_slug: newService.secret_slug,
+      const finalServiceData = {
+        title: dataToUse.title,
+        description: dataToUse.description,
+        image_url: dataToUse.image_url,
+        tag_ids: dataToUse.tag_ids,
+        min_guests: dataToUse.min_guests,
+        max_guests: dataToUse.max_guests,
+        lead_time_hours: dataToUse.lead_time_hours,
+        cancellation_window_hours: dataToUse.cancellation_window_hours,
+        requires_deposit: dataToUse.requires_deposit,
+        deposit_per_guest: dataToUse.deposit_per_guest,
+        online_bookable: dataToUse.online_bookable,
+        active: dataToUse.active,
+        is_secret: dataToUse.is_secret,
+        secret_slug: dataToUse.secret_slug,
         terms_and_conditions: termsToUse,
-        duration_rules: newService.duration_rules,
+        duration_rules: dataToUse.duration_rules,
         // Add payment-related fields
-        requires_payment: newService.requires_payment,
-        charge_type: newService.charge_type,
-        minimum_guests_for_charge: newService.minimum_guests_for_charge,
-        charge_amount_per_guest: newService.charge_amount_per_guest,
+        requires_payment: dataToUse.requires_payment,
+        charge_type: dataToUse.charge_type,
+        minimum_guests_for_charge: dataToUse.minimum_guests_for_charge,
+        charge_amount_per_guest: dataToUse.charge_amount_per_guest,
       };
 
-      await createServiceMutation.mutateAsync(serviceData);
+      await createServiceMutation.mutateAsync(finalServiceData);
       return true;
     } catch (error) {
       console.error('Error creating service:', error);
@@ -105,41 +107,45 @@ export const useServiceForm = () => {
     }
   };
 
-  const handleUpdateService = async () => {
-    if (!editingService) return false;
+  // Modified to accept serviceData directly
+  const handleUpdateService = async (serviceData = null) => {
+    if (!editingService && !serviceData) return false;
 
     try {
-      const termsToUse = editingService.useStandardTerms !== false 
+      const dataToUse = serviceData || editingService;
+      const termsToUse = dataToUse.useStandardTerms !== false 
         ? getStandardTerms() 
-        : editingService.terms_and_conditions;
+        : dataToUse.terms_and_conditions;
 
-      const serviceData = {
-        title: editingService.title,
-        description: editingService.description,
-        image_url: editingService.image_url,
-        tag_ids: editingService.tag_ids,
-        min_guests: editingService.min_guests,
-        max_guests: editingService.max_guests,
-        lead_time_hours: editingService.lead_time_hours,
-        cancellation_window_hours: editingService.cancellation_window_hours,
-        requires_deposit: editingService.requires_deposit,
-        deposit_per_guest: editingService.deposit_per_guest,
-        online_bookable: editingService.online_bookable,
-        active: editingService.active,
-        is_secret: editingService.is_secret,
-        secret_slug: editingService.secret_slug,
+      const finalServiceData = {
+        title: dataToUse.title,
+        description: dataToUse.description,
+        image_url: dataToUse.image_url,
+        tag_ids: dataToUse.tag_ids,
+        min_guests: dataToUse.min_guests,
+        max_guests: dataToUse.max_guests,
+        lead_time_hours: dataToUse.lead_time_hours,
+        cancellation_window_hours: dataToUse.cancellation_window_hours,
+        requires_deposit: dataToUse.requires_deposit,
+        deposit_per_guest: dataToUse.deposit_per_guest,
+        online_bookable: dataToUse.online_bookable,
+        active: dataToUse.active,
+        is_secret: dataToUse.is_secret,
+        secret_slug: dataToUse.secret_slug,
         terms_and_conditions: termsToUse,
-        duration_rules: editingService.duration_rules,
+        duration_rules: dataToUse.duration_rules,
         // Add payment-related fields
-        requires_payment: editingService.requires_payment,
-        charge_type: editingService.charge_type,
-        minimum_guests_for_charge: editingService.minimum_guests_for_charge,
-        charge_amount_per_guest: editingService.charge_amount_per_guest,
+        requires_payment: dataToUse.requires_payment,
+        charge_type: dataToUse.charge_type,
+        minimum_guests_for_charge: dataToUse.minimum_guests_for_charge,
+        charge_amount_per_guest: dataToUse.charge_amount_per_guest,
       };
 
+      const serviceId = serviceData ? (serviceData.id || editingService?.id) : editingService.id;
+      
       await updateServiceMutation.mutateAsync({
-        id: editingService.id,
-        updates: serviceData
+        id: serviceId,
+        updates: finalServiceData
       });
       return true;
     } catch (error) {

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -29,8 +28,8 @@ interface ServiceDialogProps {
   newService: any;
   setEditingService: (service: any) => void;
   setNewService: (service: any) => void;
-  onAddService: () => Promise<boolean>;
-  onUpdateService: () => Promise<boolean>;
+  onAddService: (serviceData?: any) => Promise<boolean>;
+  onUpdateService: (serviceData?: any) => Promise<boolean>;
   createServiceMutation: any;
   updateServiceMutation: any;
   onReset: () => void;
@@ -98,6 +97,7 @@ const ServiceDialog = ({
 
     try {
       const serviceData = {
+        id: editingService?.id,
         title: title.trim(),
         description: description.trim() || null,
         min_guests: minGuests,
@@ -121,17 +121,15 @@ const ServiceDialog = ({
         charge_amount_per_guest: paymentSettings.charge_amount_per_guest,
       };
 
-      // Update the service objects with the current data
+      // Pass serviceData directly to the functions
       if (editingService) {
-        setEditingService({ ...editingService, ...serviceData });
-        const success = await onUpdateService();
+        const success = await onUpdateService(serviceData);
         if (success) {
           onOpenChange(false);
           onReset();
         }
       } else {
-        setNewService({ ...newService, ...serviceData });
-        const success = await onAddService();
+        const success = await onAddService(serviceData);
         if (success) {
           onOpenChange(false);
           onReset();
@@ -162,7 +160,7 @@ const ServiceDialog = ({
       setDurationRules(service.duration_rules || []);
       setTermsAndConditions(service.terms_and_conditions || '');
       
-      // Fixed payment settings initialization - don't convert 'none'
+      // Initialize payment settings properly
       setPaymentSettings({
         requires_payment: service.requires_payment || false,
         charge_type: service.charge_type || 'all_reservations',
