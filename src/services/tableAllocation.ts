@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { addMinutes, parseISO, format } from "date-fns";
 
@@ -8,6 +7,7 @@ interface Table {
   seats: number;
   section_id: number;
   join_groups: number[];
+  priority_rank: number;
 }
 
 interface JoinGroup {
@@ -38,14 +38,14 @@ export class TableAllocationService {
     durationMinutes: number = this.DEFAULT_DURATION_MINUTES
   ): Promise<number[] | null> {
     try {
-      console.log(`Allocating table for party of ${partySize} on ${bookingDate} at ${bookingTime}`);
+      console.log(`🎯 Allocating table for party of ${partySize} on ${bookingDate} at ${bookingTime}`);
 
-      // Fetch all active tables
+      // Fetch all active tables ordered by priority_rank (lower number = higher priority)
       const { data: tables } = await supabase
         .from('tables')
         .select('*')
         .eq('status', 'active')
-        .order('priority_rank');
+        .order('priority_rank', { ascending: true });
 
       // Fetch join groups
       const { data: joinGroups } = await supabase
@@ -61,8 +61,11 @@ export class TableAllocationService {
         .neq('status', 'finished');
 
       if (!tables || !existingBookings) {
+        console.error('❌ Failed to fetch required data for allocation');
         throw new Error('Failed to fetch required data');
       }
+
+      console.log(`📊 Found ${tables.length} tables, ${joinGroups?.length || 0} join groups, ${existingBookings.length} existing bookings`);
 
       // Check which tables are occupied during the requested time
       const occupiedTableIds = this.getOccupiedTableIds(
@@ -71,10 +74,11 @@ export class TableAllocationService {
         durationMinutes
       );
 
-      console.log(`Occupied tables during ${bookingTime}: ${occupiedTableIds.join(', ')}`);
+      console.log(`🚫 Occupied tables during ${bookingTime}: [${occupiedTableIds.join(', ')}]`);
 
       // Try join groups first for larger parties (7+)
       if (partySize >= 7 && joinGroups) {
+        console.log(`🔍 Checking join groups for party of ${partySize}`);
         const suitableGroup = joinGroups.find(group => 
           partySize >= group.min_party_size && 
           partySize <= group.max_party_size &&
@@ -82,28 +86,30 @@ export class TableAllocationService {
         );
 
         if (suitableGroup) {
-          console.log(`Allocated join group ${suitableGroup.name} for party of ${partySize}`);
+          console.log(`✅ Allocated join group ${suitableGroup.name} (tables: ${suitableGroup.table_ids.join(', ')}) for party of ${partySize}`);
           return suitableGroup.table_ids;
         }
       }
 
-      // Try single table allocation
+      // Try single table allocation - tables are already ordered by priority_rank
       const availableTables = tables.filter(table => 
         !occupiedTableIds.includes(table.id) &&
         table.seats >= partySize
       );
 
+      console.log(`🔍 Available tables: [${availableTables.map(t => `${t.label}(${t.seats} seats, priority: ${t.priority_rank})`).join(', ')}]`);
+
       if (availableTables.length > 0) {
-        // Sort by seat count (prefer tables closer to party size)
-        availableTables.sort((a, b) => a.seats - b.seats);
-        console.log(`Allocated table ${availableTables[0].label} for party of ${partySize}`);
-        return [availableTables[0].id];
+        // Tables are already sorted by priority_rank (ascending), so take the first one
+        const selectedTable = availableTables[0];
+        console.log(`✅ Allocated table ${selectedTable.label} (priority: ${selectedTable.priority_rank}) for party of ${partySize}`);
+        return [selectedTable.id];
       }
 
-      console.log(`No suitable allocation found for party of ${partySize}`);
+      console.log(`❌ No suitable allocation found for party of ${partySize}`);
       return null;
     } catch (error) {
-      console.error('Table allocation error:', error);
+      console.error('❌ Table allocation error:', error);
       return null;
     }
   }
@@ -152,12 +158,12 @@ export class TableAllocationService {
     bookingDate: string, 
     bookingTime: string
   ): Promise<boolean> {
-    console.log(`Attempting to allocate booking ${bookingId}`);
+    console.log(`🎯 Attempting to allocate booking ${bookingId} for party of ${partySize}`);
     
     const tableIds = await this.allocateTable(partySize, bookingDate, bookingTime);
     
     if (!tableIds || tableIds.length === 0) {
-      console.log(`No tables available, marking booking ${bookingId} as unallocated`);
+      console.log(`❌ No tables available, marking booking ${bookingId} as unallocated`);
       // Mark as unallocated
       await supabase
         .from('bookings')
@@ -170,7 +176,7 @@ export class TableAllocationService {
       return false;
     }
 
-    console.log(`Allocating booking ${bookingId} to table ${tableIds[0]}`);
+    console.log(`✅ Allocating booking ${bookingId} to table ${tableIds[0]}`);
     // Allocate to primary table
     const { error } = await supabase
       .from('bookings')
@@ -182,10 +188,11 @@ export class TableAllocationService {
       .eq('id', bookingId);
 
     if (error) {
-      console.error('Error updating booking:', error);
+      console.error('❌ Error updating booking:', error);
       return false;
     }
 
+    console.log(`✅ Successfully allocated booking ${bookingId} to table ${tableIds[0]}`);
     return true;
   }
 

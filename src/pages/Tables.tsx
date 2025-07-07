@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,6 +9,7 @@ import { SectionDialog } from "@/components/tables/SectionDialog";
 import { GroupDialog } from "@/components/tables/GroupDialog";
 import { TableStats } from "@/components/tables/TableStats";
 import { BookingPriorityManager } from "@/components/tables/BookingPriorityManager";
+import { JoinGroupsList } from "@/components/tables/JoinGroupsList";
 import { useTables } from "@/hooks/useTables";
 import { useSections } from "@/hooks/useSections";
 import { useGroupManagement } from "@/hooks/useGroupManagement";
@@ -190,6 +190,13 @@ const Tables = () => {
             onAddTableToSection={handleCreateTable}
             onEditSection={handleEditSection}
             onDeleteSection={deleteSection}
+          />
+          
+          <JoinGroupsList
+            joinGroups={joinGroups}
+            tables={tables}
+            onEditGroup={handleEditGroupLocal}
+            onDeleteGroup={handleDeleteGroup}
           />
         </TabsContent>
 

@@ -42,6 +42,10 @@ export const TableDialog = ({
     ? sections.find(s => s.id === preSelectedSectionId)
     : null;
 
+  const handleSeatsInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    e.target.select();
+  };
+
   const handleSubmit = async () => {
     if (!currentFormData.section_id) {
       toast({
@@ -121,6 +125,7 @@ export const TableDialog = ({
                 type="number"
                 value={currentFormData.seats}
                 onChange={(e) => updateFormData('seats', parseInt(e.target.value) || 2)}
+                onFocus={handleSeatsInputFocus}
                 min="1"
                 max="20"
               />
