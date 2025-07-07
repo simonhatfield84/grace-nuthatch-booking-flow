@@ -72,7 +72,7 @@ const ServiceDialog = ({
   // Add payment-related form state
   const [paymentSettings, setPaymentSettings] = useState({
     requires_payment: editingService?.requires_payment || newService?.requires_payment || false,
-    charge_type: editingService?.charge_type || newService?.charge_type || 'venue_default',
+    charge_type: editingService?.charge_type || newService?.charge_type || 'none',
     minimum_guests_for_charge: editingService?.minimum_guests_for_charge || newService?.minimum_guests_for_charge || 8,
     charge_amount_per_guest: editingService?.charge_amount_per_guest || newService?.charge_amount_per_guest || 0,
   });
@@ -160,7 +160,7 @@ const ServiceDialog = ({
       setTermsAndConditions(service.terms_and_conditions || '');
       setPaymentSettings({
         requires_payment: service.requires_payment || false,
-        charge_type: service.charge_type || 'venue_default',
+        charge_type: service.charge_type || 'none',
         minimum_guests_for_charge: service.minimum_guests_for_charge || 8,
         charge_amount_per_guest: service.charge_amount_per_guest || 0,
       });
@@ -324,7 +324,7 @@ const ServiceDialog = ({
                       <Label>Payment Rule</Label>
                       <Select
                         value={paymentSettings.charge_type}
-                        onValueChange={(value: 'venue_default' | 'all_reservations' | 'large_groups') =>
+                        onValueChange={(value: 'none' | 'all_reservations' | 'large_groups') =>
                           setPaymentSettings(prev => ({ ...prev, charge_type: value }))
                         }
                       >
@@ -332,7 +332,7 @@ const ServiceDialog = ({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="venue_default">Use venue default</SelectItem>
+                          <SelectItem value="none">No charge</SelectItem>
                           <SelectItem value="all_reservations">All reservations</SelectItem>
                           <SelectItem value="large_groups">Large groups only</SelectItem>
                         </SelectContent>
@@ -356,7 +356,7 @@ const ServiceDialog = ({
                       </div>
                     )}
 
-                    {paymentSettings.charge_type !== 'venue_default' && (
+                    {paymentSettings.charge_type !== 'none' && (
                       <div className="space-y-2">
                         <Label>Charge Amount per Guest</Label>
                         <div className="relative">

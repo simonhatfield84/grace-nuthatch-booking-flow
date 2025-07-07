@@ -12,6 +12,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, addDays, addHours } from "date-fns";
 import { SafeHtml } from "@/components/SafeHtml";
+import { calculatePaymentAmount } from "@/utils/paymentCalculation";
+import { PaymentStep } from "@/components/bookings/PaymentStep";
 
 const BookingWidget = () => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -23,6 +25,8 @@ const BookingWidget = () => {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [notes, setNotes] = useState('');
+  const [paymentRequired, setPaymentRequired] = useState(null);
+  const [createdBookingId, setCreatedBookingId] = useState(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -100,6 +104,27 @@ const BookingWidget = () => {
     }
   }, [bookingWindows]);
 
+  // Check payment requirements when service/party size changes
+  useEffect(() => {
+    const checkPaymentRequirement = async () => {
+      if (selectedService && firstVenue && partySize) {
+        try {
+          const paymentCalc = await calculatePaymentAmount(
+            selectedService.id,
+            partySize,
+            firstVenue
+          );
+          setPaymentRequired(paymentCalc);
+        } catch (error) {
+          console.error('Error calculating payment:', error);
+          setPaymentRequired(null);
+        }
+      }
+    };
+
+    checkPaymentRequirement();
+  }, [selectedService, partySize, firstVenue]);
+
   // Create booking mutation
   const createBookingMutation = useMutation({
     mutationFn: async () => {
@@ -130,18 +155,27 @@ const BookingWidget = () => {
         .select();
 
       if (error) throw error;
-      return data;
+      return data[0];
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['bookings'] });
-      toast({
-        title: "Booking confirmed",
-        description: "Your booking has been successfully created.",
-      });
-      resetForm();
-      setCurrentStep(1); // Reset to the first step
+    onSuccess: (booking) => {
+      setCreatedBookingId(booking.id);
+      
+      // If payment is required, go to payment step
+      if (paymentRequired?.shouldCharge) {
+        setCurrentStep(5); // Payment step
+      } else {
+        // No payment required, booking is complete
+        queryClient.invalidateQueries({ queryKey: ['bookings'] });
+        toast({
+          title: "Booking confirmed",
+          description: "Your booking has been successfully created.",
+        });
+        resetForm();
+        setCurrentStep(1);
+      }
     },
     onError: (error) => {
+      console.error('Booking creation error:', error);
       toast({
         title: "Error",
         description: "Failed to create booking. Please try again.",
@@ -162,6 +196,24 @@ const BookingWidget = () => {
     await createBookingMutation.mutateAsync();
   };
 
+  const handlePaymentSuccess = () => {
+    queryClient.invalidateQueries({ queryKey: ['bookings'] });
+    toast({
+      title: "Booking confirmed",
+      description: "Your booking and payment have been successfully processed.",
+    });
+    resetForm();
+    setCurrentStep(1);
+  };
+
+  const handlePaymentError = (error: string) => {
+    toast({
+      title: "Payment failed",
+      description: error,
+      variant: "destructive",
+    });
+  };
+
   const canProceed = () => {
     switch (currentStep) {
       case 1:
@@ -172,6 +224,8 @@ const BookingWidget = () => {
         return guestName.trim() !== '' && phone.trim() !== '';
       case 4:
         return true;
+      case 5:
+        return false; // Payment step handles its own navigation
       default:
         return false;
     }
@@ -186,6 +240,8 @@ const BookingWidget = () => {
     setPhone('');
     setEmail('');
     setNotes('');
+    setPaymentRequired(null);
+    setCreatedBookingId(null);
   };
 
   const getStepContent = () => {
@@ -226,6 +282,11 @@ const BookingWidget = () => {
                             <Badge variant="outline" className="text-gray-700 dark:text-gray-300">
                               {service.min_guests}-{service.max_guests} guests
                             </Badge>
+                            {service.requires_payment && (
+                              <Badge variant="outline" className="text-green-700 dark:text-green-300 border-green-300">
+                                Payment required
+                              </Badge>
+                            )}
                             {service.requires_deposit && (
                               <Badge variant="outline" className="text-green-700 dark:text-green-300 border-green-300">
                                 £{service.deposit_per_guest}/person deposit
@@ -450,6 +511,19 @@ const BookingWidget = () => {
                   </div>
                 </div>
 
+                {/* Payment Information */}
+                {paymentRequired?.shouldCharge && (
+                  <div className="bg-amber-50 dark:bg-amber-950 rounded-lg p-4 border border-amber-200 dark:border-amber-800">
+                    <h3 className="font-semibold text-lg mb-2 text-amber-900 dark:text-amber-100">Payment Required</h3>
+                    <p className="text-sm text-amber-800 dark:text-amber-200">
+                      {paymentRequired.description} - £{paymentRequired.amount.toFixed(2)}
+                    </p>
+                    <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                      You will be redirected to complete payment after creating your booking.
+                    </p>
+                  </div>
+                )}
+
                 {/* Deposit Information */}
                 {selectedService?.requires_deposit && (
                   <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
@@ -478,10 +552,24 @@ const BookingWidget = () => {
           </Card>
         );
 
+      case 5:
+        // Payment step
+        return paymentRequired?.shouldCharge && (
+          <PaymentStep
+            amount={paymentRequired.amount}
+            description={paymentRequired.description}
+            bookingId={createdBookingId}
+            onPaymentSuccess={handlePaymentSuccess}
+            onPaymentError={handlePaymentError}
+          />
+        );
+
       default:
         return null;
     }
   };
+
+  const totalSteps = paymentRequired?.shouldCharge ? 5 : 4;
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950 py-8">
@@ -489,7 +577,7 @@ const BookingWidget = () => {
         {/* Progress Steps */}
         <div className="flex justify-center mb-8">
           <div className="flex items-center space-x-4">
-            {[1, 2, 3, 4].map((step) => (
+            {Array.from({ length: totalSteps }, (_, i) => i + 1).map((step) => (
               <div key={step} className="flex items-center">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                   currentStep >= step 
@@ -498,7 +586,7 @@ const BookingWidget = () => {
                 }`}>
                   {step}
                 </div>
-                {step < 4 && (
+                {step < totalSteps && (
                   <div className={`w-12 h-1 ml-2 ${
                     currentStep > step 
                       ? 'bg-blue-600' 
@@ -513,24 +601,31 @@ const BookingWidget = () => {
         {getStepContent()}
 
         {/* Navigation Buttons */}
-        <div className="flex justify-between mt-8 max-w-2xl mx-auto">
-          <Button 
-            variant="outline" 
-            onClick={handlePrevious}
-            disabled={currentStep === 1}
-            className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
-          >
-            Previous
-          </Button>
-          
-          <Button 
-            onClick={currentStep === 4 ? handleSubmit : handleNext}
-            disabled={!canProceed()}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
-            {currentStep === 4 ? 'Confirm Booking' : 'Next'}
-          </Button>
-        </div>
+        {currentStep < 5 && (
+          <div className="flex justify-between mt-8 max-w-2xl mx-auto">
+            <Button 
+              variant="outline" 
+              onClick={handlePrevious}
+              disabled={currentStep === 1}
+              className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
+            >
+              Previous
+            </Button>
+            
+            <Button 
+              onClick={currentStep === 4 ? handleSubmit : handleNext}
+              disabled={!canProceed() || createBookingMutation.isPending}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {createBookingMutation.isPending 
+                ? 'Creating Booking...' 
+                : currentStep === 4 
+                  ? 'Create Booking' 
+                  : 'Next'
+              }
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
