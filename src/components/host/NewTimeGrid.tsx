@@ -97,17 +97,19 @@ export const NewTimeGrid = ({
         <div className="min-w-full">
           {/* Time header - more compact */}
           <div className="flex border-b bg-muted/30">
-            <div className="w-24 p-2 border-r bg-background font-medium text-xs">
+            <div className="w-24 p-2 border-r bg-background font-medium text-xs flex-shrink-0">
               Tables
             </div>
-            {timeSlots.map((time) => (
-              <div
-                key={time}
-                className="min-w-[48px] p-1 border-r text-center bg-background"
-              >
-                <div className="text-xs font-medium">{time}</div>
-              </div>
-            ))}
+            <div className="flex flex-1">
+              {timeSlots.map((time) => (
+                <div
+                  key={time}
+                  className="min-w-[48px] flex-1 p-1 border-r text-center bg-background"
+                >
+                  <div className="text-xs font-medium">{time}</div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Table rows by section */}
@@ -119,7 +121,7 @@ export const NewTimeGrid = ({
                 {/* Section header - more compact */}
                 {section.name !== 'No Section' && (
                   <div className="flex bg-muted/20 border-b">
-                    <div className="w-24 p-1 border-r">
+                    <div className="w-24 p-1 border-r flex-shrink-0">
                       <Badge 
                         variant="outline" 
                         className="text-xs"
@@ -137,9 +139,9 @@ export const NewTimeGrid = ({
                   const tableBookings = getBookingsForTable(table.id);
                   
                   return (
-                    <div key={table.id} className="flex border-b hover:bg-muted/30 relative group">
+                    <div key={table.id} className="flex border-b hover:bg-muted/30 relative">
                       {/* Table info - more compact */}
-                      <div className="w-24 p-2 border-r bg-background/50 flex flex-col justify-center">
+                      <div className="w-24 p-2 border-r bg-background/50 flex flex-col justify-center flex-shrink-0">
                         <div className="font-medium text-sm">{table.label}</div>
                         <div className="text-xs text-muted-foreground flex items-center gap-1">
                           <Users className="h-3 w-3" />
@@ -147,24 +149,29 @@ export const NewTimeGrid = ({
                         </div>
                       </div>
                       
-                      {/* Time slots - reduced height */}
-                      <div className="flex-1 flex relative" style={{ height: '56px' }}>
-                        {timeSlots.map((time) => (
-                          <div
-                            key={time}
-                            className="min-w-[48px] border-r hover:bg-accent/20 cursor-pointer flex items-center justify-center relative"
-                            onClick={(e) => handleCellClick(table.id, time, e)}
-                          >
-                            {/* Time slot content */}
-                          </div>
-                        ))}
+                      {/* Time slots container - this is the key fix */}
+                      <div className="flex-1 relative" style={{ height: '56px' }}>
+                        {/* Time slot grid */}
+                        <div className="flex h-full absolute inset-0">
+                          {timeSlots.map((time) => (
+                            <div
+                              key={time}
+                              className="min-w-[48px] flex-1 border-r hover:bg-accent/20 cursor-pointer flex items-center justify-center"
+                              onClick={(e) => handleCellClick(table.id, time, e)}
+                            >
+                              {/* Time slot content */}
+                            </div>
+                          ))}
+                        </div>
                         
-                        {/* Floating booking bars */}
+                        {/* Floating booking bars - positioned relative to this container */}
                         {tableBookings.map((booking) => (
                           <FloatingBookingBar
                             key={booking.id}
                             booking={booking}
                             startTime={venueHours.start_time}
+                            timeSlots={timeSlots}
+                            slotWidth={48}
                             onBookingClick={onBookingClick}
                             onBookingDrag={onBookingDrag}
                             compact={true}

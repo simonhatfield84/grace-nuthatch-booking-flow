@@ -8,6 +8,8 @@ import { cn } from '@/lib/utils';
 interface FloatingBookingBarProps {
   booking: any;
   startTime: string;
+  timeSlots: string[];
+  slotWidth: number;
   onBookingClick: (booking: any) => void;
   onBookingDrag: (bookingId: number, newTime: string, newTableId: number) => void;
   compact?: boolean;
@@ -16,13 +18,15 @@ interface FloatingBookingBarProps {
 export const FloatingBookingBar = ({
   booking,
   startTime,
+  timeSlots,
+  slotWidth,
   onBookingClick,
   onBookingDrag,
   compact = false
 }: FloatingBookingBarProps) => {
   const [isDragging, setIsDragging] = useState(false);
 
-  // Calculate position and width
+  // Calculate position and width based on the actual time slots
   const calculatePosition = () => {
     const [startHour, startMin] = startTime.split(':').map(Number);
     const [bookingHour, bookingMin] = booking.booking_time.split(':').map(Number);
@@ -31,14 +35,23 @@ export const FloatingBookingBar = ({
     const bookingMinutes = bookingHour * 60 + bookingMin;
     const offsetMinutes = bookingMinutes - startMinutes;
     
-    // Each 15-minute slot is 48px wide
-    const leftPosition = (offsetMinutes / 15) * 48;
+    // Find the slot index for positioning
+    const slotIndex = Math.floor(offsetMinutes / 15);
+    const leftPosition = slotIndex * slotWidth;
     
     // Duration in minutes (default 120 if not specified)
     const duration = booking.duration_minutes || 120;
-    const width = (duration / 15) * 48;
+    const slotsNeeded = Math.ceil(duration / 15);
+    const width = slotsNeeded * slotWidth;
     
-    return { left: leftPosition, width };
+    // Ensure the booking doesn't overflow the container
+    const maxWidth = (timeSlots.length - slotIndex) * slotWidth;
+    const finalWidth = Math.min(width, maxWidth);
+    
+    return { 
+      left: Math.max(0, leftPosition), 
+      width: Math.max(slotWidth, finalWidth) 
+    };
   };
 
   const { left, width } = calculatePosition();
@@ -81,7 +94,7 @@ export const FloatingBookingBar = ({
       style={{
         left: `${left}px`,
         width: `${width}px`,
-        minWidth: '96px' // Minimum width for readability
+        maxWidth: '100%'
       }}
       draggable
       onDragStart={handleDragStart}
@@ -92,7 +105,7 @@ export const FloatingBookingBar = ({
       }}
     >
       <div className={cn(
-        "p-1.5 text-white overflow-hidden",
+        "p-1.5 text-white overflow-hidden h-full",
         compact ? "text-xs" : "text-sm"
       )}>
         <div className="font-medium truncate">
