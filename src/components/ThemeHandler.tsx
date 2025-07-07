@@ -10,14 +10,16 @@ export function ThemeHandler() {
     root.classList.remove("light", "dark");
 
     // Determine app theme based on route
-    const appTheme = location.pathname.startsWith('/host') ? 'host' : 'admin';
+    const isHostRoute = location.pathname.startsWith('/host');
 
-    if (appTheme === "host") {
-      // Host interface always uses dark theme
+    if (isHostRoute) {
+      // Host interface uses dark theme
       root.classList.add("dark");
+      console.log('🎨 Applied dark theme for host route:', location.pathname);
     } else {
-      // Admin interface uses light theme
+      // All other routes use light theme
       root.classList.add("light");
+      console.log('🎨 Applied light theme for route:', location.pathname);
     }
   }, [location.pathname]);
 

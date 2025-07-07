@@ -128,17 +128,17 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #292C2D;
+  background: hsl(var(--muted));
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #676767;
+  background: hsl(var(--muted-foreground));
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #CCF0DB;
+  background: hsl(var(--primary));
 }
 
 /* Hide scrollbar utility class for iPad clean look */
@@ -163,4 +163,16 @@
   .transition-all {
     transition-duration: 0.1s;
   }
+}
+
+/* Force proper background colors for iPad Safari */
+html, body, #root {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  min-height: 100vh;
+}
+
+/* Ensure AdminLayout background is proper */
+.min-h-screen {
+  background-color: hsl(var(--background));
 }
