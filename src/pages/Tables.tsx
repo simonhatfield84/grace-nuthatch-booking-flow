@@ -97,7 +97,7 @@ const Tables = () => {
         </div>
       </div>
 
-      <TableStats tables={tables} />
+      <TableStats />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
@@ -117,9 +117,14 @@ const Tables = () => {
         <TabsContent value="list" className="space-y-6">
           <SectionManager
             tables={tables}
+            sections={sections}
             onEditTable={handleEditTable}
             onDeleteTable={deleteTable}
             onAddTableToSection={handleCreateTable}
+            onEditSection={handleEditSection}
+            onDeleteSection={deleteSection}
+            onEditGroup={handleEditGroupLocal}
+            onDeleteGroup={handleDeleteGroup}
           />
         </TabsContent>
 
@@ -140,7 +145,6 @@ const Tables = () => {
                 onUpdateTablePosition={handleUpdateTablePosition}
                 onTableSelect={setSelectedTable}
                 selectedTable={selectedTable}
-                onEditTable={handleEditTable}
               />
             </CardContent>
           </Card>
