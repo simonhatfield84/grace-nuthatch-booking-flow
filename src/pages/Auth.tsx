@@ -19,6 +19,7 @@ const Auth = () => {
   const [password, setPassword] = useState('');
   const [showPasswordStrength, setShowPasswordStrength] = useState(false);
   const [isPasswordValid, setIsPasswordValid] = useState(false);
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
@@ -31,7 +32,7 @@ const Auth = () => {
   const type = searchParams.get('type');
   const isPasswordReset = type === 'recovery' && accessToken && refreshToken;
 
-  console.log('🔐 Auth component - User:', user?.email, 'Password Reset:', isPasswordReset);
+  console.log('🔐 Auth component - User:', user?.email, 'Password Reset:', isPasswordReset, 'Show Password Change:', showPasswordChange);
 
   // Check user type after login to determine redirect
   const { data: userType, isLoading: userTypeLoading } = useQuery({
@@ -79,7 +80,16 @@ const Auth = () => {
       
       console.log('🔄 Redirecting user:', { userType, from });
       
-      // Redirect based on user type (FIXED: venue_admin goes to /dashboard)
+      // Check if user needs to set a new password (common for temp passwords)
+      const needsPasswordReset = searchParams.get('needs_password_reset') === 'true';
+      
+      if (needsPasswordReset || isPasswordReset) {
+        console.log('🔒 User needs to set new password');
+        setShowPasswordChange(true);
+        return;
+      }
+      
+      // Redirect based on user type
       if (userType === 'platform_admin') {
         navigate(from || '/platform/dashboard', { replace: true });
       } else if (userType === 'venue_admin') {
@@ -89,7 +99,7 @@ const Auth = () => {
         navigate('/', { replace: true });
       }
     }
-  }, [user, userType, userTypeLoading, navigate, location.state]);
+  }, [user, userType, userTypeLoading, navigate, location.state, searchParams, isPasswordReset]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,6 +131,44 @@ const Auth = () => {
     }
   };
 
+  const handlePasswordChange = async (newPassword: string) => {
+    setLoading(true);
+    
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (error) throw error;
+
+      console.log('✅ Password updated successfully');
+      toast({
+        title: "Password Updated",
+        description: "Your password has been updated successfully.",
+      });
+      
+      setShowPasswordChange(false);
+      
+      // Redirect after password change
+      if (userType === 'platform_admin') {
+        navigate('/platform/dashboard', { replace: true });
+      } else if (userType === 'venue_admin') {
+        navigate('/dashboard', { replace: true });
+      } else {
+        navigate('/', { replace: true });
+      }
+    } catch (error: any) {
+      console.error('❌ Password update error:', error);
+      toast({
+        title: "Password Update Failed",
+        description: error.message || "An error occurred updating your password.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleForgotPassword = async () => {
     if (!email) {
       toast({
@@ -136,8 +184,7 @@ const Auth = () => {
     
     try {
       // Use the current domain for the redirect URL
-      const currentDomain = window.location.origin;
-      const redirectUrl = `${currentDomain}/auth`;
+      const redirectUrl = `${window.location.origin}/auth`;
       
       console.log('🔗 Password reset redirect URL:', redirectUrl);
       
@@ -169,6 +216,75 @@ const Auth = () => {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  // Show password change form if user needs to set new password
+  if (showPasswordChange && user) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="grace-logo text-4xl font-bold mb-2">grace</div>
+            <p className="text-muted-foreground">Set Your New Password</p>
+          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Password Required</CardTitle>
+              <CardDescription>
+                Please set a new password to continue.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={(e: React.FormEvent) => {
+                e.preventDefault();
+                if (password && isPasswordValid) {
+                  handlePasswordChange(password);
+                }
+              }} className="space-y-4">
+                <div>
+                  <Label htmlFor="newPassword">New Password</Label>
+                  <Input
+                    id="newPassword"
+                    type="password"
+                    value={password}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setShowPasswordStrength(e.target.value.length > 0);
+                    }}
+                    required
+                    disabled={loading}
+                    minLength={12}
+                  />
+                  {showPasswordStrength && (
+                    <div className="mt-2">
+                      <PasswordStrength 
+                        password={password} 
+                        onValidityChange={setIsPasswordValid}
+                      />
+                    </div>
+                  )}
+                </div>
+                
+                <Button 
+                  type="submit" 
+                  className="w-full" 
+                  disabled={loading || !isPasswordValid || !password}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Updating Password...
+                    </>
+                  ) : (
+                    'Set New Password'
+                  )}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }

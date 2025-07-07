@@ -29,6 +29,13 @@ const Dashboard = () => {
     .filter(booking => booking.status === 'confirmed')
     .slice(0, 5);
 
+  console.log('📊 Dashboard rendering with data:', { 
+    todaysBookings: todaysBookings.count, 
+    guests: guests.total, 
+    tables: tables.total,
+    isLoading 
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
@@ -40,7 +47,7 @@ const Dashboard = () => {
           <Link to="/host">
             <Button variant="outline">Host Interface</Button>
           </Link>
-          <Link to="/widget">
+          <Link to="/booking/demo">
             <Button variant="outline">Booking Widget</Button>
           </Link>
         </div>

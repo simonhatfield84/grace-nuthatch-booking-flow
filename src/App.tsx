@@ -5,7 +5,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
+import { ThemeHandler } from "@/components/ThemeHandler";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { AdminLayout } from "@/components/layouts/AdminLayout";
 import HomePage from "./pages/HomePage";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -38,6 +40,7 @@ function App() {
         <TooltipProvider>
           <AuthProvider>
             <BrowserRouter>
+              <ThemeHandler />
               <Routes>
                 <Route path="/" element={<RootRedirect />} />
                 <Route path="/home" element={<HomePage />} />
@@ -45,15 +48,51 @@ function App() {
                 <Route path="/setup" element={<Setup />} />
                 <Route path="/booking/:slug" element={<BookingWidget />} />
                 
-                {/* Protected Admin Routes */}
-                <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                {/* Protected Admin Routes - wrapped in AdminLayout */}
+                <Route path="/dashboard" element={
+                  <ProtectedRoute>
+                    <AdminLayout>
+                      <Dashboard />
+                    </AdminLayout>
+                  </ProtectedRoute>
+                } />
                 <Route path="/host" element={<ProtectedRoute><HostInterface /></ProtectedRoute>} />
                 <Route path="/host-new" element={<ProtectedRoute><NewHostInterface /></ProtectedRoute>} />
-                <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-                <Route path="/tables" element={<ProtectedRoute><Tables /></ProtectedRoute>} />
-                <Route path="/services" element={<ProtectedRoute><Services /></ProtectedRoute>} />
-                <Route path="/guests" element={<ProtectedRoute><Guests /></ProtectedRoute>} />
-                <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+                <Route path="/settings" element={
+                  <ProtectedRoute>
+                    <AdminLayout>
+                      <Settings />
+                    </AdminLayout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/tables" element={
+                  <ProtectedRoute>
+                    <AdminLayout>
+                      <Tables />
+                    </AdminLayout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/services" element={
+                  <ProtectedRoute>
+                    <AdminLayout>
+                      <Services />
+                    </AdminLayout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/guests" element={
+                  <ProtectedRoute>
+                    <AdminLayout>
+                      <Guests />
+                    </AdminLayout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/reports" element={
+                  <ProtectedRoute>
+                    <AdminLayout>
+                      <Reports />
+                    </AdminLayout>
+                  </ProtectedRoute>
+                } />
                 
                 {/* Platform Admin Routes */}
                 <Route path="/platform/auth" element={<PlatformAuth />} />

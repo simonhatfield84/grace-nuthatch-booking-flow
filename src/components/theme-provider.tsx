@@ -1,6 +1,5 @@
 
 import { createContext, useContext, useEffect, useState } from "react"
-import { useLocation } from "react-router-dom"
 
 type Theme = "light" | "dark" | "system"
 type AppTheme = "admin" | "host"
@@ -35,24 +34,8 @@ export function ThemeProvider({
     () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
   )
   
-  const location = useLocation()
-  
-  // Determine app theme based on route
-  const appTheme: AppTheme = location.pathname.startsWith('/host') ? 'host' : 'admin'
-
-  useEffect(() => {
-    const root = window.document.documentElement
-
-    root.classList.remove("light", "dark")
-
-    if (appTheme === "host") {
-      // Host interface always uses dark theme
-      root.classList.add("dark")
-    } else {
-      // Admin interface uses light theme
-      root.classList.add("light")
-    }
-  }, [appTheme])
+  // Default to admin theme - the ThemeHandler will manage route-based theming
+  const appTheme: AppTheme = "admin"
 
   const value = {
     theme,
