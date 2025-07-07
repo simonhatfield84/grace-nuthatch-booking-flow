@@ -26,9 +26,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log('🔄 AuthProvider initializing...');
+    
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log('🔔 Auth state change:', { event, user: session?.user?.email });
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -36,17 +39,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     // Then check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error('❌ Error getting session:', error);
+      } else {
+        console.log('📋 Initial session check:', { user: session?.user?.email });
+      }
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      console.log('🧹 Cleaning up auth subscription');
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    console.log('👋 Signing out user...');
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('❌ Sign out error:', error);
+        throw error;
+      }
+      console.log('✅ Sign out successful');
+    } catch (error) {
+      console.error('💥 Sign out failed:', error);
+      throw error;
+    }
   };
 
   const value = {
@@ -55,6 +77,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     loading,
     signOut,
   };
+
+  console.log('🔍 AuthProvider state:', { 
+    hasUser: !!user, 
+    userEmail: user?.email, 
+    hasSession: !!session, 
+    loading 
+  });
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

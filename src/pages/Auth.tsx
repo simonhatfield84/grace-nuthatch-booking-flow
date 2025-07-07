@@ -31,11 +31,15 @@ const Auth = () => {
   const type = searchParams.get('type');
   const isPasswordReset = type === 'recovery' && accessToken && refreshToken;
 
+  console.log('🔐 Auth component - User:', user?.email, 'Password Reset:', isPasswordReset);
+
   // Check user type after login to determine redirect
   const { data: userType, isLoading: userTypeLoading } = useQuery({
     queryKey: ['user-type', user?.id],
     queryFn: async () => {
       if (!user) return null;
+
+      console.log('🔍 Checking user type for:', user.email);
 
       // Check if platform admin
       const { data: platformAdmin } = await supabase
@@ -45,7 +49,10 @@ const Auth = () => {
         .eq('is_active', true)
         .single();
 
-      if (platformAdmin) return 'platform_admin';
+      if (platformAdmin) {
+        console.log('👑 User is platform admin');
+        return 'platform_admin';
+      }
 
       // Check if venue admin
       const { data: profile } = await supabase
@@ -55,8 +62,12 @@ const Auth = () => {
         .eq('is_active', true)
         .single();
 
-      if (profile && profile.venue_id) return 'venue_admin';
+      if (profile && profile.venue_id) {
+        console.log('🏢 User is venue admin');
+        return 'venue_admin';
+      }
 
+      console.log('❓ Unknown user type');
       return 'unknown';
     },
     enabled: !!user,
@@ -66,11 +77,13 @@ const Auth = () => {
     if (user && userType && !userTypeLoading) {
       const from = location.state?.from?.pathname;
       
-      // Redirect based on user type
+      console.log('🔄 Redirecting user:', { userType, from });
+      
+      // Redirect based on user type (FIXED: venue_admin goes to /dashboard)
       if (userType === 'platform_admin') {
         navigate(from || '/platform/dashboard', { replace: true });
       } else if (userType === 'venue_admin') {
-        navigate(from || '/admin/dashboard', { replace: true });
+        navigate(from || '/dashboard', { replace: true });
       } else {
         // Unknown user type, redirect to homepage
         navigate('/', { replace: true });
@@ -82,6 +95,8 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
 
+    console.log('🔑 Attempting sign in for:', email);
+
     try {
       const { error } = await supabase.auth.signInWithPassword({
         email,
@@ -90,12 +105,13 @@ const Auth = () => {
 
       if (error) throw error;
 
+      console.log('✅ Sign in successful');
       toast({
         title: "Welcome back!",
         description: "You have been signed in successfully.",
       });
     } catch (error: any) {
-      console.error('Sign in error:', error);
+      console.error('❌ Sign in error:', error);
       toast({
         title: "Sign In Failed",
         description: error.message || "An error occurred during sign in.",
@@ -116,19 +132,28 @@ const Auth = () => {
     }
 
     setLoading(true);
+    console.log('📧 Sending password reset for:', email);
+    
     try {
+      // Use the current domain for the redirect URL
+      const currentDomain = window.location.origin;
+      const redirectUrl = `${currentDomain}/auth`;
+      
+      console.log('🔗 Password reset redirect URL:', redirectUrl);
+      
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `https://grace-os.co.uk/auth`,
+        redirectTo: redirectUrl,
       });
 
       if (error) throw error;
 
+      console.log('✅ Password reset email sent');
       toast({
         title: "Password Reset Sent",
         description: "Check your email for password reset instructions.",
       });
     } catch (error: any) {
-      console.error('Password reset error:', error);
+      console.error('❌ Password reset error:', error);
       toast({
         title: "Reset Failed",
         description: error.message || "An error occurred sending the reset email.",
@@ -150,6 +175,7 @@ const Auth = () => {
 
   // Show password reset form if tokens are present
   if (isPasswordReset) {
+    console.log('🔒 Showing password reset form');
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <div className="w-full max-w-md">
