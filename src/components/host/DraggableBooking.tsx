@@ -18,8 +18,10 @@ export const DraggableBooking = ({
   onBookingClick, 
   getBookingStatusColor 
 }: DraggableBookingProps) => {
+  const draggableId = `booking-${booking.id}`;
+  
   return (
-    <Draggable draggableId={`booking-${booking.id}`} index={index}>
+    <Draggable draggableId={draggableId} index={index}>
       {(provided, snapshot) => (
         <div
           ref={provided.innerRef}

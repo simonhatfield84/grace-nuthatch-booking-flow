@@ -2,9 +2,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { BlockOverlay } from "./BlockOverlay";
 import { DragDropProvider } from "./DragDropProvider";
-import { DraggableBooking } from "./DraggableBooking";
 import { DroppableTimeSlot } from "./DroppableTimeSlot";
 import { Ban } from "lucide-react";
 import { useBlocks, Block } from "@/hooks/useBlocks";
@@ -35,6 +33,8 @@ export const NewTimeGrid = ({
   const [timeSlots, setTimeSlots] = useState<string[]>([]);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { blocks } = useBlocks(format(selectedDate, 'yyyy-MM-dd'));
+
+  console.log('TimeGrid render:', { bookings: bookings.length, tables: tables.length });
 
   // Filter out cancelled bookings and no-shows from the grid
   const activeBookings = bookings.filter(booking => 
@@ -197,13 +197,13 @@ export const NewTimeGrid = ({
                   </div>
 
                   {/* Table rows */}
-                  {section.tables.map((table, tableIndex) => (
+                  {section.tables.map((table) => (
                     <div 
                       key={table.id} 
                       className="relative flex border-b border-gray-300 bg-white"
                       style={{ height: '28px' }}
                     >
-                      {/* Time slot cells */}
+                      {/* Time slot cells with drag and drop */}
                       {timeSlots.map((slot, slotIndex) => {
                         const hasBooking = activeBookings.some(booking => {
                           if (booking.table_id !== table.id) return false;
@@ -223,7 +223,11 @@ export const NewTimeGrid = ({
                             timeSlot={slot}
                             slotIndex={slotIndex}
                             hasBooking={hasBooking}
+                            bookings={activeBookings}
                             onWalkInClick={onWalkInClick}
+                            onBookingClick={onBookingClick}
+                            getBookingStatusColor={getBookingStatusColor}
+                            getBookingPosition={getBookingPosition}
                             SLOT_WIDTH={SLOT_WIDTH}
                           />
                         );
@@ -259,25 +263,6 @@ export const NewTimeGrid = ({
                             >
                               <Ban className="h-3 w-3 text-red-700" strokeWidth={2} />
                             </div>
-                          );
-                        })}
-
-                      {/* Bookings */}
-                      {activeBookings
-                        .filter(booking => booking.table_id === table.id)
-                        .map((booking, bookingIndex) => {
-                          const position = getBookingPosition(booking);
-                          if (!position) return null;
-                          
-                          return (
-                            <DraggableBooking
-                              key={booking.id}
-                              booking={booking}
-                              index={bookingIndex}
-                              position={position}
-                              onBookingClick={onBookingClick}
-                              getBookingStatusColor={getBookingStatusColor}
-                            />
                           );
                         })}
                     </div>
