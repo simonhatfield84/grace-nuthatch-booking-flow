@@ -15,7 +15,7 @@ export const StripeSettings = () => {
   const { stripeSettings, isLoading, updateStripeSettings } = useStripeSettings();
   const [formData, setFormData] = useState({
     is_active: stripeSettings?.is_active || false,
-    charge_type: stripeSettings?.charge_type || 'none',
+    charge_type: (stripeSettings?.charge_type || 'none') as 'none' | 'all_reservations' | 'large_groups',
     minimum_guests_for_charge: stripeSettings?.minimum_guests_for_charge || 8,
     charge_amount_per_guest: stripeSettings?.charge_amount_per_guest || 0,
     test_mode: stripeSettings?.test_mode ?? true,

@@ -31,7 +31,7 @@ interface ServiceDialogProps {
 const ServiceDialog = ({ service, isOpen, onClose, onSave }: ServiceDialogProps) => {
   const { toast } = useToast();
   const { createServiceMutation, updateServiceMutation } = useServices();
-  const { tags, isTagsLoading } = useTags();
+  const { tags, isLoading: isTagsLoading } = useTags();
 
   const [title, setTitle] = useState(service?.title || '');
   const [description, setDescription] = useState(service?.description || '');

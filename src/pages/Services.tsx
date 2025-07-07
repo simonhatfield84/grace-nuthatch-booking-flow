@@ -2,7 +2,7 @@
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { ServiceCard } from "@/components/services/ServiceCard";
-import { ServiceDialog } from "@/components/services/ServiceDialog";
+import ServiceDialog from "@/components/services/ServiceDialog";
 import { BookingWindowManager } from "@/components/services/BookingWindowManager";
 import { useServices } from "@/hooks/useServices";
 import { useServiceForm } from "@/hooks/useServiceForm";
