@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { SectionHeader } from "./SectionHeader";
@@ -26,6 +26,13 @@ export const SectionManager = ({
 }: SectionManagerProps) => {
   const { sections } = useSections();
   const [collapsedSections, setCollapsedSections] = useState<Set<number>>(new Set());
+
+  // Initialize all sections as collapsed by default
+  useEffect(() => {
+    if (sections.length > 0) {
+      setCollapsedSections(new Set(sections.map(s => s.id)));
+    }
+  }, [sections]);
 
   const getTablesForSection = (sectionId: number) => {
     return tables.filter(table => table.section_id === sectionId);

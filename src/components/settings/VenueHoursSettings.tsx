@@ -85,6 +85,7 @@ export const VenueHoursSettings = () => {
       });
     },
     onError: (error) => {
+      console.error('Update hours error:', error);
       toast({
         title: "Error",
         description: "Failed to update venue hours. Please try again.",
@@ -94,10 +95,19 @@ export const VenueHoursSettings = () => {
   });
 
   const handleSave = () => {
-    if (startTime >= endTime) {
+    // Convert times to minutes for comparison
+    const [startHour, startMinute] = startTime.split(':').map(Number);
+    const [endHour, endMinute] = endTime.split(':').map(Number);
+    
+    const startMinutes = startHour * 60 + startMinute;
+    const endMinutes = endHour * 60 + endMinute;
+    
+    // Allow cross-midnight hours (e.g., 15:00 to 23:59 is valid)
+    // Only validate if both times are the same (which would be invalid)
+    if (startMinutes === endMinutes) {
       toast({
         title: "Invalid hours",
-        description: "End time must be after start time.",
+        description: "Opening and closing times cannot be the same.",
         variant: "destructive",
       });
       return;
@@ -116,6 +126,7 @@ export const VenueHoursSettings = () => {
         <CardTitle>Venue Operating Hours</CardTitle>
         <CardDescription>
           Set your venue's operating hours. These times will be used for booking availability and the host interface grid.
+          Cross-midnight hours are supported (e.g., 18:00 to 02:00).
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -138,6 +149,15 @@ export const VenueHoursSettings = () => {
               onChange={(e) => setEndTime(e.target.value)}
             />
           </div>
+        </div>
+        
+        <div className="text-sm text-muted-foreground">
+          <p>Examples of valid operating hours:</p>
+          <ul className="list-disc list-inside mt-1 space-y-1">
+            <li>15:00 to 23:59 (same day)</li>
+            <li>18:00 to 02:00 (crosses midnight)</li>
+            <li>12:00 to 14:30 (lunch service)</li>
+          </ul>
         </div>
         
         <Button 

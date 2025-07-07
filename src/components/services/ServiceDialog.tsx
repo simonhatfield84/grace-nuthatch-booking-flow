@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DurationRules } from "@/components/services/DurationRules";
+import { MediaUpload } from "@/components/services/MediaUpload";
 
 interface ServiceDialogProps {
   open: boolean;
@@ -384,17 +385,11 @@ const ServiceDialog = ({
             </TabsContent>
 
             <TabsContent value="media" className="space-y-6">
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="imageUrl">Image URL</Label>
-                  <Input
-                    type="text"
-                    id="imageUrl"
-                    value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
-                  />
-                </div>
-              </div>
+              <MediaUpload
+                imageUrl={imageUrl}
+                onImageChange={setImageUrl}
+                onRemove={() => setImageUrl('')}
+              />
             </TabsContent>
 
             <TabsContent value="advanced" className="space-y-6">
