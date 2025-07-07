@@ -56,8 +56,20 @@ function App() {
                     </AdminLayout>
                   </ProtectedRoute>
                 } />
-                <Route path="/host" element={<ProtectedRoute><HostInterface /></ProtectedRoute>} />
-                <Route path="/host-new" element={<ProtectedRoute><NewHostInterface /></ProtectedRoute>} />
+                <Route path="/host" element={
+                  <ProtectedRoute>
+                    <AdminLayout>
+                      <HostInterface />
+                    </AdminLayout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/host-new" element={
+                  <ProtectedRoute>
+                    <AdminLayout>
+                      <NewHostInterface />
+                    </AdminLayout>
+                  </ProtectedRoute>
+                } />
                 <Route path="/settings" element={
                   <ProtectedRoute>
                     <AdminLayout>

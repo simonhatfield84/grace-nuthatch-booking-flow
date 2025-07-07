@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -199,20 +200,17 @@ const NewHostInterface = () => {
   const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
 
   return (
-    <div className="min-h-screen bg-[#111315] text-white" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+    <div className="space-y-6">
       {/* Header */}
-      <div className="bg-[#292C2D] border-b border-[#676767]/20 p-4 shadow-lg">
+      <div className="bg-card border rounded-lg p-4 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-6">
-            <div className="grace-logo text-3xl font-bold text-[#CCF0DB]" style={{ fontFamily: 'Playfair Display, serif' }}>
-              grace
-            </div>
-            <div className="flex items-center gap-4 text-[#676767]">
+            <div className="flex items-center gap-4 text-muted-foreground">
               <div className="flex items-center gap-2">
-                <span className="text-lg font-medium text-white font-inter">
+                <span className="text-lg font-medium text-foreground">
                   {format(selectedDate, 'EEEE, MMMM do, yyyy')}
                 </span>
-                {isToday && <span className="ml-2 text-xs bg-[#C2D8E9] text-[#111315] px-2 py-1 rounded-full font-inter font-medium">TODAY</span>}
+                {isToday && <span className="ml-2 text-xs bg-primary text-primary-foreground px-2 py-1 rounded-full font-medium">TODAY</span>}
               </div>
             </div>
           </div>
@@ -225,21 +223,21 @@ const NewHostInterface = () => {
             />
 
             {/* View Toggle */}
-            <div className="flex items-center gap-1 bg-[#676767]/20 p-1 rounded-xl border border-[#676767]/30">
+            <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
               <Button 
-                variant={viewMode === 'grid' ? 'secondary' : 'ghost'} 
+                variant={viewMode === 'grid' ? 'default' : 'ghost'} 
                 size="sm"
                 onClick={() => setViewMode('grid')}
-                className="h-9 text-sm font-inter"
+                className="h-9 text-sm"
               >
                 <Grid className="h-4 w-4 mr-1" />
                 Grid
               </Button>
               <Button 
-                variant={viewMode === 'list' ? 'secondary' : 'ghost'} 
+                variant={viewMode === 'list' ? 'default' : 'ghost'} 
                 size="sm"
                 onClick={() => setViewMode('list')}
-                className="h-9 text-sm font-inter"
+                className="h-9 text-sm"
               >
                 <List className="h-4 w-4 mr-1" />
                 List
@@ -250,7 +248,7 @@ const NewHostInterface = () => {
               onClick={() => navigate('/dashboard')} 
               variant="outline"
               size="sm"
-              className="bg-[#676767]/20 hover:bg-[#676767]/30 text-white border-[#676767]/30 text-sm font-inter rounded-xl"
+              className="text-sm"
             >
               <BarChart3 className="h-4 w-4 mr-1" />
               Dashboard
@@ -260,7 +258,7 @@ const NewHostInterface = () => {
               onClick={() => setFullBookingDialogOpen(true)} 
               variant="outline"
               size="sm"
-              className="bg-[#C2D8E9]/20 hover:bg-[#C2D8E9]/30 text-[#C2D8E9] border-[#C2D8E9]/30 text-sm font-inter rounded-xl"
+              className="text-sm"
             >
               <PlusCircle className="h-4 w-4 mr-1" />
               New Booking
@@ -270,7 +268,7 @@ const NewHostInterface = () => {
               onClick={() => setBlockDialogOpen(true)} 
               variant="outline"
               size="sm"
-              className="bg-[#E47272]/20 hover:bg-[#E47272]/30 text-[#E47272] border-[#E47272]/30 text-sm font-inter rounded-xl"
+              className="text-sm"
             >
               <Ban className="h-4 w-4 mr-1" />
               Block
@@ -279,8 +277,32 @@ const NewHostInterface = () => {
         </div>
       </div>
 
+      {/* Statistics Bar */}
+      <div className="bg-card border rounded-lg p-4 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-6 text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-primary" />
+              <span className="text-foreground">{remainingBookings} remaining</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-green-600" />
+              <span className="text-foreground">{currentlySeated} seated</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-muted-foreground" />
+              <span className="text-foreground">{finishedBookings} finished</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">{totalBookings} total today</span>
+            </div>
+          </div>
+          <div className="text-base font-semibold text-foreground">Tables</div>
+        </div>
+      </div>
+
       {/* Main Interface */}
-      <div className="grid grid-cols-12 gap-6 p-6 h-[calc(100vh-96px)]">
+      <div className="grid grid-cols-12 gap-6">
         {/* Main Content Area */}
         <div className={`${selectedBooking ? 'col-span-8' : 'col-span-12'}`}>
           {viewMode === 'grid' ? (

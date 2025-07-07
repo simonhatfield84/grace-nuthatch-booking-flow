@@ -17,6 +17,7 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
   const [showPasswordStrength, setShowPasswordStrength] = useState(false);
   const [isPasswordValid, setIsPasswordValid] = useState(false);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
@@ -101,6 +102,15 @@ const Auth = () => {
     }
   }, [user, userType, userTypeLoading, navigate, location.state, searchParams, isPasswordReset]);
 
+  // Handle password input change - only show strength for sign up or password creation
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newPassword = e.target.value;
+    setPassword(newPassword);
+    
+    // Only show password strength during sign up or password reset, not during login
+    setShowPasswordStrength((isSignUp || showPasswordChange) && newPassword.length > 0);
+  };
+
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -125,6 +135,41 @@ const Auth = () => {
       toast({
         title: "Sign In Failed",
         description: error.message || "An error occurred during sign in.",
+        variant: "destructive",
+      });
+      setLoading(false);
+    }
+  };
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    console.log('📝 Attempting sign up for:', email);
+
+    try {
+      const redirectUrl = `${window.location.origin}/auth`;
+      
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl
+        }
+      });
+
+      if (error) throw error;
+
+      console.log('✅ Sign up successful');
+      toast({
+        title: "Account Created!",
+        description: "Please check your email to verify your account.",
+      });
+    } catch (error: any) {
+      console.error('❌ Sign up error:', error);
+      toast({
+        title: "Sign Up Failed",
+        description: error.message || "An error occurred during sign up.",
         variant: "destructive",
       });
       setLoading(false);
@@ -249,10 +294,7 @@ const Auth = () => {
                     id="newPassword"
                     type="password"
                     value={password}
-                    onChange={(e) => {
-                      setPassword(e.target.value);
-                      setShowPasswordStrength(e.target.value.length > 0);
-                    }}
+                    onChange={handlePasswordChange}
                     required
                     disabled={loading}
                     minLength={12}
@@ -315,13 +357,16 @@ const Auth = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Welcome Back</CardTitle>
+            <CardTitle>{isSignUp ? 'Create Account' : 'Welcome Back'}</CardTitle>
             <CardDescription>
-              Sign in to your account to access the admin dashboard.
+              {isSignUp 
+                ? 'Create a new account to get started.' 
+                : 'Sign in to your account to access the admin dashboard.'
+              }
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSignIn} className="space-y-4">
+            <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
               <div>
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -339,13 +384,10 @@ const Auth = () => {
                   id="password"
                   type="password"
                   value={password}
-                  onChange={(e) => {
-                    setPassword(e.target.value);
-                    setShowPasswordStrength(e.target.value.length > 0);
-                  }}
+                  onChange={handlePasswordChange}
                   required
                   disabled={loading}
-                  minLength={12}
+                  minLength={isSignUp ? 12 : undefined}
                 />
                 {showPasswordStrength && (
                   <div className="mt-2">
@@ -360,27 +402,41 @@ const Auth = () => {
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={loading || (showPasswordStrength && !isPasswordValid)}
+                disabled={loading || (isSignUp && showPasswordStrength && !isPasswordValid)}
               >
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Signing in...
+                    {isSignUp ? 'Creating Account...' : 'Signing in...'}
                   </>
                 ) : (
-                  'Sign In'
+                  isSignUp ? 'Create Account' : 'Sign In'
                 )}
               </Button>
 
-              <Button
-                type="button"
-                variant="ghost"
-                className="w-full"
-                onClick={handleForgotPassword}
-                disabled={loading}
-              >
-                Forgot Password?
-              </Button>
+              <div className="space-y-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full"
+                  onClick={() => setIsSignUp(!isSignUp)}
+                  disabled={loading}
+                >
+                  {isSignUp ? 'Already have an account? Sign In' : 'Need an account? Sign Up'}
+                </Button>
+
+                {!isSignUp && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full"
+                    onClick={handleForgotPassword}
+                    disabled={loading}
+                  >
+                    Forgot Password?
+                  </Button>
+                )}
+              </div>
             </form>
           </CardContent>
         </Card>
