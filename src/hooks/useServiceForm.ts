@@ -27,7 +27,12 @@ export const useServiceForm = () => {
     secret_slug: '',
     terms_and_conditions: '',
     duration_rules: [],
-    useStandardTerms: true
+    useStandardTerms: true,
+    // Add payment-related defaults
+    requires_payment: false,
+    charge_type: 'none',
+    minimum_guests_for_charge: 8,
+    charge_amount_per_guest: 0,
   });
 
   const resetForm = () => {
@@ -48,7 +53,12 @@ export const useServiceForm = () => {
       secret_slug: '',
       terms_and_conditions: '',
       duration_rules: [],
-      useStandardTerms: true
+      useStandardTerms: true,
+      // Reset payment-related fields
+      requires_payment: false,
+      charge_type: 'none',
+      minimum_guests_for_charge: 8,
+      charge_amount_per_guest: 0,
     });
     setEditingService(null);
   };
@@ -79,7 +89,12 @@ export const useServiceForm = () => {
         is_secret: newService.is_secret,
         secret_slug: newService.secret_slug,
         terms_and_conditions: termsToUse,
-        duration_rules: newService.duration_rules
+        duration_rules: newService.duration_rules,
+        // Add payment-related fields
+        requires_payment: newService.requires_payment,
+        charge_type: newService.charge_type,
+        minimum_guests_for_charge: newService.minimum_guests_for_charge,
+        charge_amount_per_guest: newService.charge_amount_per_guest,
       };
 
       await createServiceMutation.mutateAsync(serviceData);
@@ -114,7 +129,12 @@ export const useServiceForm = () => {
         is_secret: editingService.is_secret,
         secret_slug: editingService.secret_slug,
         terms_and_conditions: termsToUse,
-        duration_rules: editingService.duration_rules
+        duration_rules: editingService.duration_rules,
+        // Add payment-related fields
+        requires_payment: editingService.requires_payment,
+        charge_type: editingService.charge_type,
+        minimum_guests_for_charge: editingService.minimum_guests_for_charge,
+        charge_amount_per_guest: editingService.charge_amount_per_guest,
       };
 
       await updateServiceMutation.mutateAsync({
@@ -163,7 +183,12 @@ export const useServiceForm = () => {
       secret_slug: service.secret_slug ? `${service.secret_slug}-copy` : '',
       terms_and_conditions: service.terms_and_conditions,
       duration_rules: service.duration_rules || [],
-      useStandardTerms: service.terms_and_conditions === getStandardTerms()
+      useStandardTerms: service.terms_and_conditions === getStandardTerms(),
+      // Copy payment-related fields
+      requires_payment: service.requires_payment,
+      charge_type: service.charge_type,
+      minimum_guests_for_charge: service.minimum_guests_for_charge,
+      charge_amount_per_guest: service.charge_amount_per_guest,
     });
   };
 
