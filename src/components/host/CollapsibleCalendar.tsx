@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth } from 'date-fns';
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth, addDays, isToday, isTomorrow } from 'date-fns';
 import { Button } from '@/components/ui/button';
 
 interface CollapsibleCalendarProps {
@@ -12,7 +12,7 @@ interface CollapsibleCalendarProps {
 
 export const CollapsibleCalendar = ({ selectedDate, onDateSelect, bookingDates }: CollapsibleCalendarProps) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [currentMonth, setCurrentMonth] = useState(selectedDate);
   const calendarRef = useRef<HTMLDivElement>(null);
 
   // Close calendar when clicking outside
@@ -33,14 +33,32 @@ export const CollapsibleCalendar = ({ selectedDate, onDateSelect, bookingDates }
   }, [isOpen]);
 
   const handleCalendarToggle = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent grid interactions
+    e.stopPropagation();
     setIsOpen(!isOpen);
+  };
+
+  const handleDateSelect = (date: Date) => {
+    onDateSelect(date);
+    setIsOpen(false);
+  };
+
+  const handleTodayClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const today = new Date();
+    setCurrentMonth(today);
+    handleDateSelect(today);
+  };
+
+  const handleTomorrowClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const tomorrow = addDays(new Date(), 1);
+    setCurrentMonth(tomorrow);
+    handleDateSelect(tomorrow);
   };
 
   const renderMonth = (month: Date) => {
     const monthStart = startOfMonth(month);
     const monthEnd = endOfMonth(month);
-    const days = eachDayOfInterval({ start: monthStart, end: monthStart });
 
     // Create a full calendar grid with proper week structure
     const startDate = new Date(monthStart);
@@ -52,37 +70,67 @@ export const CollapsibleCalendar = ({ selectedDate, onDateSelect, bookingDates }
     const allDays = eachDayOfInterval({ start: startDate, end: endDate });
 
     return (
-      <div key={format(month, 'yyyy-MM')} className="mb-6">
+      <div className="space-y-4">
+        {/* Quick action buttons */}
+        <div className="flex gap-2">
+          <Button
+            onClick={handleTodayClick}
+            variant="ghost"
+            size="sm"
+            className={`flex-1 h-8 text-xs font-inter transition-all duration-200 ${
+              isToday(selectedDate) 
+                ? 'bg-[#CCF0DB] text-[#111315] font-semibold' 
+                : 'text-white hover:bg-[#676767]/20'
+            }`}
+          >
+            Today
+          </Button>
+          <Button
+            onClick={handleTomorrowClick}
+            variant="ghost"
+            size="sm"
+            className={`flex-1 h-8 text-xs font-inter transition-all duration-200 ${
+              isTomorrow(selectedDate) 
+                ? 'bg-[#CCF0DB] text-[#111315] font-semibold' 
+                : 'text-white hover:bg-[#676767]/20'
+            }`}
+          >
+            Tomorrow
+          </Button>
+        </div>
+
+        {/* Month navigation */}
         <div className="flex items-center justify-between mb-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              setCurrentMonth(subMonths(currentMonth, 1));
+            }}
+            className="h-8 w-8 p-0 text-white hover:bg-[#676767]/20"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          
           <h3 className="text-lg font-semibold text-white font-inter">
             {format(month, 'MMMM yyyy')}
           </h3>
-          <div className="flex gap-1">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                setCurrentMonth(subMonths(currentMonth, 1));
-              }}
-              className="h-8 w-8 p-0 text-white hover:bg-[#676767]/20"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={(e) => {
-                e.stopPropagation();
-                setCurrentMonth(addMonths(currentMonth, 1));
-              }}
-              className="h-8 w-8 p-0 text-white hover:bg-[#676767]/20"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              setCurrentMonth(addMonths(currentMonth, 1));
+            }}
+            className="h-8 w-8 p-0 text-white hover:bg-[#676767]/20"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
         </div>
 
+        {/* Day headers */}
         <div className="grid grid-cols-7 gap-1 mb-2">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
             <div key={day} className="text-center text-xs font-medium text-[#676767] p-2 font-inter">
@@ -91,6 +139,7 @@ export const CollapsibleCalendar = ({ selectedDate, onDateSelect, bookingDates }
           ))}
         </div>
 
+        {/* Calendar grid */}
         <div className="grid grid-cols-7 gap-1">
           {allDays.map(day => {
             const dateStr = format(day, 'yyyy-MM-dd');
@@ -103,8 +152,7 @@ export const CollapsibleCalendar = ({ selectedDate, onDateSelect, bookingDates }
                 key={day.toISOString()}
                 onClick={(e) => {
                   e.stopPropagation();
-                  onDateSelect(day);
-                  setIsOpen(false);
+                  handleDateSelect(day);
                 }}
                 className={`
                   relative p-2 text-sm rounded-lg transition-all duration-200 font-inter
@@ -140,13 +188,10 @@ export const CollapsibleCalendar = ({ selectedDate, onDateSelect, bookingDates }
 
       {isOpen && (
         <div 
-          className="absolute right-0 top-12 bg-[#292C2D] border border-[#676767]/20 rounded-2xl shadow-2xl p-6 z-50 w-80 max-h-96 overflow-y-auto scrollbar-hide"
+          className="absolute right-0 top-12 bg-[#292C2D] border border-[#676767]/20 rounded-2xl shadow-2xl p-6 z-50 w-80"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="space-y-4">
-            {renderMonth(currentMonth)}
-            {renderMonth(addMonths(currentMonth, 1))}
-          </div>
+          {renderMonth(currentMonth)}
         </div>
       )}
     </div>

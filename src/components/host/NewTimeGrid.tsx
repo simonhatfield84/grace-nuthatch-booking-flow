@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { DragDropProvider } from "./DragDropProvider";
 import { DroppableTimeSlot } from "./DroppableTimeSlot";
 import { DraggableBooking } from "./DraggableBooking";
-import { Ban } from "lucide-react";
+import { Ban, Users, Clock, Target } from "lucide-react";
 import { useBlocks, Block } from "@/hooks/useBlocks";
 
 interface TimeGridProps {
@@ -33,11 +33,8 @@ export const NewTimeGrid = ({
 }: TimeGridProps) => {
   const [timeSlots, setTimeSlots] = useState<string[]>([]);
   const [keyHours, setKeyHours] = useState<string[]>([]);
-  const [dynamicRowHeight, setDynamicRowHeight] = useState(60);
-  const [contentHeight, setContentHeight] = useState(0);
-  const [containerHeight, setContainerHeight] = useState(0);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const gridContainerRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const { blocks } = useBlocks(format(selectedDate, 'yyyy-MM-dd'));
 
   console.log('TimeGrid render:', { bookings: bookings.length, tables: tables.length });
@@ -46,6 +43,19 @@ export const NewTimeGrid = ({
   const activeBookings = bookings.filter(booking => 
     booking.status !== 'cancelled' && booking.status !== 'no-show'
   );
+
+  // Calculate statistics for header
+  const totalBookings = bookings.length;
+  const currentlySeated = bookings.filter(booking => booking.status === 'seated').length;
+  
+  // Calculate remaining capacity (simplified - based on total time slots vs booked slots)
+  const totalCapacity = tables.length * timeSlots.length;
+  const bookedSlots = activeBookings.reduce((acc, booking) => {
+    const duration = booking.duration_minutes || 120;
+    const slotsSpanned = Math.ceil(duration / 15);
+    return acc + slotsSpanned;
+  }, 0);
+  const remainingCapacity = Math.max(0, totalCapacity - bookedSlots);
 
   // Generate 15-minute time slots and key hours
   useEffect(() => {
@@ -65,52 +75,22 @@ export const NewTimeGrid = ({
     setKeyHours(keys);
   }, []);
 
-  // Calculate heights and determine if scrolling is needed
-  useEffect(() => {
-    const calculateHeights = () => {
-      if (!gridContainerRef.current) return;
-      
-      const container = gridContainerRef.current;
-      const containerRect = container.getBoundingClientRect();
-      const headerHeight = 64;
-      
-      const totalRows = tablesBySection.reduce((acc, section) => {
-        return acc + 1 + section.tables.length;
-      }, 0);
-      
-      if (totalRows === 0) return;
-      
-      const availableHeight = containerRect.height - headerHeight;
-      const calculatedRowHeight = Math.floor(availableHeight / totalRows);
-      
-      // iPad-optimized touch targets: min 50px, max 80px
-      const minHeight = 50;
-      const maxHeight = 80;
-      const newRowHeight = Math.max(minHeight, Math.min(maxHeight, calculatedRowHeight));
-      
-      const totalContentHeight = totalRows * newRowHeight + headerHeight;
-      
-      setDynamicRowHeight(newRowHeight);
-      setContentHeight(totalContentHeight);
-      setContainerHeight(containerRect.height);
-    };
-
-    calculateHeights();
-    
-    const resizeObserver = new ResizeObserver(calculateHeights);
-    if (gridContainerRef.current) {
-      resizeObserver.observe(gridContainerRef.current);
-    }
-    
-    return () => resizeObserver.disconnect();
-  }, [tables, sections]);
-
-  // Group tables by section
+  // Group tables by section - ensure all tables are included
   const tablesBySection = sections.map(section => ({
     ...section,
-    tables: tables.filter(table => table.section_id === section.id)
+    tables: tables.filter(table => table.section_id === section.id && table.status === 'active')
       .sort((a, b) => a.priority_rank - b.priority_rank)
   })).filter(section => section.tables.length > 0);
+
+  // Calculate fixed row height to fit all content without scroll
+  const totalRows = tablesBySection.reduce((acc, section) => {
+    return acc + 1 + section.tables.length; // section header + tables
+  }, 0);
+  
+  const headerHeight = 64;
+  const availableHeight = typeof window !== 'undefined' ? window.innerHeight - 200 : 800; // Account for header and padding
+  const calculatedRowHeight = totalRows > 0 ? Math.floor((availableHeight - headerHeight) / totalRows) : 60;
+  const rowHeight = Math.max(48, Math.min(70, calculatedRowHeight)); // Min 48px, max 70px
 
   const getBookingStatusColor = (status: string) => {
     switch (status) {
@@ -128,12 +108,7 @@ export const NewTimeGrid = ({
       if (booking.table_id !== tableId) return false;
       
       const bookingTime = booking.booking_time.substring(0, 5);
-      const duration = booking.duration_minutes || 120;
-      const bookingStartIndex = timeSlots.findIndex(slot => slot === bookingTime);
-      const currentSlotIndex = timeSlots.findIndex(slot => slot === timeSlot);
-      const slotsSpanned = Math.ceil(duration / 15);
-      
-      return currentSlotIndex === bookingStartIndex; // Only render at the start slot
+      return bookingTime === timeSlot; // Only render at the start slot
     });
   };
 
@@ -163,11 +138,8 @@ export const NewTimeGrid = ({
     }
   };
 
-  const SLOT_WIDTH = 40; // Restored to 40px for optimal touch targets
+  const SLOT_WIDTH = 40;
   const TABLE_LABEL_WIDTH = 160;
-
-  // Determine if scrolling is needed
-  const needsVerticalScroll = contentHeight > containerHeight;
 
   return (
     <DragDropProvider onBookingDrag={onBookingDrag || (() => {})}>
@@ -175,34 +147,52 @@ export const NewTimeGrid = ({
         ref={gridContainerRef} 
         className="h-full flex flex-col bg-[#111315] rounded-2xl overflow-hidden border border-[#292C2D] shadow-2xl font-inter"
       >
-        {/* Fixed header with iPad-native styling */}
-        <div className="flex bg-[#292C2D] border-b border-[#676767]/20 shadow-lg rounded-t-2xl" style={{ height: '64px' }}>
-          <div 
-            className="bg-[#292C2D] border-r border-[#676767]/20 p-4 flex items-center justify-center rounded-tl-2xl"
-            style={{ width: TABLE_LABEL_WIDTH, minWidth: TABLE_LABEL_WIDTH }}
-          >
-            <span className="text-base font-semibold text-white font-inter">Tables</span>
+        {/* Enhanced header with statistics */}
+        <div className="flex bg-[#292C2D] border-b border-[#676767]/20 shadow-lg rounded-t-2xl px-6 py-4">
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-6 text-[#676767]">
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-[#CCF0DB]" />
+                <span className="font-inter text-white">{totalBookings} bookings</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-[#C2D8E9]" />
+                <span className="font-inter text-white">{currentlySeated} seated</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Target className="h-5 w-5 text-[#676767]" />
+                <span className="font-inter text-white">{remainingCapacity} remaining</span>
+              </div>
+            </div>
+            <div className="text-base font-semibold text-white font-inter">Tables</div>
           </div>
+        </div>
+
+        {/* Time slots header */}
+        <div className="flex bg-[#292C2D] border-b border-[#676767]/20 shadow-lg" style={{ height: '48px' }}>
+          <div 
+            className="bg-[#292C2D] border-r border-[#676767]/20 flex items-center justify-center"
+            style={{ width: TABLE_LABEL_WIDTH, minWidth: TABLE_LABEL_WIDTH }}
+          />
           
           <div 
             className="flex-1 overflow-x-auto scrollbar-hide"
             ref={scrollContainerRef}
-            style={{ width: `calc(100% - ${TABLE_LABEL_WIDTH}px)` }}
           >
             <div 
               className="flex bg-[#292C2D]"
               style={{ width: timeSlots.length * SLOT_WIDTH, minWidth: timeSlots.length * SLOT_WIDTH }}
             >
-              {timeSlots.map((slot, index) => {
+              {timeSlots.map((slot) => {
                 const isKeyHour = keyHours.includes(slot);
                 return (
                   <div 
                     key={`header-${slot}`}
-                    className="bg-[#292C2D] border-r border-[#676767]/10 p-3 text-center flex items-center justify-center"
+                    className="bg-[#292C2D] border-r border-[#676767]/10 p-2 text-center flex items-center justify-center"
                     style={{ width: SLOT_WIDTH, minWidth: SLOT_WIDTH }}
                   >
                     {isKeyHour && (
-                      <span className="text-sm font-medium text-white/90 font-inter">{slot}</span>
+                      <span className="text-xs font-medium text-white/90 font-inter">{slot}</span>
                     )}
                   </div>
                 );
@@ -211,10 +201,10 @@ export const NewTimeGrid = ({
           </div>
         </div>
 
-        {/* Scrollable content with conditional overflow */}
+        {/* Main content area - no vertical scroll, fixed height */}
         <div className="flex-1 flex overflow-hidden">
           <div 
-            className={`bg-[#292C2D] border-r border-[#676767]/20 scrollbar-hide ${needsVerticalScroll ? 'overflow-y-auto' : 'overflow-y-hidden'}`}
+            className="bg-[#292C2D] border-r border-[#676767]/20 overflow-hidden"
             style={{ width: TABLE_LABEL_WIDTH, minWidth: TABLE_LABEL_WIDTH }}
           >
             {tablesBySection.map((section) => (
@@ -222,7 +212,7 @@ export const NewTimeGrid = ({
                 {/* Section Header */}
                 <div 
                   className="bg-[#292C2D] border-b border-[#676767]/20 py-3 px-4 flex items-center justify-center" 
-                  style={{ height: `${dynamicRowHeight}px` }}
+                  style={{ height: `${rowHeight}px` }}
                 >
                   <div className="flex items-center justify-center gap-3 w-full">
                     <div 
@@ -241,7 +231,7 @@ export const NewTimeGrid = ({
                   <div 
                     key={table.id} 
                     className="border-b border-[#676767]/10 p-4 bg-[#111315] hover:bg-[#292C2D]/50 transition-all duration-200 flex items-center justify-center text-center rounded-lg mx-2 my-1 shadow-sm"
-                    style={{ height: `${dynamicRowHeight}px` }}
+                    style={{ height: `${rowHeight}px` }}
                   >
                     <div className="flex items-center justify-center gap-2">
                       <span className="text-sm font-medium text-white font-inter">{table.label}</span>
@@ -254,8 +244,7 @@ export const NewTimeGrid = ({
           </div>
 
           <div 
-            className={`flex-1 ${needsVerticalScroll ? 'overflow-y-auto' : 'overflow-y-hidden'}`}
-            style={{ overflowX: 'hidden' }}
+            className="flex-1 overflow-x-auto overflow-y-hidden"
             onScroll={(e) => {
               if (scrollContainerRef.current) {
                 scrollContainerRef.current.scrollLeft = e.currentTarget.scrollLeft;
@@ -268,7 +257,7 @@ export const NewTimeGrid = ({
                   {/* Section header row */}
                   <div 
                     className="bg-[#292C2D] border-b border-[#676767]/20 flex"
-                    style={{ height: `${dynamicRowHeight}px` }}
+                    style={{ height: `${rowHeight}px` }}
                   >
                     {timeSlots.map((slot) => (
                       <div 
@@ -284,7 +273,7 @@ export const NewTimeGrid = ({
                     <div 
                       key={table.id} 
                       className="relative flex border-b border-[#676767]/10 bg-[#111315] hover:bg-[#292C2D]/30 transition-all duration-200 mx-2 my-1 rounded-lg shadow-sm"
-                      style={{ height: `${dynamicRowHeight}px` }}
+                      style={{ height: `${rowHeight}px` }}
                     >
                       {/* Time slot cells with integrated drag and drop */}
                       {timeSlots.map((slot, slotIndex) => {
@@ -300,7 +289,7 @@ export const NewTimeGrid = ({
                             hasBooking={hasBooking}
                             onWalkInClick={onWalkInClick}
                             SLOT_WIDTH={SLOT_WIDTH}
-                            rowHeight={dynamicRowHeight}
+                            rowHeight={rowHeight}
                           >
                             {booking && (
                               <DraggableBooking
@@ -313,7 +302,7 @@ export const NewTimeGrid = ({
                                 }}
                                 onBookingClick={onBookingClick}
                                 getBookingStatusColor={getBookingStatusColor}
-                                rowHeight={dynamicRowHeight}
+                                rowHeight={rowHeight}
                               />
                             )}
                           </DroppableTimeSlot>
@@ -343,7 +332,7 @@ export const NewTimeGrid = ({
                                 left: `${leftPixels}px`,
                                 width: `${widthPixels}px`,
                                 top: '4px',
-                                height: `${dynamicRowHeight - 8}px`
+                                height: `${rowHeight - 8}px`
                               }}
                               title={`Blocked: ${block.reason || 'No reason specified'}`}
                               onClick={(e) => {
@@ -351,7 +340,7 @@ export const NewTimeGrid = ({
                                 handleBlockClick(block);
                               }}
                             >
-                              <Ban className="h-5 w-5 text-white" strokeWidth={2} />
+                              <Ban className="h-4 w-4 text-white" strokeWidth={2} />
                             </div>
                           );
                         })}

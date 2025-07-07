@@ -59,14 +59,6 @@ const NewHostInterface = () => {
   console.log('📅 Host Interface Debug:', {
     selectedDate: format(selectedDate, 'yyyy-MM-dd'),
     bookingsCount: bookings.length,
-    bookings: bookings.map(b => ({
-      id: b.id,
-      guest_name: b.guest_name,
-      booking_date: b.booking_date,
-      booking_time: b.booking_time,
-      table_id: b.table_id,
-      status: b.status
-    })),
     tablesCount: tables.length,
     sectionsCount: sections.length
   });
@@ -217,10 +209,6 @@ const NewHostInterface = () => {
                 </span>
                 {isToday && <span className="ml-2 text-xs bg-[#C2D8E9] text-[#111315] px-2 py-1 rounded-full font-inter font-medium">TODAY</span>}
               </div>
-              <div className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
-                <span className="font-inter">{bookings.length} bookings</span>
-              </div>
             </div>
           </div>
           
@@ -289,7 +277,7 @@ const NewHostInterface = () => {
       {/* Main Interface */}
       <div className="grid grid-cols-12 gap-6 p-6 h-[calc(100vh-96px)]">
         {/* Main Content Area */}
-        <div className={`${selectedBooking ? 'col-span-8' : 'col-span-12'} bg-[#292C2D] rounded-2xl shadow-2xl overflow-hidden border border-[#676767]/20`}>
+        <div className={`${selectedBooking ? 'col-span-8' : 'col-span-12'}`}>
           {viewMode === 'grid' ? (
             <NewTimeGrid
               venueHours={venueHours}
