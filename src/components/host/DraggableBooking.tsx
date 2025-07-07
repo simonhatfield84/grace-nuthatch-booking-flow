@@ -9,6 +9,7 @@ interface DraggableBookingProps {
   position: { left: number; width: number };
   onBookingClick: (booking: any) => void;
   getBookingStatusColor: (status: string) => string;
+  rowHeight: number;
 }
 
 export const DraggableBooking = ({ 
@@ -16,7 +17,8 @@ export const DraggableBooking = ({
   index, 
   position, 
   onBookingClick, 
-  getBookingStatusColor 
+  getBookingStatusColor,
+  rowHeight
 }: DraggableBookingProps) => {
   const draggableId = `booking-${booking.id}`;
   
@@ -34,7 +36,7 @@ export const DraggableBooking = ({
             left: `${position.left}px`,
             width: `${position.width}px`,
             top: '2px',
-            height: '32px',
+            height: `${rowHeight - 4}px`,
             ...provided.draggableProps.style,
           }}
           onClick={(e) => {

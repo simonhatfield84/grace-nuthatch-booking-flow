@@ -31,7 +31,9 @@ export const NewTimeGrid = ({
   selectedDate
 }: TimeGridProps) => {
   const [timeSlots, setTimeSlots] = useState<string[]>([]);
+  const [dynamicRowHeight, setDynamicRowHeight] = useState(28);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const gridContainerRef = useRef<HTMLDivElement>(null);
   const { blocks } = useBlocks(format(selectedDate, 'yyyy-MM-dd'));
 
   console.log('TimeGrid render:', { bookings: bookings.length, tables: tables.length });
@@ -55,6 +57,43 @@ export const NewTimeGrid = ({
     }
     setTimeSlots(slots);
   }, []);
+
+  // Calculate dynamic row height based on available space
+  useEffect(() => {
+    const calculateRowHeight = () => {
+      if (!gridContainerRef.current) return;
+      
+      const container = gridContainerRef.current;
+      const containerHeight = container.clientHeight;
+      const headerHeight = 48; // Fixed header height
+      
+      // Calculate total number of rows (sections + tables)
+      const totalRows = tablesBySection.reduce((acc, section) => {
+        return acc + 1 + section.tables.length; // 1 for section header + tables
+      }, 0);
+      
+      if (totalRows === 0) return;
+      
+      const availableHeight = containerHeight - headerHeight;
+      const calculatedHeight = Math.floor(availableHeight / totalRows);
+      
+      // Set minimum height of 28px, maximum of 60px
+      const minHeight = 28;
+      const maxHeight = 60;
+      const newHeight = Math.max(minHeight, Math.min(maxHeight, calculatedHeight));
+      
+      setDynamicRowHeight(newHeight);
+    };
+
+    calculateRowHeight();
+    
+    const resizeObserver = new ResizeObserver(calculateRowHeight);
+    if (gridContainerRef.current) {
+      resizeObserver.observe(gridContainerRef.current);
+    }
+    
+    return () => resizeObserver.disconnect();
+  }, [tables, sections]);
 
   // Group tables by section
   const tablesBySection = sections.map(section => ({
@@ -100,9 +139,9 @@ export const NewTimeGrid = ({
 
   return (
     <DragDropProvider onBookingDrag={onBookingDrag || (() => {})}>
-      <div className="h-full flex flex-col bg-gray-50 rounded-lg overflow-hidden border border-gray-300">
+      <div ref={gridContainerRef} className="h-full flex flex-col bg-gray-50 rounded-lg overflow-hidden border border-gray-300">
         {/* Fixed header */}
-        <div className="flex bg-gray-100 border-b-2 border-gray-300 shadow-sm">
+        <div className="flex bg-gray-100 border-b-2 border-gray-300 shadow-sm" style={{ height: '48px' }}>
           <div 
             className="bg-gray-200 border-r-2 border-gray-300 p-2 flex items-center justify-center"
             style={{ width: TABLE_LABEL_WIDTH, minWidth: TABLE_LABEL_WIDTH }}
@@ -141,14 +180,17 @@ export const NewTimeGrid = ({
             {tablesBySection.map((section) => (
               <div key={section.id}>
                 {/* Section Header */}
-                <div className="bg-gray-200 border-b border-gray-400 py-1 px-2 text-center" style={{ height: '28px' }}>
-                  <div className="flex items-center justify-center gap-2">
+                <div 
+                  className="bg-gray-200 border-b border-gray-400 py-1 px-2 flex items-center justify-center" 
+                  style={{ height: `${dynamicRowHeight}px` }}
+                >
+                  <div className="flex items-center justify-center gap-2 w-full">
                     <div 
-                      className="w-2 h-2 rounded-full" 
+                      className="w-2 h-2 rounded-full flex-shrink-0" 
                       style={{ backgroundColor: section.color }}
                     />
-                    <span className="text-xs font-bold text-gray-900">{section.name}</span>
-                    <Badge variant="secondary" className="text-xs bg-gray-300 text-gray-800 px-1 py-0">
+                    <span className="text-xs font-bold text-gray-900 truncate">{section.name}</span>
+                    <Badge variant="secondary" className="text-xs bg-gray-300 text-gray-800 px-1 py-0 flex-shrink-0">
                       {section.tables.length}
                     </Badge>
                   </div>
@@ -159,11 +201,11 @@ export const NewTimeGrid = ({
                   <div 
                     key={table.id} 
                     className="border-b border-gray-300 p-1 bg-gray-50 hover:bg-gray-100 transition-colors flex items-center justify-center text-center"
-                    style={{ height: '28px' }}
+                    style={{ height: `${dynamicRowHeight}px` }}
                   >
-                    <div>
+                    <div className="flex items-center justify-center gap-1">
                       <span className="text-xs font-semibold text-gray-900">{table.label}</span>
-                      <span className="text-xs text-gray-600 ml-1">({table.seats})</span>
+                      <span className="text-xs text-gray-600">({table.seats})</span>
                     </div>
                   </div>
                 ))}
@@ -185,7 +227,7 @@ export const NewTimeGrid = ({
                   {/* Section header row */}
                   <div 
                     className="bg-gray-200 border-b border-gray-400 flex"
-                    style={{ height: '28px' }}
+                    style={{ height: `${dynamicRowHeight}px` }}
                   >
                     {timeSlots.map((slot) => (
                       <div 
@@ -201,7 +243,7 @@ export const NewTimeGrid = ({
                     <div 
                       key={table.id} 
                       className="relative flex border-b border-gray-300 bg-white"
-                      style={{ height: '28px' }}
+                      style={{ height: `${dynamicRowHeight}px` }}
                     >
                       {/* Time slot cells with drag and drop */}
                       {timeSlots.map((slot, slotIndex) => {
@@ -229,6 +271,7 @@ export const NewTimeGrid = ({
                             getBookingStatusColor={getBookingStatusColor}
                             getBookingPosition={getBookingPosition}
                             SLOT_WIDTH={SLOT_WIDTH}
+                            rowHeight={dynamicRowHeight}
                           />
                         );
                       })}
@@ -256,7 +299,7 @@ export const NewTimeGrid = ({
                                 left: `${leftPixels}px`,
                                 width: `${widthPixels}px`,
                                 top: '1px',
-                                height: '26px'
+                                height: `${dynamicRowHeight - 2}px`
                               }}
                               title={`Blocked: ${block.reason || 'No reason specified'}`}
                               onClick={() => handleBlockClick(block)}

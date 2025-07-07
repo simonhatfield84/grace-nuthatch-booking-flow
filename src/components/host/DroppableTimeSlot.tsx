@@ -14,6 +14,7 @@ interface DroppableTimeSlotProps {
   getBookingStatusColor: (status: string) => string;
   getBookingPosition: (booking: any) => { left: number; width: number } | null;
   SLOT_WIDTH: number;
+  rowHeight: number;
 }
 
 export const DroppableTimeSlot = ({ 
@@ -26,7 +27,8 @@ export const DroppableTimeSlot = ({
   onBookingClick,
   getBookingStatusColor,
   getBookingPosition,
-  SLOT_WIDTH 
+  SLOT_WIDTH,
+  rowHeight
 }: DroppableTimeSlotProps) => {
   const droppableId = `drop-${tableId}-${timeSlot}`;
   
@@ -39,7 +41,7 @@ export const DroppableTimeSlot = ({
           className={`border-r border-gray-200 hover:bg-blue-50 cursor-pointer flex items-center justify-center relative ${
             snapshot.isDraggingOver ? 'bg-blue-100' : ''
           }`}
-          style={{ width: SLOT_WIDTH, minWidth: SLOT_WIDTH }}
+          style={{ width: SLOT_WIDTH, minWidth: SLOT_WIDTH, height: `${rowHeight}px` }}
           onClick={() => {
             if (!hasBooking) {
               onWalkInClick(tableId, timeSlot);
@@ -77,6 +79,7 @@ export const DroppableTimeSlot = ({
                   position={position}
                   onBookingClick={onBookingClick}
                   getBookingStatusColor={getBookingStatusColor}
+                  rowHeight={rowHeight}
                 />
               );
             })}
