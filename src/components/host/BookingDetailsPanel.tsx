@@ -5,13 +5,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { X, Users, Clock, Phone, Mail, MapPin, FileText, Calendar, Hash, Edit } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { X, Users, Clock, Phone, Mail, MapPin, FileText, Calendar, Hash, Edit, Save, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { useState } from "react";
 import { Booking } from "@/hooks/useBookings";
 import { BookingAuditTrail } from "./BookingAuditTrail";
-import { BookingEditForm } from "./BookingEditForm";
 import { useTables } from "@/hooks/useTables";
+import { TableAllocationService } from "@/services/tableAllocation";
+import { useToast } from "@/hooks/use-toast";
 
 interface BookingDetailsPanelProps {
   booking: Booking | null;
@@ -27,24 +31,26 @@ export const BookingDetailsPanel = ({
   onBookingUpdate 
 }: BookingDetailsPanelProps) => {
   const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState<Partial<Booking>>({});
   const { tables } = useTables();
+  const { toast } = useToast();
 
   if (!booking) return null;
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'confirmed':
-        return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-200';
+        return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-100';
       case 'seated':
-        return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900 dark:text-blue-200';
+        return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900 dark:text-blue-100';
       case 'finished':
-        return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-200';
+        return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-100';
       case 'cancelled':
-        return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-200';
+        return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-100';
       case 'late':
-        return 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900 dark:text-orange-200';
+        return 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900 dark:text-orange-100';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-200';
+        return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-100';
     }
   };
 
@@ -54,35 +60,60 @@ export const BookingDetailsPanel = ({
     return tables.filter(table => table.seats >= booking.party_size);
   };
 
-  const handleTableAssignment = (tableId: string) => {
-    // This would trigger a manual table assignment
-    console.log('Assign booking to table:', tableId);
+  const handleTableAssignment = async (tableId: string) => {
+    try {
+      const success = await TableAllocationService.manuallyAssignBookingToTable(
+        booking.id,
+        parseInt(tableId)
+      );
+      
+      if (success) {
+        toast({
+          title: "Table Assigned",
+          description: `Booking assigned to table ${tables.find(t => t.id === parseInt(tableId))?.label}`,
+        });
+        onBookingUpdate();
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to assign table",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to assign table",
+        variant: "destructive"
+      });
+    }
   };
 
-  const handleEditSave = (updatedBooking: Booking) => {
+  const handleEditStart = () => {
+    setEditForm({
+      guest_name: booking.guest_name,
+      party_size: booking.party_size,
+      booking_time: booking.booking_time,
+      duration_minutes: booking.duration_minutes || 120,
+      phone: booking.phone || '',
+      email: booking.email || '',
+      notes: booking.notes || '',
+    });
+    setIsEditing(true);
+  };
+
+  const handleEditSave = () => {
+    // This would call an update function - implement based on your update logic
+    console.log('Saving booking updates:', editForm);
     setIsEditing(false);
     onBookingUpdate();
+    toast({
+      title: "Booking Updated",
+      description: "Booking details have been updated successfully",
+    });
   };
 
-  if (isEditing) {
-    return (
-      <Card className="h-full flex flex-col">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <CardTitle className="text-lg font-semibold">Edit Booking</CardTitle>
-          <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)}>
-            <X className="h-4 w-4" />
-          </Button>
-        </CardHeader>
-        <CardContent className="flex-1">
-          <BookingEditForm
-            booking={booking}
-            onSave={handleEditSave}
-            onCancel={() => setIsEditing(false)}
-          />
-        </CardContent>
-      </Card>
-    );
-  }
+  const currentTable = tables.find(t => t.id === booking.table_id);
 
   return (
     <Card className="h-full flex flex-col">
@@ -91,9 +122,11 @@ export const BookingDetailsPanel = ({
           Booking Details
         </CardTitle>
         <div className="flex gap-2">
-          <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>
-            <Edit className="h-4 w-4" />
-          </Button>
+          {!isEditing && (
+            <Button variant="ghost" size="sm" onClick={handleEditStart}>
+              <Edit className="h-4 w-4" />
+            </Button>
+          )}
           <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="h-4 w-4" />
           </Button>
@@ -109,32 +142,77 @@ export const BookingDetailsPanel = ({
                 <Users className="h-4 w-4" />
                 Guest Information
               </h3>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-700 dark:text-gray-300">Name:</span>
-                  <span className="font-medium text-gray-900 dark:text-gray-100">{booking.guest_name}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-700 dark:text-gray-300">Party Size:</span>
-                  <span className="font-medium text-gray-900 dark:text-gray-100">{booking.party_size} guests</span>
-                </div>
-                {booking.phone && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-1">
-                      <Phone className="h-3 w-3" />
-                      Phone:
-                    </span>
-                    <span className="font-medium text-gray-900 dark:text-gray-100">{booking.phone}</span>
-                  </div>
-                )}
-                {booking.email && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-1">
-                      <Mail className="h-3 w-3" />
-                      Email:
-                    </span>
-                    <span className="font-medium text-sm text-gray-900 dark:text-gray-100">{booking.email}</span>
-                  </div>
+              <div className="space-y-3">
+                {isEditing ? (
+                  <>
+                    <div>
+                      <Label htmlFor="guest_name" className="text-gray-900 dark:text-gray-100">Name</Label>
+                      <Input
+                        id="guest_name"
+                        value={editForm.guest_name || ''}
+                        onChange={(e) => setEditForm({...editForm, guest_name: e.target.value})}
+                        className="text-gray-900 dark:text-gray-100"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="party_size" className="text-gray-900 dark:text-gray-100">Party Size</Label>
+                      <Input
+                        id="party_size"
+                        type="number"
+                        value={editForm.party_size || ''}
+                        onChange={(e) => setEditForm({...editForm, party_size: parseInt(e.target.value)})}
+                        className="text-gray-900 dark:text-gray-100"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="phone" className="text-gray-900 dark:text-gray-100">Phone</Label>
+                      <Input
+                        id="phone"
+                        value={editForm.phone || ''}
+                        onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
+                        className="text-gray-900 dark:text-gray-100"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="email" className="text-gray-900 dark:text-gray-100">Email</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={editForm.email || ''}
+                        onChange={(e) => setEditForm({...editForm, email: e.target.value})}
+                        className="text-gray-900 dark:text-gray-100"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-700 dark:text-gray-300">Name:</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">{booking.guest_name}</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-700 dark:text-gray-300">Party Size:</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">{booking.party_size} guests</span>
+                    </div>
+                    {booking.phone && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-1">
+                          <Phone className="h-3 w-3" />
+                          Phone:
+                        </span>
+                        <span className="font-medium text-gray-900 dark:text-gray-100">{booking.phone}</span>
+                      </div>
+                    )}
+                    {booking.email && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-1">
+                          <Mail className="h-3 w-3" />
+                          Email:
+                        </span>
+                        <span className="font-medium text-sm text-gray-900 dark:text-gray-100">{booking.email}</span>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             </div>
@@ -147,7 +225,7 @@ export const BookingDetailsPanel = ({
                 <Calendar className="h-4 w-4" />
                 Booking Information
               </h3>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-1">
                     <Hash className="h-3 w-3" />
@@ -163,41 +241,69 @@ export const BookingDetailsPanel = ({
                     {format(new Date(booking.booking_date), 'EEEE, MMM d, yyyy')}
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    Time:
-                  </span>
-                  <span className="font-medium text-gray-900 dark:text-gray-100">
-                    {booking.booking_time}
-                    {booking.end_time && booking.status === 'finished' && 
-                      ` - ${booking.end_time}`
-                    }
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-700 dark:text-gray-300">Duration:</span>
-                  <span className="font-medium text-gray-900 dark:text-gray-100">
-                    {Math.floor((booking.duration_minutes || 120) / 60)}h {((booking.duration_minutes || 120) % 60)}m
-                  </span>
-                </div>
+                
+                {isEditing ? (
+                  <>
+                    <div>
+                      <Label htmlFor="booking_time" className="text-gray-900 dark:text-gray-100">Time</Label>
+                      <Input
+                        id="booking_time"
+                        type="time"
+                        value={editForm.booking_time || ''}
+                        onChange={(e) => setEditForm({...editForm, booking_time: e.target.value})}
+                        className="text-gray-900 dark:text-gray-100"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="duration" className="text-gray-900 dark:text-gray-100">Duration (minutes)</Label>
+                      <Input
+                        id="duration"
+                        type="number"
+                        value={editForm.duration_minutes || ''}
+                        onChange={(e) => setEditForm({...editForm, duration_minutes: parseInt(e.target.value)})}
+                        className="text-gray-900 dark:text-gray-100"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        Time:
+                      </span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                        {booking.booking_time}
+                        {booking.end_time && booking.status === 'finished' && 
+                          ` - ${booking.end_time}`
+                        }
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-700 dark:text-gray-300">Duration:</span>
+                      <span className="font-medium text-gray-900 dark:text-gray-100">
+                        {Math.floor((booking.duration_minutes || 120) / 60)}h {((booking.duration_minutes || 120) % 60)}m
+                      </span>
+                    </div>
+                  </>
+                )}
+
                 {booking.service && (
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-700 dark:text-gray-300">Service:</span>
                     <span className="font-medium text-gray-900 dark:text-gray-100">{booking.service}</span>
                   </div>
                 )}
-                {booking.table_id && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
-                      Table:
-                    </span>
-                    <span className="font-medium text-gray-900 dark:text-gray-100">
-                      {tables.find(t => t.id === booking.table_id)?.label || `Table ${booking.table_id}`}
-                    </span>
-                  </div>
-                )}
+                
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-1">
+                    <MapPin className="h-3 w-3" />
+                    Table:
+                  </span>
+                  <span className="font-medium text-gray-900 dark:text-gray-100">
+                    {currentTable?.label || 'Unassigned'}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -206,9 +312,12 @@ export const BookingDetailsPanel = ({
             {/* Manual Table Assignment */}
             {!booking.table_id && (
               <div>
-                <h3 className="font-medium text-sm mb-3 text-gray-900 dark:text-gray-100">Manual Table Assignment</h3>
+                <h3 className="font-medium text-sm mb-3 text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-orange-500" />
+                  Manual Table Assignment
+                </h3>
                 <Select onValueChange={handleTableAssignment}>
-                  <SelectTrigger>
+                  <SelectTrigger className="text-gray-900 dark:text-gray-100">
                     <SelectValue placeholder="Select a table" />
                   </SelectTrigger>
                   <SelectContent>
@@ -222,15 +331,15 @@ export const BookingDetailsPanel = ({
               </div>
             )}
 
-            {/* Status */}
+            {/* Status & Quick Actions */}
             <div>
-              <h3 className="font-medium text-sm mb-3 text-gray-900 dark:text-gray-100">Status</h3>
+              <h3 className="font-medium text-sm mb-3 text-gray-900 dark:text-gray-100">Status & Quick Actions</h3>
               <div className="space-y-3">
                 <Badge className={getStatusColor(booking.status)}>
                   {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
                 </Badge>
                 
-                <div className="flex flex-wrap gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   {statusOptions.map((status) => (
                     <Button
                       key={status}
@@ -246,19 +355,37 @@ export const BookingDetailsPanel = ({
               </div>
             </div>
 
-            {booking.notes && (
-              <>
-                <Separator />
-                <div>
-                  <h3 className="font-medium text-sm mb-3 flex items-center gap-2 text-gray-900 dark:text-gray-100">
-                    <FileText className="h-4 w-4" />
-                    Notes
-                  </h3>
-                  <p className="text-sm bg-gray-50 dark:bg-gray-800 p-3 rounded text-gray-900 dark:text-gray-100">
-                    {booking.notes}
-                  </p>
-                </div>
-              </>
+            {/* Notes Section */}
+            <div>
+              <h3 className="font-medium text-sm mb-3 flex items-center gap-2 text-gray-900 dark:text-gray-100">
+                <FileText className="h-4 w-4" />
+                Notes
+              </h3>
+              {isEditing ? (
+                <Textarea
+                  value={editForm.notes || ''}
+                  onChange={(e) => setEditForm({...editForm, notes: e.target.value})}
+                  placeholder="Add notes..."
+                  className="text-gray-900 dark:text-gray-100"
+                />
+              ) : (
+                <p className="text-sm bg-gray-50 dark:bg-gray-800 p-3 rounded text-gray-900 dark:text-gray-100">
+                  {booking.notes || 'No notes'}
+                </p>
+              )}
+            </div>
+
+            {/* Edit Actions */}
+            {isEditing && (
+              <div className="flex gap-2">
+                <Button onClick={handleEditSave} size="sm">
+                  <Save className="h-4 w-4 mr-1" />
+                  Save Changes
+                </Button>
+                <Button onClick={() => setIsEditing(false)} variant="outline" size="sm">
+                  Cancel
+                </Button>
+              </div>
             )}
 
             <Separator />

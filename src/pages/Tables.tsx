@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Plus, List } from "lucide-react";
+import { Plus, List, Link } from "lucide-react";
 import { SectionManager } from "@/components/tables/SectionManager";
 import { TableDialog } from "@/components/tables/TableDialog";
 import { SectionDialog } from "@/components/tables/SectionDialog";
@@ -21,7 +21,7 @@ const Tables = () => {
   const [editingTable, setEditingTable] = useState<any>(null);
   const [editingSection, setEditingSection] = useState<any>(null);
   const [editingGroup, setEditingGroup] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState("list");
+  const [activeTab, setActiveTab] = useState("table-list");
   const [preSelectedSectionId, setPreSelectedSectionId] = useState<number | null>(null);
 
   const { tables, createTable, updateTable, deleteTable } = useTables();
@@ -164,7 +164,7 @@ const Tables = () => {
           </Button>
           <Button variant="outline" onClick={handleCreateGroup}>
             <Plus className="h-4 w-4 mr-2" />
-            Add Group
+            Add Join
           </Button>
         </div>
       </div>
@@ -173,16 +173,20 @@ const Tables = () => {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList>
-          <TabsTrigger value="list">
+          <TabsTrigger value="table-list">
             <List className="h-4 w-4 mr-2" />
-            List View
+            Table List
+          </TabsTrigger>
+          <TabsTrigger value="joins">
+            <Link className="h-4 w-4 mr-2" />
+            Table Joins
           </TabsTrigger>
           <TabsTrigger value="priorities">
             Booking Priorities
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="list" className="space-y-6">
+        <TabsContent value="table-list" className="space-y-6">
           <SectionManager
             tables={tables}
             onEditTable={handleEditTable}
@@ -191,7 +195,9 @@ const Tables = () => {
             onEditSection={handleEditSection}
             onDeleteSection={deleteSection}
           />
-          
+        </TabsContent>
+
+        <TabsContent value="joins" className="space-y-6">
           <JoinGroupsList
             joinGroups={joinGroups}
             tables={tables}
