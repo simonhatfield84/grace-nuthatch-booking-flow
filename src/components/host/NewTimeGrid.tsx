@@ -65,8 +65,8 @@ export const NewTimeGrid = ({
 
   const timeSlots = generateTimeSlots();
 
-  // Group tables by section
-  const tablesBySection = sections.reduce((acc, section) => {
+  // Group tables by section - properly typed
+  const tablesBySection: Record<number, any[]> = sections.reduce((acc: Record<number, any[]>, section: any) => {
     acc[section.id] = tables.filter(table => table.section_id === section.id);
     return acc;
   }, {} as Record<number, any[]>);
