@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeHandler } from "@/components/ThemeHandler";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AdminLayout } from "@/components/layouts/AdminLayout";
+import { HostLayout } from "@/components/layouts/HostLayout";
 import HomePage from "./pages/HomePage";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -56,20 +57,6 @@ function App() {
                     </AdminLayout>
                   </ProtectedRoute>
                 } />
-                <Route path="/host" element={
-                  <ProtectedRoute>
-                    <AdminLayout>
-                      <HostInterface />
-                    </AdminLayout>
-                  </ProtectedRoute>
-                } />
-                <Route path="/host-new" element={
-                  <ProtectedRoute>
-                    <AdminLayout>
-                      <NewHostInterface />
-                    </AdminLayout>
-                  </ProtectedRoute>
-                } />
                 <Route path="/settings" element={
                   <ProtectedRoute>
                     <AdminLayout>
@@ -103,6 +90,22 @@ function App() {
                     <AdminLayout>
                       <Reports />
                     </AdminLayout>
+                  </ProtectedRoute>
+                } />
+                
+                {/* Host Routes - wrapped in HostLayout */}
+                <Route path="/host" element={
+                  <ProtectedRoute>
+                    <HostLayout>
+                      <HostInterface />
+                    </HostLayout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/host-new" element={
+                  <ProtectedRoute>
+                    <HostLayout>
+                      <NewHostInterface />
+                    </HostLayout>
                   </ProtectedRoute>
                 } />
                 

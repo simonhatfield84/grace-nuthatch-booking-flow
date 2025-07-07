@@ -1,75 +1,123 @@
 
-import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
-
-interface Booking {
-  id: number;
-  guest_name: string;
-  party_size: number;
-  booking_time: string;
-  status: string;
-  table_id?: number;
-  notes?: string;
-}
+import React, { useState } from 'react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Clock, Users, MapPin } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface FloatingBookingBarProps {
-  booking: Booking;
-  startHour: number;
-  duration: number;
-  gridWidth: number;
-  onBookingClick: (booking: Booking) => void;
+  booking: any;
+  startTime: string;
+  onBookingClick: (booking: any) => void;
+  onBookingDrag: (bookingId: number, newTime: string, newTableId: number) => void;
+  compact?: boolean;
 }
 
-export const FloatingBookingBar = ({ 
-  booking, 
-  startHour, 
-  duration, 
-  gridWidth,
-  onBookingClick 
+export const FloatingBookingBar = ({
+  booking,
+  startTime,
+  onBookingClick,
+  onBookingDrag,
+  compact = false
 }: FloatingBookingBarProps) => {
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Calculate position and width
+  const calculatePosition = () => {
+    const [startHour, startMin] = startTime.split(':').map(Number);
+    const [bookingHour, bookingMin] = booking.booking_time.split(':').map(Number);
+    
+    const startMinutes = startHour * 60 + startMin;
+    const bookingMinutes = bookingHour * 60 + bookingMin;
+    const offsetMinutes = bookingMinutes - startMinutes;
+    
+    // Each 15-minute slot is 48px wide
+    const leftPosition = (offsetMinutes / 15) * 48;
+    
+    // Duration in minutes (default 120 if not specified)
+    const duration = booking.duration_minutes || 120;
+    const width = (duration / 15) * 48;
+    
+    return { left: leftPosition, width };
+  };
+
+  const { left, width } = calculatePosition();
+
   const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
+    switch (status) {
       case 'confirmed':
-        return 'bg-green-500 hover:bg-green-600';
+        return 'bg-blue-500';
       case 'seated':
-        return 'bg-blue-500 hover:bg-blue-600';
+        return 'bg-green-500';
       case 'finished':
-        return 'bg-gray-400 hover:bg-gray-500';
-      case 'cancelled':
-        return 'bg-red-500 hover:bg-red-600';
+        return 'bg-gray-500';
       case 'late':
-        return 'bg-orange-500 hover:bg-orange-600';
+        return 'bg-orange-500';
+      case 'cancelled':
+        return 'bg-red-500';
       default:
-        return 'bg-gray-500 hover:bg-gray-600';
+        return 'bg-blue-500';
     }
   };
 
-  // Calculate position based on booking time
-  const bookingHour = parseInt(booking.booking_time.split(':')[0]);
-  const bookingMinute = parseInt(booking.booking_time.split(':')[1]);
-  const totalMinutes = (bookingHour - startHour) * 60 + bookingMinute;
-  const leftPosition = (totalMinutes / 60) * (gridWidth / 12); // Assuming 12-hour grid
-  
-  // Calculate width based on duration (default 2 hours if not specified)
-  const barWidth = (duration / 60) * (gridWidth / 12);
+  const handleDragStart = (e: React.DragEvent) => {
+    setIsDragging(true);
+    e.dataTransfer.setData('application/json', JSON.stringify(booking));
+  };
+
+  const handleDragEnd = () => {
+    setIsDragging(false);
+  };
 
   return (
     <div
-      className={`absolute h-8 rounded-md text-white text-xs flex items-center px-2 cursor-pointer transition-colors shadow-md ${getStatusColor(booking.status)}`}
+      data-booking
+      className={cn(
+        "absolute top-1 rounded-md shadow-sm border cursor-pointer transition-all hover:shadow-md z-10",
+        getStatusColor(booking.status),
+        compact ? "h-12" : "h-14",
+        isDragging && "opacity-50"
+      )}
       style={{
-        left: `${leftPosition}px`,
-        width: `${Math.max(barWidth, 80)}px`, // Minimum width for readability
-        zIndex: 10
+        left: `${left}px`,
+        width: `${width}px`,
+        minWidth: '96px' // Minimum width for readability
       }}
-      onClick={() => onBookingClick(booking)}
+      draggable
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+      onClick={(e) => {
+        e.stopPropagation();
+        onBookingClick(booking);
+      }}
     >
-      <div className="flex items-center justify-between w-full overflow-hidden">
-        <span className="font-medium truncate">
+      <div className={cn(
+        "p-1.5 text-white overflow-hidden",
+        compact ? "text-xs" : "text-sm"
+      )}>
+        <div className="font-medium truncate">
           {booking.guest_name}
-        </span>
-        <Badge variant="secondary" className="ml-2 bg-white/20 text-white text-xs">
-          {booking.party_size}
-        </Badge>
+        </div>
+        <div className={cn(
+          "flex items-center gap-1 opacity-90",
+          compact ? "text-xs" : "text-xs"
+        )}>
+          <Users className="h-3 w-3 flex-shrink-0" />
+          <span>{booking.party_size}</span>
+          <Clock className="h-3 w-3 flex-shrink-0 ml-1" />
+          <span>{booking.booking_time}</span>
+        </div>
+        {!compact && booking.status && (
+          <Badge 
+            variant="secondary" 
+            className={cn(
+              "text-xs mt-1 bg-white/20 text-white border-white/30",
+              compact && "hidden"
+            )}
+          >
+            {booking.status}
+          </Badge>
+        )}
       </div>
     </div>
   );
