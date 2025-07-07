@@ -55,19 +55,25 @@ const Services = () => {
   // Fetch booking windows for all services
   const { allBookingWindows: allWindows = [], isLoadingWindows: isWindowsLoading, windowsError } = useBookingWindows();
 
-  const handleServiceAdd = async () => {
-    const success = await handleAddService();
-    if (success) {
+  const handleServiceAdd = async (): Promise<boolean> => {
+    try {
+      await handleAddService();
       setShowDialog(false);
       resetForm();
+      return true;
+    } catch (error) {
+      return false;
     }
   };
 
-  const handleServiceUpdate = async () => {
-    const success = await handleUpdateService();
-    if (success) {
+  const handleServiceUpdate = async (): Promise<boolean> => {
+    try {
+      await handleUpdateService();
       setShowDialog(false);
       resetForm();
+      return true;
+    } catch (error) {
+      return false;
     }
   };
 
