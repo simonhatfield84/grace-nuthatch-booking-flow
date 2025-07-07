@@ -10,6 +10,7 @@ interface DroppableTimeSlotProps {
   onWalkInClick: (tableId: number, time: string) => void;
   SLOT_WIDTH: number;
   rowHeight: number;
+  children?: React.ReactNode;
 }
 
 export const DroppableTimeSlot = ({ 
@@ -19,7 +20,8 @@ export const DroppableTimeSlot = ({
   hasBooking, 
   onWalkInClick,
   SLOT_WIDTH,
-  rowHeight
+  rowHeight,
+  children
 }: DroppableTimeSlotProps) => {
   const droppableId = `drop-${tableId}-${timeSlot}`;
   
@@ -33,7 +35,8 @@ export const DroppableTimeSlot = ({
             snapshot.isDraggingOver ? 'bg-[#CCF0DB]/20 border-[#CCF0DB]/40 shadow-inner' : ''
           }`}
           style={{ width: SLOT_WIDTH, minWidth: SLOT_WIDTH, height: `${rowHeight}px` }}
-          onClick={() => {
+          onClick={(e) => {
+            e.stopPropagation();
             if (!hasBooking) {
               onWalkInClick(tableId, timeSlot);
             }
@@ -45,6 +48,7 @@ export const DroppableTimeSlot = ({
             </div>
           )}
           
+          {children}
           {provided.placeholder}
         </div>
       )}

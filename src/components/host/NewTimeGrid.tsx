@@ -33,7 +33,9 @@ export const NewTimeGrid = ({
 }: TimeGridProps) => {
   const [timeSlots, setTimeSlots] = useState<string[]>([]);
   const [keyHours, setKeyHours] = useState<string[]>([]);
-  const [dynamicRowHeight, setDynamicRowHeight] = useState(50);
+  const [dynamicRowHeight, setDynamicRowHeight] = useState(60);
+  const [contentHeight, setContentHeight] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const { blocks } = useBlocks(format(selectedDate, 'yyyy-MM-dd'));
@@ -63,14 +65,14 @@ export const NewTimeGrid = ({
     setKeyHours(keys);
   }, []);
 
-  // Calculate dynamic row height based on available space (iPad optimized)
+  // Calculate heights and determine if scrolling is needed
   useEffect(() => {
-    const calculateRowHeight = () => {
+    const calculateHeights = () => {
       if (!gridContainerRef.current) return;
       
       const container = gridContainerRef.current;
-      const containerHeight = container.clientHeight;
-      const headerHeight = 64; // Larger header for iPad
+      const containerRect = container.getBoundingClientRect();
+      const headerHeight = 64;
       
       const totalRows = tablesBySection.reduce((acc, section) => {
         return acc + 1 + section.tables.length;
@@ -78,20 +80,24 @@ export const NewTimeGrid = ({
       
       if (totalRows === 0) return;
       
-      const availableHeight = containerHeight - headerHeight;
-      const calculatedHeight = Math.floor(availableHeight / totalRows);
+      const availableHeight = containerRect.height - headerHeight;
+      const calculatedRowHeight = Math.floor(availableHeight / totalRows);
       
       // iPad-optimized touch targets: min 50px, max 80px
       const minHeight = 50;
       const maxHeight = 80;
-      const newHeight = Math.max(minHeight, Math.min(maxHeight, calculatedHeight));
+      const newRowHeight = Math.max(minHeight, Math.min(maxHeight, calculatedRowHeight));
       
-      setDynamicRowHeight(newHeight);
+      const totalContentHeight = totalRows * newRowHeight + headerHeight;
+      
+      setDynamicRowHeight(newRowHeight);
+      setContentHeight(totalContentHeight);
+      setContainerHeight(containerRect.height);
     };
 
-    calculateRowHeight();
+    calculateHeights();
     
-    const resizeObserver = new ResizeObserver(calculateRowHeight);
+    const resizeObserver = new ResizeObserver(calculateHeights);
     if (gridContainerRef.current) {
       resizeObserver.observe(gridContainerRef.current);
     }
@@ -117,18 +123,38 @@ export const NewTimeGrid = ({
     }
   };
 
-  const getBookingPosition = (booking: any, timeSlots: string[]) => {
-    const bookingTime = booking.booking_time.substring(0, 5);
+  const getBookingForSlot = (tableId: number, timeSlot: string) => {
+    return activeBookings.find(booking => {
+      if (booking.table_id !== tableId) return false;
+      
+      const bookingTime = booking.booking_time.substring(0, 5);
+      const duration = booking.duration_minutes || 120;
+      const bookingStartIndex = timeSlots.findIndex(slot => slot === bookingTime);
+      const currentSlotIndex = timeSlots.findIndex(slot => slot === timeSlot);
+      const slotsSpanned = Math.ceil(duration / 15);
+      
+      return currentSlotIndex === bookingStartIndex; // Only render at the start slot
+    });
+  };
+
+  const getBookingSpan = (booking: any) => {
     const duration = booking.duration_minutes || 120;
-    
-    const startIndex = timeSlots.findIndex(slot => slot === bookingTime);
-    if (startIndex === -1) return null;
-    
-    const slotsSpanned = Math.ceil(duration / 15);
-    const left = startIndex * SLOT_WIDTH;
-    const width = slotsSpanned * SLOT_WIDTH - 4;
-    
-    return { left, width };
+    return Math.ceil(duration / 15);
+  };
+
+  const isBookingSlot = (tableId: number, timeSlot: string) => {
+    return activeBookings.some(booking => {
+      if (booking.table_id !== tableId) return false;
+      
+      const bookingTime = booking.booking_time.substring(0, 5);
+      const duration = booking.duration_minutes || 120;
+      const bookingStartIndex = timeSlots.findIndex(slot => slot === bookingTime);
+      const currentSlotIndex = timeSlots.findIndex(slot => slot === timeSlot);
+      const slotsSpanned = Math.ceil(duration / 15);
+      
+      return currentSlotIndex >= bookingStartIndex && 
+             currentSlotIndex < bookingStartIndex + slotsSpanned;
+    });
   };
 
   const handleBlockClick = (block: Block) => {
@@ -137,15 +163,17 @@ export const NewTimeGrid = ({
     }
   };
 
-  const SLOT_WIDTH = 40; // Restored to 40px for better touch targets
-  const TABLE_LABEL_WIDTH = 160; // Increased for better iPad touch targets
+  const SLOT_WIDTH = 40; // Restored to 40px for optimal touch targets
+  const TABLE_LABEL_WIDTH = 160;
+
+  // Determine if scrolling is needed
+  const needsVerticalScroll = contentHeight > containerHeight;
 
   return (
     <DragDropProvider onBookingDrag={onBookingDrag || (() => {})}>
       <div 
         ref={gridContainerRef} 
-        className="h-full flex flex-col bg-[#111315] rounded-2xl overflow-hidden border border-[#292C2D] shadow-2xl"
-        style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
+        className="h-full flex flex-col bg-[#111315] rounded-2xl overflow-hidden border border-[#292C2D] shadow-2xl font-inter"
       >
         {/* Fixed header with iPad-native styling */}
         <div className="flex bg-[#292C2D] border-b border-[#676767]/20 shadow-lg rounded-t-2xl" style={{ height: '64px' }}>
@@ -183,15 +211,15 @@ export const NewTimeGrid = ({
           </div>
         </div>
 
-        {/* Scrollable content with iPad-optimized styling */}
+        {/* Scrollable content with conditional overflow */}
         <div className="flex-1 flex overflow-hidden">
           <div 
-            className="bg-[#292C2D] overflow-y-auto border-r border-[#676767]/20 scrollbar-hide"
+            className={`bg-[#292C2D] border-r border-[#676767]/20 scrollbar-hide ${needsVerticalScroll ? 'overflow-y-auto' : 'overflow-y-hidden'}`}
             style={{ width: TABLE_LABEL_WIDTH, minWidth: TABLE_LABEL_WIDTH }}
           >
             {tablesBySection.map((section) => (
               <div key={section.id}>
-                {/* Section Header with iPad card-style */}
+                {/* Section Header */}
                 <div 
                   className="bg-[#292C2D] border-b border-[#676767]/20 py-3 px-4 flex items-center justify-center" 
                   style={{ height: `${dynamicRowHeight}px` }}
@@ -208,7 +236,7 @@ export const NewTimeGrid = ({
                   </div>
                 </div>
 
-                {/* Table rows with iPad touch optimization */}
+                {/* Table rows */}
                 {section.tables.map((table) => (
                   <div 
                     key={table.id} 
@@ -226,7 +254,7 @@ export const NewTimeGrid = ({
           </div>
 
           <div 
-            className="flex-1 overflow-y-auto"
+            className={`flex-1 ${needsVerticalScroll ? 'overflow-y-auto' : 'overflow-y-hidden'}`}
             style={{ overflowX: 'hidden' }}
             onScroll={(e) => {
               if (scrollContainerRef.current) {
@@ -251,25 +279,17 @@ export const NewTimeGrid = ({
                     ))}
                   </div>
 
-                  {/* Table rows with bookings rendered at row level */}
+                  {/* Table rows with integrated booking rendering */}
                   {section.tables.map((table) => (
                     <div 
                       key={table.id} 
                       className="relative flex border-b border-[#676767]/10 bg-[#111315] hover:bg-[#292C2D]/30 transition-all duration-200 mx-2 my-1 rounded-lg shadow-sm"
                       style={{ height: `${dynamicRowHeight}px` }}
                     >
-                      {/* Time slot cells with drag and drop */}
+                      {/* Time slot cells with integrated drag and drop */}
                       {timeSlots.map((slot, slotIndex) => {
-                        const hasBooking = activeBookings.some(booking => {
-                          if (booking.table_id !== table.id) return false;
-                          const bookingStart = booking.booking_time.substring(0, 5);
-                          const duration = booking.duration_minutes || 120;
-                          const bookingStartIndex = timeSlots.findIndex(s => s === bookingStart);
-                          const slotsSpanned = Math.ceil(duration / 15);
-                          
-                          return slotIndex >= bookingStartIndex && 
-                                 slotIndex < bookingStartIndex + slotsSpanned;
-                        });
+                        const booking = getBookingForSlot(table.id, slot);
+                        const hasBooking = isBookingSlot(table.id, slot);
 
                         return (
                           <DroppableTimeSlot
@@ -281,31 +301,26 @@ export const NewTimeGrid = ({
                             onWalkInClick={onWalkInClick}
                             SLOT_WIDTH={SLOT_WIDTH}
                             rowHeight={dynamicRowHeight}
-                          />
+                          >
+                            {booking && (
+                              <DraggableBooking
+                                key={booking.id}
+                                booking={booking}
+                                index={0}
+                                position={{ 
+                                  left: 0, 
+                                  width: getBookingSpan(booking) * SLOT_WIDTH - 4 
+                                }}
+                                onBookingClick={onBookingClick}
+                                getBookingStatusColor={getBookingStatusColor}
+                                rowHeight={dynamicRowHeight}
+                              />
+                            )}
+                          </DroppableTimeSlot>
                         );
                       })}
 
-                      {/* Render bookings at row level (single instance each) */}
-                      {activeBookings
-                        .filter(booking => booking.table_id === table.id)
-                        .map((booking, bookingIndex) => {
-                          const position = getBookingPosition(booking, timeSlots);
-                          if (!position) return null;
-                          
-                          return (
-                            <DraggableBooking
-                              key={booking.id}
-                              booking={booking}
-                              index={bookingIndex}
-                              position={position}
-                              onBookingClick={onBookingClick}
-                              getBookingStatusColor={getBookingStatusColor}
-                              rowHeight={dynamicRowHeight}
-                            />
-                          );
-                        })}
-
-                      {/* Block overlays with iPad styling */}
+                      {/* Block overlays */}
                       {blocks
                         .filter(block => 
                           block.table_ids.length === 0 || block.table_ids.includes(table.id)
@@ -331,7 +346,10 @@ export const NewTimeGrid = ({
                                 height: `${dynamicRowHeight - 8}px`
                               }}
                               title={`Blocked: ${block.reason || 'No reason specified'}`}
-                              onClick={() => handleBlockClick(block)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleBlockClick(block);
+                              }}
                             >
                               <Ban className="h-5 w-5 text-white" strokeWidth={2} />
                             </div>

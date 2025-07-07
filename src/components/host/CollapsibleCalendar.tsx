@@ -32,10 +32,24 @@ export const CollapsibleCalendar = ({ selectedDate, onDateSelect, bookingDates }
     };
   }, [isOpen]);
 
+  const handleCalendarToggle = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent grid interactions
+    setIsOpen(!isOpen);
+  };
+
   const renderMonth = (month: Date) => {
     const monthStart = startOfMonth(month);
     const monthEnd = endOfMonth(month);
-    const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+    const days = eachDayOfInterval({ start: monthStart, end: monthStart });
+
+    // Create a full calendar grid with proper week structure
+    const startDate = new Date(monthStart);
+    startDate.setDate(startDate.getDate() - monthStart.getDay());
+    
+    const endDate = new Date(monthEnd);
+    endDate.setDate(endDate.getDate() + (6 - monthEnd.getDay()));
+    
+    const allDays = eachDayOfInterval({ start: startDate, end: endDate });
 
     return (
       <div key={format(month, 'yyyy-MM')} className="mb-6">
@@ -47,7 +61,10 @@ export const CollapsibleCalendar = ({ selectedDate, onDateSelect, bookingDates }
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
+              onClick={(e) => {
+                e.stopPropagation();
+                setCurrentMonth(subMonths(currentMonth, 1));
+              }}
               className="h-8 w-8 p-0 text-white hover:bg-[#676767]/20"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -55,7 +72,10 @@ export const CollapsibleCalendar = ({ selectedDate, onDateSelect, bookingDates }
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
+              onClick={(e) => {
+                e.stopPropagation();
+                setCurrentMonth(addMonths(currentMonth, 1));
+              }}
               className="h-8 w-8 p-0 text-white hover:bg-[#676767]/20"
             >
               <ChevronRight className="h-4 w-4" />
@@ -72,7 +92,7 @@ export const CollapsibleCalendar = ({ selectedDate, onDateSelect, bookingDates }
         </div>
 
         <div className="grid grid-cols-7 gap-1">
-          {days.map(day => {
+          {allDays.map(day => {
             const dateStr = format(day, 'yyyy-MM-dd');
             const hasBookings = bookingDates.includes(dateStr);
             const isSelected = isSameDay(day, selectedDate);
@@ -81,7 +101,8 @@ export const CollapsibleCalendar = ({ selectedDate, onDateSelect, bookingDates }
             return (
               <button
                 key={day.toISOString()}
-                onClick={() => {
+                onClick={(e) => {
+                  e.stopPropagation();
                   onDateSelect(day);
                   setIsOpen(false);
                 }}
@@ -108,7 +129,7 @@ export const CollapsibleCalendar = ({ selectedDate, onDateSelect, bookingDates }
   return (
     <div className="relative" ref={calendarRef}>
       <Button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleCalendarToggle}
         variant="ghost"
         size="sm"
         className="bg-[#292C2D] hover:bg-[#676767]/20 text-white border border-[#676767]/20 rounded-xl shadow-lg font-inter"
@@ -118,7 +139,10 @@ export const CollapsibleCalendar = ({ selectedDate, onDateSelect, bookingDates }
       </Button>
 
       {isOpen && (
-        <div className="absolute right-0 top-12 bg-[#292C2D] border border-[#676767]/20 rounded-2xl shadow-2xl p-6 z-50 w-80 max-h-96 overflow-y-auto scrollbar-hide">
+        <div 
+          className="absolute right-0 top-12 bg-[#292C2D] border border-[#676767]/20 rounded-2xl shadow-2xl p-6 z-50 w-80 max-h-96 overflow-y-auto scrollbar-hide"
+          onClick={(e) => e.stopPropagation()}
+        >
           <div className="space-y-4">
             {renderMonth(currentMonth)}
             {renderMonth(addMonths(currentMonth, 1))}

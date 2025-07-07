@@ -52,13 +52,25 @@ export const DragDropProvider = ({ children, onBookingDrag }: DragDropProviderPr
     }
   };
 
+  // Add error boundary wrapper
+  const ErrorBoundaryWrapper = ({ children }: { children: React.ReactNode }) => {
+    try {
+      return <>{children}</>;
+    } catch (error) {
+      console.error('Drag drop error:', error);
+      return <div className="text-red-500 p-4 font-inter">Drag & drop temporarily unavailable</div>;
+    }
+  };
+
   return (
-    <DragDropContext 
-      onDragEnd={handleDragEnd}
-      onDragStart={handleDragStart}
-      onDragUpdate={handleDragUpdate}
-    >
-      {children}
-    </DragDropContext>
+    <ErrorBoundaryWrapper>
+      <DragDropContext 
+        onDragEnd={handleDragEnd}
+        onDragStart={handleDragStart}
+        onDragUpdate={handleDragUpdate}
+      >
+        {children}
+      </DragDropContext>
+    </ErrorBoundaryWrapper>
   );
 };
