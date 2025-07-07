@@ -7,141 +7,159 @@
 
 @layer base {
   :root {
-    /* Light Theme - Admin Console */
-    --background: 35 50% 94%;        /* Soft Sand #F4EAE0 */
-    --foreground: 0 0% 18%;          /* Charcoal Grey #2E2E2E */
+    /* SIMPLIFIED LIGHT THEME WITH HEX FALLBACKS */
+    --background: #F4EAE0; /* Soft Sand */
+    --foreground: #2E2E2E; /* Charcoal Grey */
 
-    --card: 0 0% 100%;               /* Pure White */
-    --card-foreground: 0 0% 18%;     /* Charcoal Grey */
+    --card: #FFFFFF; /* Pure White */
+    --card-foreground: #2E2E2E; /* Charcoal Grey */
 
-    --popover: 0 0% 100%;            /* Pure White */
-    --popover-foreground: 0 0% 18%;  /* Charcoal Grey */
+    --popover: #FFFFFF; /* Pure White */
+    --popover-foreground: #2E2E2E; /* Charcoal Grey */
 
-    --primary: 18 65% 59%;           /* Warm Terracotta #D87C5A */
-    --primary-foreground: 0 0% 100%; /* Pure White */
+    --primary: #D87C5A; /* Warm Terracotta */
+    --primary-foreground: #FFFFFF; /* Pure White */
 
-    --secondary: 37 74% 56%;         /* Muted Gold #E9A036 */
-    --secondary-foreground: 0 0% 18%; /* Charcoal Grey */
+    --secondary: #E9A036; /* Muted Gold */
+    --secondary-foreground: #2E2E2E; /* Charcoal Grey */
 
-    --muted: 35 45% 90%;             /* Lighter Sand */
-    --muted-foreground: 0 0% 45%;    /* Medium Grey */
+    --muted: #E6D5C7; /* Lighter Sand */
+    --muted-foreground: #737373; /* Medium Grey */
 
-    --accent: 18 65% 59%;            /* Warm Terracotta */
-    --accent-foreground: 0 0% 100%;  /* Pure White */
+    --accent: #D87C5A; /* Warm Terracotta */
+    --accent-foreground: #FFFFFF; /* Pure White */
 
-    --destructive: 0 84% 60%;        /* Red */
-    --destructive-foreground: 0 0% 100%; /* Pure White */
+    --destructive: #DC2626; /* Red */
+    --destructive-foreground: #FFFFFF; /* Pure White */
 
-    --border: 35 30% 85%;            /* Light Border */
-    --input: 35 30% 85%;             /* Light Input Border */
-    --ring: 18 65% 59%;              /* Warm Terracotta */
+    --border: #D1C4B8; /* Light Border */
+    --input: #D1C4B8; /* Light Input Border */
+    --ring: #D87C5A; /* Warm Terracotta */
 
     --radius: 0.5rem;
 
     /* Sidebar */
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 0 0% 18%;
-    --sidebar-primary: 18 65% 59%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 35 45% 95%;
-    --sidebar-accent-foreground: 0 0% 18%;
-    --sidebar-border: 35 30% 85%;
-    --sidebar-ring: 18 65% 59%;
+    --sidebar-background: #FFFFFF;
+    --sidebar-foreground: #2E2E2E;
+    --sidebar-primary: #D87C5A;
+    --sidebar-primary-foreground: #FFFFFF;
+    --sidebar-accent: #F0F0F0;
+    --sidebar-accent-foreground: #2E2E2E;
+    --sidebar-border: #D1C4B8;
+    --sidebar-ring: #D87C5A;
   }
 
+  /* Remove all dark theme overrides for now */
   .dark {
-    /* Dark Theme - Host Interface */
-    --background: 0 0% 9%;           /* Very Dark Gray #171717 */
-    --foreground: 0 0% 98%;          /* Almost White #FAFAFA */
-
-    --card: 0 0% 11%;                /* Dark Gray #1C1C1C */
-    --card-foreground: 0 0% 98%;     /* Almost White #FAFAFA */
-
-    --popover: 0 0% 11%;             /* Dark Gray #1C1C1C */
-    --popover-foreground: 0 0% 98%;  /* Almost White #FAFAFA */
-
-    --primary: 18 65% 59%;           /* Warm Terracotta */
-    --primary-foreground: 0 0% 100%; /* Pure White */
-
-    --secondary: 37 74% 56%;         /* Muted Gold */
-    --secondary-foreground: 0 0% 18%; /* Charcoal Grey */
-
-    --muted: 0 0% 15%;               /* Medium Dark Gray */
-    --muted-foreground: 0 0% 65%;    /* Light Gray */
-
-    --accent: 37 74% 56%;            /* Muted Gold */
-    --accent-foreground: 0 0% 18%;   /* Charcoal Grey */
-
-    --destructive: 0 62% 51%;        /* Darker Red */
-    --destructive-foreground: 0 0% 98%; /* Almost White */
-
-    --border: 0 0% 20%;              /* Dark Gray Border */
-    --input: 0 0% 20%;               /* Dark Gray Input */
-    --ring: 18 65% 59%;              /* Warm Terracotta */
-
-    /* Sidebar */
-    --sidebar-background: 0 0% 7%;
-    --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 18 65% 59%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 12%;
-    --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 0 0% 20%;
-    --sidebar-ring: 18 65% 59%;
+    /* All same as light theme to prevent conflicts */
+    --background: #F4EAE0;
+    --foreground: #2E2E2E;
+    --card: #FFFFFF;
+    --card-foreground: #2E2E2E;
+    --popover: #FFFFFF;
+    --popover-foreground: #2E2E2E;
+    --primary: #D87C5A;
+    --primary-foreground: #FFFFFF;
+    --secondary: #E9A036;
+    --secondary-foreground: #2E2E2E;
+    --muted: #E6D5C7;
+    --muted-foreground: #737373;
+    --accent: #D87C5A;
+    --accent-foreground: #FFFFFF;
+    --destructive: #DC2626;
+    --destructive-foreground: #FFFFFF;
+    --border: #D1C4B8;
+    --input: #D1C4B8;
+    --ring: #D87C5A;
+    --sidebar-background: #FFFFFF;
+    --sidebar-foreground: #2E2E2E;
+    --sidebar-primary: #D87C5A;
+    --sidebar-primary-foreground: #FFFFFF;
+    --sidebar-accent: #F0F0F0;
+    --sidebar-accent-foreground: #2E2E2E;
+    --sidebar-border: #D1C4B8;
+    --sidebar-ring: #D87C5A;
   }
 }
 
 @layer base {
   * {
-    @apply border-border;
+    border-color: var(--border);
   }
 
-  body {
-    @apply bg-background text-foreground;
+  html, body, #root {
+    background-color: var(--background);
+    color: var(--foreground);
     font-family: 'Karla', sans-serif;
+    min-height: 100vh;
+  }
+
+  /* Explicit background for all major containers */
+  .min-h-screen, 
+  .h-screen,
+  [class*="bg-background"],
+  .bg-card {
+    background-color: var(--background);
+    color: var(--foreground);
   }
 
   h1 {
     font-family: 'Playfair Display', serif;
-    @apply font-semibold;
+    font-weight: 600;
   }
 
   h2, h3, h4, h5, h6 {
     font-family: 'Poppins', sans-serif;
-    @apply font-medium;
+    font-weight: 500;
   }
 
   .grace-logo {
     font-family: 'Markazi Text', serif;
-    @apply text-primary font-bold;
+    color: var(--primary);
+    font-weight: 700;
   }
 
   .grace-brand {
-    @apply text-primary;
+    color: var(--primary);
   }
 }
 
-/* Custom scrollbar for iPad-native feel */
+/* iPad Safari Specific Fixes */
+@supports (-webkit-touch-callout: none) {
+  html, body, #root {
+    background-color: #F4EAE0 !important;
+    color: #2E2E2E !important;
+    -webkit-background-size: cover;
+    background-size: cover;
+  }
+  
+  /* Force all theme classes to use consistent colors */
+  .light, .dark {
+    background-color: #F4EAE0 !important;
+    color: #2E2E2E !important;
+  }
+}
+
+/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: hsl(var(--muted));
+  background: var(--muted);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: hsl(var(--muted-foreground));
+  background: var(--muted-foreground);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--primary));
+  background: var(--primary);
 }
 
-/* Hide scrollbar utility class for iPad clean look */
 .scrollbar-hide {
   -ms-overflow-style: none;
   scrollbar-width: none;
@@ -149,96 +167,4 @@
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
-}
-
-/* iPad-specific hover and active states */
-@media (hover: hover) and (pointer: fine) {
-  .hover\:scale-102:hover {
-    transform: scale(1.02);
-  }
-}
-
-/* Touch-optimized transitions for iPad */
-@media (hover: none) and (pointer: coarse) {
-  .transition-all {
-    transition-duration: 0.1s;
-  }
-}
-
-/* CRITICAL iPad Safari background fixes with hex fallbacks */
-html {
-  background-color: #F4EAE0; /* Hex fallback */
-  background-color: hsl(var(--background));
-  color: #2E2E2E; /* Hex fallback */
-  color: hsl(var(--foreground));
-  min-height: 100vh;
-}
-
-body {
-  background-color: #F4EAE0; /* Hex fallback */
-  background-color: hsl(var(--background));
-  color: #2E2E2E; /* Hex fallback */
-  color: hsl(var(--foreground));
-  min-height: 100vh;
-  transition: background-color 0.3s ease, color 0.3s ease;
-}
-
-#root {
-  background-color: #F4EAE0; /* Hex fallback */
-  background-color: hsl(var(--background));
-  color: #2E2E2E; /* Hex fallback */
-  color: hsl(var(--foreground));
-  min-height: 100vh;
-}
-
-/* Ensure all container elements use proper theme colors */
-.min-h-screen, 
-.h-screen,
-[class*="bg-background"],
-.bg-card {
-  background-color: #F4EAE0; /* Hex fallback */
-  background-color: hsl(var(--background));
-  color: #2E2E2E; /* Hex fallback */
-  color: hsl(var(--foreground));
-}
-
-/* iPad Safari specific fixes */
-@supports (-webkit-touch-callout: none) {
-  html, body, #root {
-    background-color: #F4EAE0; /* Force hex color for iPad */
-    color: #2E2E2E;
-    -webkit-background-size: cover;
-    background-size: cover;
-  }
-  
-  /* Force repaint on theme changes */
-  .dark *, .light * {
-    -webkit-transform: translateZ(0);
-    transform: translateZ(0);
-  }
-}
-
-/* iPad-specific debugging class */
-.ipad-safari {
-  background-color: #F4EAE0 !important;
-  color: #2E2E2E !important;
-}
-
-.ipad-safari * {
-  background-color: inherit;
-  color: inherit;
-}
-
-/* Additional iPad Safari compatibility */
-@media screen and (-webkit-min-device-pixel-ratio: 1) {
-  html, body, #root {
-    background-color: #F4EAE0 !important;
-    color: #2E2E2E !important;
-  }
-}
-
-/* Visual debugging for iPad (temporary) */
-.debug-colors {
-  border: 2px solid red !important;
-  background-color: yellow !important;
 }

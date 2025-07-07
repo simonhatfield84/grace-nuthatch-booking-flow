@@ -65,7 +65,7 @@ const NewHostInterface = () => {
   });
 
   const totalBookings = bookings.length;
-  const remainingBookings = bookings.filter(booking => booking.status === 'confirmed').length; // Waiting to be seated
+  const remainingBookings = bookings.filter(booking => booking.status === 'confirmed').length;
   const currentlySeated = bookings.filter(booking => booking.status === 'seated').length;
   const finishedBookings = bookings.filter(booking => booking.status === 'finished').length;
 
@@ -200,12 +200,12 @@ const NewHostInterface = () => {
   const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
 
   return (
-    <div className="space-y-6">
-      {/* Temporary Debug Panel */}
+    <div className="space-y-6 bg-background text-foreground">
+      {/* Debug Panel - Remove after testing */}
       <DebugPanel />
       
       {/* Header */}
-      <div className="bg-card border rounded-lg p-4 shadow-sm">
+      <div className="bg-card border border-border rounded-lg p-4 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-6">
             <div className="flex items-center gap-4 text-muted-foreground">
@@ -225,7 +225,6 @@ const NewHostInterface = () => {
               bookingDates={bookingDates}
             />
 
-            {/* View Toggle */}
             <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
               <Button 
                 variant={viewMode === 'grid' ? 'default' : 'ghost'} 
@@ -281,7 +280,7 @@ const NewHostInterface = () => {
       </div>
 
       {/* Statistics Bar */}
-      <div className="bg-card border rounded-lg p-4 shadow-sm">
+      <div className="bg-card border border-border rounded-lg p-4 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-6 text-muted-foreground">
             <div className="flex items-center gap-2">
@@ -306,7 +305,6 @@ const NewHostInterface = () => {
 
       {/* Main Interface */}
       <div className="grid grid-cols-12 gap-6">
-        {/* Main Content Area */}
         <div className={`${selectedBooking ? 'col-span-8' : 'col-span-12'}`}>
           {viewMode === 'grid' ? (
             <NewTimeGrid
@@ -332,7 +330,6 @@ const NewHostInterface = () => {
           )}
         </div>
 
-        {/* Side Panel */}
         {selectedBooking && (
           <div className="col-span-4 space-y-4">
             <BookingDetailsPanel
@@ -345,7 +342,6 @@ const NewHostInterface = () => {
         )}
       </div>
 
-      {/* Dialogs */}
       <QuickWalkInDialog
         open={walkInDialogOpen}
         onOpenChange={setWalkInDialogOpen}

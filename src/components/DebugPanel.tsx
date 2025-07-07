@@ -12,10 +12,14 @@ export function DebugPanel() {
       const rootStyles = window.getComputedStyle(root);
       const bodyStyles = window.getComputedStyle(body);
       
+      // Check localStorage theme
+      const storedTheme = localStorage.getItem('grace-theme');
+      
       const info = {
-        userAgent: navigator.userAgent,
+        userAgent: navigator.userAgent.substring(0, 50) + '...',
         isIPad: navigator.userAgent.includes('iPad') || 
                  (navigator.userAgent.includes('Mac') && 'ontouchend' in document),
+        storedTheme,
         rootClasses: root.className,
         bodyClasses: body.className,
         rootBg: rootStyles.backgroundColor,
@@ -28,29 +32,28 @@ export function DebugPanel() {
         },
         viewport: {
           width: window.innerWidth,
-          height: window.innerHeight,
-          devicePixelRatio: window.devicePixelRatio
+          height: window.innerHeight
         }
       };
       
       setDebugInfo(info);
-      console.log('🐛 Debug Info:', info);
+      console.log('🐛 Enhanced Debug Info:', info);
     };
     
     collectDebugInfo();
     
-    // Re-collect on resize
     window.addEventListener('resize', collectDebugInfo);
     return () => window.removeEventListener('resize', collectDebugInfo);
   }, []);
   
   return (
-    <Card className="fixed top-4 right-4 z-50 max-w-sm bg-white border-red-500 border-2">
+    <Card className="fixed top-4 right-4 z-50 max-w-sm bg-white border-red-500 border-2 text-black">
       <CardHeader>
         <CardTitle className="text-red-600">Debug Panel</CardTitle>
       </CardHeader>
-      <CardContent className="text-xs space-y-2">
+      <CardContent className="text-xs space-y-1">
         <div><strong>iPad:</strong> {debugInfo.isIPad ? 'Yes' : 'No'}</div>
+        <div><strong>Stored Theme:</strong> {debugInfo.storedTheme}</div>
         <div><strong>Root BG:</strong> {debugInfo.rootBg}</div>
         <div><strong>Body BG:</strong> {debugInfo.bodyBg}</div>
         <div><strong>Root Classes:</strong> {debugInfo.rootClasses}</div>
