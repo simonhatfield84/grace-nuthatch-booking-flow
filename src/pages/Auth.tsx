@@ -103,7 +103,7 @@ const Auth = () => {
   }, [user, userType, userTypeLoading, navigate, location.state, searchParams, isPasswordReset]);
 
   // Handle password input change - only show strength for sign up or password creation
-  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePasswordInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newPassword = e.target.value;
     setPassword(newPassword);
     
@@ -176,7 +176,7 @@ const Auth = () => {
     }
   };
 
-  const handlePasswordChange = async (newPassword: string) => {
+  const handlePasswordUpdate = async (newPassword: string) => {
     setLoading(true);
     
     try {
@@ -285,7 +285,7 @@ const Auth = () => {
               <form onSubmit={(e: React.FormEvent) => {
                 e.preventDefault();
                 if (password && isPasswordValid) {
-                  handlePasswordChange(password);
+                  handlePasswordUpdate(password);
                 }
               }} className="space-y-4">
                 <div>
@@ -294,7 +294,7 @@ const Auth = () => {
                     id="newPassword"
                     type="password"
                     value={password}
-                    onChange={handlePasswordChange}
+                    onChange={handlePasswordInputChange}
                     required
                     disabled={loading}
                     minLength={12}
@@ -384,7 +384,7 @@ const Auth = () => {
                   id="password"
                   type="password"
                   value={password}
-                  onChange={handlePasswordChange}
+                  onChange={handlePasswordInputChange}
                   required
                   disabled={loading}
                   minLength={isSignUp ? 12 : undefined}
