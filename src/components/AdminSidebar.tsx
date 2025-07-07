@@ -1,74 +1,128 @@
 
-import { Calendar, Users, Utensils, BarChart3, Settings, Home } from "lucide-react";
-import { NavLink, useLocation } from "react-router-dom";
+import React, { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Badge } from '@/components/ui/badge';
+import { 
+  LayoutDashboard, 
+  Calendar, 
+  Users, 
+  Settings, 
+  ChefHat,
+  BarChart3,
+  MapPin,
+  UserCheck,
+  Menu,
+  X,
+  TestTube
+} from 'lucide-react';
 
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  useSidebar,
-} from "@/components/ui/sidebar";
-
-const items = [
-  { title: "Dashboard", url: "/admin/dashboard", icon: BarChart3 },
-  { title: "Services", url: "/admin/services", icon: Calendar },
-  { title: "Tables", url: "/admin/tables", icon: Utensils },
-  { title: "Host Interface", url: "/admin/host", icon: Home },
-  { title: "Guests", url: "/admin/guests", icon: Users },
-  { title: "Reports", url: "/admin/reports", icon: BarChart3 },
-  { title: "Settings", url: "/admin/settings", icon: Settings },
+const navigation = [
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Host Interface', href: '/host', icon: Calendar },
+  { name: 'Host Interface (New)', href: '/host-new', icon: TestTube, badge: 'NEW' },
+  { name: 'Tables', href: '/tables', icon: MapPin },
+  { name: 'Services', href: '/services', icon: ChefHat },
+  { name: 'Guests', href: '/guests', icon: UserCheck },
+  { name: 'Reports', href: '/reports', icon: BarChart3 },
+  { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
-export function AppSidebar() {
-  const { state } = useSidebar();
+const AdminSidebar = () => {
   const location = useLocation();
-  const currentPath = location.pathname;
-  
-  const isCollapsed = state === "collapsed";
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  const isActive = (path: string) => {
-    return currentPath === path || (path !== "/admin/dashboard" && currentPath.startsWith(path));
+  const isActive = (href: string) => {
+    if (href === '/dashboard') {
+      return location.pathname === '/dashboard';
+    }
+    return location.pathname.startsWith(href);
   };
 
-  const getNavCls = (path: string) =>
-    isActive(path) 
-      ? "bg-primary/10 text-primary border-r-2 border-primary font-medium" 
-      : "hover:bg-accent hover:text-primary transition-colors";
+  const SidebarContent = () => (
+    <>
+      {/* Logo */}
+      <div className="flex items-center justify-between p-4 border-b">
+        <div className="grace-logo text-2xl font-bold">grace</div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="lg:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* Navigation */}
+      <ScrollArea className="flex-1 py-4">
+        <nav className="space-y-1 px-3">
+          {navigation.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.name}
+                to={item.href}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={cn(
+                  'flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
+                  isActive(item.href)
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                )}
+              >
+                <Icon className="mr-3 h-4 w-4 flex-shrink-0" />
+                <span className="flex-1">{item.name}</span>
+                {item.badge && (
+                  <Badge variant="secondary" className="ml-auto text-xs">
+                    {item.badge}
+                  </Badge>
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+      </ScrollArea>
+
+      {/* Footer */}
+      <div className="p-4 border-t">
+        <p className="text-xs text-muted-foreground">
+          Grace OS • Restaurant Management
+        </p>
+      </div>
+    </>
+  );
 
   return (
-    <Sidebar className={isCollapsed ? "w-14" : "w-60"} collapsible="icon">
-      <SidebarContent className="bg-sidebar-background border-r border-sidebar-border">
-        <div className="p-4 border-b border-sidebar-border">
-          <div className="grace-logo text-2xl font-bold text-center">
-            {isCollapsed ? "G" : "grace"}
+    <>
+      {/* Mobile menu button */}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="lg:hidden fixed top-4 left-4 z-50"
+        onClick={() => setIsMobileMenuOpen(true)}
+      >
+        <Menu className="h-4 w-4" />
+      </Button>
+
+      {/* Mobile sidebar */}
+      {isMobileMenuOpen && (
+        <div className="lg:hidden fixed inset-0 z-40 flex">
+          <div className="fixed inset-0 bg-black/20" onClick={() => setIsMobileMenuOpen(false)} />
+          <div className="relative flex w-64 flex-col bg-background border-r">
+            <SidebarContent />
           </div>
         </div>
-        
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-sidebar-foreground/70 font-medium px-4 py-2">
-            {!isCollapsed && "Venue Management"}
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu className={isCollapsed ? "px-1" : "px-2"}>
-              {items.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild className={`rounded-lg mb-1 ${isCollapsed ? 'justify-center px-0' : ''}`}>
-                    <NavLink to={item.url} className={getNavCls(item.url)}>
-                      <item.icon className={`h-5 w-5 ${isCollapsed ? 'mx-auto' : 'mr-2'}`} strokeWidth={2} />
-                      {!isCollapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
-    </Sidebar>
+      )}
+
+      {/* Desktop sidebar */}
+      <div className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 bg-background border-r">
+        <SidebarContent />
+      </div>
+    </>
   );
-}
+};
+
+export default AdminSidebar;

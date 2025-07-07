@@ -1,31 +1,32 @@
 
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { AuthProvider } from "./contexts/AuthContext";
-import { ThemeProvider } from "next-themes";
-import { ProtectedRoute } from "./components/auth/ProtectedRoute";
-import { AdminLayout } from "./components/layouts/AdminLayout";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { ThemeProvider } from "@/components/theme-provider";
+import { AuthProvider } from "@/contexts/AuthContext";
+import HomePage from "./pages/HomePage";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
-import Tables from "./pages/Tables";
-import HostInterface from "./pages/HostInterface";
-import Guests from "./pages/Guests";
 import BookingWidget from "./pages/BookingWidget";
-import Services from "./pages/Services";
+import HostInterface from "./pages/HostInterface";
+import NewHostInterface from "./pages/NewHostInterface";
+import Setup from "./pages/Setup";
 import Settings from "./pages/Settings";
+import Tables from "./pages/Tables";
+import Services from "./pages/Services";
+import Guests from "./pages/Guests";
 import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
-import HomePage from "./pages/HomePage";
-import { PlatformAdminLayout } from "./components/layouts/PlatformAdminLayout";
 import PlatformAuth from "./pages/PlatformAuth";
 import PlatformDashboard from "./pages/PlatformDashboard";
-import PlatformVenues from "./pages/PlatformVenues";
+import PlatformSettings from "./pages/PlatformSettings";
 import PlatformUsers from "./pages/PlatformUsers";
+import PlatformVenues from "./pages/PlatformVenues";
 import PlatformSubscriptions from "./pages/PlatformSubscriptions";
 import PlatformSupport from "./pages/PlatformSupport";
-import PlatformSettings from "./pages/PlatformSettings";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 import RootRedirect from "./components/auth/RootRedirect";
 
 const queryClient = new QueryClient();
@@ -33,58 +34,44 @@ const queryClient = new QueryClient();
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <TooltipProvider>
-            <Toaster />
+      <ThemeProvider defaultTheme="light" storageKey="grace-theme">
+        <TooltipProvider>
+          <AuthProvider>
             <BrowserRouter>
               <Routes>
-                {/* Root route with smart redirect */}
                 <Route path="/" element={<RootRedirect />} />
                 <Route path="/home" element={<HomePage />} />
-                {/* Redirect setup to auth - registration is now controlled by platform admin */}
-                <Route path="/setup" element={<Navigate to="/auth" replace />} />
                 <Route path="/auth" element={<Auth />} />
+                <Route path="/setup" element={<Setup />} />
                 <Route path="/booking/:slug" element={<BookingWidget />} />
-                <Route path="/booking/:slug/:secretSlug" element={<BookingWidget />} />
                 
-                {/* Protected venue admin routes */}
-                <Route path="/admin" element={
-                  <AdminLayout>
-                    <ProtectedRoute>
-                      <></>
-                    </ProtectedRoute>
-                  </AdminLayout>
-                }>
-                  <Route path="dashboard" element={<Dashboard />} />
-                  <Route path="tables" element={<Tables />} />
-                  <Route path="host" element={<HostInterface />} />
-                  <Route path="guests" element={<Guests />} />
-                  <Route path="services" element={<Services />} />
-                  <Route path="settings" element={<Settings />} />
-                  <Route path="reports" element={<Reports />} />
-                </Route>
-
-                {/* Platform admin auth route */}
-                <Route path="/platform/login" element={<PlatformAuth />} />
-
-                {/* Platform admin routes */}
-                <Route path="/platform" element={<PlatformAdminLayout />}>
-                  <Route path="dashboard" element={<PlatformDashboard />} />
-                  <Route path="venues" element={<PlatformVenues />} />
-                  <Route path="users" element={<PlatformUsers />} />
-                  <Route path="subscriptions" element={<PlatformSubscriptions />} />
-                  <Route path="support" element={<PlatformSupport />} />
-                  <Route path="settings" element={<PlatformSettings />} />
-                </Route>
-
-                {/* 404 route */}
+                {/* Protected Admin Routes */}
+                <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                <Route path="/host" element={<ProtectedRoute><HostInterface /></ProtectedRoute>} />
+                <Route path="/host-new" element={<ProtectedRoute><NewHostInterface /></ProtectedRoute>} />
+                <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+                <Route path="/tables" element={<ProtectedRoute><Tables /></ProtectedRoute>} />
+                <Route path="/services" element={<ProtectedRoute><Services /></ProtectedRoute>} />
+                <Route path="/guests" element={<ProtectedRoute><Guests /></ProtectedRoute>} />
+                <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+                
+                {/* Platform Admin Routes */}
+                <Route path="/platform/auth" element={<PlatformAuth />} />
+                <Route path="/platform/dashboard" element={<ProtectedRoute><PlatformDashboard /></ProtectedRoute>} />
+                <Route path="/platform/settings" element={<ProtectedRoute><PlatformSettings /></ProtectedRoute>} />
+                <Route path="/platform/users" element={<ProtectedRoute><PlatformUsers /></ProtectedRoute>} />
+                <Route path="/platform/venues" element={<ProtectedRoute><PlatformVenues /></ProtectedRoute>} />
+                <Route path="/platform/subscriptions" element={<ProtectedRoute><PlatformSubscriptions /></ProtectedRoute>} />
+                <Route path="/platform/support" element={<ProtectedRoute><PlatformSupport /></ProtectedRoute>} />
+                
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>
-          </TooltipProvider>
-        </ThemeProvider>
-      </AuthProvider>
+            <Toaster />
+            <Sonner />
+          </AuthProvider>
+        </TooltipProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }
