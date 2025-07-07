@@ -26,7 +26,7 @@ export const DroppableTimeSlot = ({
           ref={provided.innerRef}
           {...provided.droppableProps}
           className={`border-r border-gray-200 hover:bg-blue-50 cursor-pointer flex items-center justify-center relative ${
-            snapshot.isDraggedOver ? 'bg-blue-100' : ''
+            snapshot.isDraggingOver ? 'bg-blue-100' : ''
           }`}
           style={{ width: SLOT_WIDTH, minWidth: SLOT_WIDTH }}
           onClick={() => {
