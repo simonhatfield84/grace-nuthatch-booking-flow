@@ -49,12 +49,12 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   };
 
   return (
-    <div className="flex h-screen" style={{ backgroundColor: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}>
+    <div className="flex h-screen" style={{ backgroundColor: '#F4EAE0', color: '#2E2E2E' }}>
       <AdminSidebar collapsed={sidebarCollapsed} onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)} />
       <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'ml-64'}`} 
-           style={{ backgroundColor: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}>
+           style={{ backgroundColor: '#F4EAE0', color: '#2E2E2E' }}>
         <header className="border-b px-6 py-4 flex items-center justify-between" 
-                style={{ backgroundColor: 'hsl(var(--background))', borderColor: 'hsl(var(--border))' }}>
+                style={{ backgroundColor: '#F4EAE0', borderColor: '#E0D5C7' }}>
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
@@ -90,7 +90,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           </DropdownMenu>
         </header>
         <main className="flex-1 overflow-auto p-6" 
-              style={{ backgroundColor: 'hsl(var(--background))', color: 'hsl(var(--foreground))' }}>
+              style={{ backgroundColor: '#F4EAE0', color: '#2E2E2E' }}>
           {children || <Outlet />}
         </main>
       </div>

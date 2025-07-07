@@ -165,23 +165,29 @@
   }
 }
 
-/* CRITICAL iPad Safari background fixes */
+/* CRITICAL iPad Safari background fixes with hex fallbacks */
 html {
-  background-color: hsl(var(--background)) !important;
-  color: hsl(var(--foreground)) !important;
+  background-color: #F4EAE0; /* Hex fallback */
+  background-color: hsl(var(--background));
+  color: #2E2E2E; /* Hex fallback */
+  color: hsl(var(--foreground));
   min-height: 100vh;
 }
 
 body {
-  background-color: hsl(var(--background)) !important;
-  color: hsl(var(--foreground)) !important;
+  background-color: #F4EAE0; /* Hex fallback */
+  background-color: hsl(var(--background));
+  color: #2E2E2E; /* Hex fallback */
+  color: hsl(var(--foreground));
   min-height: 100vh;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 #root {
-  background-color: hsl(var(--background)) !important;
-  color: hsl(var(--foreground)) !important;
+  background-color: #F4EAE0; /* Hex fallback */
+  background-color: hsl(var(--background));
+  color: #2E2E2E; /* Hex fallback */
+  color: hsl(var(--foreground));
   min-height: 100vh;
 }
 
@@ -190,15 +196,17 @@ body {
 .h-screen,
 [class*="bg-background"],
 .bg-card {
-  background-color: hsl(var(--background)) !important;
-  color: hsl(var(--foreground)) !important;
+  background-color: #F4EAE0; /* Hex fallback */
+  background-color: hsl(var(--background));
+  color: #2E2E2E; /* Hex fallback */
+  color: hsl(var(--foreground));
 }
 
 /* iPad Safari specific fixes */
 @supports (-webkit-touch-callout: none) {
   html, body, #root {
-    background-color: hsl(var(--background)) !important;
-    color: hsl(var(--foreground)) !important;
+    background-color: #F4EAE0; /* Force hex color for iPad */
+    color: #2E2E2E;
     -webkit-background-size: cover;
     background-size: cover;
   }
@@ -208,4 +216,29 @@ body {
     -webkit-transform: translateZ(0);
     transform: translateZ(0);
   }
+}
+
+/* iPad-specific debugging class */
+.ipad-safari {
+  background-color: #F4EAE0 !important;
+  color: #2E2E2E !important;
+}
+
+.ipad-safari * {
+  background-color: inherit;
+  color: inherit;
+}
+
+/* Additional iPad Safari compatibility */
+@media screen and (-webkit-min-device-pixel-ratio: 1) {
+  html, body, #root {
+    background-color: #F4EAE0 !important;
+    color: #2E2E2E !important;
+  }
+}
+
+/* Visual debugging for iPad (temporary) */
+.debug-colors {
+  border: 2px solid red !important;
+  background-color: yellow !important;
 }

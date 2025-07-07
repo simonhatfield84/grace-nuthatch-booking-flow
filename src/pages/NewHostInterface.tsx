@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -21,6 +20,7 @@ import { FullBookingDialog } from "@/components/host/FullBookingDialog";
 import { Users, Grid, List, Ban, PlusCircle, BarChart3, Clock, CheckCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Block } from "@/hooks/useBlocks";
+import { DebugPanel } from "@/components/DebugPanel";
 
 const NewHostInterface = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -201,6 +201,9 @@ const NewHostInterface = () => {
 
   return (
     <div className="space-y-6">
+      {/* Temporary Debug Panel */}
+      <DebugPanel />
+      
       {/* Header */}
       <div className="bg-card border rounded-lg p-4 shadow-sm">
         <div className="flex items-center justify-between">
