@@ -7,7 +7,7 @@
 
 @layer base {
   :root {
-    /* FIXED: All colors converted to HSL format to match Tailwind expectations */
+    /* Light theme colors (admin routes) */
     --background: 32 27% 94%; /* #F4EAE0 converted to HSL */
     --foreground: 0 0% 18%; /* #2E2E2E converted to HSL */
 
@@ -49,34 +49,43 @@
     --sidebar-ring: 16 53% 60%;
   }
 
-  /* Dark theme with same HSL values to prevent conflicts */
+  /* Dark theme with host interface colors */
   .dark {
-    --background: 32 27% 94%;
-    --foreground: 0 0% 18%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 18%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 18%;
-    --primary: 16 53% 60%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 43 75% 56%;
-    --secondary-foreground: 0 0% 18%;
-    --muted: 31 39% 85%;
-    --muted-foreground: 0 0% 45%;
-    --accent: 16 53% 60%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 33 20% 77%;
-    --input: 33 20% 77%;
-    --ring: 16 53% 60%;
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 0 0% 18%;
+    --background: 214 13% 8%; /* #111315 host-blackest-dark */
+    --foreground: 0 0% 100%; /* #FFFFFF */
+
+    --card: 214 6% 16%; /* #292C2D host-dark-gray */
+    --card-foreground: 0 0% 100%; /* #FFFFFF */
+
+    --popover: 214 6% 16%; /* #292C2D */
+    --popover-foreground: 0 0% 100%; /* #FFFFFF */
+
+    --primary: 16 53% 60%; /* #D87C5A - keep brand color */
+    --primary-foreground: 0 0% 100%; /* #FFFFFF */
+
+    --secondary: 43 75% 56%; /* #E9A036 - keep brand color */
+    --secondary-foreground: 0 0% 100%; /* #FFFFFF */
+
+    --muted: 214 6% 16%; /* #292C2D */
+    --muted-foreground: 0 0% 40%; /* #676767 host-mid-gray */
+
+    --accent: 214 6% 16%; /* #292C2D */
+    --accent-foreground: 0 0% 100%; /* #FFFFFF */
+
+    --destructive: 0 84% 60%; /* #DC2626 */
+    --destructive-foreground: 0 0% 100%; /* #FFFFFF */
+
+    --border: 0 0% 40%; /* #676767 host-mid-gray */
+    --input: 214 6% 16%; /* #292C2D */
+    --ring: 16 53% 60%; /* #D87C5A */
+
+    --sidebar-background: 214 13% 8%;
+    --sidebar-foreground: 0 0% 100%;
     --sidebar-primary: 16 53% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 94%;
-    --sidebar-accent-foreground: 0 0% 18%;
-    --sidebar-border: 33 20% 77%;
+    --sidebar-accent: 214 6% 16%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 40%;
     --sidebar-ring: 16 53% 60%;
   }
 }
@@ -123,18 +132,11 @@
   }
 }
 
-/* iPad Safari Specific Fixes with HSL colors */
+/* iPad Safari Specific Fixes */
 @supports (-webkit-touch-callout: none) {
   html, body, #root {
-    background-color: hsl(32 27% 94%) !important;
-    color: hsl(0 0% 18%) !important;
     -webkit-background-size: cover;
     background-size: cover;
-  }
-  
-  .light, .dark {
-    background-color: hsl(32 27% 94%) !important;
-    color: hsl(0 0% 18%) !important;
   }
 }
 

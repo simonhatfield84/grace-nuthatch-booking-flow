@@ -16,16 +16,22 @@ export function ThemeHandler() {
       root.removeAttribute('data-theme');
       body.removeAttribute('data-theme');
 
-      // FORCE LIGHT THEME FOR ALL ROUTES
-      root.classList.add("light");
-      body.classList.add("light");
-      root.setAttribute('data-theme', 'light');
+      // Determine theme based on route
+      const isHostRoute = location.pathname.includes('/host');
+      const theme = isHostRoute ? 'dark' : 'light';
+      
+      // Apply theme
+      root.classList.add(theme);
+      body.classList.add(theme);
+      root.setAttribute('data-theme', theme);
       
       // Store theme consistently with App.tsx
-      localStorage.setItem('grace-ui-theme', 'light');
+      localStorage.setItem('grace-ui-theme', theme);
       
       console.log('🎨 Theme Applied Successfully:', {
         route: location.pathname,
+        appliedTheme: theme,
+        isHostRoute,
         rootClasses: root.className,
         bodyClasses: body.className,
         storageKey: localStorage.getItem('grace-ui-theme'),
@@ -42,10 +48,13 @@ export function ThemeHandler() {
     } catch (error) {
       console.error('❌ Theme Handler Error:', error);
       // Fallback to basic styling if theme handler fails
-      document.documentElement.style.backgroundColor = '#F4EAE0';
-      document.documentElement.style.color = '#2E2E2E';
-      document.body.style.backgroundColor = '#F4EAE0';
-      document.body.style.color = '#2E2E2E';
+      const fallbackBg = location.pathname.includes('/host') ? '#111315' : '#F4EAE0';
+      const fallbackColor = location.pathname.includes('/host') ? '#FFFFFF' : '#2E2E2E';
+      
+      document.documentElement.style.backgroundColor = fallbackBg;
+      document.documentElement.style.color = fallbackColor;
+      document.body.style.backgroundColor = fallbackBg;
+      document.body.style.color = fallbackColor;
     }
 
   }, [location.pathname]);
