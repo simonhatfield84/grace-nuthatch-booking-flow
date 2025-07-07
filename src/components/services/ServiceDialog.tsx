@@ -72,7 +72,7 @@ const ServiceDialog = ({
   // Add payment-related form state
   const [paymentSettings, setPaymentSettings] = useState({
     requires_payment: editingService?.requires_payment || newService?.requires_payment || false,
-    charge_type: editingService?.charge_type || newService?.charge_type || 'none',
+    charge_type: editingService?.charge_type || newService?.charge_type || 'all_reservations',
     minimum_guests_for_charge: editingService?.minimum_guests_for_charge || newService?.minimum_guests_for_charge || 8,
     charge_amount_per_guest: editingService?.charge_amount_per_guest || newService?.charge_amount_per_guest || 0,
   });
@@ -116,18 +116,21 @@ const ServiceDialog = ({
         terms_and_conditions: termsAndConditions,
         // Add payment settings
         requires_payment: paymentSettings.requires_payment,
-        charge_type: paymentSettings.charge_type,
+        charge_type: paymentSettings.requires_payment ? paymentSettings.charge_type : 'none',
         minimum_guests_for_charge: paymentSettings.minimum_guests_for_charge,
         charge_amount_per_guest: paymentSettings.charge_amount_per_guest,
       };
 
-      if (editingService?.id) {
+      // Update the service objects with the current data
+      if (editingService) {
+        setEditingService({ ...editingService, ...serviceData });
         const success = await onUpdateService();
         if (success) {
           onOpenChange(false);
           onReset();
         }
       } else {
+        setNewService({ ...newService, ...serviceData });
         const success = await onAddService();
         if (success) {
           onOpenChange(false);
@@ -160,7 +163,7 @@ const ServiceDialog = ({
       setTermsAndConditions(service.terms_and_conditions || '');
       setPaymentSettings({
         requires_payment: service.requires_payment || false,
-        charge_type: service.charge_type || 'none',
+        charge_type: service.charge_type === 'none' ? 'all_reservations' : (service.charge_type || 'all_reservations'),
         minimum_guests_for_charge: service.minimum_guests_for_charge || 8,
         charge_amount_per_guest: service.charge_amount_per_guest || 0,
       });
@@ -324,7 +327,7 @@ const ServiceDialog = ({
                       <Label>Payment Rule</Label>
                       <Select
                         value={paymentSettings.charge_type}
-                        onValueChange={(value: 'none' | 'all_reservations' | 'large_groups') =>
+                        onValueChange={(value: 'all_reservations' | 'large_groups') =>
                           setPaymentSettings(prev => ({ ...prev, charge_type: value }))
                         }
                       >
@@ -332,7 +335,6 @@ const ServiceDialog = ({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="none">No charge</SelectItem>
                           <SelectItem value="all_reservations">All reservations</SelectItem>
                           <SelectItem value="large_groups">Large groups only</SelectItem>
                         </SelectContent>
@@ -356,27 +358,25 @@ const ServiceDialog = ({
                       </div>
                     )}
 
-                    {paymentSettings.charge_type !== 'none' && (
-                      <div className="space-y-2">
-                        <Label>Charge Amount per Guest</Label>
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">£</span>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={paymentSettings.charge_amount_per_guest / 100}
-                            onChange={(e) =>
-                              setPaymentSettings(prev => ({
-                                ...prev,
-                                charge_amount_per_guest: Math.round(parseFloat(e.target.value || '0') * 100)
-                              }))
-                            }
-                            className="pl-8"
-                          />
-                        </div>
+                    <div className="space-y-2">
+                      <Label>Charge Amount per Guest</Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">£</span>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={paymentSettings.charge_amount_per_guest / 100}
+                          onChange={(e) =>
+                            setPaymentSettings(prev => ({
+                              ...prev,
+                              charge_amount_per_guest: Math.round(parseFloat(e.target.value || '0') * 100)
+                            }))
+                          }
+                          className="pl-8"
+                        />
                       </div>
-                    )}
+                    </div>
                   </>
                 )}
               </div>
