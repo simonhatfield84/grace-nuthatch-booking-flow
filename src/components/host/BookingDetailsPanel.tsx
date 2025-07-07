@@ -1,4 +1,3 @@
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +15,7 @@ import { BookingAuditTrail } from "./BookingAuditTrail";
 import { useTables } from "@/hooks/useTables";
 import { TableAllocationService } from "@/services/tableAllocation";
 import { useToast } from "@/hooks/use-toast";
+import { useBookings } from "@/hooks/useBookings";
 
 interface BookingDetailsPanelProps {
   booking: Booking | null;
@@ -33,6 +33,7 @@ export const BookingDetailsPanel = ({
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Booking>>({});
   const { tables } = useTables();
+  const { updateBooking } = useBookings();
   const { toast } = useToast();
 
   if (!booking) return null;
@@ -49,12 +50,15 @@ export const BookingDetailsPanel = ({
         return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-100';
       case 'late':
         return 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900 dark:text-orange-100';
+      case 'no-show':
+        return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-100';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-100';
     }
   };
 
-  const statusOptions = ['confirmed', 'seated', 'finished', 'cancelled', 'late'];
+  const statusOptions = ['confirmed', 'seated', 'finished', 'cancelled', 'late', 'no-show'];
+  const serviceOptions = ['Dinner', 'Lunch', 'Breakfast', 'Brunch', 'Drinks', 'Private Event', 'Walk-In'];
 
   const getAvailableTables = () => {
     return tables.filter(table => table.seats >= booking.party_size);
@@ -62,28 +66,41 @@ export const BookingDetailsPanel = ({
 
   const handleTableAssignment = async (tableId: string) => {
     try {
-      const success = await TableAllocationService.manuallyAssignBookingToTable(
-        booking.id,
-        parseInt(tableId)
-      );
+      await updateBooking({
+        id: booking.id,
+        updates: { table_id: parseInt(tableId) }
+      });
       
-      if (success) {
-        toast({
-          title: "Table Assigned",
-          description: `Booking assigned to table ${tables.find(t => t.id === parseInt(tableId))?.label}`,
-        });
-        onBookingUpdate();
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to assign table",
-          variant: "destructive"
-        });
-      }
+      toast({
+        title: "Table Assigned",
+        description: `Booking assigned to table ${tables.find(t => t.id === parseInt(tableId))?.label}`,
+      });
+      onBookingUpdate();
     } catch (error) {
       toast({
         title: "Error",
         description: "Failed to assign table",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleServiceChange = async (service: string) => {
+    try {
+      await updateBooking({
+        id: booking.id,
+        updates: { service }
+      });
+      
+      toast({
+        title: "Service Updated",
+        description: `Service changed to ${service}`,
+      });
+      onBookingUpdate();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update service",
         variant: "destructive"
       });
     }
@@ -102,15 +119,26 @@ export const BookingDetailsPanel = ({
     setIsEditing(true);
   };
 
-  const handleEditSave = () => {
-    // This would call an update function - implement based on your update logic
-    console.log('Saving booking updates:', editForm);
-    setIsEditing(false);
-    onBookingUpdate();
-    toast({
-      title: "Booking Updated",
-      description: "Booking details have been updated successfully",
-    });
+  const handleEditSave = async () => {
+    try {
+      await updateBooking({
+        id: booking.id,
+        updates: editForm
+      });
+      
+      setIsEditing(false);
+      onBookingUpdate();
+      toast({
+        title: "Booking Updated",
+        description: "Booking details have been updated successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update booking",
+        variant: "destructive"
+      });
+    }
   };
 
   const currentTable = tables.find(t => t.id === booking.table_id);
@@ -288,48 +316,47 @@ export const BookingDetailsPanel = ({
                   </>
                 )}
 
-                {booking.service && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-gray-700 dark:text-gray-300">Service:</span>
-                    <span className="font-medium text-gray-900 dark:text-gray-100">{booking.service}</span>
-                  </div>
-                )}
+                {/* Service Selection */}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-700 dark:text-gray-300">Service:</span>
+                  <Select value={booking.service || 'Dinner'} onValueChange={handleServiceChange}>
+                    <SelectTrigger className="w-32 h-8 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {serviceOptions.map((service) => (
+                        <SelectItem key={service} value={service}>{service}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 
+                {/* Table Assignment */}
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-gray-700 dark:text-gray-300 flex items-center gap-1">
                     <MapPin className="h-3 w-3" />
                     Table:
                   </span>
-                  <span className="font-medium text-gray-900 dark:text-gray-100">
-                    {currentTable?.label || 'Unassigned'}
-                  </span>
+                  <Select 
+                    value={booking.table_id?.toString() || ''} 
+                    onValueChange={handleTableAssignment}
+                  >
+                    <SelectTrigger className="w-32 h-8 text-sm">
+                      <SelectValue placeholder="Assign table" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {getAvailableTables().map((table) => (
+                        <SelectItem key={table.id} value={table.id.toString()}>
+                          {table.label} ({table.seats})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </div>
 
             <Separator />
-
-            {/* Manual Table Assignment */}
-            {!booking.table_id && (
-              <div>
-                <h3 className="font-medium text-sm mb-3 text-gray-900 dark:text-gray-100 flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-orange-500" />
-                  Manual Table Assignment
-                </h3>
-                <Select onValueChange={handleTableAssignment}>
-                  <SelectTrigger className="text-gray-900 dark:text-gray-100">
-                    <SelectValue placeholder="Select a table" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {getAvailableTables().map((table) => (
-                      <SelectItem key={table.id} value={table.id.toString()}>
-                        {table.label} ({table.seats} seats)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
 
             {/* Status & Quick Actions */}
             <div>

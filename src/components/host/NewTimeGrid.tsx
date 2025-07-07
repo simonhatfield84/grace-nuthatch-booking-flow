@@ -4,6 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { BlockOverlay } from "./BlockOverlay";
+import { DollarSign } from "lucide-react";
 
 interface TimeGridProps {
   venueHours: any;
@@ -27,9 +28,9 @@ export const NewTimeGrid = ({
   selectedDate
 }: TimeGridProps) => {
   const [timeSlots, setTimeSlots] = useState<string[]>([]);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Filter out cancelled bookings - they should not appear on the grid
+  // Filter out cancelled bookings
   const activeBookings = bookings.filter(booking => booking.status !== 'cancelled');
 
   // Generate 15-minute time slots
@@ -58,8 +59,9 @@ export const NewTimeGrid = ({
     switch (status) {
       case 'confirmed': return 'bg-blue-500 hover:bg-blue-600 text-white border-blue-600';
       case 'seated': return 'bg-green-500 hover:bg-green-600 text-white border-green-600';
-      case 'finished': return 'bg-slate-400 hover:bg-slate-500 text-white border-slate-500';
+      case 'finished': return 'bg-gray-400 hover:bg-gray-500 text-white border-gray-500';
       case 'late': return 'bg-orange-500 hover:bg-orange-600 text-white border-orange-600';
+      case 'no-show': return 'bg-red-500 hover:bg-red-600 text-white border-red-600';
       default: return 'bg-blue-500 hover:bg-blue-600 text-white border-blue-600';
     }
   };
@@ -83,95 +85,105 @@ export const NewTimeGrid = ({
     return { left, width };
   };
 
-  const SLOT_WIDTH = 40; // Reduced from 50px for better fit
+  const SLOT_WIDTH = 40;
   const TABLE_LABEL_WIDTH = 140;
+  const GRID_WIDTH = timeSlots.length * SLOT_WIDTH;
 
   return (
-    <div className="h-full flex flex-col bg-slate-50 rounded-lg overflow-hidden border border-slate-200">
+    <div className="h-full flex flex-col bg-white rounded-lg overflow-hidden border border-gray-200">
       {/* Fixed header with table labels and time slots */}
-      <div 
-        className="flex bg-white border-b border-slate-200 shadow-sm"
-        style={{ minWidth: TABLE_LABEL_WIDTH + (timeSlots.length * SLOT_WIDTH) }}
-      >
+      <div className="flex bg-gray-50 border-b border-gray-200 shadow-sm">
         {/* Fixed table header */}
         <div 
-          className="bg-slate-100 border-r border-slate-200 p-3 flex items-center justify-center sticky left-0 z-20"
+          className="bg-gray-100 border-r border-gray-300 p-2 flex items-center justify-center"
           style={{ width: TABLE_LABEL_WIDTH, minWidth: TABLE_LABEL_WIDTH }}
         >
-          <span className="text-sm font-medium text-slate-700">Tables</span>
+          <span className="text-sm font-medium text-gray-700">Tables</span>
         </div>
         
-        {/* Scrollable time header */}
-        <div className="flex">
-          {timeSlots.map((slot) => (
-            <div 
-              key={`header-${slot}`}
-              className="bg-slate-100 border-r border-slate-200 p-2 text-center flex items-center justify-center"
-              style={{ width: SLOT_WIDTH, minWidth: SLOT_WIDTH }}
-            >
-              <span className="text-xs font-medium text-slate-700">{slot}</span>
-            </div>
-          ))}
+        {/* Scrollable time header container */}
+        <div 
+          className="flex-1 overflow-x-auto"
+          ref={scrollContainerRef}
+          style={{ width: `calc(100% - ${TABLE_LABEL_WIDTH}px)` }}
+        >
+          <div 
+            className="flex bg-gray-100"
+            style={{ width: GRID_WIDTH, minWidth: GRID_WIDTH }}
+          >
+            {timeSlots.map((slot) => (
+              <div 
+                key={`header-${slot}`}
+                className="bg-gray-100 border-r border-gray-300 p-2 text-center flex items-center justify-center"
+                style={{ width: SLOT_WIDTH, minWidth: SLOT_WIDTH }}
+              >
+                <span className="text-xs font-medium text-gray-700">{slot}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
       {/* Scrollable content area */}
-      <ScrollArea className="flex-1" ref={scrollAreaRef}>
+      <div className="flex-1 flex overflow-hidden">
+        {/* Fixed table labels column */}
         <div 
-          className="flex"
-          style={{ minWidth: TABLE_LABEL_WIDTH + (timeSlots.length * SLOT_WIDTH) }}
+          className="bg-white overflow-y-auto"
+          style={{ width: TABLE_LABEL_WIDTH, minWidth: TABLE_LABEL_WIDTH }}
         >
-          {/* Fixed table labels column */}
-          <div 
-            className="bg-white sticky left-0 z-10"
-            style={{ width: TABLE_LABEL_WIDTH, minWidth: TABLE_LABEL_WIDTH }}
-          >
-            {tablesBySection.map((section) => (
-              <div key={section.id}>
-                {/* Section Header */}
-                <div className="bg-slate-200 border-b border-slate-300 py-2 px-3">
-                  <div className="flex items-center gap-2">
-                    <div 
-                      className="w-2 h-2 rounded-full" 
-                      style={{ backgroundColor: section.color }}
-                    />
-                    <span className="text-sm font-semibold text-slate-800">{section.name}</span>
-                    <Badge variant="secondary" className="text-xs bg-slate-300 text-slate-700">
-                      {section.tables.length}
-                    </Badge>
-                  </div>
-                </div>
-
-                {/* Table rows */}
-                {section.tables.map((table) => (
+          {tablesBySection.map((section) => (
+            <div key={section.id}>
+              {/* Section Header */}
+              <div className="bg-gray-100 border-b border-gray-200 py-2 px-3" style={{ height: '36px' }}>
+                <div className="flex items-center gap-2">
                   <div 
-                    key={table.id} 
-                    className="border-b border-slate-200 p-3 bg-white hover:bg-slate-50 transition-colors"
-                    style={{ height: '48px' }}
-                  >
-                    <div className="flex items-center h-full">
-                      <span className="text-sm font-semibold text-slate-900">{table.label}</span>
-                      <span className="text-xs text-slate-600 ml-1">({table.seats})</span>
-                    </div>
-                  </div>
-                ))}
+                    className="w-2 h-2 rounded-full" 
+                    style={{ backgroundColor: section.color }}
+                  />
+                  <span className="text-sm font-semibold text-gray-800">{section.name}</span>
+                  <Badge variant="secondary" className="text-xs bg-gray-200 text-gray-700">
+                    {section.tables.length}
+                  </Badge>
+                </div>
               </div>
-            ))}
-          </div>
 
-          {/* Scrollable time grid */}
-          <div className="flex-1 relative">
+              {/* Table rows */}
+              {section.tables.map((table) => (
+                <div 
+                  key={table.id} 
+                  className="border-b border-gray-200 p-2 bg-white hover:bg-gray-50 transition-colors flex items-center"
+                  style={{ height: '36px' }}
+                >
+                  <span className="text-sm font-semibold text-gray-900">{table.label}</span>
+                  <span className="text-xs text-gray-600 ml-1">({table.seats})</span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+
+        {/* Scrollable time grid */}
+        <div 
+          className="flex-1 overflow-x-auto overflow-y-auto"
+          onScroll={(e) => {
+            // Sync scroll with header
+            if (scrollContainerRef.current) {
+              scrollContainerRef.current.scrollLeft = e.currentTarget.scrollLeft;
+            }
+          }}
+        >
+          <div style={{ width: GRID_WIDTH, minWidth: GRID_WIDTH }}>
             {tablesBySection.map((section) => (
               <div key={section.id}>
                 {/* Section header row */}
                 <div 
-                  className="bg-slate-200 border-b border-slate-300 flex"
-                  style={{ height: '41px' }}
+                  className="bg-gray-100 border-b border-gray-200 flex"
+                  style={{ height: '36px' }}
                 >
                   {timeSlots.map((slot) => (
                     <div 
                       key={`section-${section.id}-${slot}`}
-                      className="border-r border-slate-300"
+                      className="border-r border-gray-200"
                       style={{ width: SLOT_WIDTH, minWidth: SLOT_WIDTH }}
                     />
                   ))}
@@ -181,8 +193,8 @@ export const NewTimeGrid = ({
                 {section.tables.map((table) => (
                   <div 
                     key={table.id} 
-                    className="relative flex border-b border-slate-200"
-                    style={{ height: '48px' }}
+                    className="relative flex border-b border-gray-200"
+                    style={{ height: '36px' }}
                   >
                     {/* Time slot cells */}
                     {timeSlots.map((slot, slotIndex) => {
@@ -201,7 +213,7 @@ export const NewTimeGrid = ({
                       return (
                         <div
                           key={`${table.id}-${slot}`}
-                          className="border-r border-slate-200 hover:bg-blue-50 cursor-pointer flex items-center justify-center relative"
+                          className="border-r border-gray-200 hover:bg-blue-50 cursor-pointer flex items-center justify-center relative"
                           style={{ width: SLOT_WIDTH, minWidth: SLOT_WIDTH }}
                           onClick={() => {
                             if (!hasBooking) {
@@ -211,7 +223,7 @@ export const NewTimeGrid = ({
                         >
                           {!hasBooking && (
                             <div className="opacity-0 hover:opacity-100 transition-opacity">
-                              <span className="text-xs text-slate-400">+</span>
+                              <span className="text-xs text-gray-400">+</span>
                             </div>
                           )}
                         </div>
@@ -235,12 +247,12 @@ export const NewTimeGrid = ({
                         return (
                           <div
                             key={booking.id}
-                            className={`absolute rounded text-xs p-2 cursor-pointer transition-all shadow-sm border ${getBookingStatusColor(booking.status)} z-10`}
+                            className={`absolute rounded text-xs p-1 cursor-pointer transition-all shadow-sm border ${getBookingStatusColor(booking.status)} z-10`}
                             style={{
                               left: `${position.left}px`,
                               width: `${position.width}px`,
                               top: '2px',
-                              height: '44px'
+                              height: '32px'
                             }}
                             onClick={(e) => {
                               e.stopPropagation();
@@ -248,8 +260,15 @@ export const NewTimeGrid = ({
                             }}
                           >
                             <div className="flex flex-col justify-center h-full">
-                              <div className="font-medium truncate text-xs">{booking.guest_name}</div>
-                              <div className="text-xs opacity-90">{booking.party_size} pax</div>
+                              <div className="font-medium truncate text-xs flex items-center gap-1">
+                                {booking.guest_name} ({booking.party_size})
+                                {booking.deposit_per_guest > 0 && (
+                                  <DollarSign className="h-3 w-3" />
+                                )}
+                              </div>
+                              {booking.service && (
+                                <div className="text-xs opacity-90 truncate">{booking.service}</div>
+                              )}
                             </div>
                           </div>
                         );
@@ -260,7 +279,7 @@ export const NewTimeGrid = ({
             ))}
           </div>
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 };

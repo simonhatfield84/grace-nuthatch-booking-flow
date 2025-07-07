@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -14,12 +13,14 @@ import { BookingListView } from "@/components/host/BookingListView";
 import { QuickWalkInDialog } from "@/components/host/QuickWalkInDialog";
 import { BookingDetailsPanel } from "@/components/host/BookingDetailsPanel";
 import { IPadCalendar } from "@/components/host/IPadCalendar";
-import { Users, Calendar, Plus, Grid, List, ToggleLeft, ToggleRight } from "lucide-react";
+import { BlockDialog } from "@/components/host/BlockDialog";
+import { Users, Calendar, Plus, Grid, List, Ban } from "lucide-react";
 
 const NewHostInterface = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [walkInDialogOpen, setWalkInDialogOpen] = useState(false);
+  const [blockDialogOpen, setBlockDialogOpen] = useState(false);
   const [selectedTable, setSelectedTable] = useState<any>(null);
   const [selectedTime, setSelectedTime] = useState('');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -214,6 +215,15 @@ const NewHostInterface = () => {
             </Button>
           </div>
           
+          <Button 
+            onClick={() => setBlockDialogOpen(true)} 
+            variant="outline"
+            className="bg-red-600 hover:bg-red-700 text-white border-red-600"
+          >
+            <Ban className="h-4 w-4 mr-2" />
+            Block
+          </Button>
+          
           {isToday && (
             <Button onClick={() => setWalkInDialogOpen(true)} className="bg-grace-primary hover:bg-grace-primary/80">
               <Plus className="h-4 w-4 mr-2" />
@@ -279,6 +289,12 @@ const NewHostInterface = () => {
         time={selectedTime}
         onCreateWalkIn={handleCreateWalkIn}
         defaultDuration={120}
+      />
+      
+      <BlockDialog
+        open={blockDialogOpen}
+        onOpenChange={setBlockDialogOpen}
+        selectedDate={selectedDate}
       />
     </div>
   );

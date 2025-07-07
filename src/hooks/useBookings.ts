@@ -130,6 +130,17 @@ export const useBookings = (date?: string) => {
 
       console.log('✅ Booking created:', booking);
 
+      // Log audit entry for booking creation
+      await supabase
+        .from('booking_audit')
+        .insert([{
+          booking_id: booking.id,
+          change_type: 'created',
+          changed_by: user?.email || 'system',
+          notes: `Booking created for ${newBooking.guest_name}`,
+          venue_id: userVenue
+        }]);
+
       // If not a walk-in, try to allocate it to a table
       if (newBooking.status !== 'seated' && !tableId) {
         try {
@@ -166,6 +177,14 @@ export const useBookings = (date?: string) => {
 
   const updateBookingMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: number, updates: Partial<Booking> }) => {
+      // Get the current booking to compare changes
+      const { data: currentBooking } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('id', id)
+        .eq('venue_id', userVenue)
+        .single();
+
       const { data, error } = await supabase
         .from('bookings')
         .update({ ...updates, updated_at: new Date().toISOString() })
@@ -175,10 +194,45 @@ export const useBookings = (date?: string) => {
         .single();
       
       if (error) throw error;
+
+      // Log audit entries for each changed field
+      if (currentBooking) {
+        const auditEntries = [];
+        
+        Object.keys(updates).forEach(key => {
+          const oldValue = currentBooking[key];
+          const newValue = updates[key as keyof Booking];
+          
+          if (oldValue !== newValue && key !== 'updated_at') {
+            let changeType = 'updated';
+            if (key === 'status') changeType = 'status_changed';
+            if (key === 'table_id') changeType = 'table_changed';
+            if (key === 'booking_time') changeType = 'time_changed';
+            
+            auditEntries.push({
+              booking_id: id,
+              change_type: changeType,
+              field_name: key,
+              old_value: oldValue?.toString() || null,
+              new_value: newValue?.toString() || null,
+              changed_by: user?.email || 'system',
+              venue_id: userVenue
+            });
+          }
+        });
+
+        if (auditEntries.length > 0) {
+          await supabase
+            .from('booking_audit')
+            .insert(auditEntries);
+        }
+      }
+      
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['booking-audit'] });
     },
     onError: (error: any) => {
       console.error('Update booking error:', error);
