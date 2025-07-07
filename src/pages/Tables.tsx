@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -119,10 +120,6 @@ const Tables = () => {
             onEditTable={handleEditTable}
             onDeleteTable={deleteTable}
             onAddTableToSection={handleCreateTable}
-            onEditSection={handleEditSection}
-            onDeleteSection={deleteSection}
-            onEditGroup={handleEditGroupLocal}
-            onDeleteGroup={handleDeleteGroup}
           />
         </TabsContent>
 
