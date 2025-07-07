@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { DragDropProvider } from "./DragDropProvider";
 import { DroppableTimeSlot } from "./DroppableTimeSlot";
+import { DraggableBooking } from "./DraggableBooking";
 import { Ban } from "lucide-react";
 import { useBlocks, Block } from "@/hooks/useBlocks";
 
@@ -31,7 +32,7 @@ export const NewTimeGrid = ({
   selectedDate
 }: TimeGridProps) => {
   const [timeSlots, setTimeSlots] = useState<string[]>([]);
-  const [dynamicRowHeight, setDynamicRowHeight] = useState(28);
+  const [dynamicRowHeight, setDynamicRowHeight] = useState(44);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const gridContainerRef = useRef<HTMLDivElement>(null);
   const { blocks } = useBlocks(format(selectedDate, 'yyyy-MM-dd'));
@@ -58,18 +59,17 @@ export const NewTimeGrid = ({
     setTimeSlots(slots);
   }, []);
 
-  // Calculate dynamic row height based on available space
+  // Calculate dynamic row height based on available space (iPad optimized)
   useEffect(() => {
     const calculateRowHeight = () => {
       if (!gridContainerRef.current) return;
       
       const container = gridContainerRef.current;
       const containerHeight = container.clientHeight;
-      const headerHeight = 48; // Fixed header height
+      const headerHeight = 56; // Larger header for iPad
       
-      // Calculate total number of rows (sections + tables)
       const totalRows = tablesBySection.reduce((acc, section) => {
-        return acc + 1 + section.tables.length; // 1 for section header + tables
+        return acc + 1 + section.tables.length;
       }, 0);
       
       if (totalRows === 0) return;
@@ -77,9 +77,9 @@ export const NewTimeGrid = ({
       const availableHeight = containerHeight - headerHeight;
       const calculatedHeight = Math.floor(availableHeight / totalRows);
       
-      // Set minimum height of 28px, maximum of 60px
-      const minHeight = 28;
-      const maxHeight = 60;
+      // iPad-optimized touch targets: min 44px, max 72px
+      const minHeight = 44;
+      const maxHeight = 72;
       const newHeight = Math.max(minHeight, Math.min(maxHeight, calculatedHeight));
       
       setDynamicRowHeight(newHeight);
@@ -104,16 +104,16 @@ export const NewTimeGrid = ({
 
   const getBookingStatusColor = (status: string) => {
     switch (status) {
-      case 'confirmed': return 'bg-blue-500 hover:bg-blue-600 text-white border-blue-600';
-      case 'seated': return 'bg-green-500 hover:bg-green-600 text-white border-green-600';
-      case 'finished': return 'bg-gray-500 hover:bg-gray-600 text-white border-gray-600';
-      case 'late': return 'bg-orange-500 hover:bg-orange-600 text-white border-orange-600';
-      case 'no-show': return 'bg-red-500 hover:bg-red-600 text-white border-red-600';
-      default: return 'bg-blue-500 hover:bg-blue-600 text-white border-blue-600';
+      case 'confirmed': return 'bg-host-status-confirmed hover:bg-host-sky-blue text-host-blackest-dark border border-host-sky-blue/20';
+      case 'seated': return 'bg-host-status-seated hover:bg-host-mint text-host-blackest-dark border border-host-mint/20';
+      case 'finished': return 'bg-host-status-finished hover:bg-host-mid-gray text-host-white border border-host-mid-gray/20';
+      case 'late': return 'bg-host-status-late hover:bg-host-blush text-host-blackest-dark border border-host-blush/20';
+      case 'no-show': return 'bg-host-status-error hover:bg-red-400 text-host-white border border-host-status-error/20';
+      default: return 'bg-host-status-confirmed hover:bg-host-sky-blue text-host-blackest-dark border border-host-sky-blue/20';
     }
   };
 
-  const getBookingPosition = (booking: any) => {
+  const getBookingPosition = (booking: any, timeSlots: string[]) => {
     const bookingTime = booking.booking_time.substring(0, 5);
     const duration = booking.duration_minutes || 120;
     
@@ -121,8 +121,8 @@ export const NewTimeGrid = ({
     if (startIndex === -1) return null;
     
     const slotsSpanned = Math.ceil(duration / 15);
-    const left = startIndex * 40;
-    const width = slotsSpanned * 40 - 2;
+    const left = startIndex * SLOT_WIDTH;
+    const width = slotsSpanned * SLOT_WIDTH - 2;
     
     return { left, width };
   };
@@ -133,79 +133,82 @@ export const NewTimeGrid = ({
     }
   };
 
-  const SLOT_WIDTH = 40;
-  const TABLE_LABEL_WIDTH = 120;
-  const GRID_WIDTH = timeSlots.length * SLOT_WIDTH;
+  const SLOT_WIDTH = 28; // Reduced from 40px to eliminate horizontal scroll
+  const TABLE_LABEL_WIDTH = 140; // Increased for better iPad touch targets
 
   return (
     <DragDropProvider onBookingDrag={onBookingDrag || (() => {})}>
-      <div ref={gridContainerRef} className="h-full flex flex-col bg-gray-50 rounded-lg overflow-hidden border border-gray-300">
-        {/* Fixed header */}
-        <div className="flex bg-gray-100 border-b-2 border-gray-300 shadow-sm" style={{ height: '48px' }}>
+      <div 
+        ref={gridContainerRef} 
+        className="h-full flex flex-col bg-host-blackest-dark rounded-xl overflow-hidden border border-host-dark-gray shadow-2xl font-inter"
+        style={{ fontFamily: 'Inter, system-ui, sans-serif' }}
+      >
+        {/* Fixed header with iPad-native styling */}
+        <div className="flex bg-host-dark-gray border-b border-host-mid-gray/20 shadow-lg" style={{ height: '56px' }}>
           <div 
-            className="bg-gray-200 border-r-2 border-gray-300 p-2 flex items-center justify-center"
+            className="bg-host-dark-gray border-r border-host-mid-gray/20 p-3 flex items-center justify-center"
             style={{ width: TABLE_LABEL_WIDTH, minWidth: TABLE_LABEL_WIDTH }}
           >
-            <span className="text-sm font-semibold text-gray-800">Tables</span>
+            <span className="text-sm font-semibold text-host-white">Tables</span>
           </div>
           
           <div 
-            className="flex-1 overflow-x-auto"
+            className="flex-1 overflow-x-auto scrollbar-hide"
             ref={scrollContainerRef}
             style={{ width: `calc(100% - ${TABLE_LABEL_WIDTH}px)` }}
           >
             <div 
-              className="flex bg-gray-200"
-              style={{ width: GRID_WIDTH, minWidth: GRID_WIDTH }}
+              className="flex bg-host-dark-gray"
+              style={{ width: timeSlots.length * SLOT_WIDTH, minWidth: timeSlots.length * SLOT_WIDTH }}
             >
               {timeSlots.map((slot) => (
                 <div 
                   key={`header-${slot}`}
-                  className="bg-gray-200 border-r border-gray-400 p-1 text-center flex items-center justify-center"
+                  className="bg-host-dark-gray border-r border-host-mid-gray/10 p-2 text-center flex items-center justify-center"
                   style={{ width: SLOT_WIDTH, minWidth: SLOT_WIDTH }}
                 >
-                  <span className="text-xs font-medium text-gray-800">{slot}</span>
+                  <span className="text-xs font-medium text-host-white/90">{slot}</span>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        {/* Scrollable content */}
+        {/* Scrollable content with iPad-optimized styling */}
         <div className="flex-1 flex overflow-hidden">
           <div 
-            className="bg-gray-100 overflow-y-auto border-r-2 border-gray-300"
+            className="bg-host-dark-gray overflow-y-auto border-r border-host-mid-gray/20 scrollbar-hide"
             style={{ width: TABLE_LABEL_WIDTH, minWidth: TABLE_LABEL_WIDTH }}
           >
             {tablesBySection.map((section) => (
               <div key={section.id}>
-                {/* Section Header */}
+                {/* Section Header with iPad card-style */}
                 <div 
-                  className="bg-gray-200 border-b border-gray-400 py-1 px-2 flex items-center justify-center" 
+                  className="bg-host-dark-gray border-b border-host-mid-gray/20 py-2 px-3 flex items-center justify-center" 
                   style={{ height: `${dynamicRowHeight}px` }}
                 >
-                  <div className="flex items-center justify-center gap-2 w-full">
+                  <div className="flex items-center justify-center gap-3 w-full">
                     <div 
-                      className="w-2 h-2 rounded-full flex-shrink-0" 
+                      className="w-3 h-3 rounded-full flex-shrink-0 shadow-sm" 
                       style={{ backgroundColor: section.color }}
                     />
-                    <span className="text-xs font-bold text-gray-900 truncate">{section.name}</span>
-                    <Badge variant="secondary" className="text-xs bg-gray-300 text-gray-800 px-1 py-0 flex-shrink-0">
+                    <span className="text-sm font-semibold text-host-white truncate">{section.name}</span>
+                    <Badge className="text-xs bg-host-mid-gray/20 text-host-white px-2 py-0 flex-shrink-0 border-0">
                       {section.tables.length}
                     </Badge>
                   </div>
                 </div>
 
-                {/* Table rows */}
+                {/* Table rows with iPad touch optimization */}
                 {section.tables.map((table) => (
                   <div 
                     key={table.id} 
-                    className="border-b border-gray-300 p-1 bg-gray-50 hover:bg-gray-100 transition-colors flex items-center justify-center text-center"
+                    className="border-b border-host-mid-gray/10 p-3 bg-host-blackest-dark hover:bg-host-dark-gray/50 transition-all duration-200 flex items-center justify-center text-center rounded-sm mx-1 my-0.5"
                     style={{ height: `${dynamicRowHeight}px` }}
                   >
-                    <div className="flex items-center justify-center gap-1">
-                      <span className="text-xs font-semibold text-gray-900">{table.label}</span>
-                      <span className="text-xs text-gray-600">({table.seats})</span>
+                    <div className="flex items-center justify-center gap-2">
+                      <span className="text-sm font-medium text-host-white">{table.label}</span>
+                      <span className="text-xs text-host-mid-gray">({table.seats})</span>
                     </div>
                   </div>
                 ))}
@@ -214,35 +217,35 @@ export const NewTimeGrid = ({
           </div>
 
           <div 
-            className="flex-1 overflow-x-auto overflow-y-auto"
+            className="flex-1 overflow-x-auto overflow-y-auto scrollbar-hide"
             onScroll={(e) => {
               if (scrollContainerRef.current) {
                 scrollContainerRef.current.scrollLeft = e.currentTarget.scrollLeft;
               }
             }}
           >
-            <div style={{ width: GRID_WIDTH, minWidth: GRID_WIDTH }}>
+            <div style={{ width: timeSlots.length * SLOT_WIDTH, minWidth: timeSlots.length * SLOT_WIDTH }}>
               {tablesBySection.map((section) => (
                 <div key={section.id}>
                   {/* Section header row */}
                   <div 
-                    className="bg-gray-200 border-b border-gray-400 flex"
+                    className="bg-host-dark-gray border-b border-host-mid-gray/20 flex"
                     style={{ height: `${dynamicRowHeight}px` }}
                   >
                     {timeSlots.map((slot) => (
                       <div 
                         key={`section-${section.id}-${slot}`}
-                        className="border-r border-gray-300"
+                        className="border-r border-host-mid-gray/10"
                         style={{ width: SLOT_WIDTH, minWidth: SLOT_WIDTH }}
                       />
                     ))}
                   </div>
 
-                  {/* Table rows */}
+                  {/* Table rows with bookings rendered at row level */}
                   {section.tables.map((table) => (
                     <div 
                       key={table.id} 
-                      className="relative flex border-b border-gray-300 bg-white"
+                      className="relative flex border-b border-host-mid-gray/10 bg-host-blackest-dark hover:bg-host-dark-gray/30 transition-all duration-200 mx-1 my-0.5 rounded-sm"
                       style={{ height: `${dynamicRowHeight}px` }}
                     >
                       {/* Time slot cells with drag and drop */}
@@ -265,18 +268,34 @@ export const NewTimeGrid = ({
                             timeSlot={slot}
                             slotIndex={slotIndex}
                             hasBooking={hasBooking}
-                            bookings={activeBookings}
                             onWalkInClick={onWalkInClick}
-                            onBookingClick={onBookingClick}
-                            getBookingStatusColor={getBookingStatusColor}
-                            getBookingPosition={getBookingPosition}
                             SLOT_WIDTH={SLOT_WIDTH}
                             rowHeight={dynamicRowHeight}
                           />
                         );
                       })}
 
-                      {/* Block overlays */}
+                      {/* Render bookings at row level (single instance each) */}
+                      {activeBookings
+                        .filter(booking => booking.table_id === table.id)
+                        .map((booking, bookingIndex) => {
+                          const position = getBookingPosition(booking, timeSlots);
+                          if (!position) return null;
+                          
+                          return (
+                            <DraggableBooking
+                              key={booking.id}
+                              booking={booking}
+                              index={bookingIndex}
+                              position={position}
+                              onBookingClick={onBookingClick}
+                              getBookingStatusColor={getBookingStatusColor}
+                              rowHeight={dynamicRowHeight}
+                            />
+                          );
+                        })}
+
+                      {/* Block overlays with iPad styling */}
                       {blocks
                         .filter(block => 
                           block.table_ids.length === 0 || block.table_ids.includes(table.id)
@@ -288,23 +307,23 @@ export const NewTimeGrid = ({
                           const startTotalMin = startHour * 60 + startMin;
                           const endTotalMin = endHour * 60 + endMin;
                           const durationMin = endTotalMin - startTotalMin;
-                          const leftPixels = startIndex * 40;
-                          const widthPixels = (durationMin / 15) * 40;
+                          const leftPixels = startIndex * SLOT_WIDTH;
+                          const widthPixels = (durationMin / 15) * SLOT_WIDTH;
 
                           return (
                             <div
                               key={block.id}
-                              className="absolute bg-red-400/40 border border-red-500 rounded flex items-center justify-center z-20 cursor-pointer hover:bg-red-400/60"
+                              className="absolute bg-host-status-error/40 hover:bg-host-status-error/60 border border-host-status-error rounded-lg flex items-center justify-center z-20 cursor-pointer transition-all duration-200 shadow-sm"
                               style={{
                                 left: `${leftPixels}px`,
                                 width: `${widthPixels}px`,
-                                top: '1px',
-                                height: `${dynamicRowHeight - 2}px`
+                                top: '2px',
+                                height: `${dynamicRowHeight - 4}px`
                               }}
                               title={`Blocked: ${block.reason || 'No reason specified'}`}
                               onClick={() => handleBlockClick(block)}
                             >
-                              <Ban className="h-3 w-3 text-red-700" strokeWidth={2} />
+                              <Ban className="h-4 w-4 text-host-white" strokeWidth={2} />
                             </div>
                           );
                         })}

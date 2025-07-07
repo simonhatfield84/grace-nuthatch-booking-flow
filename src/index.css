@@ -1,4 +1,5 @@
-@import "https://fonts.googleapis.com/css2?family=Markazi+Text:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&family=Poppins:wght@300;400;500;600;700&family=Karla:wght@300;400;500;600;700&display=swap";
+
+@import "https://fonts.googleapis.com/css2?family=Markazi+Text:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&family=Poppins:wght@300;400;500;600;700&family=Karla:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap";
 
 @tailwind base;
 @tailwind components;
@@ -120,19 +121,46 @@
   }
 }
 
-/* Custom scrollbar */
+/* Custom scrollbar for iPad-native feel */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-muted;
+  background: #292C2D;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-primary rounded;
+  background: #676767;
+  border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-primary/80;
+  background: #CCF0DB;
+}
+
+/* Hide scrollbar utility class for iPad clean look */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* iPad-specific hover and active states */
+@media (hover: hover) and (pointer: fine) {
+  .hover\:scale-102:hover {
+    transform: scale(1.02);
+  }
+}
+
+/* Touch-optimized transitions for iPad */
+@media (hover: none) and (pointer: coarse) {
+  .transition-all {
+    transition-duration: 0.1s;
+  }
 }

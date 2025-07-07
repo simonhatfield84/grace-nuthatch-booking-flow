@@ -71,13 +71,31 @@ export default {
 					accent: '#E9A036',       // Muted Gold
 					dark: '#2E2E2E',         // Charcoal Grey
 					light: '#FFFFFF'         // Pure White
+				},
+				// iPad-Native Host Interface Colors
+				host: {
+					'blackest-dark': '#111315',
+					'dark-gray': '#292C2D',
+					'mid-gray': '#676767',
+					'white': '#FFFFFF',
+					'mint': '#CCF0DB',
+					'lavender': '#E4C0ED',
+					'sky-blue': '#C2D8E9',
+					'blush': '#F1C8D0',
+					'pastel-purple': '#C5CAEF',
+					'status-confirmed': '#C2D8E9',
+					'status-seated': '#CCF0DB',
+					'status-late': '#F1C8D0',
+					'status-finished': '#676767',
+					'status-error': '#E47272'
 				}
 			},
 			fontFamily: {
 				'markazi': ['Markazi Text', 'serif'],
 				'playfair': ['Playfair Display', 'serif'],
 				'poppins': ['Poppins', 'sans-serif'],
-				'karla': ['Karla', 'sans-serif']
+				'karla': ['Karla', 'sans-serif'],
+				'inter': ['Inter', 'sans-serif']
 			},
 			borderRadius: {
 				lg: 'var(--radius)',

@@ -29,14 +29,14 @@ export const DraggableBooking = ({
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          className={`absolute rounded text-xs p-1 cursor-pointer transition-all shadow-sm border ${getBookingStatusColor(booking.status)} z-10 ${
-            snapshot.isDragging ? 'shadow-lg scale-105' : ''
+          className={`absolute rounded-lg text-xs p-2 cursor-pointer transition-all duration-200 shadow-md ${getBookingStatusColor(booking.status)} z-10 font-inter ${
+            snapshot.isDragging ? 'shadow-xl scale-105 rotate-1' : 'hover:shadow-lg hover:scale-102'
           }`}
           style={{
             left: `${position.left}px`,
             width: `${position.width}px`,
-            top: '2px',
-            height: `${rowHeight - 4}px`,
+            top: '3px',
+            height: `${rowHeight - 6}px`,
             ...provided.draggableProps.style,
           }}
           onClick={(e) => {
@@ -47,14 +47,15 @@ export const DraggableBooking = ({
           <div className="flex items-center justify-between h-full">
             <div className="flex-1 min-w-0">
               <div className="font-medium truncate text-xs flex items-center gap-1">
-                {booking.guest_name} ({booking.party_size})
+                <span className="font-semibold">{booking.guest_name}</span>
+                <span className="font-normal">({booking.party_size})</span>
                 {booking.deposit_per_guest > 0 && (
-                  <DollarSign className="h-3 w-3" />
+                  <DollarSign className="h-3 w-3 opacity-80" />
                 )}
               </div>
             </div>
             {booking.service && (
-              <div className="text-xs opacity-90 ml-2 flex-shrink-0">
+              <div className="text-xs opacity-90 ml-2 flex-shrink-0 font-medium">
                 {booking.service}
               </div>
             )}
