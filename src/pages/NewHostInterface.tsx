@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -14,11 +13,11 @@ import { NewTimeGrid } from "@/components/host/NewTimeGrid";
 import { BookingListView } from "@/components/host/BookingListView";
 import { QuickWalkInDialog } from "@/components/host/QuickWalkInDialog";
 import { BookingDetailsPanel } from "@/components/host/BookingDetailsPanel";
-import { IPadCalendar } from "@/components/host/IPadCalendar";
+import { CollapsibleCalendar } from "@/components/host/CollapsibleCalendar";
 import { BlockDialog } from "@/components/host/BlockDialog";
 import { BlockManagementDialog } from "@/components/host/BlockManagementDialog";
 import { FullBookingDialog } from "@/components/host/FullBookingDialog";
-import { Users, Calendar, Plus, Grid, List, Ban, PlusCircle, BarChart3 } from "lucide-react";
+import { Users, Grid, List, Ban, PlusCircle, BarChart3 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Block } from "@/hooks/useBlocks";
 
@@ -42,7 +41,6 @@ const NewHostInterface = () => {
   const { services } = useServices();
   const { bookings, createBooking, updateBooking } = useBookings(format(selectedDate, 'yyyy-MM-dd'));
 
-  // Get all booking dates for calendar
   const { data: allBookings = [] } = useQuery({
     queryKey: ['all-bookings-dates'],
     queryFn: async () => {
@@ -204,46 +202,53 @@ const NewHostInterface = () => {
   const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
 
   return (
-    <div className="min-h-screen bg-gray-800 text-white" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
+    <div className="min-h-screen bg-[#111315] text-white" style={{ fontFamily: 'Inter, system-ui, sans-serif' }}>
       {/* Header */}
-      <div className="bg-gray-900 border-b border-gray-700 p-3">
+      <div className="bg-[#292C2D] border-b border-[#676767]/20 p-4 shadow-lg">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="grace-logo text-2xl font-bold text-white" style={{ fontFamily: 'Playfair Display, serif' }}>
+          <div className="flex items-center gap-6">
+            <div className="grace-logo text-3xl font-bold text-[#CCF0DB]" style={{ fontFamily: 'Playfair Display, serif' }}>
               grace
             </div>
-            <div className="flex items-center gap-3 text-gray-300">
-              <div className="flex items-center gap-1">
-                <Calendar className="h-4 w-4" />
-                {format(selectedDate, 'EEEE, MMMM do, yyyy')}
-                {isToday && <span className="ml-2 text-xs bg-blue-600 text-white px-2 py-1 rounded">TODAY</span>}
+            <div className="flex items-center gap-4 text-[#676767]">
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-medium text-white font-inter">
+                  {format(selectedDate, 'EEEE, MMMM do, yyyy')}
+                </span>
+                {isToday && <span className="ml-2 text-xs bg-[#C2D8E9] text-[#111315] px-2 py-1 rounded-full font-inter font-medium">TODAY</span>}
               </div>
-              <div className="flex items-center gap-1">
-                <Users className="h-4 w-4" />
-                {bookings.length} bookings
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                <span className="font-inter">{bookings.length} bookings</span>
               </div>
             </div>
           </div>
           
-          <div className="flex gap-2 items-center">
+          <div className="flex gap-3 items-center">
+            <CollapsibleCalendar
+              selectedDate={selectedDate}
+              onDateSelect={setSelectedDate}
+              bookingDates={bookingDates}
+            />
+
             {/* View Toggle */}
-            <div className="flex items-center gap-1 bg-gray-700 p-1 rounded border border-gray-600">
+            <div className="flex items-center gap-1 bg-[#676767]/20 p-1 rounded-xl border border-[#676767]/30">
               <Button 
                 variant={viewMode === 'grid' ? 'secondary' : 'ghost'} 
                 size="sm"
                 onClick={() => setViewMode('grid')}
-                className="h-8 text-xs"
+                className="h-9 text-sm font-inter"
               >
-                <Grid className="h-3 w-3 mr-1" />
+                <Grid className="h-4 w-4 mr-1" />
                 Grid
               </Button>
               <Button 
                 variant={viewMode === 'list' ? 'secondary' : 'ghost'} 
                 size="sm"
                 onClick={() => setViewMode('list')}
-                className="h-8 text-xs"
+                className="h-9 text-sm font-inter"
               >
-                <List className="h-3 w-3 mr-1" />
+                <List className="h-4 w-4 mr-1" />
                 List
               </Button>
             </div>
@@ -252,9 +257,9 @@ const NewHostInterface = () => {
               onClick={() => navigate('/dashboard')} 
               variant="outline"
               size="sm"
-              className="bg-gray-700 hover:bg-gray-600 text-white border-gray-600 text-xs"
+              className="bg-[#676767]/20 hover:bg-[#676767]/30 text-white border-[#676767]/30 text-sm font-inter rounded-xl"
             >
-              <BarChart3 className="h-3 w-3 mr-1" />
+              <BarChart3 className="h-4 w-4 mr-1" />
               Dashboard
             </Button>
             
@@ -262,9 +267,9 @@ const NewHostInterface = () => {
               onClick={() => setFullBookingDialogOpen(true)} 
               variant="outline"
               size="sm"
-              className="bg-blue-700 hover:bg-blue-600 text-white border-blue-600 text-xs"
+              className="bg-[#C2D8E9]/20 hover:bg-[#C2D8E9]/30 text-[#C2D8E9] border-[#C2D8E9]/30 text-sm font-inter rounded-xl"
             >
-              <PlusCircle className="h-3 w-3 mr-1" />
+              <PlusCircle className="h-4 w-4 mr-1" />
               New Booking
             </Button>
             
@@ -272,39 +277,19 @@ const NewHostInterface = () => {
               onClick={() => setBlockDialogOpen(true)} 
               variant="outline"
               size="sm"
-              className="bg-red-700 hover:bg-red-600 text-white border-red-600 text-xs"
+              className="bg-[#E47272]/20 hover:bg-[#E47272]/30 text-[#E47272] border-[#E47272]/30 text-sm font-inter rounded-xl"
             >
-              <Ban className="h-3 w-3 mr-1" />
+              <Ban className="h-4 w-4 mr-1" />
               Block
             </Button>
-            
-            <Button 
-              onClick={() => setBlockManagementOpen(true)} 
-              variant="ghost"
-              size="sm"
-              className="text-gray-300 hover:text-white text-xs"
-            >
-              Manage Blocks
-            </Button>
-            
-            {isToday && (
-              <Button 
-                onClick={() => setWalkInDialogOpen(true)} 
-                size="sm"
-                className="bg-green-700 hover:bg-green-600 text-xs"
-              >
-                <Plus className="h-3 w-3 mr-1" />
-                Walk-In
-              </Button>
-            )}
           </div>
         </div>
       </div>
 
       {/* Main Interface */}
-      <div className="grid grid-cols-12 gap-4 p-4 h-[calc(100vh-80px)]">
+      <div className="grid grid-cols-12 gap-6 p-6 h-[calc(100vh-96px)]">
         {/* Main Content Area */}
-        <div className={`${selectedBooking ? 'col-span-8' : 'col-span-9'} bg-gray-700 rounded-lg shadow-sm overflow-hidden border border-gray-600`}>
+        <div className={`${selectedBooking ? 'col-span-8' : 'col-span-12'} bg-[#292C2D] rounded-2xl shadow-2xl overflow-hidden border border-[#676767]/20`}>
           {viewMode === 'grid' ? (
             <NewTimeGrid
               venueHours={venueHours}
@@ -327,24 +312,16 @@ const NewHostInterface = () => {
         </div>
 
         {/* Side Panel */}
-        <div className={`${selectedBooking ? 'col-span-4' : 'col-span-3'} space-y-4`}>
-          {selectedBooking ? (
+        {selectedBooking && (
+          <div className="col-span-4 space-y-4">
             <BookingDetailsPanel
               booking={selectedBooking}
               onClose={() => setSelectedBooking(null)}
               onStatusChange={handleStatusChange}
               onBookingUpdate={handleBookingUpdate}
             />
-          ) : (
-            <div className="bg-gray-700 rounded-lg shadow-sm p-4 border border-gray-600">
-              <IPadCalendar
-                selectedDate={selectedDate}
-                onDateSelect={setSelectedDate}
-                bookingDates={bookingDates}
-              />
-            </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Dialogs */}

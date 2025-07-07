@@ -29,14 +29,14 @@ export const DraggableBooking = ({
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          className={`absolute rounded-lg text-xs p-2 cursor-pointer transition-all duration-200 shadow-md ${getBookingStatusColor(booking.status)} z-10 font-inter ${
-            snapshot.isDragging ? 'shadow-xl scale-105 rotate-1' : 'hover:shadow-lg hover:scale-102'
+          className={`absolute rounded-xl text-sm p-3 cursor-pointer transition-all duration-200 shadow-lg ${getBookingStatusColor(booking.status)} z-10 font-inter ${
+            snapshot.isDragging ? 'shadow-2xl scale-105 rotate-1' : 'hover:shadow-xl hover:scale-102'
           }`}
           style={{
             left: `${position.left}px`,
             width: `${position.width}px`,
-            top: '3px',
-            height: `${rowHeight - 6}px`,
+            top: '4px',
+            height: `${rowHeight - 8}px`,
             ...provided.draggableProps.style,
           }}
           onClick={(e) => {
@@ -46,16 +46,16 @@ export const DraggableBooking = ({
         >
           <div className="flex items-center justify-between h-full">
             <div className="flex-1 min-w-0">
-              <div className="font-medium truncate text-xs flex items-center gap-1">
-                <span className="font-semibold">{booking.guest_name}</span>
-                <span className="font-normal">({booking.party_size})</span>
+              <div className="font-medium truncate text-sm flex items-center gap-2">
+                <span className="font-semibold font-inter">{booking.guest_name}</span>
+                <span className="font-normal font-inter">({booking.party_size})</span>
                 {booking.deposit_per_guest > 0 && (
                   <DollarSign className="h-3 w-3 opacity-80" />
                 )}
               </div>
             </div>
             {booking.service && (
-              <div className="text-xs opacity-90 ml-2 flex-shrink-0 font-medium">
+              <div className="text-xs opacity-90 ml-2 flex-shrink-0 font-medium font-inter">
                 {booking.service}
               </div>
             )}

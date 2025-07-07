@@ -26,9 +26,14 @@ export const DragDropProvider = ({ children, onBookingDrag }: DragDropProviderPr
       }
       
       const tableId = parseInt(destinationParts[0]);
-      const timeSlot = destinationParts.slice(1).join('-'); // Handle time slots with multiple parts
+      const timeSlot = destinationParts.slice(1).join('-');
       
       console.log('Parsed drag data:', { bookingId, tableId, timeSlot });
+      
+      if (isNaN(bookingId) || isNaN(tableId)) {
+        console.error('Invalid booking or table ID');
+        return;
+      }
       
       onBookingDrag(bookingId, timeSlot, tableId);
     } catch (error) {
@@ -41,7 +46,10 @@ export const DragDropProvider = ({ children, onBookingDrag }: DragDropProviderPr
   };
 
   const handleDragUpdate = (update: any) => {
-    console.log('Drag updated:', update);
+    // Reduced logging for performance
+    if (update.destination) {
+      console.log('Drag over:', update.destination.droppableId);
+    }
   };
 
   return (
