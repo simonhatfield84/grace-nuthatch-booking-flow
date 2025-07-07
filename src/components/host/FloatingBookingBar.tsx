@@ -26,7 +26,7 @@ export const FloatingBookingBar = ({
 }: FloatingBookingBarProps) => {
   const [isDragging, setIsDragging] = useState(false);
 
-  // Calculate position and width based on the actual time slots
+  // Calculate position and width based on the grid system
   const calculatePosition = () => {
     const [startHour, startMin] = startTime.split(':').map(Number);
     const [bookingHour, bookingMin] = booking.booking_time.split(':').map(Number);
