@@ -6,9 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CreditCard, AlertCircle, CheckCircle, ExternalLink } from "lucide-react";
+import { CreditCard, AlertCircle, CheckCircle } from "lucide-react";
 import { useStripeSettings } from "@/hooks/useStripeSettings";
 
 export const StripeSettings = () => {
@@ -25,14 +24,8 @@ export const StripeSettings = () => {
     updateStripeSettings.mutate(formData);
   };
 
-  const handleStripeConnect = () => {
-    // This would typically redirect to Stripe Connect OAuth flow
-    // For now, we'll show a placeholder
-    window.open('https://connect.stripe.com/oauth/authorize', '_blank');
-  };
-
-  const isConnected = !!stripeSettings?.stripe_account_id;
   const chargeAmountInPounds = formData.charge_amount_per_guest / 100;
+  const isConfigured = stripeSettings?.is_active || false;
 
   if (isLoading) {
     return (
@@ -65,39 +58,25 @@ export const StripeSettings = () => {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
-        {/* Stripe Connection Status */}
+        {/* Connection Status */}
         <div className="flex items-center justify-between p-4 border rounded-lg">
           <div className="flex items-center gap-3">
-            <div className={`w-3 h-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-gray-300'}`} />
+            <div className={`w-3 h-3 rounded-full ${isConfigured ? 'bg-green-500' : 'bg-gray-300'}`} />
             <div>
               <p className="font-medium">
-                {isConnected ? 'Stripe Connected' : 'Connect to Stripe'}
+                {isConfigured ? 'Stripe Configured' : 'Configure Stripe'}
               </p>
               <p className="text-sm text-muted-foreground">
-                {isConnected 
-                  ? 'Your Stripe account is connected and ready to process payments'
-                  : 'Connect your Stripe account to start accepting payments'
+                {isConfigured 
+                  ? 'Stripe is configured and ready to process payments'
+                  : 'Configure your payment settings to start accepting payments'
                 }
               </p>
             </div>
           </div>
-          <Button
-            variant={isConnected ? "outline" : "default"}
-            onClick={handleStripeConnect}
-            className="flex items-center gap-2"
-          >
-            {isConnected ? (
-              <>
-                <ExternalLink className="h-4 w-4" />
-                Manage
-              </>
-            ) : (
-              <>
-                <CreditCard className="h-4 w-4" />
-                Connect Stripe
-              </>
-            )}
-          </Button>
+          {isConfigured && (
+            <CheckCircle className="h-5 w-5 text-green-500" />
+          )}
         </div>
 
         {/* Payment Configuration */}
@@ -114,7 +93,6 @@ export const StripeSettings = () => {
               onCheckedChange={(checked) => 
                 setFormData(prev => ({ ...prev, is_active: checked }))
               }
-              disabled={!isConnected}
             />
           </div>
 
@@ -202,21 +180,12 @@ export const StripeSettings = () => {
           )}
         </div>
 
-        {/* Warnings and Information */}
-        {formData.is_active && !isConnected && (
+        {/* Information Alerts */}
+        {formData.test_mode && formData.is_active && (
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              You need to connect your Stripe account before you can accept payments.
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {formData.test_mode && (
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              Test mode is enabled. No real payments will be processed.
+              Test mode is enabled. No real payments will be processed. Use test card numbers for testing.
             </AlertDescription>
           </Alert>
         )}

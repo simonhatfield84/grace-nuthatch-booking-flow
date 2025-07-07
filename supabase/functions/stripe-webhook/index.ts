@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import Stripe from 'https://esm.sh/stripe@14.21.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,21 +18,25 @@ serve(async (req) => {
     const signature = req.headers.get('stripe-signature')
 
     if (!signature) {
-      return new Response('No signature', { status: 400 })
+      return new Response('No signature', { status: 400, headers: corsHeaders })
     }
 
     // Initialize Stripe
-    const stripe = new (await import('https://esm.sh/stripe@13.11.0')).default(
-      Deno.env.get('STRIPE_SECRET_KEY') ?? '',
-      { apiVersion: '2023-10-16' }
-    )
+    const stripe = new Stripe(Deno.env.get('Stripe Secret Key') ?? '', {
+      apiVersion: '2023-10-16'
+    })
 
-    // Verify webhook signature
-    const event = stripe.webhooks.constructEvent(
-      body,
-      signature,
-      Deno.env.get('STRIPE_WEBHOOK_SECRET') ?? ''
-    )
+    // We'll use a default webhook secret for now
+    // In production, each venue would have their own webhook endpoint
+    const webhookSecret = 'whsec_default'
+
+    let event
+    try {
+      event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
+    } catch (err) {
+      console.error('Webhook signature verification failed:', err.message)
+      return new Response(`Webhook Error: ${err.message}`, { status: 400, headers: corsHeaders })
+    }
 
     // Initialize Supabase client
     const supabaseClient = createClient(

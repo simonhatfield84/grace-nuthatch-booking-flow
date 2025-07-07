@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import Stripe from 'https://esm.sh/stripe@14.21.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,12 +14,12 @@ serve(async (req) => {
   }
 
   try {
-    const { bookingId, amount, currency = 'gbp' } = await req.json()
+    const { bookingId, amount, currency = 'gbp', description } = await req.json()
 
     if (!bookingId || !amount) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields' }),
-        { status: 400 }
+        JSON.stringify({ error: 'Missing required fields: bookingId, amount' }),
+        { status: 400, headers: corsHeaders }
       )
     }
 
@@ -31,30 +32,29 @@ serve(async (req) => {
     // Get booking details
     const { data: booking, error: bookingError } = await supabaseClient
       .from('bookings')
-      .select('*, venues(stripe_settings:venue_stripe_settings(*))')
+      .select('*, venues(*)')
       .eq('id', bookingId)
       .single()
 
-    if (bookingError) {
+    if (bookingError || !booking) {
       throw new Error('Booking not found')
     }
 
     // Get venue's Stripe settings
-    const { data: stripeSettings, error: stripeError } = await supabaseClient
+    const { data: stripeSettings } = await supabaseClient
       .from('venue_stripe_settings')
       .select('*')
       .eq('venue_id', booking.venue_id)
       .single()
 
-    if (stripeError || !stripeSettings?.stripe_account_id) {
-      throw new Error('Venue Stripe settings not configured')
+    if (!stripeSettings?.is_active) {
+      throw new Error('Stripe payments not configured for this venue')
     }
 
-    // Initialize Stripe (you'll need to add Stripe secret key to secrets)
-    const stripe = new (await import('https://esm.sh/stripe@13.11.0')).default(
-      Deno.env.get('STRIPE_SECRET_KEY') ?? '',
-      { apiVersion: '2023-10-16' }
-    )
+    // Initialize Stripe
+    const stripe = new Stripe(Deno.env.get('Stripe Secret Key') || '', {
+      apiVersion: '2023-10-16',
+    })
 
     // Create payment intent
     const paymentIntent = await stripe.paymentIntents.create({
@@ -69,12 +69,7 @@ serve(async (req) => {
         guest_name: booking.guest_name,
         party_size: booking.party_size.toString(),
       },
-      // Connect to venue's Stripe account
-      ...(stripeSettings.stripe_account_id && {
-        transfer_data: {
-          destination: stripeSettings.stripe_account_id,
-        },
-      }),
+      description: description || `Payment for booking ${booking.booking_reference || bookingId}`,
     })
 
     // Store payment record
