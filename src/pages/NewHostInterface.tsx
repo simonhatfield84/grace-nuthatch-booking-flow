@@ -17,7 +17,7 @@ import { CollapsibleCalendar } from "@/components/host/CollapsibleCalendar";
 import { BlockDialog } from "@/components/host/BlockDialog";
 import { BlockManagementDialog } from "@/components/host/BlockManagementDialog";
 import { FullBookingDialog } from "@/components/host/FullBookingDialog";
-import { Users, Grid, List, Ban, PlusCircle, BarChart3 } from "lucide-react";
+import { Users, Grid, List, Ban, PlusCircle, BarChart3, Clock, CheckCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Block } from "@/hooks/useBlocks";
 
@@ -62,6 +62,11 @@ const NewHostInterface = () => {
     tablesCount: tables.length,
     sectionsCount: sections.length
   });
+
+  const totalBookings = bookings.length;
+  const remainingBookings = bookings.filter(booking => booking.status === 'confirmed').length; // Waiting to be seated
+  const currentlySeated = bookings.filter(booking => booking.status === 'seated').length;
+  const finishedBookings = bookings.filter(booking => booking.status === 'finished').length;
 
   const handleWalkInClick = (tableId: number, time: string) => {
     const table = tables.find(t => t.id === tableId);
@@ -289,6 +294,9 @@ const NewHostInterface = () => {
               onBookingDrag={handleBookingDrag}
               onBlockClick={handleBlockClick}
               selectedDate={selectedDate}
+              remainingBookings={remainingBookings}
+              currentlySeated={currentlySeated}
+              finishedBookings={finishedBookings}
             />
           ) : (
             <BookingListView

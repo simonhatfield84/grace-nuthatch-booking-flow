@@ -1,11 +1,10 @@
-
 import { useState, useRef, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { DragDropProvider } from "./DragDropProvider";
 import { DroppableTimeSlot } from "./DroppableTimeSlot";
 import { DraggableBooking } from "./DraggableBooking";
-import { Ban, Users, Clock, Target } from "lucide-react";
+import { Ban, Users, Clock, CheckCircle } from "lucide-react";
 import { useBlocks, Block } from "@/hooks/useBlocks";
 
 interface TimeGridProps {
@@ -18,6 +17,9 @@ interface TimeGridProps {
   onBookingDrag?: (bookingId: number, newTime: string, newTableId: number) => void;
   onBlockClick?: (block: Block) => void;
   selectedDate: Date;
+  remainingBookings: number;
+  currentlySeated: number;
+  finishedBookings: number;
 }
 
 export const NewTimeGrid = ({
@@ -29,7 +31,10 @@ export const NewTimeGrid = ({
   onBookingClick,
   onBookingDrag,
   onBlockClick,
-  selectedDate
+  selectedDate,
+  remainingBookings,
+  currentlySeated,
+  finishedBookings
 }: TimeGridProps) => {
   const [timeSlots, setTimeSlots] = useState<string[]>([]);
   const [keyHours, setKeyHours] = useState<string[]>([]);
@@ -46,17 +51,7 @@ export const NewTimeGrid = ({
 
   // Calculate statistics for header
   const totalBookings = bookings.length;
-  const currentlySeated = bookings.filter(booking => booking.status === 'seated').length;
   
-  // Calculate remaining capacity (simplified - based on total time slots vs booked slots)
-  const totalCapacity = tables.length * timeSlots.length;
-  const bookedSlots = activeBookings.reduce((acc, booking) => {
-    const duration = booking.duration_minutes || 120;
-    const slotsSpanned = Math.ceil(duration / 15);
-    return acc + slotsSpanned;
-  }, 0);
-  const remainingCapacity = Math.max(0, totalCapacity - bookedSlots);
-
   // Generate 15-minute time slots and key hours
   useEffect(() => {
     const slots: string[] = [];
@@ -147,21 +142,24 @@ export const NewTimeGrid = ({
         ref={gridContainerRef} 
         className="h-full flex flex-col bg-[#111315] rounded-2xl overflow-hidden border border-[#292C2D] shadow-2xl font-inter"
       >
-        {/* Enhanced header with statistics */}
+        {/* Enhanced header with updated statistics */}
         <div className="flex bg-[#292C2D] border-b border-[#676767]/20 shadow-lg rounded-t-2xl px-6 py-4">
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-6 text-[#676767]">
               <div className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-[#CCF0DB]" />
-                <span className="font-inter text-white">{totalBookings} bookings</span>
+                <Clock className="h-5 w-5 text-[#C2D8E9]" />
+                <span className="font-inter text-white">{remainingBookings} remaining</span>
               </div>
               <div className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-[#C2D8E9]" />
+                <Users className="h-5 w-5 text-[#CCF0DB]" />
                 <span className="font-inter text-white">{currentlySeated} seated</span>
               </div>
               <div className="flex items-center gap-2">
-                <Target className="h-5 w-5 text-[#676767]" />
-                <span className="font-inter text-white">{remainingCapacity} remaining</span>
+                <CheckCircle className="h-5 w-5 text-[#676767]" />
+                <span className="font-inter text-white">{finishedBookings} finished</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="font-inter text-[#676767]">{totalBookings} total today</span>
               </div>
             </div>
             <div className="text-base font-semibold text-white font-inter">Tables</div>

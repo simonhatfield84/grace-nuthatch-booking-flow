@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Users, Clock, Phone, Mail, MapPin, FileText, Calendar, Hash, Edit, Save } from "lucide-react";
+import { X, Users, Clock, Phone, Mail, MapPin, FileText, Calendar, Hash, Edit, Save, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { useState } from "react";
 import { Booking } from "@/hooks/useBookings";
@@ -43,19 +43,19 @@ export const BookingDetailsPanel = ({
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'confirmed':
-        return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-100';
+        return 'bg-[#C2D8E9] text-[#111315] border-[#C2D8E9]/30';
       case 'seated':
-        return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900 dark:text-blue-100';
+        return 'bg-[#CCF0DB] text-[#111315] border-[#CCF0DB]/30';
       case 'finished':
-        return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-100';
+        return 'bg-[#676767] text-white border-[#676767]/30';
       case 'cancelled':
-        return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-100';
+        return 'bg-[#E47272] text-white border-[#E47272]/30';
       case 'late':
-        return 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900 dark:text-orange-100';
+        return 'bg-[#F1C8D0] text-[#111315] border-[#F1C8D0]/30';
       case 'no-show':
-        return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-100';
+        return 'bg-[#E47272] text-white border-[#E47272]/30';
       default:
-        return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-100';
+        return 'bg-[#C2D8E9] text-[#111315] border-[#C2D8E9]/30';
     }
   };
 
@@ -142,21 +142,27 @@ export const BookingDetailsPanel = ({
     }
   };
 
+  const handleDurationAdjust = (minutes: number) => {
+    const currentDuration = editForm.duration_minutes || 120;
+    const newDuration = Math.max(15, currentDuration + minutes);
+    setEditForm({...editForm, duration_minutes: newDuration});
+  };
+
   const currentTable = tables.find(t => t.id === booking.table_id);
 
   return (
-    <Card className="h-full flex flex-col bg-gray-700 border-gray-600 text-white">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b border-gray-600">
-        <CardTitle className="text-lg font-semibold text-white">
+    <Card className="h-full flex flex-col bg-[#292C2D] border-[#676767]/20 text-white rounded-2xl shadow-2xl">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b border-[#676767]/20">
+        <CardTitle className="text-lg font-semibold text-white font-inter">
           Booking Details
         </CardTitle>
         <div className="flex gap-2">
           {!isEditing && (
-            <Button variant="ghost" size="sm" onClick={handleEditStart} className="text-gray-300 hover:text-white">
+            <Button variant="ghost" size="sm" onClick={handleEditStart} className="text-white hover:text-[#CCF0DB] hover:bg-[#676767]/20 rounded-xl">
               <Edit className="h-4 w-4" />
             </Button>
           )}
-          <Button variant="ghost" size="sm" onClick={onClose} className="text-gray-300 hover:text-white">
+          <Button variant="ghost" size="sm" onClick={onClose} className="text-white hover:text-[#E47272] hover:bg-[#676767]/20 rounded-xl">
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -167,78 +173,78 @@ export const BookingDetailsPanel = ({
           <div className="space-y-6">
             {/* Guest Information */}
             <div>
-              <h3 className="font-medium text-sm mb-3 flex items-center gap-2 text-white">
-                <Users className="h-4 w-4" />
+              <h3 className="font-medium text-sm mb-3 flex items-center gap-2 text-white font-inter">
+                <Users className="h-4 w-4 text-[#CCF0DB]" />
                 Guest Information
               </h3>
-              <div className="space-y-3">
+              <div className="space-y-3 bg-[#111315] p-4 rounded-xl border border-[#676767]/20">
                 {isEditing ? (
                   <>
                     <div>
-                      <Label htmlFor="guest_name" className="text-gray-300">Name</Label>
+                      <Label htmlFor="guest_name" className="text-white font-inter">Name</Label>
                       <Input
                         id="guest_name"
                         value={editForm.guest_name || ''}
                         onChange={(e) => setEditForm({...editForm, guest_name: e.target.value})}
-                        className="bg-gray-600 border-gray-500 text-white"
+                        className="bg-[#676767]/20 border-[#676767]/30 text-white font-inter rounded-xl"
                       />
                     </div>
                     <div>
-                      <Label htmlFor="party_size" className="text-gray-300">Party Size</Label>
+                      <Label htmlFor="party_size" className="text-white font-inter">Party Size</Label>
                       <Input
                         id="party_size"
                         type="number"
                         value={editForm.party_size || ''}
                         onChange={(e) => setEditForm({...editForm, party_size: parseInt(e.target.value)})}
-                        className="bg-gray-600 border-gray-500 text-white"
+                        className="bg-[#676767]/20 border-[#676767]/30 text-white font-inter rounded-xl"
                       />
                     </div>
                     <div>
-                      <Label htmlFor="phone" className="text-gray-300">Phone</Label>
+                      <Label htmlFor="phone" className="text-white font-inter">Phone</Label>
                       <Input
                         id="phone"
                         value={editForm.phone || ''}
                         onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
-                        className="bg-gray-600 border-gray-500 text-white"
+                        className="bg-[#676767]/20 border-[#676767]/30 text-white font-inter rounded-xl"
                       />
                     </div>
                     <div>
-                      <Label htmlFor="email" className="text-gray-300">Email</Label>
+                      <Label htmlFor="email" className="text-white font-inter">Email</Label>
                       <Input
                         id="email"
                         type="email"
                         value={editForm.email || ''}
                         onChange={(e) => setEditForm({...editForm, email: e.target.value})}
-                        className="bg-gray-600 border-gray-500 text-white"
+                        className="bg-[#676767]/20 border-[#676767]/30 text-white font-inter rounded-xl"
                       />
                     </div>
                   </>
                 ) : (
                   <>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-300">Name:</span>
-                      <span className="font-medium text-white">{booking.guest_name}</span>
+                      <span className="text-sm text-[#676767] font-inter">Name:</span>
+                      <span className="font-medium text-white font-inter">{booking.guest_name}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-300">Party Size:</span>
-                      <span className="font-medium text-white">{booking.party_size} guests</span>
+                      <span className="text-sm text-[#676767] font-inter">Party Size:</span>
+                      <span className="font-medium text-white font-inter">{booking.party_size} guests</span>
                     </div>
                     {booking.phone && (
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-300 flex items-center gap-1">
+                        <span className="text-sm text-[#676767] flex items-center gap-1 font-inter">
                           <Phone className="h-3 w-3" />
                           Phone:
                         </span>
-                        <span className="font-medium text-white">{booking.phone}</span>
+                        <span className="font-medium text-white font-inter">{booking.phone}</span>
                       </div>
                     )}
                     {booking.email && (
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-300 flex items-center gap-1">
+                        <span className="text-sm text-[#676767] flex items-center gap-1 font-inter">
                           <Mail className="h-3 w-3" />
                           Email:
                         </span>
-                        <span className="font-medium text-sm text-white">{booking.email}</span>
+                        <span className="font-medium text-sm text-white font-inter">{booking.email}</span>
                       </div>
                     )}
                   </>
@@ -246,27 +252,27 @@ export const BookingDetailsPanel = ({
               </div>
             </div>
 
-            <Separator className="bg-gray-600" />
+            <Separator className="bg-[#676767]/20" />
 
             {/* Booking Information */}
             <div>
-              <h3 className="font-medium text-sm mb-3 flex items-center gap-2 text-white">
-                <Calendar className="h-4 w-4" />
+              <h3 className="font-medium text-sm mb-3 flex items-center gap-2 text-white font-inter">
+                <Calendar className="h-4 w-4 text-[#C2D8E9]" />
                 Booking Information
               </h3>
-              <div className="space-y-3">
+              <div className="space-y-3 bg-[#111315] p-4 rounded-xl border border-[#676767]/20">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-300 flex items-center gap-1">
+                  <span className="text-sm text-[#676767] flex items-center gap-1 font-inter">
                     <Hash className="h-3 w-3" />
                     Booking ID:
                   </span>
-                  <span className="font-medium text-sm text-white">
+                  <span className="font-medium text-sm text-white font-inter">
                     {booking.booking_reference || `#${booking.id}`}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-300">Date:</span>
-                  <span className="font-medium text-white">
+                  <span className="text-sm text-[#676767] font-inter">Date:</span>
+                  <span className="font-medium text-white font-inter">
                     {format(new Date(booking.booking_date), 'EEEE, MMM d, yyyy')}
                   </span>
                 </div>
@@ -274,34 +280,68 @@ export const BookingDetailsPanel = ({
                 {isEditing ? (
                   <>
                     <div>
-                      <Label htmlFor="booking_time" className="text-gray-300">Time</Label>
+                      <Label htmlFor="booking_time" className="text-white font-inter">Time</Label>
                       <Input
                         id="booking_time"
                         type="time"
                         value={editForm.booking_time || ''}
                         onChange={(e) => setEditForm({...editForm, booking_time: e.target.value})}
-                        className="bg-gray-600 border-gray-500 text-white"
+                        className="bg-[#676767]/20 border-[#676767]/30 text-white font-inter rounded-xl"
                       />
                     </div>
                     <div>
-                      <Label htmlFor="duration" className="text-gray-300">Duration (minutes)</Label>
-                      <Input
-                        id="duration"
-                        type="number"
-                        value={editForm.duration_minutes || ''}
-                        onChange={(e) => setEditForm({...editForm, duration_minutes: parseInt(e.target.value)})}
-                        className="bg-gray-600 border-gray-500 text-white"
-                      />
+                      <Label htmlFor="duration" className="text-white font-inter">Duration (minutes)</Label>
+                      <div className="space-y-2">
+                        <Input
+                          id="duration"
+                          type="number"
+                          value={editForm.duration_minutes || ''}
+                          onChange={(e) => setEditForm({...editForm, duration_minutes: parseInt(e.target.value)})}
+                          className="bg-[#676767]/20 border-[#676767]/30 text-white font-inter rounded-xl"
+                        />
+                        <div className="flex gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDurationAdjust(15)}
+                            className="bg-[#676767]/20 hover:bg-[#CCF0DB]/20 text-white border-[#676767]/30 rounded-xl font-inter"
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            15m
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDurationAdjust(30)}
+                            className="bg-[#676767]/20 hover:bg-[#CCF0DB]/20 text-white border-[#676767]/30 rounded-xl font-inter"
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            30m
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleDurationAdjust(60)}
+                            className="bg-[#676767]/20 hover:bg-[#CCF0DB]/20 text-white border-[#676767]/30 rounded-xl font-inter"
+                          >
+                            <Plus className="h-3 w-3 mr-1" />
+                            60m
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   </>
                 ) : (
                   <>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-300 flex items-center gap-1">
+                      <span className="text-sm text-[#676767] flex items-center gap-1 font-inter">
                         <Clock className="h-3 w-3" />
                         Time:
                       </span>
-                      <span className="font-medium text-white">
+                      <span className="font-medium text-white font-inter">
                         {booking.booking_time}
                         {booking.end_time && booking.status === 'finished' && 
                           ` - ${booking.end_time}`
@@ -309,8 +349,8 @@ export const BookingDetailsPanel = ({
                       </span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-300">Duration:</span>
-                      <span className="font-medium text-white">
+                      <span className="text-sm text-[#676767] font-inter">Duration:</span>
+                      <span className="font-medium text-white font-inter">
                         {Math.floor((booking.duration_minutes || 120) / 60)}h {((booking.duration_minutes || 120) % 60)}m
                       </span>
                     </div>
@@ -319,14 +359,14 @@ export const BookingDetailsPanel = ({
 
                 {/* Service Selection */}
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-300">Service:</span>
+                  <span className="text-sm text-[#676767] font-inter">Service:</span>
                   <Select value={booking.service || 'Dinner'} onValueChange={handleServiceChange}>
-                    <SelectTrigger className="w-32 h-8 text-sm bg-gray-600 border-gray-500 text-white">
+                    <SelectTrigger className="w-32 h-8 text-sm bg-[#676767]/20 border-[#676767]/30 text-white rounded-xl font-inter">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-gray-600 border-gray-500">
+                    <SelectContent className="bg-[#292C2D] border-[#676767]/30 rounded-xl">
                       {services.map((service) => (
-                        <SelectItem key={service.id} value={service.title} className="text-white hover:bg-gray-500">
+                        <SelectItem key={service.id} value={service.title} className="text-white hover:bg-[#676767]/20 font-inter">
                           {service.title}
                         </SelectItem>
                       ))}
@@ -336,7 +376,7 @@ export const BookingDetailsPanel = ({
                 
                 {/* Table Assignment */}
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-300 flex items-center gap-1">
+                  <span className="text-sm text-[#676767] flex items-center gap-1 font-inter">
                     <MapPin className="h-3 w-3" />
                     Table:
                   </span>
@@ -344,12 +384,12 @@ export const BookingDetailsPanel = ({
                     value={booking.table_id?.toString() || ''} 
                     onValueChange={handleTableAssignment}
                   >
-                    <SelectTrigger className="w-32 h-8 text-sm bg-gray-600 border-gray-500 text-white">
+                    <SelectTrigger className="w-32 h-8 text-sm bg-[#676767]/20 border-[#676767]/30 text-white rounded-xl font-inter">
                       <SelectValue placeholder="Assign table" />
                     </SelectTrigger>
-                    <SelectContent className="bg-gray-600 border-gray-500">
+                    <SelectContent className="bg-[#292C2D] border-[#676767]/30 rounded-xl">
                       {getAvailableTables().map((table) => (
-                        <SelectItem key={table.id} value={table.id.toString()} className="text-white hover:bg-gray-500">
+                        <SelectItem key={table.id} value={table.id.toString()} className="text-white hover:bg-[#676767]/20 font-inter">
                           {table.label} ({table.seats})
                         </SelectItem>
                       ))}
@@ -359,13 +399,13 @@ export const BookingDetailsPanel = ({
               </div>
             </div>
 
-            <Separator className="bg-gray-600" />
+            <Separator className="bg-[#676767]/20" />
 
             {/* Status & Quick Actions */}
             <div>
-              <h3 className="font-medium text-sm mb-3 text-white">Status & Quick Actions</h3>
-              <div className="space-y-3">
-                <Badge className={getStatusColor(booking.status)}>
+              <h3 className="font-medium text-sm mb-3 text-white font-inter">Status & Quick Actions</h3>
+              <div className="space-y-3 bg-[#111315] p-4 rounded-xl border border-[#676767]/20">
+                <Badge className={`${getStatusColor(booking.status)} font-inter`}>
                   {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
                 </Badge>
                 
@@ -376,7 +416,11 @@ export const BookingDetailsPanel = ({
                       size="sm"
                       variant={booking.status === status ? "default" : "outline"}
                       onClick={() => onStatusChange(booking, status)}
-                      className="text-xs"
+                      className={`text-xs font-inter rounded-xl ${
+                        booking.status === status 
+                          ? 'bg-[#CCF0DB] text-[#111315]' 
+                          : 'bg-[#676767]/20 text-white border-[#676767]/30 hover:bg-[#676767]/30'
+                      }`}
                     >
                       {status.charAt(0).toUpperCase() + status.slice(1)}
                     </Button>
@@ -387,38 +431,40 @@ export const BookingDetailsPanel = ({
 
             {/* Notes Section */}
             <div>
-              <h3 className="font-medium text-sm mb-3 flex items-center gap-2 text-white">
-                <FileText className="h-4 w-4" />
+              <h3 className="font-medium text-sm mb-3 flex items-center gap-2 text-white font-inter">
+                <FileText className="h-4 w-4 text-[#F1C8D0]" />
                 Notes
               </h3>
-              {isEditing ? (
-                <Textarea
-                  value={editForm.notes || ''}
-                  onChange={(e) => setEditForm({...editForm, notes: e.target.value})}
-                  placeholder="Add notes..."
-                  className="bg-gray-600 border-gray-500 text-white"
-                />
-              ) : (
-                <p className="text-sm bg-gray-600 p-3 rounded text-white">
-                  {booking.notes || 'No notes'}
-                </p>
-              )}
+              <div className="bg-[#111315] p-4 rounded-xl border border-[#676767]/20">
+                {isEditing ? (
+                  <Textarea
+                    value={editForm.notes || ''}
+                    onChange={(e) => setEditForm({...editForm, notes: e.target.value})}
+                    placeholder="Add notes..."
+                    className="bg-[#676767]/20 border-[#676767]/30 text-white font-inter rounded-xl"
+                  />
+                ) : (
+                  <p className="text-sm text-white font-inter">
+                    {booking.notes || 'No notes'}
+                  </p>
+                )}
+              </div>
             </div>
 
             {/* Edit Actions */}
             {isEditing && (
               <div className="flex gap-2">
-                <Button onClick={handleEditSave} size="sm">
+                <Button onClick={handleEditSave} size="sm" className="bg-[#CCF0DB] text-[#111315] hover:bg-[#CCF0DB]/80 rounded-xl font-inter">
                   <Save className="h-4 w-4 mr-1" />
                   Save Changes
                 </Button>
-                <Button onClick={() => setIsEditing(false)} variant="outline" size="sm">
+                <Button onClick={() => setIsEditing(false)} variant="outline" size="sm" className="bg-[#676767]/20 text-white border-[#676767]/30 hover:bg-[#676767]/30 rounded-xl font-inter">
                   Cancel
                 </Button>
               </div>
             )}
 
-            <Separator className="bg-gray-600" />
+            <Separator className="bg-[#676767]/20" />
 
             {/* Audit Trail */}
             <BookingAuditTrail bookingId={booking.id} />
