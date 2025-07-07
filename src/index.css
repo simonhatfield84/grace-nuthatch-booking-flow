@@ -165,14 +165,47 @@
   }
 }
 
-/* Force proper background colors for iPad Safari */
-html, body, #root {
-  background-color: hsl(var(--background));
-  color: hsl(var(--foreground));
+/* CRITICAL iPad Safari background fixes */
+html {
+  background-color: hsl(var(--background)) !important;
+  color: hsl(var(--foreground)) !important;
   min-height: 100vh;
 }
 
-/* Ensure AdminLayout background is proper */
-.min-h-screen {
-  background-color: hsl(var(--background));
+body {
+  background-color: hsl(var(--background)) !important;
+  color: hsl(var(--foreground)) !important;
+  min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+#root {
+  background-color: hsl(var(--background)) !important;
+  color: hsl(var(--foreground)) !important;
+  min-height: 100vh;
+}
+
+/* Ensure all container elements use proper theme colors */
+.min-h-screen, 
+.h-screen,
+[class*="bg-background"],
+.bg-card {
+  background-color: hsl(var(--background)) !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+/* iPad Safari specific fixes */
+@supports (-webkit-touch-callout: none) {
+  html, body, #root {
+    background-color: hsl(var(--background)) !important;
+    color: hsl(var(--foreground)) !important;
+    -webkit-background-size: cover;
+    background-size: cover;
+  }
+  
+  /* Force repaint on theme changes */
+  .dark *, .light * {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+  }
 }

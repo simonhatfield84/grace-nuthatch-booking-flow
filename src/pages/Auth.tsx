@@ -18,7 +18,6 @@ const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
-  const [showPasswordStrength, setShowPasswordStrength] = useState(false);
   const [isPasswordValid, setIsPasswordValid] = useState(false);
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const { toast } = useToast();
@@ -90,10 +89,11 @@ const Auth = () => {
         return;
       }
       
-      // Redirect based on user type
+      // Redirect based on user type - FIXED: venue_admin goes to /dashboard not /admin/dashboard
       if (userType === 'platform_admin') {
         navigate(from || '/platform/dashboard', { replace: true });
       } else if (userType === 'venue_admin') {
+        console.log('🏠 Redirecting venue admin to /dashboard');
         navigate(from || '/dashboard', { replace: true });
       } else {
         // Unknown user type, redirect to homepage
@@ -102,13 +102,10 @@ const Auth = () => {
     }
   }, [user, userType, userTypeLoading, navigate, location.state, searchParams, isPasswordReset]);
 
-  // Handle password input change - only show strength for sign up or password creation
+  // Handle password input change - FIXED: Only show strength during sign up, not login
   const handlePasswordInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newPassword = e.target.value;
     setPassword(newPassword);
-    
-    // Only show password strength during sign up or password reset, not during login
-    setShowPasswordStrength((isSignUp || showPasswordChange) && newPassword.length > 0);
   };
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -299,14 +296,12 @@ const Auth = () => {
                     disabled={loading}
                     minLength={12}
                   />
-                  {showPasswordStrength && (
-                    <div className="mt-2">
-                      <PasswordStrength 
-                        password={password} 
-                        onValidityChange={setIsPasswordValid}
-                      />
-                    </div>
-                  )}
+                  <div className="mt-2">
+                    <PasswordStrength 
+                      password={password} 
+                      onValidityChange={setIsPasswordValid}
+                    />
+                  </div>
                 </div>
                 
                 <Button 
@@ -389,7 +384,8 @@ const Auth = () => {
                   disabled={loading}
                   minLength={isSignUp ? 12 : undefined}
                 />
-                {showPasswordStrength && (
+                {/* FIXED: Only show password strength during sign up */}
+                {isSignUp && password.length > 0 && (
                   <div className="mt-2">
                     <PasswordStrength 
                       password={password} 
@@ -402,7 +398,7 @@ const Auth = () => {
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={loading || (isSignUp && showPasswordStrength && !isPasswordValid)}
+                disabled={loading || (isSignUp && password.length > 0 && !isPasswordValid)}
               >
                 {loading ? (
                   <>
