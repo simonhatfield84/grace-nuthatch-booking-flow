@@ -1,0 +1,31 @@
+
+export const SERVICE_DEFAULTS = {
+  title: '',
+  description: '',
+  image_url: '',
+  tag_ids: [],
+  min_guests: 1,
+  max_guests: 8,
+  lead_time_hours: 2,
+  cancellation_window_hours: 24,
+  requires_deposit: false,
+  deposit_per_guest: 0,
+  online_bookable: true,
+  active: true,
+  is_secret: false,
+  secret_slug: '',
+  terms_and_conditions: '',
+  duration_rules: [],
+  useStandardTerms: true,
+  requires_payment: false,
+  charge_type: 'none' as const,
+  minimum_guests_for_charge: 8,
+  charge_amount_per_guest: 0,
+};
+
+export const PAYMENT_DEFAULTS = {
+  requires_payment: false,
+  charge_type: 'all_reservations' as const,
+  minimum_guests_for_charge: 8,
+  charge_amount_per_guest: 0,
+};

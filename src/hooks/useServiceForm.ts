@@ -1,6 +1,7 @@
 
-import { useState } from "react";
 import { useServices } from "@/hooks/useServices";
+import { useServiceState } from "@/hooks/useServiceState";
+import { SERVICE_DEFAULTS } from "@/constants/serviceDefaults";
 
 export const useServiceForm = () => {
   const {
@@ -9,65 +10,18 @@ export const useServiceForm = () => {
     deleteServiceMutation
   } = useServices();
 
-  const [editingService, setEditingService] = useState(null);
-  const [newService, setNewService] = useState({
-    title: '',
-    description: '',
-    image_url: '',
-    tag_ids: [],
-    min_guests: 1,
-    max_guests: 8,
-    lead_time_hours: 2,
-    cancellation_window_hours: 24,
-    requires_deposit: false,
-    deposit_per_guest: 0,
-    online_bookable: true,
-    active: true,
-    is_secret: false,
-    secret_slug: '',
-    terms_and_conditions: '',
-    duration_rules: [],
-    useStandardTerms: true,
-    // Add payment-related defaults
-    requires_payment: false,
-    charge_type: 'none',
-    minimum_guests_for_charge: 8,
-    charge_amount_per_guest: 0,
-  });
-
-  const resetForm = () => {
-    setNewService({
-      title: '',
-      description: '',
-      image_url: '',
-      tag_ids: [],
-      min_guests: 1,
-      max_guests: 8,
-      lead_time_hours: 2,
-      cancellation_window_hours: 24,
-      requires_deposit: false,
-      deposit_per_guest: 0,
-      online_bookable: true,
-      active: true,
-      is_secret: false,
-      secret_slug: '',
-      terms_and_conditions: '',
-      duration_rules: [],
-      useStandardTerms: true,
-      // Reset payment-related fields
-      requires_payment: false,
-      charge_type: 'none',
-      minimum_guests_for_charge: 8,
-      charge_amount_per_guest: 0,
-    });
-    setEditingService(null);
-  };
+  const {
+    editingService,
+    setEditingService,
+    newService,
+    setNewService,
+    resetForm
+  } = useServiceState();
 
   const getStandardTerms = () => {
     return localStorage.getItem('standardTerms') || '';
   };
 
-  // Modified to accept serviceData directly
   const handleAddService = async (serviceData = null) => {
     try {
       const dataToUse = serviceData || newService;
@@ -76,27 +30,8 @@ export const useServiceForm = () => {
         : dataToUse.terms_and_conditions;
 
       const finalServiceData = {
-        title: dataToUse.title,
-        description: dataToUse.description,
-        image_url: dataToUse.image_url,
-        tag_ids: dataToUse.tag_ids,
-        min_guests: dataToUse.min_guests,
-        max_guests: dataToUse.max_guests,
-        lead_time_hours: dataToUse.lead_time_hours,
-        cancellation_window_hours: dataToUse.cancellation_window_hours,
-        requires_deposit: dataToUse.requires_deposit,
-        deposit_per_guest: dataToUse.deposit_per_guest,
-        online_bookable: dataToUse.online_bookable,
-        active: dataToUse.active,
-        is_secret: dataToUse.is_secret,
-        secret_slug: dataToUse.secret_slug,
+        ...dataToUse,
         terms_and_conditions: termsToUse,
-        duration_rules: dataToUse.duration_rules,
-        // Add payment-related fields
-        requires_payment: dataToUse.requires_payment,
-        charge_type: dataToUse.charge_type,
-        minimum_guests_for_charge: dataToUse.minimum_guests_for_charge,
-        charge_amount_per_guest: dataToUse.charge_amount_per_guest,
       };
 
       await createServiceMutation.mutateAsync(finalServiceData);
@@ -107,7 +42,6 @@ export const useServiceForm = () => {
     }
   };
 
-  // Modified to accept serviceData directly
   const handleUpdateService = async (serviceData = null) => {
     if (!editingService && !serviceData) return false;
 
@@ -118,27 +52,8 @@ export const useServiceForm = () => {
         : dataToUse.terms_and_conditions;
 
       const finalServiceData = {
-        title: dataToUse.title,
-        description: dataToUse.description,
-        image_url: dataToUse.image_url,
-        tag_ids: dataToUse.tag_ids,
-        min_guests: dataToUse.min_guests,
-        max_guests: dataToUse.max_guests,
-        lead_time_hours: dataToUse.lead_time_hours,
-        cancellation_window_hours: dataToUse.cancellation_window_hours,
-        requires_deposit: dataToUse.requires_deposit,
-        deposit_per_guest: dataToUse.deposit_per_guest,
-        online_bookable: dataToUse.online_bookable,
-        active: dataToUse.active,
-        is_secret: dataToUse.is_secret,
-        secret_slug: dataToUse.secret_slug,
+        ...dataToUse,
         terms_and_conditions: termsToUse,
-        duration_rules: dataToUse.duration_rules,
-        // Add payment-related fields
-        requires_payment: dataToUse.requires_payment,
-        charge_type: dataToUse.charge_type,
-        minimum_guests_for_charge: dataToUse.minimum_guests_for_charge,
-        charge_amount_per_guest: dataToUse.charge_amount_per_guest,
       };
 
       const serviceId = serviceData ? (serviceData.id || editingService?.id) : editingService.id;
@@ -173,6 +88,7 @@ export const useServiceForm = () => {
 
   const handleDuplicateService = (service) => {
     setNewService({
+      ...SERVICE_DEFAULTS,
       title: `${service.title} (Copy)`,
       description: service.description,
       image_url: service.image_url,
@@ -190,7 +106,6 @@ export const useServiceForm = () => {
       terms_and_conditions: service.terms_and_conditions,
       duration_rules: service.duration_rules || [],
       useStandardTerms: service.terms_and_conditions === getStandardTerms(),
-      // Copy payment-related fields
       requires_payment: service.requires_payment,
       charge_type: service.charge_type,
       minimum_guests_for_charge: service.minimum_guests_for_charge,
