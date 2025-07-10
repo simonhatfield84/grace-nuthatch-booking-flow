@@ -1,26 +1,28 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.3";
+import { z } from "https://esm.sh/zod@3.23.8";
+import { AdvancedRateLimiter, sanitizeInput, sanitizeEmail, sanitizePhone, logSecurityEvent, detectThreatLevel } from "../../src/utils/securityUtils.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface BookingRequest {
-  guest_name: string;
-  email?: string;
-  phone?: string;
-  party_size: number;
-  booking_date: string;
-  booking_time: string;
-  service?: string;
-  notes?: string;
-  venue_id: string;
-}
+// Enhanced validation schema
+const bookingCreateSchema = z.object({
+  guest_name: z.string().min(2, "Guest name must be at least 2 characters").max(100, "Guest name too long").trim(),
+  email: z.string().email("Invalid email format").max(254, "Email too long").optional(),
+  phone: z.string().regex(/^[\d\s\-\+\(\)]{7,20}$/, "Invalid phone format").optional(),
+  party_size: z.number().int().min(1, "Party size must be at least 1").max(50, "Party size too large"),
+  booking_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format"),
+  booking_time: z.string().regex(/^\d{2}:\d{2}$/, "Invalid time format"),
+  service: z.string().max(100, "Service name too long").optional(),
+  notes: z.string().max(500, "Notes too long").optional(),
+  venue_id: z.string().uuid("Invalid venue ID"),
+});
 
-// Rate limiting map (in production, use Redis or similar)
-const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+type BookingRequest = z.infer<typeof bookingCreateSchema>;
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
@@ -28,32 +30,7 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    console.log('🔒 Secure booking creation request received');
-
-    // Rate limiting
-    const clientIP = req.headers.get('x-forwarded-for') || 'unknown';
-    const currentTime = Date.now();
-    const rateLimitWindow = 15 * 60 * 1000; // 15 minutes
-    const maxRequests = 10; // Max 10 bookings per 15 minutes per IP
-
-    const clientLimit = rateLimitMap.get(clientIP);
-    if (clientLimit) {
-      if (currentTime < clientLimit.resetTime) {
-        if (clientLimit.count >= maxRequests) {
-          console.log('🚫 Rate limit exceeded for IP:', clientIP);
-          return new Response('Rate limit exceeded', { 
-            status: 429, 
-            headers: corsHeaders 
-          });
-        }
-        clientLimit.count++;
-      } else {
-        // Reset the limit
-        rateLimitMap.set(clientIP, { count: 1, resetTime: currentTime + rateLimitWindow });
-      }
-    } else {
-      rateLimitMap.set(clientIP, { count: 1, resetTime: currentTime + rateLimitWindow });
-    }
+    console.log('🔒 Enhanced secure booking creation request received');
 
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -66,87 +43,131 @@ const handler = async (req: Request): Promise<Response> => {
       }
     );
 
-    // Parse and validate request body
-    const bookingData: BookingRequest = await req.json();
+    // Advanced rate limiting with threat detection
+    const clientId = AdvancedRateLimiter.getClientIdentifier(req);
+    const threatLevel = detectThreatLevel(req, clientId);
+    
+    // Adjusted rate limits based on threat level
+    const baseLimit = threatLevel === 'high' ? 5 : threatLevel === 'medium' ? 8 : 15;
+    const rateLimitResult = await AdvancedRateLimiter.checkLimit(
+      clientId,
+      { windowMs: 15 * 60 * 1000, maxRequests: baseLimit },
+      threatLevel
+    );
 
-    // Input validation
-    const errors: string[] = [];
-
-    if (!bookingData.guest_name || bookingData.guest_name.trim().length < 2) {
-      errors.push('Guest name must be at least 2 characters');
-    }
-
-    if (bookingData.guest_name && bookingData.guest_name.length > 100) {
-      errors.push('Guest name must be less than 100 characters');
-    }
-
-    if (!bookingData.party_size || bookingData.party_size < 1 || bookingData.party_size > 50) {
-      errors.push('Party size must be between 1 and 50');
-    }
-
-    if (!bookingData.booking_date || !isValidDate(bookingData.booking_date)) {
-      errors.push('Valid booking date is required');
-    }
-
-    if (!bookingData.booking_time || !isValidTime(bookingData.booking_time)) {
-      errors.push('Valid booking time is required');
-    }
-
-    if (!bookingData.venue_id || !isValidUUID(bookingData.venue_id)) {
-      errors.push('Valid venue ID is required');
-    }
-
-    if (bookingData.email && !isValidEmail(bookingData.email)) {
-      errors.push('Valid email address is required');
-    }
-
-    if (bookingData.phone && !isValidPhone(bookingData.phone)) {
-      errors.push('Valid phone number is required');
-    }
-
-    if (bookingData.notes && bookingData.notes.length > 500) {
-      errors.push('Notes must be less than 500 characters');
-    }
-
-    if (errors.length > 0) {
-      console.error('❌ Validation errors:', errors);
-      return new Response(JSON.stringify({ errors }), {
-        status: 400,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    if (!rateLimitResult.allowed) {
+      console.log('🚫 Rate limit exceeded for IP:', clientId);
+      await logSecurityEvent(supabaseAdmin, 'booking_created', {
+        error: 'rate_limit_exceeded',
+        threat_level: threatLevel,
+        client_id: clientId
+      }, req);
+      return new Response('Rate limit exceeded', { 
+        status: 429, 
+        headers: corsHeaders 
       });
     }
 
-    // Sanitize input data
+    // Parse and validate request body with enhanced error handling
+    let bookingData: BookingRequest;
+    try {
+      const rawData = await req.json();
+      bookingData = bookingCreateSchema.parse(rawData);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        const errors = error.errors.map(err => `${err.path.join('.')}: ${err.message}`);
+        console.error('❌ Validation errors:', errors);
+        await logSecurityEvent(supabaseAdmin, 'booking_created', {
+          error: 'validation_failed',
+          validation_errors: errors,
+          threat_level: threatLevel
+        }, req);
+        return new Response(JSON.stringify({ errors }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        });
+      }
+      throw error;
+    }
+
+    // Enhanced input sanitization
     const sanitizedData = {
-      guest_name: sanitizeString(bookingData.guest_name),
+      guest_name: sanitizeInput(bookingData.guest_name),
       email: bookingData.email ? sanitizeEmail(bookingData.email) : null,
       phone: bookingData.phone ? sanitizePhone(bookingData.phone) : null,
       party_size: Math.floor(bookingData.party_size),
       booking_date: bookingData.booking_date,
       booking_time: bookingData.booking_time,
-      service: bookingData.service ? sanitizeString(bookingData.service) : 'Dinner',
-      notes: bookingData.notes ? sanitizeString(bookingData.notes) : null,
+      service: bookingData.service ? sanitizeInput(bookingData.service) : 'Dinner',
+      notes: bookingData.notes ? sanitizeInput(bookingData.notes) : null,
       venue_id: bookingData.venue_id,
     };
 
-    // Verify venue exists and is approved
+    // Enhanced venue verification with additional security checks
     const { data: venue, error: venueError } = await supabaseAdmin
       .from('venues')
-      .select('id, approval_status')
+      .select('id, approval_status, name')
       .eq('id', sanitizedData.venue_id)
       .single();
 
     if (venueError || !venue) {
       console.error('❌ Venue not found:', venueError);
+      await logSecurityEvent(supabaseAdmin, 'booking_created', {
+        error: 'venue_not_found',
+        venue_id: sanitizedData.venue_id,
+        threat_level: threatLevel
+      }, req);
       return new Response('Venue not found', { status: 404, headers: corsHeaders });
     }
 
     if (venue.approval_status !== 'approved') {
       console.error('❌ Venue not approved:', venue.approval_status);
+      await logSecurityEvent(supabaseAdmin, 'booking_created', {
+        error: 'venue_not_approved',
+        venue_id: sanitizedData.venue_id,
+        approval_status: venue.approval_status,
+        threat_level: threatLevel
+      }, req, sanitizedData.venue_id);
       return new Response('Venue not available for bookings', { status: 403, headers: corsHeaders });
     }
 
-    // Create the booking
+    // Check for potential duplicate bookings (same email/phone, same date/time)
+    if (sanitizedData.email || sanitizedData.phone) {
+      const { data: duplicateBookings } = await supabaseAdmin
+        .from('bookings')
+        .select('id, guest_name')
+        .eq('venue_id', sanitizedData.venue_id)
+        .eq('booking_date', sanitizedData.booking_date)
+        .eq('booking_time', sanitizedData.booking_time)
+        .or(`email.eq.${sanitizedData.email || ''},phone.eq.${sanitizedData.phone || ''}`)
+        .limit(1);
+
+      if (duplicateBookings && duplicateBookings.length > 0) {
+        console.log('⚠️ Potential duplicate booking detected');
+        await logSecurityEvent(supabaseAdmin, 'booking_created', {
+          warning: 'potential_duplicate',
+          existing_booking_id: duplicateBookings[0].id,
+          threat_level: threatLevel
+        }, req, sanitizedData.venue_id);
+      }
+    }
+
+    // Additional business logic validation
+    const bookingDate = new Date(sanitizedData.booking_date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (bookingDate < today) {
+      console.error('❌ Cannot book in the past');
+      await logSecurityEvent(supabaseAdmin, 'booking_created', {
+        error: 'booking_in_past',
+        booking_date: sanitizedData.booking_date,
+        threat_level: threatLevel
+      }, req, sanitizedData.venue_id);
+      return new Response('Cannot book for past dates', { status: 400, headers: corsHeaders });
+    }
+
+    // Create the booking with enhanced error handling
     const { data: booking, error: bookingError } = await supabaseAdmin
       .from('bookings')
       .insert(sanitizedData)
@@ -155,27 +176,35 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (bookingError) {
       console.error('❌ Booking creation error:', bookingError);
+      await logSecurityEvent(supabaseAdmin, 'booking_created', {
+        error: 'database_error',
+        db_error: bookingError.message,
+        threat_level: threatLevel
+      }, req, sanitizedData.venue_id);
       throw new Error('Failed to create booking');
     }
 
-    // Log security audit event
-    await supabaseAdmin
-      .from('security_audit')
-      .insert({
-        venue_id: sanitizedData.venue_id,
-        event_type: 'booking_created',
-        event_details: {
-          booking_id: booking.id,
-          party_size: sanitizedData.party_size,
-          booking_date: sanitizedData.booking_date,
-          client_ip: clientIP,
-        },
-        ip_address: clientIP,
-        user_agent: req.headers.get('user-agent'),
-      });
+    // Log successful booking creation
+    await logSecurityEvent(supabaseAdmin, 'booking_created', {
+      booking_id: booking.id,
+      party_size: sanitizedData.party_size,
+      booking_date: sanitizedData.booking_date,
+      venue_name: venue.name,
+      threat_level: threatLevel,
+      success: true
+    }, req, sanitizedData.venue_id);
 
     console.log('✅ Booking created successfully:', booking.id);
-    return new Response(JSON.stringify({ booking }), {
+    return new Response(JSON.stringify({ 
+      booking: {
+        id: booking.id,
+        booking_reference: booking.booking_reference,
+        guest_name: booking.guest_name,
+        party_size: booking.party_size,
+        booking_date: booking.booking_date,
+        booking_time: booking.booking_time
+      }
+    }), {
       status: 201,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
@@ -188,43 +217,5 @@ const handler = async (req: Request): Promise<Response> => {
     });
   }
 };
-
-// Validation helper functions
-function isValidDate(dateString: string): boolean {
-  const date = new Date(dateString);
-  return date instanceof Date && !isNaN(date.getTime()) && dateString.match(/^\d{4}-\d{2}-\d{2}$/);
-}
-
-function isValidTime(timeString: string): boolean {
-  return timeString.match(/^\d{2}:\d{2}$/) !== null;
-}
-
-function isValidEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email) && email.length <= 254;
-}
-
-function isValidPhone(phone: string): boolean {
-  const phoneRegex = /^[\d\s\-\+\(\)]{7,20}$/;
-  return phoneRegex.test(phone);
-}
-
-function isValidUUID(uuid: string): boolean {
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(uuid);
-}
-
-// Sanitization helper functions
-function sanitizeString(input: string): string {
-  return input.trim().replace(/[<>]/g, '');
-}
-
-function sanitizeEmail(email: string): string {
-  return email.trim().toLowerCase();
-}
-
-function sanitizePhone(phone: string): string {
-  return phone.replace(/[^\d\s\-\+\(\)]/g, '').trim();
-}
 
 serve(handler);
