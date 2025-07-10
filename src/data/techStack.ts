@@ -9,7 +9,8 @@ export const techStack = {
     'React Query (State Management)',
     'React Hook Form (Forms)',
     'Recharts (Data Visualization)',
-    'Lucide React (Icons)'
+    'Lucide React (Icons)',
+    'Zod (Schema Validation)'
   ],
   backend: [
     'Supabase (Backend-as-a-Service)',
@@ -18,23 +19,36 @@ export const techStack = {
     'Supabase Auth (Authentication)',
     'Supabase Storage (File Storage)',
     'Edge Functions (Custom Logic)',
-    'Real-time Subscriptions'
+    'Real-time Subscriptions',
+    'Resend (Email Service)',
+    'Stripe (Payment Processing)'
   ],
   features: {
     'Authentication & Authorization': [
       'Multi-role system',
       'Venue isolation',
-      'Platform admin tools'
+      'Platform admin tools',
+      'Security audit logging'
     ],
     'Booking System': [
       'Real-time availability',
       'Table allocation',
-      'Service management'
+      'Service management',
+      'Payment integration'
     ],
     'Data Management': [
       'Guest database',
       'CSV imports',
-      'Analytics dashboard'
+      'Analytics dashboard',
+      'Real-time monitoring'
+    ],
+    'Security & Infrastructure': [
+      'Input validation with Zod',
+      'Advanced rate limiting',
+      'Webhook signature verification',
+      'Real-time security monitoring',
+      'GitHub integration',
+      'Email service integration'
     ]
   }
 };
