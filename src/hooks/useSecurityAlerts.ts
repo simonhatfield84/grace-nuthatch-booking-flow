@@ -32,25 +32,16 @@ export const useSecurityAlerts = () => {
         .order('created_at', { ascending: false })
         .limit(10);
 
-      // Get high threat level events
-      const { data: threatEvents } = await supabase
-        .from('security_audit')
-        .select('*')
-        .eq('event_details->threat_level', 'high')
-        .gte('created_at', oneHourAgo.toISOString())
-        .order('created_at', { ascending: false })
-        .limit(10);
-
       // Get rate limit violations
       const { data: rateLimitEvents } = await supabase
         .from('security_audit')
         .select('*')
-        .like('event_details->error', '%rate_limit%')
+        .ilike('event_type', '%rate_limit%')
         .gte('created_at', oneHourAgo.toISOString())
         .order('created_at', { ascending: false })
         .limit(10);
 
-      const allEvents = [...(criticalEvents || []), ...(threatEvents || []), ...(rateLimitEvents || [])];
+      const allEvents = [...(criticalEvents || []), ...(rateLimitEvents || [])];
       
       return allEvents.map(event => ({
         id: event.id,
@@ -95,7 +86,7 @@ function getSeverity(eventType: string, eventDetails: any): SecurityAlert['sever
   if (eventType === 'permission_denied') return 'critical';
   if (eventType === 'login_failure') return 'high';
   if (eventDetails?.threat_level === 'high') return 'high';
-  if (eventDetails?.error?.includes('rate_limit')) return 'medium';
+  if (eventType.includes('rate_limit')) return 'medium';
   return 'low';
 }
 
@@ -109,7 +100,7 @@ function getAlertTitle(eventType: string, eventDetails: any): string {
       if (eventDetails?.error) return 'Webhook Security Issue';
       return 'Webhook Received';
     case 'booking_created':
-      if (eventDetails?.error?.includes('rate_limit')) return 'Rate Limit Exceeded';
+      if (eventType.includes('rate_limit')) return 'Rate Limit Exceeded';
       if (eventDetails?.threat_level === 'high') return 'High-Risk Booking Attempt';
       return 'Booking Created';
     default:
@@ -130,7 +121,7 @@ function getAlertDescription(eventType: string, eventDetails: any): string {
       if (eventDetails?.error) return `Webhook error: ${eventDetails.error} from ${ip}`;
       return `Webhook processed successfully from ${ip}`;
     case 'booking_created':
-      if (eventDetails?.error?.includes('rate_limit')) {
+      if (eventType.includes('rate_limit')) {
         return `Rate limit exceeded from ${ip} (Threat Level: ${threatLevel})`;
       }
       if (eventDetails?.threat_level === 'high') {

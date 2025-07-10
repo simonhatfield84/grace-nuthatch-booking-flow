@@ -1,10 +1,9 @@
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.3";
-
+// Client-side security utilities (no Supabase server imports)
 export interface RateLimitConfig {
   windowMs: number;
   maxRequests: number;
-  keyGenerator?: (req: Request) => string;
+  keyGenerator?: (identifier: string) => string;
 }
 
 export class AdvancedRateLimiter {
@@ -44,10 +43,9 @@ export class AdvancedRateLimiter {
     return { allowed: true, remaining: adjustedMax - limit.count, resetTime: limit.resetTime };
   }
 
-  static getClientIdentifier(req: Request): string {
-    const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
-    const userAgent = req.headers.get('user-agent') || '';
-    return `${ip}-${userAgent.slice(0, 50)}`;
+  static getClientIdentifier(userAgent: string, ip?: string): string {
+    const safeIp = ip || 'unknown';
+    return `${safeIp}-${userAgent.slice(0, 50)}`;
   }
 }
 
@@ -67,38 +65,13 @@ export function sanitizePhone(phone: string): string {
   return phone.replace(/[^\d\s\-\+\(\)]/g, '').trim().slice(0, 20);
 }
 
-export async function logSecurityEvent(
-  supabase: any,
-  eventType: string,
-  details: Record<string, any>,
-  req: Request,
-  venueId?: string
-) {
-  try {
-    await supabase
-      .from('security_audit')
-      .insert({
-        event_type: eventType,
-        event_details: details,
-        ip_address: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip'),
-        user_agent: req.headers.get('user-agent'),
-        venue_id: venueId,
-      });
-  } catch (error) {
-    console.error('Failed to log security event:', error);
-  }
-}
-
-export function detectThreatLevel(req: Request, identifier: string): 'low' | 'medium' | 'high' {
-  const userAgent = req.headers.get('user-agent') || '';
-  const referer = req.headers.get('referer') || '';
-  
+export function detectThreatLevel(userAgent: string, referer?: string): 'low' | 'medium' | 'high' {
   // High threat indicators
   if (
     userAgent.includes('bot') ||
     userAgent.includes('crawler') ||
     userAgent.length < 10 ||
-    !referer.includes(req.headers.get('origin') || '')
+    (referer && !referer.includes('localhost') && !referer.includes('lovable.app'))
   ) {
     return 'high';
   }

@@ -18,7 +18,7 @@ interface SecurityMetrics {
     event_type: string;
     count: number;
   }>;
-  recentThrends: {
+  recentTrends: {
     lastHour: number;
     lastDay: number;
     lastWeek: number;
@@ -49,19 +49,34 @@ export function SecurityMonitoringDashboard() {
       const { data: threatData } = await supabase
         .from('security_audit')
         .select('event_details')
-        .not('event_details->threat_level', 'is', null);
+        .not('event_details', 'is', null);
 
       const threatLevels = { high: 0, medium: 0, low: 0 };
       threatData?.forEach(event => {
-        const level = event.event_details?.threat_level;
-        if (level && threatLevels.hasOwnProperty(level)) {
-          threatLevels[level as keyof typeof threatLevels]++;
+        if (event.event_details && typeof event.event_details === 'object') {
+          const details = event.event_details as Record<string, any>;
+          const level = details.threat_level;
+          if (level && threatLevels.hasOwnProperty(level)) {
+            threatLevels[level as keyof typeof threatLevels]++;
+          }
         }
       });
 
-      // Get top event types
-      const { data: eventTypes } = await supabase
-        .rpc('get_event_type_counts', {});
+      // Get top event types - simplified approach
+      const { data: eventData } = await supabase
+        .from('security_audit')
+        .select('event_type')
+        .limit(1000);
+
+      const eventTypeCounts: Record<string, number> = {};
+      eventData?.forEach(event => {
+        eventTypeCounts[event.event_type] = (eventTypeCounts[event.event_type] || 0) + 1;
+      });
+
+      const topEventTypes = Object.entries(eventTypeCounts)
+        .map(([event_type, count]) => ({ event_type, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
 
       // Get recent trends
       const { count: lastHour } = await supabase
@@ -83,8 +98,8 @@ export function SecurityMonitoringDashboard() {
         totalEvents: totalEvents || 0,
         criticalEvents: criticalEvents || 0,
         threatLevels,
-        topEventTypes: eventTypes || [],
-        recentThrends: {
+        topEventTypes,
+        recentTrends: {
           lastHour: lastHour || 0,
           lastDay: lastDay || 0,
           lastWeek: lastWeek || 0,
@@ -155,7 +170,7 @@ export function SecurityMonitoringDashboard() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metrics?.recentThrends.lastHour || 0}</div>
+            <div className="text-2xl font-bold">{metrics?.recentTrends.lastHour || 0}</div>
             <p className="text-xs text-muted-foreground">
               Events in the last hour
             </p>
@@ -168,7 +183,7 @@ export function SecurityMonitoringDashboard() {
             <Zap className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metrics?.recentThrends.lastWeek || 0}</div>
+            <div className="text-2xl font-bold">{metrics?.recentTrends.lastWeek || 0}</div>
             <p className="text-xs text-muted-foreground">
               Events this week
             </p>

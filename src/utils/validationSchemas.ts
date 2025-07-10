@@ -39,10 +39,10 @@ export const stripeWebhookSchema = z.object({
   created: z.number(),
 });
 
-// Security audit schema
+// Security audit schema - fix the enum usage
 export const securityEventSchema = z.object({
   event_type: z.enum(['login_attempt', 'login_success', 'login_failure', 'password_reset', 'data_access', 'permission_denied', 'webhook_received', 'booking_created']),
-  event_details: z.record(z.any()),
+  event_details: z.record(z.string(), z.any()),
   ip_address: z.string().optional(),
   user_agent: z.string().optional(),
   venue_id: uuidSchema.optional(),
