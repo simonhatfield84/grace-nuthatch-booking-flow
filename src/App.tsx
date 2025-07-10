@@ -111,55 +111,19 @@ function App() {
                 
                 {/* Platform Admin Routes */}
                 <Route path="/platform/auth" element={<PlatformAuth />} />
-                <Route path="/platform/dashboard" element={
+                <Route path="/platform" element={
                   <ProtectedRoute>
-                    <PlatformAdminLayout>
-                      <PlatformDashboard />
-                    </PlatformAdminLayout>
+                    <PlatformAdminLayout />
                   </ProtectedRoute>
-                } />
-                <Route path="/platform/settings" element={
-                  <ProtectedRoute>
-                    <PlatformAdminLayout>
-                      <PlatformSettings />
-                    </PlatformAdminLayout>
-                  </ProtectedRoute>
-                } />
-                <Route path="/platform/users" element={
-                  <ProtectedRoute>
-                    <PlatformAdminLayout>
-                      <PlatformUsers />
-                    </PlatformAdminLayout>
-                  </ProtectedRoute>
-                } />
-                <Route path="/platform/venues" element={
-                  <ProtectedRoute>
-                    <PlatformAdminLayout>
-                      <PlatformVenues />
-                    </PlatformAdminLayout>
-                  </ProtectedRoute>
-                } />
-                <Route path="/platform/security" element={
-                  <ProtectedRoute>
-                    <PlatformAdminLayout>
-                      <PlatformSecurity />
-                    </PlatformAdminLayout>
-                  </ProtectedRoute>
-                } />
-                <Route path="/platform/subscriptions" element={
-                  <ProtectedRoute>
-                    <PlatformAdminLayout>
-                      <PlatformSubscriptions />
-                    </PlatformAdminLayout>
-                  </ProtectedRoute>
-                } />
-                <Route path="/platform/support" element={
-                  <ProtectedRoute>
-                    <PlatformAdminLayout>
-                      <PlatformSupport />
-                    </PlatformAdminLayout>
-                  </ProtectedRoute>
-                } />
+                }>
+                  <Route path="dashboard" element={<PlatformDashboard />} />
+                  <Route path="settings" element={<PlatformSettings />} />
+                  <Route path="users" element={<PlatformUsers />} />
+                  <Route path="venues" element={<PlatformVenues />} />
+                  <Route path="security" element={<PlatformSecurity />} />
+                  <Route path="subscriptions" element={<PlatformSubscriptions />} />
+                  <Route path="support" element={<PlatformSupport />} />
+                </Route>
                 
                 <Route path="*" element={<NotFound />} />
               </Routes>
