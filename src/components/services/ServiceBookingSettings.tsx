@@ -91,7 +91,7 @@ export const ServiceBookingSettings = ({
         <Checkbox
           id="requiresDeposit"
           checked={requiresDeposit}
-          onCheckedChange={(checked) => onRequiresDepositChange(checked)}
+          onCheckedChange={(checked) => onRequiresDepositChange(!!checked)}
         />
         <div className="grid gap-1.5 leading-none">
           <Label htmlFor="requiresDeposit">Requires Deposit</Label>
@@ -117,7 +117,7 @@ export const ServiceBookingSettings = ({
         <Checkbox
           id="onlineBookable"
           checked={onlineBookable}
-          onCheckedChange={(checked) => onOnlineBookableChange(checked)}
+          onCheckedChange={(checked) => onOnlineBookableChange(!!checked)}
         />
         <div className="grid gap-1.5 leading-none">
           <Label htmlFor="onlineBookable">Online Bookable</Label>

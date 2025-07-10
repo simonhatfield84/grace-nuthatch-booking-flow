@@ -42,7 +42,7 @@ export const ServiceAdvancedSettings = ({
         <Checkbox
           id="active"
           checked={active}
-          onCheckedChange={(checked) => onActiveChange(checked)}
+          onCheckedChange={(checked) => onActiveChange(!!checked)}
         />
         <div className="grid gap-1.5 leading-none">
           <Label htmlFor="active">Active</Label>
@@ -56,7 +56,7 @@ export const ServiceAdvancedSettings = ({
         <Checkbox
           id="isSecret"
           checked={isSecret}
-          onCheckedChange={(checked) => onIsSecretChange(checked)}
+          onCheckedChange={(checked) => onIsSecretChange(!!checked)}
         />
         <div className="grid gap-1.5 leading-none">
           <Label htmlFor="isSecret">Secret Service</Label>
