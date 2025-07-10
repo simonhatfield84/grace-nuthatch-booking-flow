@@ -2,7 +2,7 @@
 import { Outlet, Navigate } from "react-router-dom";
 import { usePlatformAdmin } from "@/hooks/usePlatformAdmin";
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { Building2, Users, CreditCard, Settings, BarChart3, HeadphonesIcon } from "lucide-react";
+import { Building2, Users, CreditCard, Settings, BarChart3, HeadphonesIcon, Shield } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { PlatformHeader } from "@/components/platform/PlatformHeader";
 
@@ -21,6 +21,11 @@ const platformNavItems = [
     title: "Users",
     url: "/platform/users",
     icon: Users,
+  },
+  {
+    title: "Security",
+    url: "/platform/security",
+    icon: Shield,
   },
   {
     title: "Subscriptions",

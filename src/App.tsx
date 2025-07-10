@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,6 +9,7 @@ import { ThemeHandler } from "@/components/ThemeHandler";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AdminLayout } from "@/components/layouts/AdminLayout";
 import { HostLayout } from "@/components/layouts/HostLayout";
+import { PlatformAdminLayout } from "@/components/layouts/PlatformAdminLayout";
 import HomePage from "./pages/HomePage";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -28,6 +30,7 @@ import PlatformUsers from "./pages/PlatformUsers";
 import PlatformVenues from "./pages/PlatformVenues";
 import PlatformSubscriptions from "./pages/PlatformSubscriptions";
 import PlatformSupport from "./pages/PlatformSupport";
+import PlatformSecurity from "./pages/PlatformSecurity";
 import { ProtectedRoute } from "./components/auth/ProtectedRoute";
 import RootRedirect from "./components/auth/RootRedirect";
 
@@ -108,12 +111,55 @@ function App() {
                 
                 {/* Platform Admin Routes */}
                 <Route path="/platform/auth" element={<PlatformAuth />} />
-                <Route path="/platform/dashboard" element={<ProtectedRoute><PlatformDashboard /></ProtectedRoute>} />
-                <Route path="/platform/settings" element={<ProtectedRoute><PlatformSettings /></ProtectedRoute>} />
-                <Route path="/platform/users" element={<ProtectedRoute><PlatformUsers /></ProtectedRoute>} />
-                <Route path="/platform/venues" element={<ProtectedRoute><PlatformVenues /></ProtectedRoute>} />
-                <Route path="/platform/subscriptions" element={<ProtectedRoute><PlatformSubscriptions /></ProtectedRoute>} />
-                <Route path="/platform/support" element={<ProtectedRoute><PlatformSupport /></ProtectedRoute>} />
+                <Route path="/platform/dashboard" element={
+                  <ProtectedRoute>
+                    <PlatformAdminLayout>
+                      <PlatformDashboard />
+                    </PlatformAdminLayout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/platform/settings" element={
+                  <ProtectedRoute>
+                    <PlatformAdminLayout>
+                      <PlatformSettings />
+                    </PlatformAdminLayout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/platform/users" element={
+                  <ProtectedRoute>
+                    <PlatformAdminLayout>
+                      <PlatformUsers />
+                    </PlatformAdminLayout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/platform/venues" element={
+                  <ProtectedRoute>
+                    <PlatformAdminLayout>
+                      <PlatformVenues />
+                    </PlatformAdminLayout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/platform/security" element={
+                  <ProtectedRoute>
+                    <PlatformAdminLayout>
+                      <PlatformSecurity />
+                    </PlatformAdminLayout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/platform/subscriptions" element={
+                  <ProtectedRoute>
+                    <PlatformAdminLayout>
+                      <PlatformSubscriptions />
+                    </PlatformAdminLayout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/platform/support" element={
+                  <ProtectedRoute>
+                    <PlatformAdminLayout>
+                      <PlatformSupport />
+                    </PlatformAdminLayout>
+                  </ProtectedRoute>
+                } />
                 
                 <Route path="*" element={<NotFound />} />
               </Routes>

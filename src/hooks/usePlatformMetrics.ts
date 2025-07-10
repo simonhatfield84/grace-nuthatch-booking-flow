@@ -27,11 +27,41 @@ export const usePlatformMetrics = () => {
 
       if (bookingsError) throw bookingsError;
 
+      // Get security events count for last 24 hours
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const { data: securityEvents, error: securityError } = await supabase
+        .from('security_audit')
+        .select('id, event_type, created_at')
+        .gte('created_at', twentyFourHoursAgo.toISOString());
+
+      if (securityError) console.warn('Security events query failed:', securityError);
+
+      // Test system health with basic connectivity
+      const healthStart = Date.now();
+      let systemHealth = 'operational';
+      try {
+        const { error: healthError } = await supabase
+          .from('platform_metrics')
+          .select('id')
+          .limit(1);
+        
+        const responseTime = Date.now() - healthStart;
+        if (healthError || responseTime > 3000) {
+          systemHealth = 'degraded';
+        }
+      } catch (err) {
+        systemHealth = 'down';
+      }
+
       const totalVenues = venues?.length || 0;
       const activeVenues = venues?.filter(v => v.approval_status === 'approved').length || 0;
       const pendingVenues = venues?.filter(v => v.approval_status === 'pending').length || 0;
       const totalUsers = profiles?.length || 0;
       const totalBookings = bookings?.length || 0;
+      const totalSecurityEvents = securityEvents?.length || 0;
+      const criticalSecurityEvents = securityEvents?.filter(e => 
+        ['permission_denied', 'login_failure', 'rate_limit_exceeded'].includes(e.event_type)
+      ).length || 0;
 
       return {
         totalVenues,
@@ -39,6 +69,10 @@ export const usePlatformMetrics = () => {
         pendingVenues,
         totalUsers,
         totalBookings,
+        totalSecurityEvents,
+        criticalSecurityEvents,
+        systemHealth,
+        lastUpdated: new Date().toISOString()
       };
     },
     refetchInterval: 30000, // Refetch every 30 seconds
