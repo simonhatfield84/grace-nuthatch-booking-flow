@@ -860,6 +860,47 @@ export type Database = {
           },
         ]
       }
+      security_audit: {
+        Row: {
+          created_at: string | null
+          event_details: Json | null
+          event_type: string
+          id: string
+          ip_address: unknown | null
+          user_agent: string | null
+          user_id: string | null
+          venue_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_details?: Json | null
+          event_type: string
+          id?: string
+          ip_address?: unknown | null
+          user_agent?: string | null
+          user_id?: string | null
+          venue_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_details?: Json | null
+          event_type?: string
+          id?: string
+          ip_address?: unknown | null
+          user_agent?: string | null
+          user_id?: string | null
+          venue_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "security_audit_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       service_tags: {
         Row: {
           created_at: string
@@ -1210,6 +1251,7 @@ export type Database = {
           updated_at: string | null
           venue_id: string
           webhook_endpoint_secret: string | null
+          webhook_secret: string | null
         }
         Insert: {
           charge_amount_per_guest?: number | null
@@ -1223,6 +1265,7 @@ export type Database = {
           updated_at?: string | null
           venue_id: string
           webhook_endpoint_secret?: string | null
+          webhook_secret?: string | null
         }
         Update: {
           charge_amount_per_guest?: number | null
@@ -1236,6 +1279,7 @@ export type Database = {
           updated_at?: string | null
           venue_id?: string
           webhook_endpoint_secret?: string | null
+          webhook_secret?: string | null
         }
         Relationships: [
           {
@@ -1389,6 +1433,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      generate_webhook_secret: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_tag_usage_count: {
         Args: { tag_id: string }
         Returns: number
@@ -1434,6 +1482,14 @@ export type Database = {
           p_venue_address: string
         }
         Returns: Json
+      }
+      update_user_role: {
+        Args: {
+          target_user_id: string
+          new_role: Database["public"]["Enums"]["app_role"]
+          target_venue_id: string
+        }
+        Returns: boolean
       }
       verify_code: {
         Args: { user_email: string; submitted_code: string }

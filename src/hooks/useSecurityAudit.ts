@@ -15,28 +15,35 @@ export const useSecurityAudit = () => {
 
   const logSecurityEvent = useMutation({
     mutationFn: async (event: SecurityEvent) => {
-      // In a real application, you would log this to a security audit table
-      // For now, we'll use console logging with structured data
+      // Log to database security audit table
       const auditEntry = {
-        timestamp: new Date().toISOString(),
-        user_id: user?.id || 'anonymous',
+        user_id: user?.id || null,
         event_type: event.event_type,
-        details: event.details,
+        event_details: {
+          details: event.details,
+          timestamp: new Date().toISOString(),
+          session_id: crypto.randomUUID(),
+        },
         ip_address: event.ip_address,
         user_agent: event.user_agent || navigator.userAgent,
-        session_id: crypto.randomUUID(),
       };
 
       console.log('SECURITY_AUDIT:', JSON.stringify(auditEntry, null, 2));
 
-      // In production, send to security monitoring service
-      // await fetch('/api/security-audit', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(auditEntry)
-      // });
+      // Insert into security audit table
+      const { data, error } = await supabase
+        .from('security_audit')
+        .insert(auditEntry)
+        .select()
+        .single();
 
-      return auditEntry;
+      if (error) {
+        console.error('Failed to log security event:', error);
+        // Don't throw here to avoid breaking the main flow
+        return null;
+      }
+
+      return data;
     }
   });
 
