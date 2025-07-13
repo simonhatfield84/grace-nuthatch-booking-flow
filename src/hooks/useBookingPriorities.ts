@@ -61,7 +61,7 @@ export const useBookingPriorities = () => {
   });
 
   const addPriorityMutation = useMutation({
-    mutationFn: async (priority: { party_size: number; item_type: 'table' | 'group'; item_id: number }) => {
+    mutationFn: async (priority: { party_size: number; item_type: 'table' | 'join_group'; item_id: number }) => {
       if (!userVenue) {
         throw new Error('No venue associated with user');
       }
