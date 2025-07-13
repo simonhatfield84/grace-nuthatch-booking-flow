@@ -63,23 +63,11 @@ export function PaymentStep({ amount, paymentRequired, onSuccess, bookingId, des
       // In production, this would redirect to actual Stripe Checkout: window.open(data.url, '_blank');
       toast.success('Processing payment...');
       
-      // Simulate successful payment and update booking status
-      setTimeout(async () => {
-        try {
-          // Update booking status to confirmed after successful payment
-          const { error: updateError } = await supabase
-            .from('bookings')
-            .update({ status: 'confirmed' })
-            .eq('id', bookingId);
-
-          if (updateError) throw updateError;
-          
-          toast.success('Payment completed successfully!');
-          onSuccess();
-        } catch (err) {
-          console.error('Error updating booking after payment:', err);
-          toast.error('Payment succeeded but booking confirmation failed. Please contact the venue.');
-        }
+      // Simulate successful payment without updating booking status here
+      // Let ConfirmationStep handle the status update to avoid conflicts
+      setTimeout(() => {
+        toast.success('Payment completed successfully!');
+        onSuccess();
       }, 2000);
 
     } catch (err) {

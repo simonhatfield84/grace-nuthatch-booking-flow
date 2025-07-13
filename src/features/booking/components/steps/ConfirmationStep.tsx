@@ -27,9 +27,14 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
   const { toast } = useToast();
   const [isCreatingBooking, setIsCreatingBooking] = useState(false);
   const [bookingReference, setBookingReference] = useState<string | null>(null);
+  const [hasProcessed, setHasProcessed] = useState(false);
 
   useEffect(() => {
-    const updateBookingStatus = async () => {
+    const processBooking = async () => {
+      // Prevent multiple executions
+      if (hasProcessed) return;
+      setHasProcessed(true);
+
       // If booking already exists and we came from payment, update status to confirmed
       if (bookingData.bookingId) {
         setIsCreatingBooking(true);
@@ -132,8 +137,8 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
       }
     };
 
-    updateBookingStatus();
-  }, [bookingData, venue, onBookingId, toast]);
+    processBooking();
+  }, []); // Empty dependency array to run only once
 
   const generateCalendarEvent = () => {
     const startDate = new Date(bookingData.date);
