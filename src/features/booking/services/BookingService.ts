@@ -2,6 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { format, addDays, startOfDay } from "date-fns";
 import { Service, AvailabilitySlot } from "../types/booking";
+import { EnhancedAvailabilityService } from "@/services/enhancedAvailabilityService";
 
 export class BookingService {
   private static cache = new Map<string, { data: any, timestamp: number }>();
@@ -168,19 +169,24 @@ export class BookingService {
 
   private static async checkTableAvailability(venueId: string, date: string, partySize: number): Promise<boolean> {
     try {
-      // Get tables that can accommodate the party size
-      const { data: tables, error: tablesError } = await supabase
-        .from('tables')
-        .select('id')
-        .eq('venue_id', venueId)
-        .eq('online_bookable', true)
-        .eq('status', 'active')
-        .gte('seats', partySize);
+      console.log(`🔍 Checking table availability for ${partySize} guests on ${date}`);
+      
+      // Use enhanced availability check that considers join groups
+      const availability = await EnhancedAvailabilityService.checkAvailabilityWithJoinGroups(
+        venueId,
+        date,
+        '17:00', // Start of service
+        '22:00', // End of service
+        partySize,
+        120 // Default duration
+      );
 
-      if (tablesError || !tables?.length) return false;
-
-      // Check if any table has availability (simplified check)
-      return tables.length > 0;
+      // Check if any time slot has availability
+      const hasAnyAvailability = Object.values(availability).some(slot => slot.available);
+      
+      console.log(`📊 Date ${date} availability for ${partySize} guests: ${hasAnyAvailability ? 'AVAILABLE' : 'NOT AVAILABLE'}`);
+      
+      return hasAnyAvailability;
     } catch (error) {
       console.error('Error checking table availability:', error);
       return false;
@@ -194,33 +200,24 @@ export class BookingService {
     partySize: number
   ): Promise<boolean> {
     try {
-      // Get existing bookings for this time slot
-      const { data: existingBookings, error } = await supabase
-        .from('bookings')
-        .select('table_id, party_size')
-        .eq('venue_id', venueId)
-        .eq('booking_date', date)
-        .eq('booking_time', time)
-        .in('status', ['confirmed', 'seated']);
+      console.log(`🕐 Checking time slot availability: ${time} for ${partySize} guests`);
+      
+      // Use enhanced availability check that considers join groups
+      const availability = await EnhancedAvailabilityService.checkAvailabilityWithJoinGroups(
+        venueId,
+        date,
+        time, // Check just this specific time
+        time, // Same time for start and end
+        partySize,
+        120 // Default duration
+      );
 
-      if (error) throw error;
-
-      // Get available tables
-      const { data: tables, error: tablesError } = await supabase
-        .from('tables')
-        .select('id, seats')
-        .eq('venue_id', venueId)
-        .eq('online_bookable', true)
-        .eq('status', 'active')
-        .gte('seats', partySize);
-
-      if (tablesError || !tables) return false;
-
-      // Check if any table is available (not booked at this time)
-      const bookedTableIds = new Set(existingBookings?.map(b => b.table_id) || []);
-      const availableTables = tables.filter(table => !bookedTableIds.has(table.id));
-
-      return availableTables.length > 0;
+      const isAvailable = availability[time]?.available || false;
+      const reason = availability[time]?.reason || 'Unknown';
+      
+      console.log(`   ${isAvailable ? '✅' : '❌'} ${time}: ${reason}`);
+      
+      return isAvailable;
     } catch (error) {
       console.error('Error checking time slot availability:', error);
       return false;
