@@ -1,0 +1,229 @@
+
+import { supabase } from "@/integrations/supabase/client";
+import { format, addDays, startOfDay } from "date-fns";
+import { Service, AvailabilitySlot } from "../types/booking";
+
+export class BookingService {
+  private static cache = new Map<string, { data: any, timestamp: number }>();
+  private static CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+  static clearCache() {
+    this.cache.clear();
+  }
+
+  // Get available dates for a venue and party size
+  static async getAvailableDates(
+    venueId: string,
+    partySize: number,
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<string[]> {
+    const start = startDate || startOfDay(new Date());
+    const end = endDate || addDays(start, 90);
+
+    const cacheKey = `dates-${venueId}-${partySize}-${format(start, 'yyyy-MM-dd')}-${format(end, 'yyyy-MM-dd')}`;
+    const cached = this.cache.get(cacheKey);
+
+    if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
+      return cached.data;
+    }
+
+    try {
+      // Get booking windows for this venue
+      const { data: bookingWindows, error } = await supabase
+        .from('booking_windows')
+        .select('*')
+        .eq('venue_id', venueId);
+
+      if (error || !bookingWindows?.length) {
+        console.error('Error fetching booking windows:', error);
+        return [];
+      }
+
+      // Generate date range and check availability
+      const availableDates: string[] = [];
+      let currentDate = start;
+
+      while (currentDate <= end) {
+        const dateStr = format(currentDate, 'yyyy-MM-dd');
+        const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'short' }).toLowerCase();
+
+        // Check if any booking window covers this day
+        const hasAvailableWindow = bookingWindows.some(window => 
+          window.days.includes(dayName) &&
+          this.isDateInWindow(dateStr, window.start_date, window.end_date) &&
+          !this.isDateBlackedOut(dateStr, window.blackout_periods)
+        );
+
+        if (hasAvailableWindow) {
+          // Additional check for table availability
+          const hasTableAvailability = await this.checkTableAvailability(venueId, dateStr, partySize);
+          if (hasTableAvailability) {
+            availableDates.push(dateStr);
+          }
+        }
+
+        currentDate = addDays(currentDate, 1);
+      }
+
+      this.cache.set(cacheKey, { data: availableDates, timestamp: Date.now() });
+      return availableDates;
+    } catch (error) {
+      console.error('Error getting available dates:', error);
+      return [];
+    }
+  }
+
+  // Get available time slots for a specific date
+  static async getAvailableTimeSlots(
+    venueId: string,
+    date: string,
+    partySize: number
+  ): Promise<AvailabilitySlot[]> {
+    const cacheKey = `times-${venueId}-${date}-${partySize}`;
+    const cached = this.cache.get(cacheKey);
+
+    if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
+      return cached.data;
+    }
+
+    try {
+      // Generate time slots (every 15 minutes from 17:00 to 22:00)
+      const timeSlots: string[] = [];
+      for (let hour = 17; hour <= 22; hour++) {
+        for (let minute of [0, 15, 30, 45]) {
+          if (hour === 22 && minute > 0) break;
+          timeSlots.push(`${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`);
+        }
+      }
+
+      // Check availability for each slot
+      const availabilitySlots = await Promise.all(
+        timeSlots.map(async (time) => {
+          const available = await this.checkTimeSlotAvailability(venueId, date, time, partySize);
+          return {
+            time,
+            available,
+            reason: available ? undefined : 'No tables available'
+          };
+        })
+      );
+
+      this.cache.set(cacheKey, { data: availabilitySlots, timestamp: Date.now() });
+      return availabilitySlots;
+    } catch (error) {
+      console.error('Error getting time slots:', error);
+      return [];
+    }
+  }
+
+  // Get available services for venue and party size
+  static async getAvailableServices(
+    venueId: string,
+    partySize: number,
+    date?: string
+  ): Promise<Service[]> {
+    try {
+      const { data: services, error } = await supabase
+        .from('services')
+        .select('*')
+        .eq('active', true)
+        .eq('online_bookable', true)
+        .lte('min_guests', partySize)
+        .gte('max_guests', partySize)
+        .order('title');
+
+      if (error) throw error;
+
+      return services || [];
+    } catch (error) {
+      console.error('Error fetching services:', error);
+      return [];
+    }
+  }
+
+  // Private helper methods
+  private static isDateInWindow(date: string, startDate?: string | null, endDate?: string | null): boolean {
+    if (!startDate && !endDate) return true;
+    
+    const checkDate = new Date(date);
+    if (startDate && checkDate < new Date(startDate)) return false;
+    if (endDate && checkDate > new Date(endDate)) return false;
+    
+    return true;
+  }
+
+  private static isDateBlackedOut(date: string, blackoutPeriods?: any): boolean {
+    if (!blackoutPeriods) return false;
+    
+    try {
+      const periods = Array.isArray(blackoutPeriods) ? blackoutPeriods : JSON.parse(blackoutPeriods);
+      return periods.some((period: any) => {
+        return date >= period.start_date && date <= period.end_date;
+      });
+    } catch {
+      return false;
+    }
+  }
+
+  private static async checkTableAvailability(venueId: string, date: string, partySize: number): Promise<boolean> {
+    try {
+      // Get tables that can accommodate the party size
+      const { data: tables, error: tablesError } = await supabase
+        .from('tables')
+        .select('id')
+        .eq('venue_id', venueId)
+        .eq('online_bookable', true)
+        .eq('status', 'active')
+        .gte('seats', partySize);
+
+      if (tablesError || !tables?.length) return false;
+
+      // Check if any table has availability (simplified check)
+      return tables.length > 0;
+    } catch (error) {
+      console.error('Error checking table availability:', error);
+      return false;
+    }
+  }
+
+  private static async checkTimeSlotAvailability(
+    venueId: string,
+    date: string,
+    time: string,
+    partySize: number
+  ): Promise<boolean> {
+    try {
+      // Get existing bookings for this time slot
+      const { data: existingBookings, error } = await supabase
+        .from('bookings')
+        .select('table_id, party_size')
+        .eq('venue_id', venueId)
+        .eq('booking_date', date)
+        .eq('booking_time', time)
+        .in('status', ['confirmed', 'seated']);
+
+      if (error) throw error;
+
+      // Get available tables
+      const { data: tables, error: tablesError } = await supabase
+        .from('tables')
+        .select('id, seats')
+        .eq('venue_id', venueId)
+        .eq('online_bookable', true)
+        .eq('status', 'active')
+        .gte('seats', partySize);
+
+      if (tablesError || !tables) return false;
+
+      // Check if any table is available (not booked at this time)
+      const bookedTableIds = new Set(existingBookings?.map(b => b.table_id) || []);
+      const availableTables = tables.filter(table => !bookedTableIds.has(table.id));
+
+      return availableTables.length > 0;
+    } catch (error) {
+      console.error('Error checking time slot availability:', error);
+      return false;
+    }
+  }
+}
