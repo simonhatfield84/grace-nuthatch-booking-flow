@@ -17,6 +17,7 @@ import { PaymentStep } from "@/components/bookings/PaymentStep";
 import { TableAllocationService } from "@/services/tableAllocation";
 import { guestService } from "@/services/guestService";
 import { TableAvailabilityService } from "@/services/tableAvailabilityService";
+import { EnhancedTimeSlotSelector } from "@/components/bookings/EnhancedTimeSlotSelector";
 
 const BookingWidget = () => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -350,30 +351,17 @@ const BookingWidget = () => {
             <CardHeader className="bg-gray-50 dark:bg-gray-800 border-b">
               <CardTitle className="text-2xl text-gray-900 dark:text-gray-100">Select Time</CardTitle>
               <CardDescription className="text-gray-600 dark:text-gray-300">
-                Choose your preferred time
+                Choose your preferred time slot
               </CardDescription>
             </CardHeader>
             <CardContent className="p-6 space-y-6 bg-white dark:bg-gray-900">
-              {/* Default time slots if no service selected yet */}
-              <div>
-                <Label className="text-base font-medium text-gray-900 dark:text-gray-100">Available Times</Label>
-                <div className="grid grid-cols-3 gap-2 mt-2">
-                  {['17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00'].map((slot) => (
-                    <Button
-                      key={slot}
-                      variant={selectedTime === slot ? "default" : "outline"}
-                      className={`p-2 text-sm ${
-                        selectedTime === slot 
-                          ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                          : 'border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800'
-                      }`}
-                      onClick={() => setSelectedTime(slot)}
-                    >
-                      {slot}
-                    </Button>
-                  ))}
-                </div>
-              </div>
+              <EnhancedTimeSlotSelector
+                selectedDate={selectedDate}
+                selectedTime={selectedTime}
+                onTimeSelect={setSelectedTime}
+                partySize={partySize}
+                venueId={firstVenue?.id}
+              />
             </CardContent>
           </Card>
         );

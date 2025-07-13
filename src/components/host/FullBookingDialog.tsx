@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -10,6 +9,7 @@ import { format } from 'date-fns';
 import { useTables } from '@/hooks/useTables';
 import { useServices } from '@/hooks/useServices';
 import { useToast } from '@/hooks/use-toast';
+import { EnhancedTimeSlotSelector } from "@/components/bookings/EnhancedTimeSlotSelector";
 
 interface FullBookingDialogProps {
   open: boolean;
@@ -83,7 +83,7 @@ export const FullBookingDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Booking</DialogTitle>
         </DialogHeader>
@@ -115,7 +115,7 @@ export const FullBookingDialog = ({
               />
             </div>
             <div>
-              <Label htmlFor="booking_time">Time</Label>
+              <Label htmlFor="booking_time">Time *</Label>
               <Input
                 id="booking_time"
                 type="time"
@@ -123,6 +123,17 @@ export const FullBookingDialog = ({
                 onChange={(e) => setFormData({...formData, booking_time: e.target.value})}
               />
             </div>
+          </div>
+
+          {/* Enhanced time availability display for hosts */}
+          <div>
+            <Label className="text-sm font-medium mb-2 block">Quick Time Selection</Label>
+            <EnhancedTimeSlotSelector
+              selectedDate={selectedDate}
+              selectedTime={formData.booking_time}
+              onTimeSelect={(time) => setFormData({...formData, booking_time: time})}
+              partySize={formData.party_size}
+            />
           </div>
 
           <div>
