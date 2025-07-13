@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { addMinutes, parseISO, format } from "date-fns";
 
@@ -74,7 +73,18 @@ export class TableAvailabilityService {
       const tables = tablesResult.data || [];
       const joinGroups = joinGroupsResult.data || [];
       const existingBookings = bookingsResult.data || [];
-      const priorities = prioritiesResult.data || [];
+      
+      // Filter and type-cast priorities to ensure valid item_type values
+      const rawPriorities = prioritiesResult.data || [];
+      const priorities: BookingPriority[] = rawPriorities
+        .filter(p => p.item_type === 'table' || p.item_type === 'group')
+        .map(p => ({
+          id: p.id,
+          party_size: p.party_size,
+          item_type: p.item_type as 'table' | 'group',
+          item_id: p.item_id,
+          priority_rank: p.priority_rank
+        }));
 
       console.log(`📊 Found ${tables.length} tables, ${joinGroups.length} join groups, ${existingBookings.length} bookings, ${priorities.length} priorities`);
 
