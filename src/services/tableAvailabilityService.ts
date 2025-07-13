@@ -166,13 +166,13 @@ export class TableAvailabilityService {
     partySize: number
   ): Promise<{ success: boolean; tableIds: number[] | null }> {
     
-    // Try join groups for larger parties
-    if (partySize >= 7) {
-      for (const group of joinGroups) {
-        if (this.isJoinGroupAvailable(group, occupiedTableIds, partySize)) {
-          console.log(`✅ Fallback group allocation: ${group.name}`);
-          return { success: true, tableIds: group.table_ids };
-        }
+    console.log(`🔄 Fallback allocation for party of ${partySize}`);
+    
+    // Try join groups first (for any party size that could benefit)
+    for (const group of joinGroups) {
+      if (this.isJoinGroupAvailable(group, occupiedTableIds, partySize)) {
+        console.log(`✅ Fallback group allocation: ${group.name}`);
+        return { success: true, tableIds: group.table_ids };
       }
     }
 

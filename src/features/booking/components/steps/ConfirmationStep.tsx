@@ -34,6 +34,21 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
 
       setIsCreatingBooking(true);
       try {
+        // First, try to allocate tables before creating the booking
+        const { TableAllocationService } = await import("@/services/tableAllocation");
+        
+        const allocationResult = await TableAllocationService.allocateTable(
+          bookingData.partySize,
+          format(bookingData.date, 'yyyy-MM-dd'),
+          bookingData.time,
+          120, // duration minutes
+          venue.id
+        );
+
+        if (!allocationResult.tableIds || allocationResult.tableIds.length === 0) {
+          throw new Error('No tables available for your requested time. Please try a different time slot.');
+        }
+
         const bookingPayload = {
           venue_id: venue.id,
           guest_name: bookingData.guestDetails.name,
@@ -45,7 +60,8 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
           service: bookingData.service?.title || 'Dinner',
           notes: bookingData.guestDetails.notes || null,
           status: 'confirmed',
-          is_unallocated: true, // Will be allocated by the system
+          table_id: allocationResult.tableIds[0], // Assign primary table
+          is_unallocated: false, // Successfully allocated
         };
 
         const { data, error } = await supabase
@@ -72,9 +88,15 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
 
       } catch (error) {
         console.error('Error creating booking:', error);
+        
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+        const isTableAvailabilityError = errorMessage.includes('No tables available');
+        
         toast({
-          title: "Booking Error",
-          description: "There was an issue creating your booking. Please contact us directly.",
+          title: isTableAvailabilityError ? "No Tables Available" : "Booking Error",
+          description: isTableAvailabilityError 
+            ? "Unfortunately, no tables are available for your selected time. Please try a different time slot."
+            : "There was an issue creating your booking. Please contact us directly.",
           variant: "destructive",
         });
       } finally {

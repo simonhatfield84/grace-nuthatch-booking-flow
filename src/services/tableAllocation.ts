@@ -127,12 +127,14 @@ export class TableAllocationService {
       }
     }
 
-    // Try fallback allocation - join groups for larger parties
-    if (partySize >= 7) {
-      for (const group of joinGroups) {
-        if (this.isJoinGroupAvailable(group, occupiedTableIds, partySize)) {
-          return { success: true, tableIds: group.table_ids };
-        }
+    // Try fallback allocation - join groups for larger parties first, then any size
+    console.log(`🔄 Trying fallback allocation for party of ${partySize}`);
+    
+    // First try join groups (for any party size that could benefit)
+    for (const group of joinGroups) {
+      if (this.isJoinGroupAvailable(group, occupiedTableIds, partySize)) {
+        console.log(`✅ Fallback group allocation: ${group.name} (tables: [${group.table_ids.join(', ')}])`);
+        return { success: true, tableIds: group.table_ids };
       }
     }
 
@@ -311,9 +313,25 @@ export class TableAllocationService {
   }
 
   private static isJoinGroupAvailable(group: any, occupiedTableIds: number[], partySize: number): boolean {
-    return partySize >= group.min_party_size &&
-           partySize <= group.max_party_size &&
-           group.table_ids.every((tableId: number) => !occupiedTableIds.includes(tableId));
+    console.log(`🔍 Checking join group "${group.name}": min=${group.min_party_size}, max=${group.max_party_size}, tables=[${group.table_ids.join(',')}]`);
+    console.log(`   Party size: ${partySize}, Occupied tables: [${occupiedTableIds.join(',')}]`);
+    
+    // Check party size fits group capacity
+    const sizeMatches = partySize >= group.min_party_size && partySize <= group.max_party_size;
+    
+    // Check all tables in group are available
+    const allTablesAvailable = group.table_ids.every((tableId: number) => {
+      const isAvailable = !occupiedTableIds.includes(tableId);
+      if (!isAvailable) {
+        console.log(`   ❌ Table ${tableId} is occupied`);
+      }
+      return isAvailable;
+    });
+    
+    const isAvailable = sizeMatches && allTablesAvailable;
+    console.log(`   ${isAvailable ? '✅' : '❌'} Group "${group.name}" available: ${isAvailable}`);
+    
+    return isAvailable;
   }
 
   private static getOccupiedTableIds(
