@@ -4,7 +4,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useVenueHours } from "@/hooks/useVenueHours";
+import { Separator } from "@/components/ui/separator";
+import { WalkInGuestSearch } from "./WalkInGuestSearch";
+import { SmartDurationCalculator } from "./SmartDurationCalculator";
+import { UserPlus, User } from "lucide-react";
 
 interface QuickWalkInDialogProps {
   open: boolean;
@@ -17,8 +20,22 @@ interface QuickWalkInDialogProps {
     partySize: number;
     guestName?: string;
     duration: number;
+    phone?: string;
+    email?: string;
+    notes?: string;
+    guestId?: string;
   }) => void;
   defaultDuration: number;
+  selectedDate: Date;
+}
+
+interface Guest {
+  id: string;
+  name: string;
+  email?: string;
+  phone?: string;
+  notes?: string;
+  opt_in_marketing?: boolean;
 }
 
 export const QuickWalkInDialog = ({
@@ -27,20 +44,37 @@ export const QuickWalkInDialog = ({
   table,
   time,
   onCreateWalkIn,
-  defaultDuration
+  defaultDuration,
+  selectedDate
 }: QuickWalkInDialogProps) => {
   const [partySize, setPartySize] = useState(2);
   const [guestName, setGuestName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [notes, setNotes] = useState("");
   const [duration, setDuration] = useState(defaultDuration);
-  const { data: venueHours } = useVenueHours();
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
+  const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
+  const [showGuestDetails, setShowGuestDetails] = useState(false);
 
   useEffect(() => {
     if (open) {
+      // Reset form when dialog opens
       setPartySize(2);
       setGuestName("");
+      setPhone("");
+      setEmail("");
+      setNotes("");
       setDuration(defaultDuration);
+      setMarketingOptIn(false);
+      setSelectedGuest(null);
+      setShowGuestDetails(false);
     }
   }, [open, defaultDuration]);
+
+  const handleGuestSelect = (guest: Guest) => {
+    setSelectedGuest(guest);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,54 +86,30 @@ export const QuickWalkInDialog = ({
       time,
       partySize,
       guestName: guestName.trim() || undefined,
-      duration
+      duration,
+      phone: phone.trim() || undefined,
+      email: email.trim() || undefined,
+      notes: notes.trim() || undefined,
+      guestId: selectedGuest?.id
     });
     
     onOpenChange(false);
-  };
-
-  const calculateEndTime = () => {
-    if (!time) return null;
-    
-    const [hours, minutes] = time.split(':').map(Number);
-    const startDate = new Date();
-    startDate.setHours(hours, minutes, 0, 0);
-    
-    const endDate = new Date(startDate.getTime() + (duration * 60 * 1000));
-    return `${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}`;
   };
 
   if (!table) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Seat Walk-In at Table {table.label}</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <UserPlus className="h-5 w-5" />
+            Seat Walk-In at Table {table.label}
+          </DialogTitle>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="time">Time</Label>
-              <Input
-                id="time"
-                value={time}
-                readOnly
-                className="bg-muted"
-              />
-            </div>
-            <div>
-              <Label htmlFor="endTime">Until</Label>
-              <Input
-                id="endTime"
-                value={calculateEndTime() || ''}
-                readOnly
-                className="bg-muted"
-              />
-            </div>
-          </div>
-
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Party Size */}
           <div>
             <Label htmlFor="partySize">Number of Guests</Label>
             <Input
@@ -109,35 +119,56 @@ export const QuickWalkInDialog = ({
               max={table.seats}
               value={partySize}
               onChange={(e) => setPartySize(Math.max(1, parseInt(e.target.value) || 1))}
-              className="text-foreground bg-background border-border"
+              className="text-foreground bg-background border-border mt-1"
               placeholder="Enter number of guests"
             />
+            <p className="text-xs text-muted-foreground mt-1">
+              Table capacity: {table.seats} guests
+            </p>
           </div>
 
-          <div>
-            <Label htmlFor="guestName">Guest Name (Optional)</Label>
-            <Input
-              id="guestName"
-              value={guestName}
-              onChange={(e) => setGuestName(e.target.value)}
-              placeholder="Enter guest name"
-              className="text-foreground bg-background border-border"
-            />
+          {/* Duration Calculator */}
+          <SmartDurationCalculator
+            duration={duration}
+            setDuration={setDuration}
+            time={time}
+            selectedDate={selectedDate}
+            tableId={table.id}
+            partySize={partySize}
+          />
+
+          <Separator />
+
+          {/* Guest Search Toggle */}
+          <div className="flex items-center justify-between">
+            <Label className="text-base font-medium">Guest Details</Label>
+            <Button
+              type="button"
+              variant={showGuestDetails ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowGuestDetails(!showGuestDetails)}
+            >
+              <User className="h-4 w-4 mr-2" />
+              {showGuestDetails ? "Hide Details" : "Add Guest Info"}
+            </Button>
           </div>
 
-          <div>
-            <Label htmlFor="duration">Duration (minutes)</Label>
-            <Input
-              id="duration"
-              type="number"
-              min="30"
-              max="360"
-              step="15"
-              value={duration}
-              onChange={(e) => setDuration(Math.max(30, parseInt(e.target.value) || defaultDuration))}
-              className="text-foreground bg-background border-border"
+          {/* Guest Search Form */}
+          {showGuestDetails && (
+            <WalkInGuestSearch
+              guestName={guestName}
+              setGuestName={setGuestName}
+              phone={phone}
+              setPhone={setPhone}
+              email={email}
+              setEmail={setEmail}
+              notes={notes}
+              setNotes={setNotes}
+              marketingOptIn={marketingOptIn}
+              setMarketingOptIn={setMarketingOptIn}
+              onGuestSelect={handleGuestSelect}
             />
-          </div>
+          )}
 
           <div className="flex justify-end gap-2 pt-4">
             <Button
@@ -148,6 +179,7 @@ export const QuickWalkInDialog = ({
               Cancel
             </Button>
             <Button type="submit">
+              <UserPlus className="h-4 w-4 mr-2" />
               Seat Walk-In
             </Button>
           </div>

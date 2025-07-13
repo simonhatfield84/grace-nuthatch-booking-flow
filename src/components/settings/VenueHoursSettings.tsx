@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Clock, Loader2 } from "lucide-react";
+import { Clock, Loader2, CheckCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 export const VenueHoursSettings = () => {
@@ -15,6 +15,7 @@ export const VenueHoursSettings = () => {
   const [walkInDuration, setWalkInDuration] = useState(120);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<string | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -35,30 +36,39 @@ export const VenueHoursSettings = () => {
         .single();
 
       if (profile?.venue_id) {
+        console.log('Loading settings for venue:', profile.venue_id);
+        
         // Load operating hours
-        const { data: hoursData } = await supabase
+        const { data: hoursData, error: hoursError } = await supabase
           .from('venue_settings')
           .select('setting_value')
           .eq('venue_id', profile.venue_id)
           .eq('setting_key', 'operating_hours')
           .maybeSingle();
 
-        if (hoursData?.setting_value) {
+        if (hoursError) {
+          console.error('Error loading operating hours:', hoursError);
+        } else if (hoursData?.setting_value) {
           const hours = hoursData.setting_value as any;
+          console.log('Loaded operating hours:', hours);
           setStartTime(hours.start_time || "17:00");
           setEndTime(hours.end_time || "23:00");
         }
 
         // Load walk-in duration
-        const { data: walkInData } = await supabase
+        const { data: walkInData, error: walkInError } = await supabase
           .from('venue_settings')
           .select('setting_value')
           .eq('venue_id', profile.venue_id)
           .eq('setting_key', 'walk_in_duration')
           .maybeSingle();
 
-        if (walkInData?.setting_value) {
-          setWalkInDuration(walkInData.setting_value as number);
+        if (walkInError) {
+          console.error('Error loading walk-in duration:', walkInError);
+        } else if (walkInData?.setting_value) {
+          const duration = walkInData.setting_value as number;
+          console.log('Loaded walk-in duration:', duration);
+          setWalkInDuration(duration);
         }
       }
     } catch (error) {
@@ -89,7 +99,9 @@ export const VenueHoursSettings = () => {
         throw new Error('No venue associated with user');
       }
 
-      // Save operating hours
+      console.log('Saving settings for venue:', profile.venue_id);
+
+      // Save operating hours with proper conflict resolution
       const { error: hoursError } = await supabase
         .from('venue_settings')
         .upsert({
@@ -98,25 +110,42 @@ export const VenueHoursSettings = () => {
           setting_value: {
             start_time: startTime,
             end_time: endTime
-          }
+          },
+          updated_at: new Date().toISOString()
         }, {
-          onConflict: 'venue_id,setting_key'
+          onConflict: 'venue_id,setting_key',
+          ignoreDuplicates: false
         });
 
-      if (hoursError) throw hoursError;
+      if (hoursError) {
+        console.error('Error saving operating hours:', hoursError);
+        throw hoursError;
+      }
 
-      // Save walk-in duration
+      console.log('Operating hours saved successfully');
+
+      // Save walk-in duration with proper conflict resolution
       const { error: walkInError } = await supabase
         .from('venue_settings')
         .upsert({
           venue_id: profile.venue_id,
           setting_key: 'walk_in_duration',
-          setting_value: walkInDuration
+          setting_value: walkInDuration,
+          updated_at: new Date().toISOString()
         }, {
-          onConflict: 'venue_id,setting_key'
+          onConflict: 'venue_id,setting_key',
+          ignoreDuplicates: false
         });
 
-      if (walkInError) throw walkInError;
+      if (walkInError) {
+        console.error('Error saving walk-in duration:', walkInError);
+        throw walkInError;
+      }
+
+      console.log('Walk-in duration saved successfully');
+
+      // Update last saved timestamp
+      setLastSaved(new Date().toLocaleTimeString());
 
       toast({
         title: "Settings saved",
@@ -133,6 +162,8 @@ export const VenueHoursSettings = () => {
       setSaving(false);
     }
   };
+
+  const isFormValid = startTime && endTime && walkInDuration >= 30;
 
   if (loading) {
     return (
@@ -164,6 +195,7 @@ export const VenueHoursSettings = () => {
               type="time"
               value={startTime}
               onChange={(e) => setStartTime(e.target.value)}
+              className="text-foreground bg-background border-border"
             />
           </div>
           <div className="space-y-2">
@@ -173,6 +205,7 @@ export const VenueHoursSettings = () => {
               type="time"
               value={endTime}
               onChange={(e) => setEndTime(e.target.value)}
+              className="text-foreground bg-background border-border"
             />
           </div>
         </div>
@@ -188,26 +221,38 @@ export const VenueHoursSettings = () => {
             value={walkInDuration}
             onChange={(e) => setWalkInDuration(Math.max(30, parseInt(e.target.value) || 120))}
             placeholder="120"
+            className="text-foreground bg-background border-border"
           />
           <p className="text-sm text-muted-foreground">
             How long walk-in customers are seated by default (can be adjusted per booking)
           </p>
         </div>
 
-        <Button 
-          onClick={handleSave} 
-          disabled={saving}
-          className="w-full"
-        >
-          {saving ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Saving...
-            </>
-          ) : (
-            'Save Settings'
-          )}
-        </Button>
+        <div className="flex items-center justify-between pt-4">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            {lastSaved && (
+              <>
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <span>Last saved at {lastSaved}</span>
+              </>
+            )}
+          </div>
+          
+          <Button 
+            onClick={handleSave} 
+            disabled={saving || !isFormValid}
+            className="min-w-[120px]"
+          >
+            {saving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              'Save Settings'
+            )}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
