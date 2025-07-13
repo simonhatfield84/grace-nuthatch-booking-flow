@@ -5,10 +5,10 @@ import { BookingFlowManager, BookingStep } from "@/components/bookings/BookingFl
 import { Progress } from "@/components/ui/progress";
 
 const BookingWidget = () => {
-  const { slug } = useParams<{ slug: string }>();
+  const { venueSlug } = useParams<{ venueSlug: string }>();
   const [currentStep, setCurrentStep] = useState<BookingStep>('date');
 
-  if (!slug) {
+  if (!venueSlug) {
     return <div>Invalid venue</div>;
   }
 
@@ -53,7 +53,7 @@ const BookingWidget = () => {
           )}
 
           <BookingFlowManager 
-            venueSlug={slug} 
+            venueSlug={venueSlug} 
             onStepChange={setCurrentStep}
           />
         </div>
