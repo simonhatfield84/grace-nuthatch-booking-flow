@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -10,8 +9,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { Search, UserPlus, AlertTriangle, Clock } from "lucide-react";
+import { Search, UserPlus, AlertTriangle, Clock, Settings } from "lucide-react";
 import { BookingConflictService, type BookingConflict } from "@/services/bookingConflictService";
+import { TableOptimizationService, type TableOptimizationResult } from "@/services/tableOptimizationService";
+import { TimeSlotService, type TimeSlotOptimizationResult } from "@/services/timeSlotService";
+import { WalkInValidationService, type ValidationResult } from "@/services/walkInValidationService";
+import { AdvancedConflictResolution } from "./AdvancedConflictResolution";
+import { WalkInValidationPanel } from "./WalkInValidationPanel";
 import { format } from "date-fns";
 
 interface EnhancedWalkInDialogProps {
@@ -80,11 +84,18 @@ export const EnhancedWalkInDialog = ({
     conflictInfo: null
   });
   const [conflictCheckDebounce, setConflictCheckDebounce] = useState<NodeJS.Timeout | null>(null);
+
+  const [showAdvancedResolution, setShowAdvancedResolution] = useState(false);
+  const [tableOptimization, setTableOptimization] = useState<TableOptimizationResult | null>(null);
+  const [timeOptimization, setTimeOptimization] = useState<TimeSlotOptimizationResult | null>(null);
+  const [validation, setValidation] = useState<ValidationResult | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
+  const [selectedAlternativeTable, setSelectedAlternativeTable] = useState<number | null>(null);
+  const [selectedAlternativeTime, setSelectedAlternativeTime] = useState<string | null>(null);
   
   const { user } = useAuth();
   const { toast } = useToast();
 
-  // Load venue's default walk-in duration
   useEffect(() => {
     const loadVenueSettings = async () => {
       if (!user) return;
@@ -140,16 +151,14 @@ export const EnhancedWalkInDialog = ({
     }
   }, [open, venueDefaultDuration]);
 
-  // Enhanced conflict checking with persistent state
   useEffect(() => {
     if (!table || !time || !user || !open) return;
 
-    // Clear existing debounce
     if (conflictCheckDebounce) {
       clearTimeout(conflictCheckDebounce);
     }
 
-    const checkConflicts = async () => {
+    const checkConflictsAndOptimize = async () => {
       setIsCheckingConflicts(true);
       try {
         const { data: profile } = await supabase
@@ -168,10 +177,42 @@ export const EnhancedWalkInDialog = ({
           );
 
           setConflict(conflictInfo);
+
+          if (conflictInfo.hasConflict) {
+            const [tableOpt, timeOpt] = await Promise.all([
+              TableOptimizationService.optimizeTableSelection(
+                table.id,
+                partySize,
+                format(selectedDate, 'yyyy-MM-dd'),
+                time,
+                duration,
+                profile.venue_id
+              ),
+              TimeSlotService.optimizeTimeSlots(
+                table.id,
+                time,
+                partySize,
+                duration,
+                format(selectedDate, 'yyyy-MM-dd'),
+                profile.venue_id
+              )
+            ]);
+
+            setTableOptimization(tableOpt);
+            setTimeOptimization(timeOpt);
+
+            const hasAlternatives = 
+              tableOpt.suggestedTables.length > 0 ||
+              timeOpt.earlierSlots.length > 0 ||
+              timeOpt.laterSlots.length > 0 ||
+              tableOpt.joinGroupOptions.length > 0;
+
+            if (hasAlternatives && conflictInfo.maxAvailableDuration < 30) {
+              setShowAdvancedResolution(true);
+            }
+          }
           
-          // Handle auto-adjustment logic
           if (conflictInfo.hasConflict && conflictInfo.maxAvailableDuration > 0) {
-            // Only auto-adjust if we haven't already adjusted or if this is a new conflict
             if (!conflictAdjustment.wasAutoAdjusted || duration !== conflictAdjustment.adjustedDuration) {
               const originalDuration = conflictAdjustment.wasAutoAdjusted 
                 ? conflictAdjustment.originalDuration 
@@ -186,7 +227,6 @@ export const EnhancedWalkInDialog = ({
               });
             }
           } else if (!conflictInfo.hasConflict && !conflictAdjustment.wasAutoAdjusted) {
-            // Only clear if we haven't made any auto-adjustments
             setConflictAdjustment({
               wasAutoAdjusted: false,
               originalDuration: duration,
@@ -202,16 +242,52 @@ export const EnhancedWalkInDialog = ({
       }
     };
 
-    // Debounce conflict checking to prevent flickering
-    const debounceTimer = setTimeout(checkConflicts, 300);
+    const debounceTimer = setTimeout(checkConflictsAndOptimize, 300);
     setConflictCheckDebounce(debounceTimer);
 
     return () => {
       if (debounceTimer) clearTimeout(debounceTimer);
     };
-  }, [table, time, duration, user, open, selectedDate]);
+  }, [table, time, duration, partySize, user, open, selectedDate]);
 
-  // Search for existing guests
+  useEffect(() => {
+    if (!table || !time || !user || !open) return;
+
+    const validateWalkIn = async () => {
+      setIsValidating(true);
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('venue_id')
+          .eq('id', user.id)
+          .single();
+
+        if (profile?.venue_id) {
+          const validationResult = await WalkInValidationService.validateWalkIn({
+            tableId: selectedAlternativeTable || table.id,
+            time: selectedAlternativeTime || time,
+            date: format(selectedDate, 'yyyy-MM-dd'),
+            partySize,
+            duration,
+            guestName: guestName.trim() || undefined,
+            phone: phone.trim() || undefined,
+            email: email.trim() || undefined,
+            venueId: profile.venue_id
+          });
+
+          setValidation(validationResult);
+        }
+      } catch (error) {
+        console.error('Error validating walk-in:', error);
+      } finally {
+        setIsValidating(false);
+      }
+    };
+
+    const debounceTimer = setTimeout(validateWalkIn, 500);
+    return () => clearTimeout(debounceTimer);
+  }, [table, time, partySize, duration, guestName, phone, email, selectedAlternativeTable, selectedAlternativeTime, user, open, selectedDate]);
+
   useEffect(() => {
     const searchGuests = async () => {
       if (!guestName.trim() || guestName.length < 2) {
@@ -261,7 +337,6 @@ export const EnhancedWalkInDialog = ({
   };
 
   const handleDurationChange = (newDuration: number) => {
-    // When user manually changes duration, reset auto-adjustment tracking
     setDuration(newDuration);
     if (conflictAdjustment.wasAutoAdjusted) {
       setConflictAdjustment({
@@ -273,27 +348,72 @@ export const EnhancedWalkInDialog = ({
     }
   };
 
+  const handleAlternativeTableSelect = (tableId: number, tableName: string) => {
+    setSelectedAlternativeTable(tableId);
+    setShowAdvancedResolution(false);
+    toast({
+      title: "Alternative table selected",
+      description: `Switched to Table ${tableName}`,
+    });
+  };
+
+  const handleAlternativeTimeSelect = (newTime: string, tableId: number) => {
+    setSelectedAlternativeTime(newTime);
+    setSelectedAlternativeTable(tableId);
+    setShowAdvancedResolution(false);
+    toast({
+      title: "Alternative time selected",
+      description: `Switched to ${newTime}`,
+    });
+  };
+
+  const handleJoinGroupSelect = (groupId: number, groupName: string, tableIds: number[]) => {
+    setSelectedAlternativeTable(groupId);
+    setShowAdvancedResolution(false);
+    toast({
+      title: "Table group selected",
+      description: `Selected ${groupName}`,
+    });
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!table) return;
 
-    // Use current conflict or persistent conflict info for validation
-    const currentConflict = conflict || conflictAdjustment.conflictInfo;
-
-    // Prevent submission if there are unresolved conflicts with no available time
-    if (currentConflict?.hasConflict && currentConflict.maxAvailableDuration < 30) {
+    if (validation && !validation.isValid) {
       toast({
-        title: "Cannot seat walk-in",
-        description: "No available time slot found. Please choose a different time.",
+        title: "Validation failed",
+        description: "Please fix the validation errors before proceeding.",
         variant: "destructive"
       });
       return;
     }
 
+    const currentConflict = conflict || conflictAdjustment.conflictInfo;
+
+    if (currentConflict?.hasConflict && currentConflict.maxAvailableDuration < 30 && !selectedAlternativeTable && !selectedAlternativeTime) {
+      toast({
+        title: "Cannot seat walk-in",
+        description: "No available time slot found. Please choose a different time or table.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (validation?.warnings.length > 0) {
+      const proceedableWarnings = validation.warnings.filter(w => w.canProceed);
+      if (proceedableWarnings.length > 0) {
+        toast({
+          title: "Booking created with warnings",
+          description: `${proceedableWarnings.length} warning(s) noted but booking can proceed.`,
+        });
+      }
+    }
+
     onCreateWalkIn({
-      tableId: table.id,
-      time,
+      tableId: selectedAlternativeTable || table.id,
+      time: selectedAlternativeTime || time,
       partySize,
       guestName: guestName.trim() || undefined,
       duration,
@@ -307,9 +427,10 @@ export const EnhancedWalkInDialog = ({
   };
 
   const calculateEndTime = () => {
-    if (!time) return null;
+    const currentTime = selectedAlternativeTime || time;
+    if (!currentTime) return null;
     
-    const [hours, minutes] = time.split(':').map(Number);
+    const [hours, minutes] = currentTime.split(':').map(Number);
     const startDate = new Date();
     startDate.setHours(hours, minutes, 0, 0);
     
@@ -319,7 +440,33 @@ export const EnhancedWalkInDialog = ({
 
   if (!table) return null;
 
-  // Show persistent conflict warning if there was an auto-adjustment or current conflict
+  if (showAdvancedResolution && tableOptimization && timeOptimization) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Resolve Booking Conflict
+            </DialogTitle>
+          </DialogHeader>
+          
+          <AdvancedConflictResolution
+            tableOptimization={tableOptimization}
+            timeOptimization={timeOptimization}
+            originalTime={time}
+            originalTableLabel={table.label}
+            partySize={partySize}
+            onSelectTable={handleAlternativeTableSelect}
+            onSelectTime={handleAlternativeTimeSelect}
+            onSelectJoinGroup={handleJoinGroupSelect}
+            onCancel={() => setShowAdvancedResolution(false)}
+          />
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   const shouldShowConflictWarning = conflictAdjustment.wasAutoAdjusted || conflict?.hasConflict;
   const conflictToDisplay = conflictAdjustment.wasAutoAdjusted ? conflictAdjustment.conflictInfo : conflict;
 
@@ -327,7 +474,9 @@ export const EnhancedWalkInDialog = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Seat Walk-In at Table {table.label}</DialogTitle>
+          <DialogTitle>
+            Seat Walk-In at {selectedAlternativeTable ? `Alternative Table` : `Table ${table.label}`}
+          </DialogTitle>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -336,7 +485,7 @@ export const EnhancedWalkInDialog = ({
               <Label htmlFor="time">Time</Label>
               <Input
                 id="time"
-                value={time}
+                value={selectedAlternativeTime || time}
                 readOnly
                 className="bg-muted"
               />
@@ -352,8 +501,7 @@ export const EnhancedWalkInDialog = ({
             </div>
           </div>
 
-          {/* Enhanced Persistent Conflict Warning */}
-          {shouldShowConflictWarning && conflictToDisplay && (
+          {shouldShowConflictWarning && conflictToDisplay && !selectedAlternativeTable && !selectedAlternativeTime && (
             <Alert className="border-amber-200 bg-amber-50">
               <AlertTriangle className="h-4 w-4 text-amber-600" />
               <AlertDescription className="text-amber-800">
@@ -374,22 +522,32 @@ export const EnhancedWalkInDialog = ({
                     Duration automatically adjusted to {conflictToDisplay.maxAvailableDuration} minutes.
                   </>
                 ) : (
-                  <>
-                    <strong>No available time!</strong> Table is fully booked.
-                    Please choose a different time or table.
-                  </>
+                  <div className="space-y-2">
+                    <div>
+                      <strong>No available time!</strong> Table is fully booked.
+                    </div>
+                    <Button 
+                      type="button" 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => setShowAdvancedResolution(true)}
+                    >
+                      View Alternatives
+                    </Button>
+                  </div>
                 )}
               </AlertDescription>
             </Alert>
           )}
 
-          {/* Improved loading indicator */}
           {isCheckingConflicts && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted p-2 rounded">
               <Clock className="h-4 w-4 animate-spin" />
               Checking availability...
             </div>
           )}
+
+          <WalkInValidationPanel validation={validation} isValidating={isValidating} />
 
           <div>
             <Label htmlFor="partySize">Number of Guests</Label>
@@ -423,7 +581,6 @@ export const EnhancedWalkInDialog = ({
               )}
             </div>
             
-            {/* Search Results */}
             {searchResults.length > 0 && (
               <div className="border rounded-md bg-background max-h-32 overflow-y-auto">
                 {searchResults.map((guest) => (
@@ -517,7 +674,7 @@ export const EnhancedWalkInDialog = ({
               value={duration}
               onChange={(e) => handleDurationChange(Math.max(30, parseInt(e.target.value) || venueDefaultDuration))}
               className="text-foreground bg-background border-border"
-              disabled={conflictAdjustment.wasAutoAdjusted} // Disable manual editing when auto-adjusted
+              disabled={conflictAdjustment.wasAutoAdjusted}
             />
             {conflictAdjustment.wasAutoAdjusted && (
               <p className="text-xs text-muted-foreground mt-1">
@@ -536,7 +693,10 @@ export const EnhancedWalkInDialog = ({
             </Button>
             <Button 
               type="submit"
-              disabled={conflict?.hasConflict && conflict.maxAvailableDuration < 30}
+              disabled={
+                (conflict?.hasConflict && conflict.maxAvailableDuration < 30 && !selectedAlternativeTable && !selectedAlternativeTime) ||
+                (validation && !validation.isValid)
+              }
             >
               <UserPlus className="h-4 w-4 mr-2" />
               Seat Walk-In
