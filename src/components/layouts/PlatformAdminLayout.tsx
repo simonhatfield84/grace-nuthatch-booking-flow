@@ -1,108 +1,133 @@
 
-import { Outlet, Navigate } from "react-router-dom";
+import { useState } from "react";
+import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/contexts/AuthContext";
 import { usePlatformAdmin } from "@/hooks/usePlatformAdmin";
-import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { Building2, Users, CreditCard, Settings, BarChart3, HeadphonesIcon, Shield } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
-import { PlatformHeader } from "@/components/platform/PlatformHeader";
+import { 
+  BarChart3, 
+  Users, 
+  Building2, 
+  Settings, 
+  Shield, 
+  CreditCard, 
+  HelpCircle, 
+  LogOut,
+  Menu,
+  X
+} from "lucide-react";
 
-const platformNavItems = [
-  {
-    title: "Dashboard",
-    url: "/platform/dashboard",
-    icon: BarChart3,
-  },
-  {
-    title: "Venues",
-    url: "/platform/venues",
-    icon: Building2,
-  },
-  {
-    title: "Users",
-    url: "/platform/users",
-    icon: Users,
-  },
-  {
-    title: "Security",
-    url: "/platform/security",
-    icon: Shield,
-  },
-  {
-    title: "Subscriptions",
-    url: "/platform/subscriptions",
-    icon: CreditCard,
-  },
-  {
-    title: "Support",
-    url: "/platform/support",
-    icon: HeadphonesIcon,
-  },
-  {
-    title: "Settings",
-    url: "/platform/settings",
-    icon: Settings,
-  },
-];
-
-export function PlatformAdminLayout() {
-  const { data: isPlatformAdmin, isLoading } = usePlatformAdmin();
+export const PlatformAdminLayout = () => {
+  const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
+  const { isPlatformAdmin, isLoading } = usePlatformAdmin();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate('/platform/auth');
+  };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-900">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-orange-500"></div>
-      </div>
-    );
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   }
 
   if (!isPlatformAdmin) {
-    return <Navigate to="/platform/login" replace />;
+    navigate('/platform/auth');
+    return null;
   }
 
+  const menuItems = [
+    { icon: BarChart3, label: "Dashboard", path: "/platform/dashboard" },
+    { icon: Building2, label: "Venues", path: "/platform/venues" },
+    { icon: Users, label: "Users", path: "/platform/users" },
+    { icon: Shield, label: "Security", path: "/platform/security" },
+    { icon: CreditCard, label: "Subscriptions", path: "/platform/subscriptions" },
+    { icon: Settings, label: "Settings", path: "/platform/settings" },
+    { icon: HelpCircle, label: "Support", path: "/platform/support" },
+  ];
+
+  const isActive = (path: string) => location.pathname === path;
+
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-slate-50/40">
-        <Sidebar variant="inset" className="bg-slate-800 border-slate-700">
-          <SidebarContent className="bg-slate-800">
-            <SidebarGroup>
-              <SidebarGroupLabel className="text-lg font-semibold px-4 py-2 text-slate-100">
-                Platform Admin
-              </SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {platformNavItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={location.pathname === item.url}
-                        className="text-slate-100 hover:text-white hover:bg-slate-700 data-[active=true]:bg-orange-600 data-[active=true]:text-white"
-                      >
-                        <Link to={item.url}>
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </SidebarContent>
-        </Sidebar>
-        <main className="flex-1 flex flex-col overflow-hidden">
-          <header className="border-b bg-slate-800 border-slate-700 px-6 py-3">
-            <div className="flex items-center gap-4">
-              <SidebarTrigger className="text-slate-100 hover:text-white" />
-              <h1 className="text-xl font-semibold text-white">Platform Administration</h1>
-              <PlatformHeader />
+    <div className="min-h-screen bg-background flex">
+      {/* Sidebar */}
+      <div className={`bg-card border-r transition-all duration-300 flex flex-col ${
+        sidebarCollapsed ? 'w-16' : 'w-64'
+      }`}>
+        {/* Header */}
+        <div className="p-4 border-b flex items-center justify-between">
+          {!sidebarCollapsed && (
+            <div>
+              <h1 className="text-xl font-bold text-primary">Grace Platform</h1>
+              <p className="text-sm text-muted-foreground">Admin Dashboard</p>
             </div>
-          </header>
-          <div className="flex-1 overflow-auto p-6 bg-slate-50">
-            <Outlet />
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="p-2"
+          >
+            {sidebarCollapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
+          </Button>
+        </div>
+
+        {/* User Info */}
+        {!sidebarCollapsed && (
+          <div className="p-4 border-b">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <span className="text-sm font-medium text-primary">
+                  {user?.email?.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{user?.email}</p>
+                <Badge variant="secondary" className="text-xs">Platform Admin</Badge>
+              </div>
+            </div>
           </div>
-        </main>
+        )}
+
+        {/* Navigation */}
+        <nav className="flex-1 p-4">
+          <ul className="space-y-2">
+            {menuItems.map((item) => (
+              <li key={item.path}>
+                <Button
+                  variant={isActive(item.path) ? "default" : "ghost"}
+                  className={`w-full justify-start gap-3 ${sidebarCollapsed ? 'px-2' : 'px-3'}`}
+                  onClick={() => navigate(item.path)}
+                >
+                  <item.icon className="h-4 w-4 flex-shrink-0" />
+                  {!sidebarCollapsed && <span>{item.label}</span>}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        {/* Sign Out Button - Fixed positioning */}
+        <div className="p-4 border-t mt-auto">
+          <Button
+            variant="outline"
+            className={`w-full gap-3 ${sidebarCollapsed ? 'px-2' : 'px-3'}`}
+            onClick={handleSignOut}
+          >
+            <LogOut className="h-4 w-4 flex-shrink-0" />
+            {!sidebarCollapsed && <span>Sign Out</span>}
+          </Button>
+        </div>
       </div>
-    </SidebarProvider>
+
+      {/* Main Content */}
+      <div className="flex-1 overflow-auto">
+        <Outlet />
+      </div>
+    </div>
   );
-}
+};
