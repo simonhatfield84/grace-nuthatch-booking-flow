@@ -72,8 +72,9 @@ export class TableOptimizationService {
 
       // Check primary table availability
       const primaryTable = tables?.find(t => t.id === requestedTableId);
-      const primaryTableAvailable = primaryTable ? 
-        this.checkTableAvailability(primaryTable, bookings || [], time, duration, partySize) : false;
+      const primaryTableAvailability = primaryTable ? 
+        this.checkTableAvailability(primaryTable, bookings || [], time, duration, partySize) : 
+        { available: false, maxDuration: 0 };
 
       // Find alternative single tables
       for (const table of tables || []) {
@@ -149,7 +150,7 @@ export class TableOptimizationService {
       });
 
       return {
-        primaryTableAvailable: primaryTableAvailable.available,
+        primaryTableAvailable: primaryTableAvailability.available,
         suggestedTables: suggestions.slice(0, 5), // Top 5 suggestions
         joinGroupOptions,
         splitPartyOptions
