@@ -2,6 +2,47 @@
 import { supabase } from "@/integrations/supabase/client";
 import { format, addDays, startOfDay, parseISO } from "date-fns";
 import { UnifiedAvailabilityService } from "./unifiedAvailabilityService";
+import type { Json } from "@/integrations/supabase/types";
+
+// Updated interface to match database types
+interface DatabaseBookingWindow {
+  id: string;
+  venue_id: string;
+  service_id: string;
+  days: string[];
+  start_time: string;
+  end_time: string;
+  max_bookings_per_slot: number;
+  start_date?: string | null;
+  end_date?: string | null;
+  blackout_periods?: Json | null;
+}
+
+// Helper function to safely parse blackout periods
+function parseBlackoutPeriods(blackoutPeriodsJson: Json | null): any[] {
+  if (!blackoutPeriodsJson) return [];
+  
+  try {
+    if (Array.isArray(blackoutPeriodsJson)) {
+      return blackoutPeriodsJson;
+    }
+    if (typeof blackoutPeriodsJson === 'string') {
+      return JSON.parse(blackoutPeriodsJson);
+    }
+    return [];
+  } catch (error) {
+    console.warn('Failed to parse blackout periods:', error);
+    return [];
+  }
+}
+
+// Helper function to convert database booking window to service format
+function convertToBookingWindow(dbWindow: DatabaseBookingWindow) {
+  return {
+    ...dbWindow,
+    blackout_periods: parseBlackoutPeriods(dbWindow.blackout_periods)
+  };
+}
 
 export class OptimizedAvailabilityService {
   private static cache = new Map<string, { data: string[], timestamp: number }>();
@@ -38,7 +79,7 @@ export class OptimizedAvailabilityService {
 
     try {
       // Get booking windows for this venue first
-      const { data: bookingWindows, error: windowsError } = await supabase
+      const { data: dbBookingWindows, error: windowsError } = await supabase
         .from('booking_windows')
         .select('*')
         .eq('venue_id', venueId);
@@ -48,20 +89,24 @@ export class OptimizedAvailabilityService {
         return [];
       }
 
-      if (!bookingWindows || bookingWindows.length === 0) {
+      if (!dbBookingWindows || dbBookingWindows.length === 0) {
         console.log(`❌ No booking windows found for venue ${venueId}`);
         return [];
       }
 
-      console.log(`📋 Found ${bookingWindows.length} booking windows`);
+      console.log(`📋 Found ${dbBookingWindows.length} booking windows`);
+      
+      // Convert database windows to service format
+      const bookingWindows = dbBookingWindows.map(convertToBookingWindow);
       
       // Log booking windows details for debugging
       bookingWindows.forEach(window => {
+        const blackoutCount = window.blackout_periods?.length || 0;
         console.log(`📋 Window ${window.id}:`, {
           service_id: window.service_id,
           days: window.days,
           times: `${window.start_time}-${window.end_time}`,
-          blackouts: window.blackout_periods?.length || 0
+          blackouts: blackoutCount
         });
       });
 
@@ -139,15 +184,18 @@ export class OptimizedAvailabilityService {
   ): Promise<boolean> {
     try {
       // Get booking windows for this venue
-      const { data: bookingWindows, error } = await supabase
+      const { data: dbBookingWindows, error } = await supabase
         .from('booking_windows')
         .select('*')
         .eq('venue_id', venueId);
 
-      if (error || !bookingWindows) {
+      if (error || !dbBookingWindows) {
         console.error('Error fetching booking windows:', error);
         return false;
       }
+
+      // Convert to service format
+      const bookingWindows = dbBookingWindows.map(convertToBookingWindow);
 
       return await UnifiedAvailabilityService.checkDateAvailability(
         venueId,
