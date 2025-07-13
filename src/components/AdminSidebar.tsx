@@ -1,9 +1,9 @@
+
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -22,7 +22,6 @@ import {
   UserCheck,
   Menu,
   X,
-  TestTube,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -119,16 +118,7 @@ const AdminSidebar = ({ collapsed = false, onToggleCollapse, showUserProfile = f
                 title={collapsed ? item.name : undefined}
               >
                 <Icon className={`h-4 w-4 flex-shrink-0 ${collapsed ? '' : 'mr-3'}`} />
-                {!collapsed && (
-                  <>
-                    <span className="flex-1">{item.name}</span>
-                    {item.badge && (
-                      <Badge variant="secondary" className="ml-auto text-xs">
-                        {item.badge}
-                      </Badge>
-                    )}
-                  </>
-                )}
+                {!collapsed && <span className="flex-1">{item.name}</span>}
               </Link>
             );
           })}
