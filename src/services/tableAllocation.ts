@@ -1,155 +1,67 @@
 import { supabase } from "@/integrations/supabase/client";
-import { addMinutes, parseISO, format } from "date-fns";
-
-interface Table {
-  id: number;
-  label: string;
-  seats: number;
-  section_id: number;
-  join_groups: number[];
-  priority_rank: number;
-}
-
-interface JoinGroup {
-  id: number;
-  name: string;
-  table_ids: number[];
-  min_party_size: number;
-  max_party_size: number;
-}
-
-interface Booking {
-  id: number;
-  table_id: number | null;
-  party_size: number;
-  booking_date: string;
-  booking_time: string;
-  status: string;
-  duration_minutes?: number;
-}
+import { TableAvailabilityService } from "./tableAvailabilityService";
 
 export class TableAllocationService {
-  private static readonly DEFAULT_DURATION_MINUTES = 120; // 2 hours default
+  private static readonly DEFAULT_DURATION_MINUTES = 120;
 
   static async allocateTable(
     partySize: number, 
     bookingDate: string, 
     bookingTime: string,
-    durationMinutes: number = this.DEFAULT_DURATION_MINUTES
-  ): Promise<number[] | null> {
+    durationMinutes: number = this.DEFAULT_DURATION_MINUTES,
+    venueId?: string
+  ): Promise<{
+    tableIds: number[] | null;
+    alternatives?: any[];
+    reason?: string;
+  }> {
     try {
       console.log(`🎯 Allocating table for party of ${partySize} on ${bookingDate} at ${bookingTime}`);
 
-      // Fetch all active tables ordered by priority_rank (lower number = higher priority)
-      const { data: tables } = await supabase
-        .from('tables')
-        .select('*')
-        .eq('status', 'active')
-        .order('priority_rank', { ascending: true });
-
-      // Fetch join groups
-      const { data: joinGroups } = await supabase
-        .from('join_groups')
-        .select('*');
-
-      // Fetch existing bookings for the same date
-      const { data: existingBookings } = await supabase
-        .from('bookings')
-        .select('*')
-        .eq('booking_date', bookingDate)
-        .neq('status', 'cancelled')
-        .neq('status', 'finished');
-
-      if (!tables || !existingBookings) {
-        console.error('❌ Failed to fetch required data for allocation');
-        throw new Error('Failed to fetch required data');
+      // If no venueId provided, get the first approved venue (for public bookings)
+      let targetVenueId = venueId;
+      if (!targetVenueId) {
+        const { data: venue } = await supabase
+          .from('venues')
+          .select('id')
+          .eq('approval_status', 'approved')
+          .limit(1)
+          .single();
+        
+        if (!venue) {
+          throw new Error('No approved venue found');
+        }
+        targetVenueId = venue.id;
       }
 
-      console.log(`📊 Found ${tables.length} tables, ${joinGroups?.length || 0} join groups, ${existingBookings.length} existing bookings`);
-
-      // Check which tables are occupied during the requested time
-      const occupiedTableIds = this.getOccupiedTableIds(
-        existingBookings,
+      // Use enhanced allocation service
+      const result = await TableAvailabilityService.getEnhancedTableAllocation(
+        partySize,
+        bookingDate,
         bookingTime,
+        targetVenueId,
         durationMinutes
       );
 
-      console.log(`🚫 Occupied tables during ${bookingTime}: [${occupiedTableIds.join(', ')}]`);
-
-      // Try join groups first for larger parties (7+)
-      if (partySize >= 7 && joinGroups) {
-        console.log(`🔍 Checking join groups for party of ${partySize}`);
-        const suitableGroup = joinGroups.find(group => 
-          partySize >= group.min_party_size && 
-          partySize <= group.max_party_size &&
-          group.table_ids.every(tableId => !occupiedTableIds.includes(tableId))
-        );
-
-        if (suitableGroup) {
-          console.log(`✅ Allocated join group ${suitableGroup.name} (tables: ${suitableGroup.table_ids.join(', ')}) for party of ${partySize}`);
-          return suitableGroup.table_ids;
-        }
+      if (result.success) {
+        console.log(`✅ Enhanced allocation successful: tables [${result.tableIds?.join(', ')}]`);
+        return { tableIds: result.tableIds };
+      } else {
+        console.log(`❌ No tables available, found ${result.alternatives?.length || 0} alternatives`);
+        return {
+          tableIds: null,
+          alternatives: result.alternatives,
+          reason: result.reason
+        };
       }
 
-      // Try single table allocation - tables are already ordered by priority_rank
-      const availableTables = tables.filter(table => 
-        !occupiedTableIds.includes(table.id) &&
-        table.seats >= partySize
-      );
-
-      console.log(`🔍 Available tables: [${availableTables.map(t => `${t.label}(${t.seats} seats, priority: ${t.priority_rank})`).join(', ')}]`);
-
-      if (availableTables.length > 0) {
-        // Tables are already sorted by priority_rank (ascending), so take the first one
-        const selectedTable = availableTables[0];
-        console.log(`✅ Allocated table ${selectedTable.label} (priority: ${selectedTable.priority_rank}) for party of ${partySize}`);
-        return [selectedTable.id];
-      }
-
-      console.log(`❌ No suitable allocation found for party of ${partySize}`);
-      return null;
     } catch (error) {
       console.error('❌ Table allocation error:', error);
-      return null;
+      return {
+        tableIds: null,
+        reason: 'System error during allocation'
+      };
     }
-  }
-
-  private static getOccupiedTableIds(
-    existingBookings: Booking[],
-    newBookingTime: string,
-    durationMinutes: number
-  ): number[] {
-    const newStart = this.parseTime(newBookingTime);
-    const newEnd = addMinutes(newStart, durationMinutes);
-
-    const occupiedIds: number[] = [];
-
-    existingBookings.forEach(booking => {
-      if (!booking.table_id) return;
-
-      const bookingStart = this.parseTime(booking.booking_time);
-      const bookingEnd = addMinutes(bookingStart, booking.duration_minutes || this.DEFAULT_DURATION_MINUTES);
-
-      // Check if times overlap
-      const hasOverlap = (
-        (newStart >= bookingStart && newStart < bookingEnd) ||
-        (newEnd > bookingStart && newEnd <= bookingEnd) ||
-        (newStart <= bookingStart && newEnd >= bookingEnd)
-      );
-
-      if (hasOverlap) {
-        occupiedIds.push(booking.table_id);
-      }
-    });
-
-    return occupiedIds;
-  }
-
-  private static parseTime(timeString: string): Date {
-    const [hours, minutes] = timeString.split(':').map(Number);
-    const date = new Date();
-    date.setHours(hours, minutes, 0, 0);
-    return date;
   }
 
   static async allocateBookingToTables(
@@ -157,13 +69,36 @@ export class TableAllocationService {
     partySize: number, 
     bookingDate: string, 
     bookingTime: string
-  ): Promise<boolean> {
+  ): Promise<{
+    success: boolean;
+    alternatives?: any[];
+    reason?: string;
+  }> {
     console.log(`🎯 Attempting to allocate booking ${bookingId} for party of ${partySize}`);
     
-    const tableIds = await this.allocateTable(partySize, bookingDate, bookingTime);
+    // Get venue ID from booking
+    const { data: booking } = await supabase
+      .from('bookings')
+      .select('venue_id')
+      .eq('id', bookingId)
+      .single();
+
+    if (!booking) {
+      console.error('❌ Booking not found');
+      return { success: false, reason: 'Booking not found' };
+    }
+
+    const allocationResult = await this.allocateTable(
+      partySize, 
+      bookingDate, 
+      bookingTime,
+      this.DEFAULT_DURATION_MINUTES,
+      booking.venue_id
+    );
     
-    if (!tableIds || tableIds.length === 0) {
+    if (!allocationResult.tableIds || allocationResult.tableIds.length === 0) {
       console.log(`❌ No tables available, marking booking ${bookingId} as unallocated`);
+      
       // Mark as unallocated
       await supabase
         .from('bookings')
@@ -173,15 +108,21 @@ export class TableAllocationService {
           updated_at: new Date().toISOString()
         })
         .eq('id', bookingId);
-      return false;
+      
+      return { 
+        success: false, 
+        alternatives: allocationResult.alternatives,
+        reason: allocationResult.reason
+      };
     }
 
-    console.log(`✅ Allocating booking ${bookingId} to table ${tableIds[0]}`);
+    console.log(`✅ Allocating booking ${bookingId} to table ${allocationResult.tableIds[0]}`);
+    
     // Allocate to primary table
     const { error } = await supabase
       .from('bookings')
       .update({ 
-        table_id: tableIds[0],
+        table_id: allocationResult.tableIds[0],
         is_unallocated: false,
         updated_at: new Date().toISOString()
       })
@@ -189,11 +130,11 @@ export class TableAllocationService {
 
     if (error) {
       console.error('❌ Error updating booking:', error);
-      return false;
+      return { success: false, reason: 'Failed to update booking' };
     }
 
-    console.log(`✅ Successfully allocated booking ${bookingId} to table ${tableIds[0]}`);
-    return true;
+    console.log(`✅ Successfully allocated booking ${bookingId} to table ${allocationResult.tableIds[0]}`);
+    return { success: true };
   }
 
   static async manuallyAssignBookingToTable(
@@ -225,14 +166,30 @@ export class TableAllocationService {
   static async getAvailableTablesForBooking(
     partySize: number,
     bookingDate: string,
-    bookingTime: string
-  ): Promise<Table[]> {
+    bookingTime: string,
+    venueId?: string
+  ): Promise<any[]> {
     try {
+      // Get venue ID if not provided
+      let targetVenueId = venueId;
+      if (!targetVenueId) {
+        const { data: venue } = await supabase
+          .from('venues')
+          .select('id')
+          .eq('approval_status', 'approved')
+          .limit(1)
+          .single();
+        
+        if (!venue) return [];
+        targetVenueId = venue.id;
+      }
+
       // Fetch all active tables
       const { data: tables } = await supabase
         .from('tables')
         .select('*')
         .eq('status', 'active')
+        .eq('venue_id', targetVenueId)
         .order('priority_rank');
 
       // Fetch existing bookings for the same date
@@ -240,6 +197,7 @@ export class TableAllocationService {
         .from('bookings')
         .select('*')
         .eq('booking_date', bookingDate)
+        .eq('venue_id', targetVenueId)
         .neq('status', 'cancelled')
         .neq('status', 'finished');
 
@@ -247,6 +205,7 @@ export class TableAllocationService {
         return [];
       }
 
+      // Use the availability service to check occupied tables
       const occupiedTableIds = this.getOccupiedTableIds(
         existingBookings,
         bookingTime,
@@ -261,5 +220,43 @@ export class TableAllocationService {
       console.error('Error getting available tables:', error);
       return [];
     }
+  }
+
+  private static getOccupiedTableIds(
+    existingBookings: any[],
+    newBookingTime: string,
+    durationMinutes: number
+  ): number[] {
+    const newStart = this.parseTime(newBookingTime);
+    const newEnd = new Date(newStart.getTime() + (durationMinutes * 60 * 1000));
+
+    const occupiedIds: number[] = [];
+
+    existingBookings.forEach(booking => {
+      if (!booking.table_id) return;
+
+      const bookingStart = this.parseTime(booking.booking_time);
+      const bookingEnd = new Date(bookingStart.getTime() + ((booking.duration_minutes || this.DEFAULT_DURATION_MINUTES) * 60 * 1000));
+
+      // Check if times overlap
+      const hasOverlap = (
+        (newStart >= bookingStart && newStart < bookingEnd) ||
+        (newEnd > bookingStart && newEnd <= bookingEnd) ||
+        (newStart <= bookingStart && newEnd >= bookingEnd)
+      );
+
+      if (hasOverlap) {
+        occupiedIds.push(booking.table_id);
+      }
+    });
+
+    return occupiedIds;
+  }
+
+  private static parseTime(timeString: string): Date {
+    const [hours, minutes] = timeString.split(':').map(Number);
+    const date = new Date();
+    date.setHours(hours, minutes, 0, 0);
+    return date;
   }
 }

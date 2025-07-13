@@ -16,6 +16,7 @@ import { calculatePaymentAmount } from "@/utils/paymentCalculation";
 import { PaymentStep } from "@/components/bookings/PaymentStep";
 import { TableAllocationService } from "@/services/tableAllocation";
 import { guestService } from "@/services/guestService";
+import { TableAvailabilityService } from "@/services/tableAvailabilityService";
 
 const BookingWidget = () => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -30,6 +31,8 @@ const BookingWidget = () => {
   const [paymentRequired, setPaymentRequired] = useState(null);
   const [createdBookingId, setCreatedBookingId] = useState(null);
   const [createdBooking, setCreatedBooking] = useState(null);
+  const [allocationAlternatives, setAllocationAlternatives] = useState([]);
+  const [showAlternatives, setShowAlternatives] = useState(false);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -128,7 +131,7 @@ const BookingWidget = () => {
     checkPaymentRequirement();
   }, [selectedService, partySize, firstVenue]);
 
-  // Create booking mutation
+  // Create booking mutation with enhanced allocation handling
   const createBookingMutation = useMutation({
     mutationFn: async () => {
       if (!selectedDate || !selectedTime || !firstVenue) {
@@ -175,14 +178,19 @@ const BookingWidget = () => {
         }
       }
 
-      // Try to allocate table automatically
+      // Try to allocate table automatically with enhanced logic
       try {
-        await TableAllocationService.allocateBookingToTables(
+        const allocationResult = await TableAllocationService.allocateBookingToTables(
           data.id,
           data.party_size,
           data.booking_date,
           data.booking_time
         );
+
+        if (!allocationResult.success && allocationResult.alternatives) {
+          setAllocationAlternatives(allocationResult.alternatives);
+          setShowAlternatives(true);
+        }
       } catch (allocationError) {
         console.warn('Table allocation failed:', allocationError);
       }
@@ -234,6 +242,44 @@ const BookingWidget = () => {
       description: error,
       variant: "destructive",
     });
+  };
+
+  const handleAlternativeSelection = async (alternative) => {
+    try {
+      // Update booking with new time
+      const { error } = await supabase
+        .from('bookings')
+        .update({
+          booking_time: alternative.time,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', createdBookingId);
+
+      if (error) throw error;
+
+      // Try allocation again
+      const allocationResult = await TableAllocationService.allocateBookingToTables(
+        createdBookingId,
+        partySize,
+        format(selectedDate, 'yyyy-MM-dd'),
+        alternative.time
+      );
+
+      if (allocationResult.success) {
+        setShowAlternatives(false);
+        toast({
+          title: "Table Allocated!",
+          description: `Your booking has been moved to ${alternative.time} and a table has been assigned.`,
+        });
+      }
+    } catch (error) {
+      console.error('Error updating booking time:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update booking time.",
+        variant: "destructive",
+      });
+    }
   };
 
   const canProceed = () => {
@@ -470,17 +516,52 @@ const BookingWidget = () => {
         );
 
       case 5:
-        // Confirmation page
+        // Enhanced confirmation page with alternatives handling
         return (
           <Card className="w-full max-w-2xl mx-auto bg-white dark:bg-gray-900">
             <CardHeader className="bg-green-50 dark:bg-green-950 border-b border-green-200 dark:border-green-800">
-              <CardTitle className="text-2xl text-green-900 dark:text-green-100">Booking Confirmed!</CardTitle>
+              <CardTitle className="text-2xl text-green-900 dark:text-green-100">
+                {showAlternatives ? "Booking Created - Table Assignment Needed" : "Booking Confirmed!"}
+              </CardTitle>
               <CardDescription className="text-green-600 dark:text-green-300">
-                Your booking has been successfully created
+                {showAlternatives 
+                  ? "Your booking was created but no tables are available at your requested time. Here are some alternatives:"
+                  : "Your booking has been successfully created"
+                }
               </CardDescription>
             </CardHeader>
             <CardContent className="p-6 bg-white dark:bg-gray-900">
               <div className="space-y-6">
+                {/* Show alternatives if needed */}
+                {showAlternatives && allocationAlternatives.length > 0 && (
+                  <div className="bg-amber-50 dark:bg-amber-950 rounded-lg p-4 border border-amber-200 dark:border-amber-800">
+                    <h3 className="font-semibold text-lg mb-3 text-amber-900 dark:text-amber-100">Available Alternative Times</h3>
+                    <div className="space-y-2">
+                      {allocationAlternatives.map((alt, index) => (
+                        <div key={index} className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded border">
+                          <div>
+                            <span className="font-medium">{alt.time}</span>
+                            <p className="text-sm text-gray-600 dark:text-gray-400">{alt.reason}</p>
+                            {alt.suggestedTable && (
+                              <p className="text-xs text-gray-500">Table: {alt.suggestedTable.label} ({alt.suggestedTable.seats} seats)</p>
+                            )}
+                          </div>
+                          <Button
+                            size="sm"
+                            onClick={() => handleAlternativeSelection(alt)}
+                            className="bg-amber-600 hover:bg-amber-700 text-white"
+                          >
+                            Select This Time
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-amber-700 dark:text-amber-300 mt-3">
+                      Or keep your original time and we'll try to accommodate you as a walk-in.
+                    </p>
+                  </div>
+                )}
+
                 {/* Booking Reference */}
                 <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
                   <h3 className="font-semibold text-lg mb-3 text-gray-900 dark:text-gray-100">Booking Reference</h3>
@@ -544,7 +625,23 @@ const BookingWidget = () => {
                 {/* Action buttons */}
                 <div className="flex flex-col gap-3">
                   <Button 
-                    onClick={resetForm}
+                    onClick={() => {
+                      setShowAlternatives(false);
+                      setAllocationAlternatives([]);
+                      // Reset form logic
+                      setSelectedDate(null);
+                      setSelectedTime(null);
+                      setPartySize(2);
+                      setSelectedService(null);
+                      setGuestName('');
+                      setPhone('');
+                      setEmail('');
+                      setNotes('');
+                      setPaymentRequired(null);
+                      setCreatedBookingId(null);
+                      setCreatedBooking(null);
+                      setCurrentStep(1);
+                    }}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                   >
                     Make Another Booking
@@ -615,7 +712,7 @@ const BookingWidget = () => {
           <div className="flex justify-between mt-8 max-w-2xl mx-auto">
             <Button 
               variant="outline" 
-              onClick={handlePrevious}
+              onClick={() => setCurrentStep(currentStep - 1)}
               disabled={currentStep === 1}
               className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
             >
@@ -623,7 +720,7 @@ const BookingWidget = () => {
             </Button>
             
             <Button 
-              onClick={currentStep === 4 ? handleSubmit : handleNext}
+              onClick={currentStep === 4 ? () => createBookingMutation.mutateAsync() : () => setCurrentStep(currentStep + 1)}
               disabled={!canProceed() || createBookingMutation.isPending}
               className="bg-blue-600 hover:bg-blue-700 text-white"
             >
