@@ -83,7 +83,8 @@ export const useStripeSettings = () => {
         ...settings,
       };
 
-      if (stripeSettings?.id) {
+      // Check if stripeSettings has an id (meaning it exists in database)
+      if (stripeSettings && 'id' in stripeSettings && stripeSettings.id) {
         // Update existing settings
         console.log('Updating existing stripe settings with ID:', stripeSettings.id);
         const { data, error } = await supabase
