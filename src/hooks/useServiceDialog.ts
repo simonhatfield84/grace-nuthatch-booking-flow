@@ -44,13 +44,16 @@ export const useServiceDialog = (editingService: any, newService: any) => {
       setDurationRules(serviceData.duration_rules || []);
       setTermsAndConditions(serviceData.terms_and_conditions || '');
       
-      // Initialize payment settings with proper defaults
-      setPaymentSettings({
+      // Initialize payment settings with proper debugging
+      const paymentData = {
         requires_payment: serviceData.requires_payment || false,
         charge_type: serviceData.charge_type || 'none',
         minimum_guests_for_charge: serviceData.minimum_guests_for_charge || 8,
         charge_amount_per_guest: serviceData.charge_amount_per_guest || 0,
-      });
+      };
+      
+      console.log('Setting payment settings to:', paymentData);
+      setPaymentSettings(paymentData);
     }
   }, [editingService, newService]);
 

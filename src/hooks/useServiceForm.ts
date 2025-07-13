@@ -1,4 +1,3 @@
-
 import { useServices } from "@/hooks/useServices";
 import { useServiceState } from "@/hooks/useServiceState";
 import { SERVICE_DEFAULTS } from "@/constants/serviceDefaults";
@@ -70,9 +69,16 @@ export const useServiceForm = () => {
   };
 
   const handleEditService = (service) => {
+    console.log('Setting editing service with data:', service);
+    
     setEditingService({
       ...service,
-      useStandardTerms: service.terms_and_conditions === getStandardTerms()
+      useStandardTerms: service.terms_and_conditions === getStandardTerms(),
+      // Ensure all payment settings are properly preserved
+      requires_payment: service.requires_payment || false,
+      charge_type: service.charge_type || 'none',
+      charge_amount_per_guest: service.charge_amount_per_guest || 0,
+      minimum_guests_for_charge: service.minimum_guests_for_charge || 8,
     });
   };
 
