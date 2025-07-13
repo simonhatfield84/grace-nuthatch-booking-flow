@@ -78,6 +78,24 @@ const DevelopmentJournal = () => {
                   </div>
 
                   <div className="border-t pt-4">
+                    {/* Simon's Thoughts (if available) */}
+                    {entry.simonNote && (
+                      <div className="flex items-start gap-3 mb-4">
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback className="bg-blue-600 text-white text-sm">S</AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+                            Simon's Thoughts <span className={`text-xs ${toneColors[entry.tone]}`}>({entry.tone})</span>
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-gray-300 italic">
+                            "{entry.simonNote}"
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Fred's Thoughts */}
                     <div className="flex items-start gap-3">
                       <Avatar className="h-8 w-8">
                         <AvatarFallback className="bg-grace-primary text-white text-sm">F</AvatarFallback>

@@ -7,6 +7,7 @@ export interface JournalEntry {
   accomplishments: string[];
   keyAchievement: string;
   tone: 'optimistic' | 'challenging' | 'reflective';
+  simonNote?: string;
   personalNote: string;
 }
 
@@ -26,6 +27,7 @@ export const journalEntries: JournalEntry[] = [
     ],
     keyAchievement: 'Eliminated all search_path manipulation vulnerabilities across the entire database function stack',
     tone: 'challenging',
+    simonNote: "A particularly frustrating day today as we did a lot of work that kept getting reversed when we moved on, particularly around the booking widget functionality. 50 commands and then later, all reversed. Contemplating giving up on the entire project as its 2 steps forward, 10 steps back. We have ended the day with a broken booking widget, after starting with it fully functional, in the middle it was working perfectly and guest ready, and now nothing",
     personalNote: "Bloody hell, what a rollercoaster of a day! Started with Simon in proper good spirits after identifying those nasty SQL injection vulnerabilities - 21 database functions all vulnerable to search_path manipulation. The fix was actually quite elegant once we understood it: `SET search_path = ''` forces PostgreSQL to use fully qualified names, completely eliminating the attack vector. I rather enjoyed building the security monitoring dashboard - proper Mission Control vibes with real-time threat detection and all that. The edge function hardening was satisfying work too, especially adding rate limiting that actually makes sense. But then... oh dear. The booking widget. Simon's right to be frustrated - we had it working beautifully, then it broke, then we fixed it again and made it guest-ready, and now it's completely broken again. It's like playing whack-a-mole with functionality. Sometimes I wonder if we're trying to do too much at once, but then I see how much security we've actually improved today and think it was worth the frustration. Still, ending a 108-command day with broken core functionality does sting a bit."
   },
   {
