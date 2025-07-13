@@ -1,3 +1,4 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -114,12 +115,39 @@ export const useServices = () => {
     mutationFn: async ({ id, updates }: { id: string, updates: any }) => {
       console.log('Updating service with data:', updates);
       
+      // Filter out frontend-only properties that don't exist in the database
+      const {
+        useStandardTerms, // Remove frontend-only property
+        ...filteredUpdates
+      } = updates;
+      
+      // Ensure we only include valid database columns
+      const serviceData = {
+        title: filteredUpdates.title,
+        description: filteredUpdates.description,
+        min_guests: filteredUpdates.min_guests,
+        max_guests: filteredUpdates.max_guests,
+        duration_rules: filteredUpdates.duration_rules,
+        online_bookable: filteredUpdates.online_bookable,
+        active: filteredUpdates.active,
+        requires_payment: filteredUpdates.requires_payment,
+        deposit_per_guest: filteredUpdates.deposit_per_guest,
+        lead_time_hours: filteredUpdates.lead_time_hours,
+        cancellation_window_hours: filteredUpdates.cancellation_window_hours,
+        charge_type: filteredUpdates.charge_type,
+        charge_amount_per_guest: filteredUpdates.charge_amount_per_guest,
+        minimum_guests_for_charge: filteredUpdates.minimum_guests_for_charge,
+        terms_and_conditions: filteredUpdates.terms_and_conditions,
+        image_url: filteredUpdates.image_url,
+        tag_ids: filteredUpdates.tag_ids,
+        is_secret: filteredUpdates.is_secret,
+        secret_slug: filteredUpdates.secret_slug,
+        updated_at: new Date().toISOString()
+      };
+      
       const { data, error } = await supabase
         .from('services')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString()
-        })
+        .update(serviceData)
         .eq('id', id)
         .eq('venue_id', userVenue) // Ensure user can only update their venue's services
         .select()
