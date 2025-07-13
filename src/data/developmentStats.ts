@@ -4,7 +4,7 @@ export const developmentStats = {
   startDate: new Date('2025-07-03'),
   
   // Manual totals (update these when adding new sessions)
-  totalCommands: 429, // 84 + 102 + 92 + 32 + 88 + 31
+  totalCommands: 537, // 84 + 102 + 92 + 32 + 88 + 31 + 108
   
   // Cost rates
   aiCostPerCommand: 0.18,
