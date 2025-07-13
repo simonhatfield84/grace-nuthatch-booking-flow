@@ -3,7 +3,9 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useGroupManagement } from "@/hooks/useGroupManagement";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useTables } from "@/hooks/useTables";
 import { GroupDialog } from "./GroupDialog";
 import { Plus, Edit, Trash2, Users } from "lucide-react";
 import {
@@ -18,27 +20,86 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-export const JoinGroupsList = () => {
-  const { joinGroups, tables, deleteGroup } = useGroupManagement();
-  const [dialogOpen, setDialogOpen] = useState(false);
+interface JoinGroupsListProps {
+  joinGroups?: any[];
+  tables?: any[];
+  onEditGroup?: (group: any) => void;
+  onDeleteGroup?: (groupId: number) => Promise<void>;
+}
+
+export const JoinGroupsList = ({ 
+  joinGroups: propJoinGroups, 
+  tables: propTables, 
+  onEditGroup: propOnEditGroup, 
+  onDeleteGroup: propOnDeleteGroup 
+}: JoinGroupsListProps = {}) => {
+  const { tables: hookTables } = useTables();
+  
+  // Fetch join groups
+  const { data: hookJoinGroups = [] } = useQuery({
+    queryKey: ['join-groups'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('join_groups')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
+  // Use props if provided, otherwise use hooks
+  const joinGroups = propJoinGroups || hookJoinGroups;
+  const tables = propTables || hookTables;
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingGroup, setEditingGroup] = useState<any>(null);
+  const [newGroup, setNewGroup] = useState({
+    name: "",
+    memberTableIds: [] as number[],
+    maxCapacity: 0
+  });
 
   const handleEdit = (group: any) => {
-    setEditingGroup(group);
-    setDialogOpen(true);
+    if (propOnEditGroup) {
+      propOnEditGroup(group);
+    } else {
+      setEditingGroup(group);
+      setIsDialogOpen(true);
+    }
   };
 
   const handleAdd = () => {
     setEditingGroup(null);
-    setDialogOpen(true);
+    setIsDialogOpen(true);
   };
 
   const handleDelete = async (groupId: number) => {
     try {
-      await deleteGroup(groupId);
+      if (propOnDeleteGroup) {
+        await propOnDeleteGroup(groupId);
+      } else {
+        // Default delete logic
+        const { error } = await supabase
+          .from('join_groups')
+          .delete()
+          .eq('id', groupId);
+        
+        if (error) throw error;
+      }
     } catch (error) {
       console.error('Failed to delete group:', error);
     }
+  };
+
+  const handleAddGroup = async () => {
+    // Implementation for adding group
+    console.log('Add group:', newGroup);
+  };
+
+  const handleUpdateGroup = async () => {
+    // Implementation for updating group
+    console.log('Update group:', editingGroup);
   };
 
   const getTableLabels = (tableIds: number[]) => {
@@ -168,9 +229,15 @@ export const JoinGroupsList = () => {
       )}
 
       <GroupDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        group={editingGroup}
+        isOpen={isDialogOpen}
+        onOpenChange={setIsDialogOpen}
+        editingGroup={editingGroup}
+        newGroup={newGroup}
+        setNewGroup={setNewGroup}
+        setEditingGroup={setEditingGroup}
+        onAddGroup={handleAddGroup}
+        onUpdateGroup={handleUpdateGroup}
+        tables={tables}
       />
     </div>
   );

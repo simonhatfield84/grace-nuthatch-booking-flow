@@ -7,13 +7,36 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useBookingPriorities } from "@/hooks/useBookingPriorities";
 import { useTables } from "@/hooks/useTables";
-import { useGroupManagement } from "@/hooks/useGroupManagement";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { GripVertical, Users, Table } from "lucide-react";
 
-export const BookingPriorityManager = () => {
+interface BookingPriorityManagerProps {
+  tables?: any[];
+  joinGroups?: any[];
+}
+
+export const BookingPriorityManager = ({ tables: propTables, joinGroups: propJoinGroups }: BookingPriorityManagerProps = {}) => {
   const { priorities, updatePriorities, isLoading } = useBookingPriorities();
-  const { tables } = useTables();
-  const { joinGroups } = useGroupManagement();
+  const { tables: hookTables } = useTables();
+  
+  // Fetch join groups
+  const { data: hookJoinGroups = [] } = useQuery({
+    queryKey: ['join-groups'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('join_groups')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      return data || [];
+    }
+  });
+
+  // Use props if provided, otherwise use hooks
+  const tables = propTables || hookTables;
+  const joinGroups = propJoinGroups || hookJoinGroups;
   const [selectedPartySize, setSelectedPartySize] = useState<number>(2);
   const [localPriorities, setLocalPriorities] = useState<any[]>([]);
 

@@ -20,7 +20,7 @@ interface BookingFlowManagerProps {
 export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManagerProps) => {
   const [currentStep, setCurrentStep] = useState<BookingStep>('date');
   const [bookingData, setBookingData] = useState({
-    date: '',
+    date: null as Date | null,
     time: '',
     partySize: 2, // Default party size
     service: '',
@@ -66,26 +66,27 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
       case 'date':
         return (
           <DateSelectorWithAvailability
-            venueSlug={venueSlug}
             selectedDate={bookingData.date}
             onDateSelect={(date) => {
               updateBookingData({ date });
               handleStepChange('time');
             }}
+            partySize={bookingData.partySize}
+            venueId={venueSlug}
           />
         );
 
       case 'time':
         return (
           <EnhancedTimeSlotSelector
-            venueSlug={venueSlug}
             selectedDate={bookingData.date}
-            partySize={bookingData.partySize}
             selectedTime={bookingData.time}
             onTimeSelect={(time) => {
               updateBookingData({ time });
               handleStepChange('party');
             }}
+            partySize={bookingData.partySize}
+            venueId={venueSlug}
           />
         );
 
@@ -103,13 +104,14 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
       case 'service':
         return (
           <ServiceSelector
-            venueSlug={venueSlug}
             selectedService={bookingData.service}
-            partySize={bookingData.partySize}
             onServiceSelect={(service) => {
               updateBookingData({ service });
               handleStepChange('details');
             }}
+            partySize={bookingData.partySize}
+            selectedDate={bookingData.date}
+            venueId={venueSlug}
           />
         );
 
@@ -129,7 +131,7 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
               }
             }}
             bookingData={{
-              date: bookingData.date,
+              date: bookingData.date?.toISOString().split('T')[0] || '',
               time: bookingData.time,
               partySize: bookingData.partySize,
               service: bookingData.service,
@@ -140,10 +142,14 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
       case 'payment':
         return (
           <PaymentStep
-            bookingData={bookingData}
-            onPaymentComplete={(bookingId) => {
-              updateBookingData({ bookingId });
+            amount={50} // This should be calculated based on service
+            description="Booking deposit"
+            bookingId={bookingData.bookingId || undefined}
+            onPaymentSuccess={() => {
               handleStepChange('confirmation');
+            }}
+            onPaymentError={(error) => {
+              console.error('Payment error:', error);
             }}
           />
         );
@@ -151,7 +157,10 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
       case 'confirmation':
         return (
           <BookingConfirmation
-            bookingData={bookingData}
+            bookingData={{
+              ...bookingData,
+              date: bookingData.date?.toISOString().split('T')[0] || '',
+            }}
             venueSlug={venueSlug}
           />
         );

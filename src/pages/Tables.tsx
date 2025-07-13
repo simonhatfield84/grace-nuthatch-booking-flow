@@ -198,16 +198,11 @@ const Tables = () => {
         </TabsContent>
 
         <TabsContent value="joins" className="space-y-6">
-          <JoinGroupsList
-            joinGroups={joinGroups}
-            tables={tables}
-            onEditGroup={handleEditGroupLocal}
-            onDeleteGroup={handleDeleteGroup}
-          />
+          <JoinGroupsList />
         </TabsContent>
 
         <TabsContent value="priorities" className="space-y-6">
-          <BookingPriorityManager tables={tables} joinGroups={joinGroups} />
+          <BookingPriorityManager />
         </TabsContent>
       </Tabs>
 

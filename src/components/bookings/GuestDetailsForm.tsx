@@ -166,7 +166,7 @@ export const GuestDetailsForm = ({ onSubmit, bookingData }: GuestDetailsFormProp
       });
 
       // Pass the guest details and payment requirement to parent
-      onSubmit({ ...data, guestId }, paymentRequired);
+      onSubmit(data, paymentRequired);
       
     } catch (error: any) {
       console.error('Error saving guest details:', error);
