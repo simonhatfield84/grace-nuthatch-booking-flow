@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useTables } from "@/hooks/useTables";
+import { useGroupManagement } from "@/hooks/useGroupManagement";
 import { GroupDialog } from "./GroupDialog";
 import { Plus, Edit, Trash2, Users } from "lucide-react";
 import {
@@ -33,7 +34,7 @@ export const JoinGroupsList = ({
   onEditGroup: propOnEditGroup, 
   onDeleteGroup: propOnDeleteGroup 
 }: JoinGroupsListProps = {}) => {
-  const { tables: hookTables } = useTables();
+  const { tables: hookTables, updateTable } = useTables();
   
   // Fetch join groups
   const { data: hookJoinGroups = [] } = useQuery({
@@ -52,25 +53,33 @@ export const JoinGroupsList = ({
   // Use props if provided, otherwise use hooks
   const joinGroups = propJoinGroups || hookJoinGroups;
   const tables = propTables || hookTables;
+  
+  // Initialize group management with real functionality
+  const {
+    editingGroup,
+    setEditingGroup,
+    newGroup,
+    setNewGroup,
+    handleAddGroup,
+    handleUpdateGroup,
+    handleDeleteGroup: groupManagementDelete,
+    handleEditGroup,
+    resetGroupForm
+  } = useGroupManagement(joinGroups, tables, updateTable);
+
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingGroup, setEditingGroup] = useState<any>(null);
-  const [newGroup, setNewGroup] = useState({
-    name: "",
-    memberTableIds: [] as number[],
-    maxCapacity: 0
-  });
 
   const handleEdit = (group: any) => {
     if (propOnEditGroup) {
       propOnEditGroup(group);
     } else {
-      setEditingGroup(group);
+      handleEditGroup(group);
       setIsDialogOpen(true);
     }
   };
 
   const handleAdd = () => {
-    setEditingGroup(null);
+    resetGroupForm();
     setIsDialogOpen(true);
   };
 
@@ -79,27 +88,24 @@ export const JoinGroupsList = ({
       if (propOnDeleteGroup) {
         await propOnDeleteGroup(groupId);
       } else {
-        // Default delete logic
-        const { error } = await supabase
-          .from('join_groups')
-          .delete()
-          .eq('id', groupId);
-        
-        if (error) throw error;
+        await groupManagementDelete(groupId);
       }
     } catch (error) {
       console.error('Failed to delete group:', error);
     }
   };
 
-  const handleAddGroup = async () => {
-    // Implementation for adding group
-    console.log('Add group:', newGroup);
-  };
-
-  const handleUpdateGroup = async () => {
-    // Implementation for updating group
-    console.log('Update group:', editingGroup);
+  const handleDialogSave = async () => {
+    try {
+      if (editingGroup) {
+        await handleUpdateGroup();
+      } else {
+        await handleAddGroup();
+      }
+      setIsDialogOpen(false);
+    } catch (error) {
+      console.error('Failed to save group:', error);
+    }
   };
 
   const getTableLabels = (tableIds: number[]) => {
@@ -230,8 +236,8 @@ export const JoinGroupsList = ({
         newGroup={newGroup}
         setNewGroup={setNewGroup}
         setEditingGroup={setEditingGroup}
-        onAddGroup={handleAddGroup}
-        onUpdateGroup={handleUpdateGroup}
+        onAddGroup={handleDialogSave}
+        onUpdateGroup={handleDialogSave}
         tables={tables}
       />
     </div>
