@@ -244,7 +244,8 @@ export const useGroupManagement = (initialGroups: any[], tables: any[], updateTa
   });
 
   const handleAddGroup = async () => {
-    const maxCapacity = newGroup.memberTableIds.reduce((sum: number, id: number) => {
+    // Use the user-defined maxCapacity instead of calculating it
+    const maxCapacity = newGroup.maxCapacity || newGroup.memberTableIds.reduce((sum: number, id: number) => {
       const table = tables.find(t => t.id === id);
       return sum + (table?.seats || 0);
     }, 0);
@@ -263,7 +264,8 @@ export const useGroupManagement = (initialGroups: any[], tables: any[], updateTa
   const handleUpdateGroup = async () => {
     if (!editingGroup) return;
     
-    const maxCapacity = editingGroup.memberTableIds.reduce((sum: number, id: number) => {
+    // Use the user-defined maxCapacity instead of calculating it
+    const maxCapacity = editingGroup.maxCapacity || editingGroup.memberTableIds.reduce((sum: number, id: number) => {
       const table = tables.find(t => t.id === id);
       return sum + (table?.seats || 0);
     }, 0);
@@ -294,7 +296,8 @@ export const useGroupManagement = (initialGroups: any[], tables: any[], updateTa
     // Convert database format to form format
     const formGroup = {
       ...group,
-      memberTableIds: group.table_ids || group.memberTableIds || []
+      memberTableIds: group.table_ids || group.memberTableIds || [],
+      maxCapacity: group.max_party_size || group.maxCapacity || 0
     };
     setEditingGroup(formGroup);
   };

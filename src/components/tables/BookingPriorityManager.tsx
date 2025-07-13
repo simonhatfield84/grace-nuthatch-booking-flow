@@ -9,7 +9,8 @@ import { useBookingPriorities } from "@/hooks/useBookingPriorities";
 import { useTables } from "@/hooks/useTables";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { GripVertical, Users, Table } from "lucide-react";
+import { GripVertical, Users, Table, RefreshCw } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 interface BookingPriorityManagerProps {
   tables?: any[];
@@ -17,8 +18,9 @@ interface BookingPriorityManagerProps {
 }
 
 export const BookingPriorityManager = ({ tables: propTables, joinGroups: propJoinGroups }: BookingPriorityManagerProps = {}) => {
-  const { priorities, updatePriorities, isLoading } = useBookingPriorities();
+  const { priorities, updatePriorities, addPriority, isLoading } = useBookingPriorities();
   const { tables: hookTables } = useTables();
+  const { toast } = useToast();
   
   // Fetch join groups
   const { data: hookJoinGroups = [] } = useQuery({
@@ -39,6 +41,7 @@ export const BookingPriorityManager = ({ tables: propTables, joinGroups: propJoi
   const joinGroups = propJoinGroups || hookJoinGroups;
   const [selectedPartySize, setSelectedPartySize] = useState<number>(2);
   const [localPriorities, setLocalPriorities] = useState<any[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     const filtered = priorities.filter(p => p.party_size === selectedPartySize);
@@ -76,6 +79,47 @@ export const BookingPriorityManager = ({ tables: propTables, joinGroups: propJoi
     }
   };
 
+  const generateMissingPriorities = async () => {
+    setIsGenerating(true);
+    try {
+      const allItems = [
+        ...tables.map(t => ({ type: 'table', id: t.id, capacity: t.seats })),
+        ...joinGroups.map(g => ({ type: 'join_group', id: g.id, capacity: g.max_party_size }))
+      ];
+
+      for (const item of allItems) {
+        // Check if priority already exists for this party size and item
+        const exists = priorities.some(p => 
+          p.party_size === selectedPartySize && 
+          p.item_type === item.type && 
+          p.item_id === item.id
+        );
+
+        if (!exists) {
+          await addPriority({
+            party_size: selectedPartySize,
+            item_type: item.type,
+            item_id: item.id
+          });
+        }
+      }
+
+      toast({
+        title: "Priorities generated",
+        description: `Missing booking priorities have been created for ${selectedPartySize} guests.`
+      });
+    } catch (error) {
+      console.error('Failed to generate priorities:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate missing priorities.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const getItemLabel = (priority: any) => {
     if (priority.item_type === 'table') {
       const table = tables.find(t => t.id === priority.item_id);
@@ -93,11 +137,7 @@ export const BookingPriorityManager = ({ tables: propTables, joinGroups: propJoi
       return table ? table.seats : 0;
     } else if (priority.item_type === 'join_group') {
       const group = joinGroups.find(g => g.id === priority.item_id);
-      if (group) {
-        return tables
-          .filter(t => group.table_ids.includes(t.id))
-          .reduce((sum, t) => sum + t.seats, 0);
-      }
+      return group ? group.max_party_size : 0;
     }
     return 0;
   };
@@ -124,30 +164,43 @@ export const BookingPriorityManager = ({ tables: propTables, joinGroups: propJoi
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex items-center gap-4">
-          <label className="text-sm font-medium">Party Size:</label>
-          <Select
-            value={selectedPartySize.toString()}
-            onValueChange={(value) => setSelectedPartySize(parseInt(value))}
-          >
-            <SelectTrigger className="w-32">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((size) => (
-                <SelectItem key={size} value={size.toString()}>
-                  {size} {size === 1 ? 'guest' : 'guests'}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <label className="text-sm font-medium">Party Size:</label>
+            <Select
+              value={selectedPartySize.toString()}
+              onValueChange={(value) => setSelectedPartySize(parseInt(value))}
+            >
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((size) => (
+                  <SelectItem key={size} value={size.toString()}>
+                    {size} {size === 1 ? 'guest' : 'guests'}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {localPriorities.length === 0 && (
+            <Button 
+              onClick={generateMissingPriorities}
+              disabled={isGenerating}
+              variant="outline"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isGenerating ? 'animate-spin' : ''}`} />
+              Generate Priorities
+            </Button>
+          )}
         </div>
 
         {localPriorities.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <Table className="h-8 w-8 mx-auto mb-2 opacity-50" />
             <p>No booking priorities set for {selectedPartySize} guests</p>
-            <p className="text-sm">Priorities are automatically generated when tables and join groups are created</p>
+            <p className="text-sm">Click "Generate Priorities" to create them automatically</p>
           </div>
         ) : (
           <DragDropContext onDragEnd={handleDragEnd}>
@@ -214,6 +267,7 @@ export const BookingPriorityManager = ({ tables: propTables, joinGroups: propJoi
           <p>• Higher items in the list get priority for bookings</p>
           <p>• Tables with exact capacity matches are preferred</p>
           <p>• Join groups are used when individual tables can't accommodate the party</p>
+          <p>• Use "Generate Priorities" to automatically create missing entries</p>
         </div>
       </CardContent>
     </Card>

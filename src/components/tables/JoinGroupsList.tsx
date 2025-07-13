@@ -147,83 +147,78 @@ export const JoinGroupsList = ({
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
+        <div className="space-y-3">
           {joinGroups.map((group) => (
-            <Card key={group.id}>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-base">{group.name}</CardTitle>
-                    {group.description && (
-                      <CardDescription>{group.description}</CardDescription>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEdit(group)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="outline" size="sm">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Join Group</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to delete the "{group.name}" join group? 
-                            This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={() => handleDelete(group.id)}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            Delete
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+            <div key={group.id} className="border rounded-lg p-4 bg-card">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <h4 className="font-medium">{group.name}</h4>
+                  <div className="flex flex-wrap gap-1">
+                    {getTableLabels(group.table_ids).map((label) => (
+                      <Badge key={label} variant="secondary" className="text-xs">
+                        {label}
+                      </Badge>
+                    ))}
                   </div>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">Tables:</span>
-                    <div className="flex flex-wrap gap-1">
-                      {getTableLabels(group.table_ids).map((label) => (
-                        <Badge key={label} variant="secondary">
-                          {label}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div>
-                      <span className="font-medium">Capacity:</span>
-                      <p className="text-muted-foreground">{getTotalCapacity(group.table_ids)} seats</p>
-                    </div>
-                    <div>
-                      <span className="font-medium">Min Party:</span>
-                      <p className="text-muted-foreground">{group.min_party_size}</p>
-                    </div>
-                    <div>
-                      <span className="font-medium">Max Party:</span>
-                      <p className="text-muted-foreground">{group.max_party_size}</p>
-                    </div>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleEdit(group)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" size="sm">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Join Group</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete the "{group.name}" join group? 
+                          This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDelete(group.id)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+              
+              <div className="grid grid-cols-4 gap-4 text-sm">
+                <div>
+                  <span className="font-medium text-muted-foreground">Physical Capacity:</span>
+                  <p>{getTotalCapacity(group.table_ids)} seats</p>
+                </div>
+                <div>
+                  <span className="font-medium text-muted-foreground">Max Party:</span>
+                  <p className={group.max_party_size > getTotalCapacity(group.table_ids) ? "text-blue-600 font-medium" : ""}>
+                    {group.max_party_size}
+                    {group.max_party_size > getTotalCapacity(group.table_ids) && " (override)"}
+                  </p>
+                </div>
+                <div>
+                  <span className="font-medium text-muted-foreground">Min Party:</span>
+                  <p>{group.min_party_size}</p>
+                </div>
+                <div>
+                  <span className="font-medium text-muted-foreground">Tables:</span>
+                  <p>{group.table_ids.length}</p>
+                </div>
+              </div>
+            </div>
           ))}
         </div>
       )}

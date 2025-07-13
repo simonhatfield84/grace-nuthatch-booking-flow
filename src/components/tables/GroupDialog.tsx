@@ -36,6 +36,8 @@ export const GroupDialog = ({
     return sum + (table?.seats || 0);
   }, 0);
 
+  const currentCapacity = currentGroupData.maxCapacity || currentGroupData.max_party_size || suggestedCapacity;
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -91,16 +93,23 @@ export const GroupDialog = ({
             <Input
               id="maxCapacity"
               type="number"
-              value={currentGroupData.maxCapacity || currentGroupData.max_party_size || 0}
-              onChange={(e) => editingGroup
-                ? setEditingGroup({...editingGroup, maxCapacity: parseInt(e.target.value) || 0})
-                : setNewGroup({...newGroup, maxCapacity: parseInt(e.target.value) || 0})
-              }
+              value={currentCapacity}
+              onChange={(e) => {
+                const value = parseInt(e.target.value) || 0;
+                if (editingGroup) {
+                  setEditingGroup({...editingGroup, maxCapacity: value});
+                } else {
+                  setNewGroup({...newGroup, maxCapacity: value});
+                }
+              }}
               placeholder={`Suggested: ${suggestedCapacity} seats`}
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              Individual table capacity: {suggestedCapacity} seats
-            </p>
+            <div className="flex justify-between text-xs text-muted-foreground mt-1">
+              <span>Individual table total: {suggestedCapacity} seats</span>
+              {currentCapacity > suggestedCapacity && (
+                <span className="text-blue-600">Override capacity enabled</span>
+              )}
+            </div>
           </div>
 
           <div className="flex gap-2">
