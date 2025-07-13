@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -42,7 +43,7 @@ export const DateSelectorWithAvailability = ({
   });
 
   // Get available dates using unified service with cache invalidation
-  const { data: availableDates = [], isLoading, error } = useQuery({
+  const { data: availableDates = [], isLoading, error, isSuccess } = useQuery({
     queryKey: ['unified-available-dates', partySize, venueId],
     queryFn: async () => {
       if (!venueId || bookingWindows.length === 0) return [];
@@ -99,11 +100,15 @@ export const DateSelectorWithAvailability = ({
     staleTime: 2 * 60 * 1000, // Reduced cache time for more real-time updates
     refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
     refetchOnWindowFocus: true, // Refetch when user returns to tab
-    onSuccess: () => {
+  });
+
+  // Handle cache invalidation when dates are successfully loaded
+  useEffect(() => {
+    if (isSuccess && availableDates) {
       // Invalidate related time slot queries when dates are refreshed
       queryClient.invalidateQueries({ queryKey: ['unified-time-slots'] });
     }
-  });
+  }, [isSuccess, availableDates, queryClient]);
 
   const isDateAvailable = (date: Date) => {
     return availableDates.some(availableDate => 
