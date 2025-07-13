@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-import { RootRedirect } from "@/components/auth/RootRedirect";
+import RootRedirect from "@/components/auth/RootRedirect";
 import HomePage from "@/pages/HomePage";
 import Dashboard from "@/pages/Dashboard";
 import Tables from "@/pages/Tables";
@@ -27,7 +27,7 @@ import PlatformSecurity from "@/pages/PlatformSecurity";
 import PlatformSubscriptions from "@/pages/PlatformSubscriptions";
 import PlatformSupport from "@/pages/PlatformSupport";
 import { PlatformAdminLayout } from "@/components/layouts/PlatformAdminLayout";
-import ThemeHandler from "@/components/ThemeHandler";
+import { ThemeHandler } from "@/components/ThemeHandler";
 
 const queryClient = new QueryClient({
   defaultOptions: {

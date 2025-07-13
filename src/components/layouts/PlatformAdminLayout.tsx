@@ -23,7 +23,7 @@ export const PlatformAdminLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const { isPlatformAdmin, isLoading } = usePlatformAdmin();
+  const { data: isPlatformAdmin, isLoading } = usePlatformAdmin();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const handleSignOut = async () => {
@@ -111,8 +111,8 @@ export const PlatformAdminLayout = () => {
           </ul>
         </nav>
 
-        {/* Sign Out Button - Fixed positioning */}
-        <div className="p-4 border-t mt-auto">
+        {/* Sign Out Button */}
+        <div className="p-4 border-t">
           <Button
             variant="outline"
             className={`w-full gap-3 ${sidebarCollapsed ? 'px-2' : 'px-3'}`}
