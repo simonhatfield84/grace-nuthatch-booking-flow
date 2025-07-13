@@ -7,7 +7,7 @@ import { useSecurityAlerts } from "@/hooks/useSecurityAlerts";
 import { AlertTriangle, Eye, RefreshCw, User, Clock } from "lucide-react";
 import { format } from "date-fns";
 
-export default function SecurityAlertsPanel() {
+function SecurityAlertsPanel() {
   const [timeRange, setTimeRange] = useState<'1h' | '24h' | '7d' | '30d'>('24h');
   const { data: alerts, isLoading, refetch } = useSecurityAlerts(timeRange);
 
@@ -127,3 +127,5 @@ export default function SecurityAlertsPanel() {
     </Card>
   );
 }
+
+export default SecurityAlertsPanel;

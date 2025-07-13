@@ -8,7 +8,7 @@ import { useSecurityAudit } from "@/hooks/useSecurityAudit";
 import { Shield, AlertTriangle, Eye, Activity, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 
-export default function SecurityMonitoringDashboard() {
+function SecurityMonitoringDashboard() {
   const [timeRange, setTimeRange] = useState<'1h' | '24h' | '7d' | '30d'>('24h');
   const { data: alerts, isLoading: alertsLoading, refetch: refetchAlerts } = useSecurityAlerts(timeRange);
   const { data: auditLogs, isLoading: auditLoading, refetch: refetchAudit } = useSecurityAudit(timeRange);
@@ -232,3 +232,5 @@ export default function SecurityMonitoringDashboard() {
     </div>
   );
 }
+
+export default SecurityMonitoringDashboard;
