@@ -1,6 +1,6 @@
 
-import { SecurityMonitoringDashboard } from "@/components/security/SecurityMonitoringDashboard";
-import { SecurityAlertsPanel } from "@/components/security/SecurityAlertsPanel";
+import SecurityMonitoringDashboard from "@/components/security/SecurityMonitoringDashboard";
+import SecurityAlertsPanel from "@/components/security/SecurityAlertsPanel";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useSystemHealth } from "@/hooks/useSystemHealth";
