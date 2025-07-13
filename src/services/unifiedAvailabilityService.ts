@@ -1,6 +1,5 @@
-
 import { supabase } from "@/integrations/supabase/client";
-import { format, parse, addMinutes } from "date-fns";
+import { format, parse, addMinutes, isWithinInterval } from "date-fns";
 
 interface BookingWindow {
   id: string;
@@ -12,7 +11,7 @@ interface BookingWindow {
   max_bookings_per_slot: number;
   start_date?: string;
   end_date?: string;
-  blackout_periods?: any;
+  blackout_periods?: any[];
 }
 
 export class UnifiedAvailabilityService {
@@ -20,47 +19,93 @@ export class UnifiedAvailabilityService {
    * Check if a specific date has availability for a given party size
    */
   static async checkDateAvailability(
-    venueId: string, // Now expects UUID
+    venueId: string,
     date: string,
     partySize: number,
     bookingWindows: BookingWindow[]
   ): Promise<boolean> {
     try {
-      console.log(`🔍 Checking availability for venue ${venueId} on ${date} for ${partySize} people`);
+      console.log(`🔍 [${date}] Checking availability for venue ${venueId} for ${partySize} people`);
 
       // Filter booking windows for this venue
       const venueWindows = bookingWindows.filter(window => window.venue_id === venueId);
       
       if (venueWindows.length === 0) {
-        console.log(`❌ No booking windows found for venue ${venueId}`);
+        console.log(`❌ [${date}] No booking windows found for venue ${venueId}`);
         return false;
       }
+
+      console.log(`📋 [${date}] Found ${venueWindows.length} booking windows for venue`);
 
       // Check if date falls within any booking window
       const dateObj = new Date(date);
       const dayOfWeek = format(dateObj, 'EEEE').toLowerCase();
 
+      console.log(`📅 [${date}] Day of week: ${dayOfWeek}`);
+
       const applicableWindows = venueWindows.filter(window => {
+        console.log(`🔍 [${date}] Checking window ${window.id}:`, {
+          days: window.days,
+          start_date: window.start_date,
+          end_date: window.end_date,
+          blackout_periods: window.blackout_periods
+        });
+
         // Check if day is included
         if (!window.days.map(d => d.toLowerCase()).includes(dayOfWeek)) {
+          console.log(`❌ [${date}] Day ${dayOfWeek} not in window days: ${window.days}`);
           return false;
         }
 
         // Check date range if specified
         if (window.start_date && new Date(date) < new Date(window.start_date)) {
+          console.log(`❌ [${date}] Date before window start: ${window.start_date}`);
           return false;
         }
         if (window.end_date && new Date(date) > new Date(window.end_date)) {
+          console.log(`❌ [${date}] Date after window end: ${window.end_date}`);
           return false;
         }
 
+        // Check blackout periods
+        if (window.blackout_periods && Array.isArray(window.blackout_periods)) {
+          const isBlackedOut = window.blackout_periods.some(blackout => {
+            try {
+              const blackoutStart = new Date(blackout.startDate);
+              const blackoutEnd = new Date(blackout.endDate);
+              const checkDate = new Date(date);
+              
+              const isWithinBlackout = isWithinInterval(checkDate, {
+                start: blackoutStart,
+                end: blackoutEnd
+              });
+
+              if (isWithinBlackout) {
+                console.log(`🚫 [${date}] Date falls within blackout period: ${blackout.reason} (${format(blackoutStart, 'yyyy-MM-dd')} to ${format(blackoutEnd, 'yyyy-MM-dd')})`);
+              }
+
+              return isWithinBlackout;
+            } catch (error) {
+              console.warn(`⚠️ [${date}] Error checking blackout period:`, error, blackout);
+              return false;
+            }
+          });
+
+          if (isBlackedOut) {
+            return false;
+          }
+        }
+
+        console.log(`✅ [${date}] Window ${window.id} is applicable`);
         return true;
       });
 
       if (applicableWindows.length === 0) {
-        console.log(`❌ No applicable booking windows for ${dayOfWeek} on ${date}`);
+        console.log(`❌ [${date}] No applicable booking windows for ${dayOfWeek}`);
         return false;
       }
+
+      console.log(`📋 [${date}] Found ${applicableWindows.length} applicable windows`);
 
       // Get tables that can accommodate the party size
       const { data: tables, error: tablesError } = await supabase
@@ -72,14 +117,16 @@ export class UnifiedAvailabilityService {
         .gte('seats', partySize);
 
       if (tablesError) {
-        console.error('Error fetching tables:', tablesError);
+        console.error(`❌ [${date}] Error fetching tables:`, tablesError);
         return false;
       }
 
       if (!tables || tables.length === 0) {
-        console.log(`❌ No suitable tables found for ${partySize} people`);
+        console.log(`❌ [${date}] No suitable tables found for ${partySize} people`);
         return false;
       }
+
+      console.log(`🪑 [${date}] Found ${tables.length} suitable tables`);
 
       // Check for existing bookings on this date
       const { data: existingBookings, error: bookingsError } = await supabase
@@ -90,9 +137,11 @@ export class UnifiedAvailabilityService {
         .in('status', ['confirmed', 'seated']);
 
       if (bookingsError) {
-        console.error('Error fetching bookings:', bookingsError);
+        console.error(`❌ [${date}] Error fetching bookings:`, bookingsError);
         return false;
       }
+
+      console.log(`📊 [${date}] Found ${existingBookings?.length || 0} existing bookings`);
 
       // For each applicable window, check if there are available time slots
       for (const window of applicableWindows) {
@@ -105,15 +154,15 @@ export class UnifiedAvailabilityService {
         );
 
         if (hasAvailability) {
-          console.log(`✅ Found availability in window ${window.id}`);
+          console.log(`✅ [${date}] Found availability in window ${window.id}`);
           return true;
         }
       }
 
-      console.log(`❌ No availability found for ${date}`);
+      console.log(`❌ [${date}] No availability found after checking all windows`);
       return false;
     } catch (error) {
-      console.error('Error checking date availability:', error);
+      console.error(`❌ [${date}] Error checking date availability:`, error);
       return false;
     }
   }
@@ -128,14 +177,19 @@ export class UnifiedAvailabilityService {
     tables: any[],
     existingBookings: any[]
   ): Promise<boolean> {
+    console.log(`🕐 [${date}] Checking window availability for ${window.start_time}-${window.end_time}`);
+
     // Generate time slots for this window (15-minute intervals)
     const startTime = parse(window.start_time, 'HH:mm', new Date());
     const endTime = parse(window.end_time, 'HH:mm', new Date());
     
     let currentTime = startTime;
+    let checkedSlots = 0;
+    let availableSlots = 0;
     
     while (currentTime < endTime) {
       const timeSlot = format(currentTime, 'HH:mm');
+      checkedSlots++;
       
       // Check if any table is available at this time slot
       const availableTables = tables.filter(table => {
@@ -143,7 +197,8 @@ export class UnifiedAvailabilityService {
       });
 
       if (availableTables.length > 0) {
-        console.log(`✅ Found available table at ${timeSlot}`);
+        availableSlots++;
+        console.log(`✅ [${date}] Found ${availableTables.length} available tables at ${timeSlot}`);
         return true;
       }
 
@@ -151,10 +206,9 @@ export class UnifiedAvailabilityService {
       currentTime = addMinutes(currentTime, 15);
     }
 
+    console.log(`❌ [${date}] No available tables found in ${checkedSlots} time slots`);
     return false;
   }
-
-  // Note: isTableBooked method moved below with enhanced duration support
 
   /**
    * Check if a specific time slot is available for a given party size

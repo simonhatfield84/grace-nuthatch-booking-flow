@@ -8,6 +8,7 @@ export class OptimizedAvailabilityService {
   private static CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
   static clearCache() {
+    console.log('🗑️ Clearing availability cache');
     this.cache.clear();
   }
 
@@ -31,7 +32,7 @@ export class OptimizedAvailabilityService {
     const cached = this.cache.get(cacheKey);
     
     if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
-      console.log(`✅ Using cached availability data`);
+      console.log(`✅ Using cached availability data (${cached.data.length} dates)`);
       return cached.data;
     }
 
@@ -43,7 +44,7 @@ export class OptimizedAvailabilityService {
         .eq('venue_id', venueId);
 
       if (windowsError) {
-        console.error('Error fetching booking windows:', windowsError);
+        console.error('❌ Error fetching booking windows:', windowsError);
         return [];
       }
 
@@ -53,6 +54,16 @@ export class OptimizedAvailabilityService {
       }
 
       console.log(`📋 Found ${bookingWindows.length} booking windows`);
+      
+      // Log booking windows details for debugging
+      bookingWindows.forEach(window => {
+        console.log(`📋 Window ${window.id}:`, {
+          service_id: window.service_id,
+          days: window.days,
+          times: `${window.start_time}-${window.end_time}`,
+          blackouts: window.blackout_periods?.length || 0
+        });
+      });
 
       // Generate date range to check
       const datesToCheck: string[] = [];
@@ -71,6 +82,7 @@ export class OptimizedAvailabilityService {
 
       for (let i = 0; i < datesToCheck.length; i += batchSize) {
         const batch = datesToCheck.slice(i, i + batchSize);
+        console.log(`🔄 Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(datesToCheck.length/batchSize)}: ${batch[0]} to ${batch[batch.length-1]}`);
         
         const batchResults = await Promise.all(
           batch.map(async (dateStr) => {
@@ -84,18 +96,16 @@ export class OptimizedAvailabilityService {
               
               return hasAvailability ? dateStr : null;
             } catch (error) {
-              console.error(`Error checking availability for ${dateStr}:`, error);
+              console.error(`❌ Error checking availability for ${dateStr}:`, error);
               return null;
             }
           })
         );
 
         // Add successful results to available dates
-        batchResults.forEach(result => {
-          if (result) {
-            availableDates.push(result);
-          }
-        });
+        const batchAvailable = batchResults.filter(result => result !== null) as string[];
+        availableDates.push(...batchAvailable);
+        console.log(`✅ Batch complete: ${batchAvailable.length}/${batch.length} dates available`);
 
         // Small delay between batches to prevent overwhelming the system
         if (i + batchSize < datesToCheck.length) {
@@ -103,7 +113,7 @@ export class OptimizedAvailabilityService {
         }
       }
 
-      console.log(`✅ Found ${availableDates.length} available dates out of ${datesToCheck.length} checked`);
+      console.log(`✅ Final result: ${availableDates.length} available dates out of ${datesToCheck.length} checked`);
 
       // Cache the results
       this.cache.set(cacheKey, {
@@ -114,7 +124,7 @@ export class OptimizedAvailabilityService {
       return availableDates.sort();
 
     } catch (error) {
-      console.error('Error in getAvailableDatesInChunks:', error);
+      console.error('❌ Error in getAvailableDatesInChunks:', error);
       return [];
     }
   }

@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DateSelectorWithAvailability } from "./DateSelectorWithAvailability";
 import { SimplifiedTimeSelector } from "./SimplifiedTimeSelector";
 import { PartyNumberSelector } from "./PartyNumberSelector";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { ChevronLeft, Loader2 } from "lucide-react";
 import { calculatePaymentAmount } from "@/utils/paymentCalculation";
 import { useVenueBySlug } from "@/hooks/useVenueBySlug";
+import { OptimizedAvailabilityService } from "@/services/optimizedAvailabilityService";
 
 export type BookingStep = 'party' | 'date' | 'time' | 'service' | 'details' | 'payment' | 'confirmation';
 
@@ -36,7 +37,14 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
   // Resolve venue slug to venue UUID
   const { data: venue, isLoading: venueLoading, error: venueError } = useVenueBySlug(venueSlug);
 
+  // Clear cache when component mounts to ensure fresh data for public users
+  useEffect(() => {
+    console.log('🔄 BookingFlowManager mounted, clearing availability cache');
+    OptimizedAvailabilityService.clearCache();
+  }, []);
+
   const handleStepChange = (step: BookingStep) => {
+    console.log(`📍 Step change: ${currentStep} → ${step}`);
     setCurrentStep(step);
     onStepChange?.(step);
   };
@@ -50,6 +58,7 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
   };
 
   const updateBookingData = (updates: Partial<typeof bookingData>) => {
+    console.log('📝 Updating booking data:', updates);
     setBookingData(prev => ({ ...prev, ...updates }));
   };
 
@@ -65,6 +74,7 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
 
   // Show error if venue not found
   if (venueError || !venue) {
+    console.error('❌ Venue error:', venueError);
     return (
       <div className="flex flex-col items-center justify-center py-8">
         <div className="text-center">
@@ -76,6 +86,8 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
       </div>
     );
   }
+
+  console.log('🏢 Using venue:', { id: venue.id, name: venue.name, slug: venue.slug });
 
   const renderBackButton = () => {
     if (currentStep === 'party' || currentStep === 'confirmation') return null;
@@ -99,6 +111,7 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
           <PartyNumberSelector
             selectedSize={bookingData.partySize}
             onSizeSelect={(size) => {
+              console.log(`👥 Party size selected: ${size}`);
               updateBookingData({ partySize: size });
               handleStepChange('date');
             }}
@@ -110,6 +123,7 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
           <DateSelectorWithAvailability
             selectedDate={bookingData.date}
             onDateSelect={(date) => {
+              console.log(`📅 Date selected: ${format(date, 'yyyy-MM-dd')}`);
               updateBookingData({ date });
               handleStepChange('time');
             }}
@@ -124,6 +138,7 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
             selectedDate={bookingData.date}
             selectedTime={bookingData.time}
             onTimeSelect={(time) => {
+              console.log(`🕐 Time selected: ${time}`);
               updateBookingData({ time });
               handleStepChange('service');
             }}
@@ -138,6 +153,7 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
           <ServiceSelector
             selectedService={bookingData.service}
             onServiceSelect={(service) => {
+              console.log(`🍽️ Service selected:`, service);
               updateBookingData({ 
                 service: service,
                 serviceId: service.id
@@ -154,6 +170,7 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
         return (
           <GuestDetailsForm
             onSubmit={async (details, paymentRequired) => {
+              console.log('📋 Guest details submitted:', { details, paymentRequired });
               let paymentAmount = 0;
               
               if (paymentRequired && bookingData.serviceId) {
@@ -197,10 +214,11 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
             description={`Payment for ${bookingData.service?.title} - ${bookingData.partySize} guests`}
             bookingId={bookingData.bookingId || undefined}
             onPaymentSuccess={() => {
+              console.log('💳 Payment successful');
               handleStepChange('confirmation');
             }}
             onPaymentError={(error) => {
-              console.error('Payment error:', error);
+              console.error('💳 Payment error:', error);
             }}
           />
         );

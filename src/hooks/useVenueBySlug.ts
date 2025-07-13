@@ -16,8 +16,13 @@ export const useVenueBySlug = (venueSlug: string) => {
         .single();
       
       if (error) {
-        console.error('Error fetching venue by slug:', error);
+        console.error('❌ Error fetching venue by slug:', error);
         throw error;
+      }
+      
+      if (!data) {
+        console.error('❌ No venue found with slug:', venueSlug);
+        throw new Error(`Venue not found: ${venueSlug}`);
       }
       
       console.log(`✅ Found venue:`, data);
