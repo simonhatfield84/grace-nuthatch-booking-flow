@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,13 @@ interface Guest {
   opt_in_marketing?: boolean;
 }
 
+interface ConflictAdjustment {
+  wasAutoAdjusted: boolean;
+  originalDuration: number;
+  adjustedDuration: number;
+  conflictInfo: BookingConflict | null;
+}
+
 export const EnhancedWalkInDialog = ({
   open,
   onOpenChange,
@@ -65,7 +73,12 @@ export const EnhancedWalkInDialog = ({
   const [conflict, setConflict] = useState<BookingConflict | null>(null);
   const [isCheckingConflicts, setIsCheckingConflicts] = useState(false);
   const [venueDefaultDuration, setVenueDefaultDuration] = useState(defaultDuration);
-  const [persistentConflict, setPersistentConflict] = useState<BookingConflict | null>(null); // Keep conflict visible
+  const [conflictAdjustment, setConflictAdjustment] = useState<ConflictAdjustment>({
+    wasAutoAdjusted: false,
+    originalDuration: defaultDuration,
+    adjustedDuration: defaultDuration,
+    conflictInfo: null
+  });
   const [conflictCheckDebounce, setConflictCheckDebounce] = useState<NodeJS.Timeout | null>(null);
   
   const { user } = useAuth();
@@ -88,6 +101,12 @@ export const EnhancedWalkInDialog = ({
           setVenueDefaultDuration(defaultDuration);
           if (open) {
             setDuration(defaultDuration);
+            setConflictAdjustment({
+              wasAutoAdjusted: false,
+              originalDuration: defaultDuration,
+              adjustedDuration: defaultDuration,
+              conflictInfo: null
+            });
           }
         }
       } catch (error) {
@@ -112,11 +131,16 @@ export const EnhancedWalkInDialog = ({
       setSearchResults([]);
       setSelectedGuest(null);
       setConflict(null);
-      setPersistentConflict(null); // Reset persistent conflict
+      setConflictAdjustment({
+        wasAutoAdjusted: false,
+        originalDuration: venueDefaultDuration,
+        adjustedDuration: venueDefaultDuration,
+        conflictInfo: null
+      });
     }
   }, [open, venueDefaultDuration]);
 
-  // Improved conflict checking with debouncing
+  // Enhanced conflict checking with persistent state
   useEffect(() => {
     if (!table || !time || !user || !open) return;
 
@@ -145,16 +169,30 @@ export const EnhancedWalkInDialog = ({
 
           setConflict(conflictInfo);
           
-          // Set persistent conflict to keep message stable
-          if (conflictInfo.hasConflict) {
-            setPersistentConflict(conflictInfo);
-            // Auto-adjust duration if there's a conflict
-            if (conflictInfo.maxAvailableDuration > 0) {
+          // Handle auto-adjustment logic
+          if (conflictInfo.hasConflict && conflictInfo.maxAvailableDuration > 0) {
+            // Only auto-adjust if we haven't already adjusted or if this is a new conflict
+            if (!conflictAdjustment.wasAutoAdjusted || duration !== conflictAdjustment.adjustedDuration) {
+              const originalDuration = conflictAdjustment.wasAutoAdjusted 
+                ? conflictAdjustment.originalDuration 
+                : duration;
+              
               setDuration(conflictInfo.maxAvailableDuration);
+              setConflictAdjustment({
+                wasAutoAdjusted: true,
+                originalDuration,
+                adjustedDuration: conflictInfo.maxAvailableDuration,
+                conflictInfo
+              });
             }
-          } else {
-            // Only clear persistent conflict if no new conflict exists
-            setPersistentConflict(null);
+          } else if (!conflictInfo.hasConflict && !conflictAdjustment.wasAutoAdjusted) {
+            // Only clear if we haven't made any auto-adjustments
+            setConflictAdjustment({
+              wasAutoAdjusted: false,
+              originalDuration: duration,
+              adjustedDuration: duration,
+              conflictInfo: null
+            });
           }
         }
       } catch (error) {
@@ -222,13 +260,26 @@ export const EnhancedWalkInDialog = ({
     setSearchResults([]);
   };
 
+  const handleDurationChange = (newDuration: number) => {
+    // When user manually changes duration, reset auto-adjustment tracking
+    setDuration(newDuration);
+    if (conflictAdjustment.wasAutoAdjusted) {
+      setConflictAdjustment({
+        wasAutoAdjusted: false,
+        originalDuration: newDuration,
+        adjustedDuration: newDuration,
+        conflictInfo: null
+      });
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!table) return;
 
-    // Use persistent conflict for validation to ensure stability
-    const currentConflict = persistentConflict || conflict;
+    // Use current conflict or persistent conflict info for validation
+    const currentConflict = conflict || conflictAdjustment.conflictInfo;
 
     // Prevent submission if there are unresolved conflicts with no available time
     if (currentConflict?.hasConflict && currentConflict.maxAvailableDuration < 30) {
@@ -268,8 +319,9 @@ export const EnhancedWalkInDialog = ({
 
   if (!table) return null;
 
-  // Use persistent conflict for display to keep message stable
-  const displayConflict = persistentConflict || conflict;
+  // Show persistent conflict warning if there was an auto-adjustment or current conflict
+  const shouldShowConflictWarning = conflictAdjustment.wasAutoAdjusted || conflict?.hasConflict;
+  const conflictToDisplay = conflictAdjustment.wasAutoAdjusted ? conflictAdjustment.conflictInfo : conflict;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -300,16 +352,26 @@ export const EnhancedWalkInDialog = ({
             </div>
           </div>
 
-          {/* Enhanced Conflict Warning - now stable */}
-          {displayConflict?.hasConflict && (
+          {/* Enhanced Persistent Conflict Warning */}
+          {shouldShowConflictWarning && conflictToDisplay && (
             <Alert className="border-amber-200 bg-amber-50">
               <AlertTriangle className="h-4 w-4 text-amber-600" />
               <AlertDescription className="text-amber-800">
-                {displayConflict.maxAvailableDuration >= 30 ? (
+                {conflictAdjustment.wasAutoAdjusted ? (
+                  <>
+                    <strong>Duration automatically adjusted!</strong> 
+                    {conflictAdjustment.originalDuration !== conflictAdjustment.adjustedDuration && (
+                      <> Original {conflictAdjustment.originalDuration} minutes reduced to {conflictAdjustment.adjustedDuration} minutes.</>
+                    )}
+                    {conflictToDisplay.nextBookingTime && conflictToDisplay.conflictingBooking && (
+                      <> Next booking at {conflictToDisplay.nextBookingTime} ({conflictToDisplay.conflictingBooking.guest_name}).</>
+                    )}
+                  </>
+                ) : conflictToDisplay.maxAvailableDuration >= 30 ? (
                   <>
                     <strong>Booking conflict detected!</strong> Next booking at{' '}
-                    {displayConflict.nextBookingTime} ({displayConflict.conflictingBooking?.guest_name}).
-                    Duration automatically adjusted to {displayConflict.maxAvailableDuration} minutes.
+                    {conflictToDisplay.nextBookingTime} ({conflictToDisplay.conflictingBooking?.guest_name}).
+                    Duration automatically adjusted to {conflictToDisplay.maxAvailableDuration} minutes.
                   </>
                 ) : (
                   <>
@@ -453,13 +515,13 @@ export const EnhancedWalkInDialog = ({
               max="360"
               step="15"
               value={duration}
-              onChange={(e) => setDuration(Math.max(30, parseInt(e.target.value) || venueDefaultDuration))}
+              onChange={(e) => handleDurationChange(Math.max(30, parseInt(e.target.value) || venueDefaultDuration))}
               className="text-foreground bg-background border-border"
-              disabled={conflict?.hasConflict} // Disable manual editing when there's a conflict
+              disabled={conflictAdjustment.wasAutoAdjusted} // Disable manual editing when auto-adjusted
             />
-            {conflict?.hasConflict && (
+            {conflictAdjustment.wasAutoAdjusted && (
               <p className="text-xs text-muted-foreground mt-1">
-                Duration automatically set based on next booking
+                Duration automatically adjusted due to booking conflict
               </p>
             )}
           </div>
@@ -474,7 +536,7 @@ export const EnhancedWalkInDialog = ({
             </Button>
             <Button 
               type="submit"
-              disabled={displayConflict?.hasConflict && displayConflict.maxAvailableDuration < 30}
+              disabled={conflict?.hasConflict && conflict.maxAvailableDuration < 30}
             >
               <UserPlus className="h-4 w-4 mr-2" />
               Seat Walk-In
