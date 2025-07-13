@@ -1,12 +1,11 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { format, addDays, isAfter, isBefore } from "date-fns";
-import { CalendarIcon } from 'lucide-react';
-import { TableAvailabilityService } from "@/services/tableAvailabilityService";
+import { CalendarIcon, Loader2 } from 'lucide-react';
+import { OptimizedAvailabilityService } from "@/services/optimizedAvailabilityService";
 
 interface DateSelectorWithAvailabilityProps {
   selectedDate: Date | null;
@@ -21,106 +20,37 @@ export const DateSelectorWithAvailability = ({
   partySize,
   venueId
 }: DateSelectorWithAvailabilityProps) => {
-  // Get available dates based on actual time-slot availability
-  const { data: availableDates = [], isLoading } = useQuery({
-    queryKey: ['available-dates', partySize, venueId],
+  const [loadingProgress, setLoadingProgress] = useState(0);
+
+  // Get available dates using optimized service
+  const { data: availableDates = [], isLoading, error } = useQuery({
+    queryKey: ['optimized-available-dates', partySize, venueId],
     queryFn: async () => {
       if (!venueId) return [];
 
-      const endDate = addDays(new Date(), 60); // Show next 60 days
-      const startDate = new Date();
-      const availableDates: Date[] = [];
-
-      console.log(`🔍 Checking availability for ${partySize} guests from ${format(startDate, 'yyyy-MM-dd')} to ${format(endDate, 'yyyy-MM-dd')}`);
-
-      // Check each day in the range
-      for (let d = new Date(startDate); d <= endDate; d = addDays(d, 1)) {
-        const dateStr = format(d, 'yyyy-MM-dd');
-        
-        // Get booking windows for this venue to determine service hours
-        const { data: bookingWindows } = await supabase
-          .from('booking_windows')
-          .select('*')
-          .eq('venue_id', venueId);
-
-        if (!bookingWindows || bookingWindows.length === 0) continue;
-
-        // Check if any booking window covers this day
-        const dayName = format(d, 'EEE').toLowerCase();
-        const activeWindows = bookingWindows.filter(window => 
-          window.days.includes(dayName) &&
-          (!window.start_date || dateStr >= window.start_date) &&
-          (!window.end_date || dateStr <= window.end_date)
+      console.log(`🚀 Starting optimized availability check for ${partySize} guests`);
+      const startTime = performance.now();
+      
+      try {
+        const dates = await OptimizedAvailabilityService.getAvailableDatesInChunks(
+          venueId,
+          partySize,
+          15 // Process 15 dates at a time
         );
-
-        if (activeWindows.length === 0) continue;
-
-        // Generate time slots based on booking windows
-        const timeSlots: string[] = [];
         
-        for (const window of activeWindows) {
-          const startHour = parseInt(window.start_time.split(':')[0]);
-          const startMin = parseInt(window.start_time.split(':')[1]);
-          const endHour = parseInt(window.end_time.split(':')[0]);
-          const endMin = parseInt(window.end_time.split(':')[1]);
-          
-          // Generate 15-minute intervals within the booking window
-          for (let hour = startHour; hour <= endHour; hour++) {
-            const startMinute = (hour === startHour) ? startMin : 0;
-            const endMinute = (hour === endHour) ? endMin : 59;
-            
-            for (let minute = startMinute; minute <= endMinute; minute += 15) {
-              if (hour === endHour && minute > endMin) break;
-              
-              const timeSlot = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-              if (!timeSlots.includes(timeSlot)) {
-                timeSlots.push(timeSlot);
-              }
-            }
-          }
-        }
-
-        console.log(`📅 Checking ${dateStr} with ${timeSlots.length} time slots for ${partySize} guests`);
-
-        // Use the enhanced table availability service to check if any time slots are available
-        let hasAvailability = false;
-        let availableSlots = 0;
+        const endTime = performance.now();
+        console.log(`⚡ Optimized check completed in ${Math.round(endTime - startTime)}ms`);
         
-        for (const timeSlot of timeSlots) {
-          try {
-            const result = await TableAvailabilityService.getEnhancedTableAllocation(
-              partySize,
-              dateStr,
-              timeSlot,
-              venueId,
-              120 // Default 2 hour duration
-            );
-            
-            if (result.success) {
-              hasAvailability = true;
-              availableSlots++;
-              console.log(`✅ Found availability on ${dateStr} at ${timeSlot} for ${partySize} guests`);
-              // Don't break - continue checking to get a count of available slots
-            }
-          } catch (error) {
-            console.warn(`⚠️ Error checking availability for ${dateStr} at ${timeSlot}:`, error);
-          }
-        }
-
-        if (hasAvailability) {
-          console.log(`✅ Date ${dateStr} available with ${availableSlots} time slots for ${partySize} guests`);
-          availableDates.push(new Date(d));
-        } else {
-          console.log(`❌ Date ${dateStr} unavailable - no time slots work for ${partySize} guests`);
-        }
+        return dates;
+      } catch (error) {
+        console.error('❌ Optimized availability check failed:', error);
+        throw error;
       }
-
-      console.log(`📊 Found ${availableDates.length} available dates for ${partySize} guests`);
-      return availableDates;
     },
     enabled: !!venueId && partySize > 0,
-    staleTime: 2 * 60 * 1000, // Cache for 2 minutes
-    refetchInterval: 5 * 60 * 1000 // Refetch every 5 minutes
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    refetchInterval: 10 * 60 * 1000, // Refetch every 10 minutes
+    refetchOnWindowFocus: false, // Don't refetch when user returns to tab
   });
 
   const isDateAvailable = (date: Date) => {
@@ -140,6 +70,10 @@ export const DateSelectorWithAvailability = ({
     return !isDateAvailable(date);
   };
 
+  if (error) {
+    console.error('Error loading availability:', error);
+  }
+
   return (
     <Card className="w-full max-w-2xl mx-auto bg-white dark:bg-gray-900">
       <CardHeader className="bg-gray-50 dark:bg-gray-800 border-b">
@@ -153,8 +87,27 @@ export const DateSelectorWithAvailability = ({
       </CardHeader>
       <CardContent className="p-6 bg-white dark:bg-gray-900">
         {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="text-gray-500">Checking availability...</div>
+          <div className="flex flex-col items-center justify-center py-12 space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            <div className="text-center">
+              <p className="text-gray-700 dark:text-gray-300 font-medium">
+                Checking availability...
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                This may take a moment for the first search
+              </p>
+            </div>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-8">
+            <div className="text-center">
+              <p className="text-red-600 dark:text-red-400 font-medium">
+                Unable to check availability
+              </p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                Please try again or contact us directly
+              </p>
+            </div>
           </div>
         ) : (
           <>
@@ -178,8 +131,13 @@ export const DateSelectorWithAvailability = ({
             )}
 
             {availableDates.length > 0 && (
-              <div className="mt-4 text-center text-sm text-gray-600 dark:text-gray-400">
-                {availableDates.length} dates available for your party size
+              <div className="mt-4 text-center">
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  {availableDates.length} dates available for your party size
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+                  ⚡ Powered by optimized availability checking
+                </div>
               </div>
             )}
           </>

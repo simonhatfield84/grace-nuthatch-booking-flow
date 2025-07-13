@@ -1,5 +1,5 @@
-
 import { addMinutes } from "date-fns";
+import { OptimizedAvailabilityService } from "./optimizedAvailabilityService";
 
 interface CacheEntry<T> {
   data: T;
@@ -19,8 +19,8 @@ interface AvailabilityData {
 
 export class AvailabilityCacheService {
   private static cache = new Map<string, CacheEntry<any>>();
-  private static readonly CACHE_DURATION = 2 * 60 * 1000; // 2 minutes
-  private static readonly MAX_CACHE_SIZE = 100;
+  private static readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes (increased from 2)
+  private static readonly MAX_CACHE_SIZE = 200; // Increased cache size
 
   /**
    * Generate cache key for availability data
@@ -59,7 +59,7 @@ export class AvailabilityCacheService {
       const sortedEntries = Array.from(this.cache.entries())
         .sort(([, a], [, b]) => a.timestamp - b.timestamp);
       
-      for (let i = 0; i < 10; i++) { // Remove 10 oldest
+      for (let i = 0; i < 20; i++) { // Remove 20 oldest entries
         if (sortedEntries[i]) {
           this.cache.delete(sortedEntries[i][0]);
         }
@@ -86,6 +86,9 @@ export class AvailabilityCacheService {
     }
 
     keysToDelete.forEach(key => this.cache.delete(key));
+    
+    // Also clear optimized service cache when invalidating
+    OptimizedAvailabilityService.clearCache();
   }
 
   /**
@@ -93,26 +96,7 @@ export class AvailabilityCacheService {
    */
   static clearCache(): void {
     this.cache.clear();
-  }
-
-  /**
-   * Get cache statistics
-   */
-  static getCacheStats(): {
-    size: number;
-    hitRatio: number;
-    oldestEntry: number;
-    newestEntry: number;
-  } {
-    const entries = Array.from(this.cache.values());
-    const timestamps = entries.map(e => e.timestamp);
-    
-    return {
-      size: this.cache.size,
-      hitRatio: 0, // Would need hit/miss tracking for accurate ratio
-      oldestEntry: timestamps.length > 0 ? Math.min(...timestamps) : 0,
-      newestEntry: timestamps.length > 0 ? Math.max(...timestamps) : 0
-    };
+    OptimizedAvailabilityService.clearCache();
   }
 
   /**
@@ -211,6 +195,26 @@ export class AvailabilityCacheService {
 
         this.debounceTimers.set(key, timer);
       });
+    };
+  }
+
+  /**
+   * Get cache statistics
+   */
+  static getCacheStats(): {
+    size: number;
+    hitRatio: number;
+    oldestEntry: number;
+    newestEntry: number;
+  } {
+    const entries = Array.from(this.cache.values());
+    const timestamps = entries.map(e => e.timestamp);
+    
+    return {
+      size: this.cache.size,
+      hitRatio: 0, // Would need hit/miss tracking for accurate ratio
+      oldestEntry: timestamps.length > 0 ? Math.min(...timestamps) : 0,
+      newestEntry: timestamps.length > 0 ? Math.max(...timestamps) : 0
     };
   }
 
