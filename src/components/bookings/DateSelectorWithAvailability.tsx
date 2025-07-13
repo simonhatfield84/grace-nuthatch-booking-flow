@@ -12,7 +12,7 @@ interface DateSelectorWithAvailabilityProps {
   selectedDate: Date | null;
   onDateSelect: (date: Date | undefined) => void;
   partySize: number;
-  venueId?: string;
+  venueId: string; // Now expects UUID instead of slug
 }
 
 export const DateSelectorWithAvailability = ({
@@ -24,7 +24,7 @@ export const DateSelectorWithAvailability = ({
   const [loadingProgress, setLoadingProgress] = useState(0);
   const queryClient = useQueryClient();
 
-  // Get booking windows for the venue
+  // Get booking windows for the venue using UUID
   const { data: bookingWindows = [] } = useQuery({
     queryKey: ['booking-windows', venueId],
     queryFn: async () => {
@@ -48,7 +48,7 @@ export const DateSelectorWithAvailability = ({
     queryFn: async () => {
       if (!venueId || bookingWindows.length === 0) return [];
 
-      console.log(`🚀 Starting enhanced availability check for ${partySize} guests`);
+      console.log(`🚀 Starting enhanced availability check for ${partySize} guests at venue ${venueId}`);
       const startTime = performance.now();
       
       try {

@@ -8,8 +8,9 @@ import { GuestDetailsForm } from "./GuestDetailsForm";
 import { PaymentStep } from "./PaymentStep";
 import { BookingConfirmation } from "./BookingConfirmation";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Loader2 } from "lucide-react";
 import { calculatePaymentAmount } from "@/utils/paymentCalculation";
+import { useVenueBySlug } from "@/hooks/useVenueBySlug";
 
 export type BookingStep = 'date' | 'time' | 'party' | 'service' | 'details' | 'payment' | 'confirmation';
 
@@ -32,6 +33,9 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
     bookingId: null as number | null,
   });
 
+  // Resolve venue slug to venue UUID
+  const { data: venue, isLoading: venueLoading, error: venueError } = useVenueBySlug(venueSlug);
+
   const handleStepChange = (step: BookingStep) => {
     setCurrentStep(step);
     onStepChange?.(step);
@@ -48,6 +52,30 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
   const updateBookingData = (updates: Partial<typeof bookingData>) => {
     setBookingData(prev => ({ ...prev, ...updates }));
   };
+
+  // Show loading state while venue is being resolved
+  if (venueLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 space-y-4">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <p className="text-gray-700 font-medium">Loading venue...</p>
+      </div>
+    );
+  }
+
+  // Show error if venue not found
+  if (venueError || !venue) {
+    return (
+      <div className="flex flex-col items-center justify-center py-8">
+        <div className="text-center">
+          <p className="text-red-600 font-medium">Venue not found</p>
+          <p className="text-sm text-gray-500 mt-1">
+            The venue "{venueSlug}" could not be found or is not available for bookings.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const renderBackButton = () => {
     if (currentStep === 'date' || currentStep === 'confirmation') return null;
@@ -75,7 +103,7 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
               handleStepChange('time');
             }}
             partySize={bookingData.partySize}
-            venueId={venueSlug}
+            venueId={venue.id}
           />
         );
 
@@ -89,7 +117,7 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
               handleStepChange('party');
             }}
             partySize={bookingData.partySize}
-            venueId={venueSlug}
+            venueId={venue.id}
           />
         );
 
@@ -117,7 +145,7 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
             }}
             partySize={bookingData.partySize}
             selectedDate={bookingData.date}
-            venueId={venueSlug}
+            venueId={venue.id}
           />
         );
 
@@ -132,7 +160,7 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
                   const paymentCalculation = await calculatePaymentAmount(
                     bookingData.serviceId,
                     bookingData.partySize,
-                    venueSlug
+                    venue.id
                   );
                   paymentAmount = paymentCalculation.amount;
                 } catch (error) {
