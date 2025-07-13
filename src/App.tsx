@@ -42,9 +42,9 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
-        <ThemeHandler />
         <AuthProvider>
           <Router>
+            <ThemeHandler />
             <div className="min-h-screen bg-background text-foreground">
               <Routes>
                 <Route path="/" element={<RootRedirect />} />
