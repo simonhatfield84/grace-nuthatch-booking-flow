@@ -72,16 +72,16 @@ const BookingWidget = () => {
     checkPaymentRequirement();
   }, [selectedService, partySize, firstVenue]);
 
-  // Create booking mutation with pre-booking validation
+  // Create booking mutation with enhanced pre-booking validation
   const createBookingMutation = useMutation({
     mutationFn: async () => {
       if (!selectedDate || !selectedTime || !firstVenue || !selectedService) {
         throw new Error("Missing required booking details.");
       }
 
-      console.log(`🛡️ Pre-booking validation starting...`);
+      console.log(`🛡️ Enhanced pre-booking validation starting...`);
       
-      // CRITICAL: Validate availability before creating booking
+      // CRITICAL: Enhanced validation with detailed debugging
       const validationResult = await UnifiedAvailabilityService.validateBookingBeforeCreation(
         firstVenue.id,
         format(selectedDate, 'yyyy-MM-dd'),
@@ -90,17 +90,35 @@ const BookingWidget = () => {
         selectedService.id
       );
 
+      console.log(`🔍 Validation result:`, validationResult);
+
       if (!validationResult.valid) {
-        console.error(`❌ Pre-booking validation failed: ${validationResult.reason}`);
+        console.error(`❌ Enhanced pre-booking validation failed:`, {
+          reason: validationResult.reason,
+          debugInfo: validationResult.debugInfo,
+          alternatives: validationResult.alternatives
+        });
         
+        // Provide specific error messages based on the failure reason
         if (validationResult.alternatives && validationResult.alternatives.length > 0) {
-          throw new Error(`No tables available at ${selectedTime}. Try these times instead: ${validationResult.alternatives.join(', ')}`);
+          throw new Error(`The selected time ${selectedTime} is no longer available. Try these times instead: ${validationResult.alternatives.join(', ')}`);
+        } else if (validationResult.debugInfo) {
+          const debug = validationResult.debugInfo;
+          let detailedMessage = `No tables available at ${selectedTime}.`;
+          
+          if (debug.suitableTables === 0) {
+            detailedMessage += ` None of the ${debug.totalTables} tables can accommodate ${partySize} guests.`;
+          } else {
+            detailedMessage += ` ${debug.suitableTables} suitable tables found, but ${debug.occupiedTableIds.length} are occupied.`;
+          }
+          
+          throw new Error(detailedMessage + ' Please select a different time or date.');
         } else {
           throw new Error(`No tables available at ${selectedTime}. Please select a different time or date.`);
         }
       }
 
-      console.log(`✅ Pre-booking validation passed, creating booking...`);
+      console.log(`✅ Enhanced pre-booking validation passed, creating booking...`);
 
       const bookingData = {
         service: selectedService.title,
@@ -142,8 +160,9 @@ const BookingWidget = () => {
         }
       }
 
-      // Try to allocate table automatically
+      // Try to allocate table automatically with enhanced logging
       try {
+        console.log(`🎯 Attempting table allocation for booking ${data.id}...`);
         const allocationResult = await TableAllocationService.allocateBookingToTables(
           data.id,
           data.party_size,
@@ -151,12 +170,22 @@ const BookingWidget = () => {
           data.booking_time
         );
 
-        if (!allocationResult.success && allocationResult.alternatives) {
-          setAllocationAlternatives(allocationResult.alternatives);
-          setShowAlternatives(true);
+        console.log(`📋 Allocation result:`, allocationResult);
+
+        if (!allocationResult.success) {
+          console.warn(`⚠️ Table allocation failed despite validation passing:`, {
+            bookingId: data.id,
+            reason: allocationResult.reason,
+            alternatives: allocationResult.alternatives
+          });
+          
+          if (allocationResult.alternatives) {
+            setAllocationAlternatives(allocationResult.alternatives);
+            setShowAlternatives(true);
+          }
         }
       } catch (allocationError) {
-        console.warn('Table allocation failed:', allocationError);
+        console.error('❌ Table allocation failed:', allocationError);
       }
 
       return data;
@@ -174,7 +203,7 @@ const BookingWidget = () => {
       }
     },
     onError: (error) => {
-      console.error('Booking creation error:', error);
+      console.error('❌ Booking creation error:', error);
       toast({
         title: "Booking Failed",
         description: error.message || "Failed to create booking. Please try again.",

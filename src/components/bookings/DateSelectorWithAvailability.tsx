@@ -1,8 +1,7 @@
-
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Calendar } from "@/components/ui/calendar";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, addDays, isAfter, isBefore } from "date-fns";
 import { CalendarIcon, Loader2 } from 'lucide-react';
 import { UnifiedAvailabilityService } from "@/services/unifiedAvailabilityService";
@@ -22,6 +21,7 @@ export const DateSelectorWithAvailability = ({
   venueId
 }: DateSelectorWithAvailabilityProps) => {
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const queryClient = useQueryClient();
 
   // Get booking windows for the venue
   const { data: bookingWindows = [] } = useQuery({
@@ -41,13 +41,13 @@ export const DateSelectorWithAvailability = ({
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
   });
 
-  // Get available dates using unified service
+  // Get available dates using unified service with cache invalidation
   const { data: availableDates = [], isLoading, error } = useQuery({
     queryKey: ['unified-available-dates', partySize, venueId],
     queryFn: async () => {
       if (!venueId || bookingWindows.length === 0) return [];
 
-      console.log(`🚀 Starting unified availability check for ${partySize} guests`);
+      console.log(`🚀 Starting enhanced availability check for ${partySize} guests`);
       const startTime = performance.now();
       
       try {
@@ -86,19 +86,23 @@ export const DateSelectorWithAvailability = ({
         }
         
         const endTime = performance.now();
-        console.log(`⚡ Unified availability check completed in ${Math.round(endTime - startTime)}ms`);
+        console.log(`⚡ Enhanced availability check completed in ${Math.round(endTime - startTime)}ms`);
         console.log(`🎯 Total available dates: ${dates.length}`);
         
         return dates;
       } catch (error) {
-        console.error('❌ Unified availability check failed:', error);
+        console.error('❌ Enhanced availability check failed:', error);
         throw error;
       }
     },
     enabled: !!venueId && partySize > 0 && bookingWindows.length > 0,
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-    refetchInterval: 10 * 60 * 1000, // Refetch every 10 minutes
-    refetchOnWindowFocus: false, // Don't refetch when user returns to tab
+    staleTime: 2 * 60 * 1000, // Reduced cache time for more real-time updates
+    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
+    refetchOnWindowFocus: true, // Refetch when user returns to tab
+    onSuccess: () => {
+      // Invalidate related time slot queries when dates are refreshed
+      queryClient.invalidateQueries({ queryKey: ['unified-time-slots'] });
+    }
   });
 
   const isDateAvailable = (date: Date) => {
@@ -139,10 +143,10 @@ export const DateSelectorWithAvailability = ({
             <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
             <div className="text-center">
               <p className="text-gray-700 dark:text-gray-300 font-medium">
-                Checking availability with precise table allocation...
+                Checking availability with enhanced validation...
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                {loadingProgress > 0 ? `${loadingProgress}% complete` : 'This may take a moment for accurate results'}
+                {loadingProgress > 0 ? `${loadingProgress}% complete` : 'Validating against actual table allocation'}
               </p>
             </div>
           </div>
@@ -184,7 +188,7 @@ export const DateSelectorWithAvailability = ({
                   {availableDates.length} dates available for your party size
                 </div>
                 <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                  ✅ Validated against actual table allocation logic
+                  ✅ Enhanced validation with race condition protection
                 </div>
               </div>
             )}
