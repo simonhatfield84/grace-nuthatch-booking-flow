@@ -20,11 +20,13 @@ export const useServiceDialog = (editingService: any, newService: any) => {
     requires_payment: false,
     charge_type: 'none' as 'none' | 'all_reservations' | 'large_groups',
     minimum_guests_for_charge: 8,
-    charge_amount_per_guest: 0, // Store in pence
+    charge_amount_per_guest: 0,
   });
 
   // Initialize form data when editing or creating
   useEffect(() => {
+    console.log('useServiceDialog effect triggered with:', { editingService, newService });
+    
     const serviceData = editingService || newService;
     if (serviceData) {
       console.log('Initializing service dialog with:', serviceData);
@@ -44,16 +46,45 @@ export const useServiceDialog = (editingService: any, newService: any) => {
       setDurationRules(serviceData.duration_rules || []);
       setTermsAndConditions(serviceData.terms_and_conditions || '');
       
-      // Initialize payment settings with proper debugging
+      // Initialize payment settings with null-safe checks using nullish coalescing
       const paymentData = {
-        requires_payment: serviceData.requires_payment || false,
-        charge_type: serviceData.charge_type || 'none',
-        minimum_guests_for_charge: serviceData.minimum_guests_for_charge || 8,
-        charge_amount_per_guest: serviceData.charge_amount_per_guest || 0,
+        requires_payment: serviceData.requires_payment ?? false,
+        charge_type: serviceData.charge_type ?? 'none',
+        minimum_guests_for_charge: serviceData.minimum_guests_for_charge ?? 8,
+        charge_amount_per_guest: serviceData.charge_amount_per_guest ?? 0,
       };
       
+      console.log('Original service payment data:', {
+        requires_payment: serviceData.requires_payment,
+        charge_type: serviceData.charge_type,
+        minimum_guests_for_charge: serviceData.minimum_guests_for_charge,
+        charge_amount_per_guest: serviceData.charge_amount_per_guest,
+      });
       console.log('Setting payment settings to:', paymentData);
       setPaymentSettings(paymentData);
+    } else {
+      // Reset to defaults when no service data
+      console.log('Resetting to defaults - no service data');
+      setTitle('');
+      setDescription('');
+      setMinGuests(1);
+      setMaxGuests(8);
+      setLeadTimeHours(2);
+      setCancellationWindowHours(24);
+      setOnlineBookable(true);
+      setActive(true);
+      setIsSecret(false);
+      setSecretSlug('');
+      setImageUrl('');
+      setSelectedTags([]);
+      setDurationRules([]);
+      setTermsAndConditions('');
+      setPaymentSettings({
+        requires_payment: false,
+        charge_type: 'none',
+        minimum_guests_for_charge: 8,
+        charge_amount_per_guest: 0,
+      });
     }
   }, [editingService, newService]);
 

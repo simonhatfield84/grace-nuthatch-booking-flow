@@ -1,3 +1,4 @@
+
 import { useServices } from "@/hooks/useServices";
 import { useServiceState } from "@/hooks/useServiceState";
 import { SERVICE_DEFAULTS } from "@/constants/serviceDefaults";
@@ -33,6 +34,7 @@ export const useServiceForm = () => {
         terms_and_conditions: termsToUse,
       };
 
+      console.log('Creating service with final data:', finalServiceData);
       await createServiceMutation.mutateAsync(finalServiceData);
       return true;
     } catch (error) {
@@ -57,6 +59,7 @@ export const useServiceForm = () => {
 
       const serviceId = serviceData ? (serviceData.id || editingService?.id) : editingService.id;
       
+      console.log('Updating service with final data:', finalServiceData);
       await updateServiceMutation.mutateAsync({
         id: serviceId,
         updates: finalServiceData
@@ -69,17 +72,21 @@ export const useServiceForm = () => {
   };
 
   const handleEditService = (service) => {
-    console.log('Setting editing service with data:', service);
+    console.log('Raw service data from database:', service);
     
-    setEditingService({
+    // Preserve all payment-related properties with proper null/undefined handling
+    const editingData = {
       ...service,
       useStandardTerms: service.terms_and_conditions === getStandardTerms(),
-      // Ensure all payment settings are properly preserved
-      requires_payment: service.requires_payment || false,
-      charge_type: service.charge_type || 'none',
-      charge_amount_per_guest: service.charge_amount_per_guest || 0,
-      minimum_guests_for_charge: service.minimum_guests_for_charge || 8,
-    });
+      // Use nullish coalescing to properly handle false values
+      requires_payment: service.requires_payment ?? false,
+      charge_type: service.charge_type ?? 'none',
+      charge_amount_per_guest: service.charge_amount_per_guest ?? 0,
+      minimum_guests_for_charge: service.minimum_guests_for_charge ?? 8,
+    };
+    
+    console.log('Setting editing service with processed data:', editingData);
+    setEditingService(editingData);
   };
 
   const handleDeleteService = async (serviceId) => {
@@ -93,6 +100,9 @@ export const useServiceForm = () => {
   };
 
   const handleDuplicateService = (service) => {
+    // Clear editing service first to ensure we're in "add" mode
+    setEditingService(null);
+    
     setNewService({
       ...SERVICE_DEFAULTS,
       title: `${service.title} (Copy)`,
@@ -112,10 +122,11 @@ export const useServiceForm = () => {
       terms_and_conditions: service.terms_and_conditions,
       duration_rules: service.duration_rules || [],
       useStandardTerms: service.terms_and_conditions === getStandardTerms(),
-      requires_payment: service.requires_payment,
-      charge_type: service.charge_type,
-      minimum_guests_for_charge: service.minimum_guests_for_charge,
-      charge_amount_per_guest: service.charge_amount_per_guest,
+      // Preserve payment settings with proper null handling
+      requires_payment: service.requires_payment ?? false,
+      charge_type: service.charge_type ?? 'none',
+      minimum_guests_for_charge: service.minimum_guests_for_charge ?? 8,
+      charge_amount_per_guest: service.charge_amount_per_guest ?? 0,
     });
   };
 

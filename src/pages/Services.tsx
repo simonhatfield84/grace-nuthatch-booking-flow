@@ -91,6 +91,13 @@ const Services = () => {
     await handleToggleActive(serviceId, services, updateServiceMutation);
   };
 
+  // Fix: Clear editing state when adding new service
+  const handleAddClick = () => {
+    setEditingService(null); // Clear any existing editing state
+    resetForm(); // Reset form to defaults
+    setShowDialog(true);
+  };
+
   if (isServicesLoading) {
     return <div className="flex items-center justify-center h-64">Loading services...</div>;
   }
@@ -102,7 +109,7 @@ const Services = () => {
           <h1 className="text-3xl font-bold text-foreground">Services</h1>
           <p className="text-muted-foreground">Manage your restaurant's services and booking options</p>
         </div>
-        <Button onClick={() => setShowDialog(true)}>
+        <Button onClick={handleAddClick}>
           <Plus className="h-4 w-4 mr-2" />
           Add Service
         </Button>
