@@ -83,8 +83,8 @@ export const BookingPriorityManager = ({ tables: propTables, joinGroups: propJoi
     setIsGenerating(true);
     try {
       const allItems = [
-        ...tables.map(t => ({ type: 'table', id: t.id, capacity: t.seats })),
-        ...joinGroups.map(g => ({ type: 'join_group', id: g.id, capacity: g.max_party_size }))
+        ...tables.map(t => ({ type: 'table' as const, id: t.id, capacity: t.seats })),
+        ...joinGroups.map(g => ({ type: 'join_group' as const, id: g.id, capacity: g.max_party_size }))
       ];
 
       for (const item of allItems) {
