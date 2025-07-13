@@ -26,6 +26,7 @@ export interface Service {
   max_guests: number;
   requires_deposit: boolean;
   deposit_per_guest: number;
+  lead_time_hours: number;
   image_url?: string;
 }
 

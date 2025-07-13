@@ -81,7 +81,8 @@ export function useWalkInFlow({ selectedDate, selectedTime, preselectedTableId }
         service: 'Walk-in',
         status: 'seated',
         original_table_id: walkInData.tableId,
-        notes: walkInData.notes
+        notes: walkInData.notes,
+        duration_minutes: 120
       });
 
       resetFlow();
