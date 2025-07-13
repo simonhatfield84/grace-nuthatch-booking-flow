@@ -50,7 +50,7 @@ export const useServiceForm = () => {
       duration_rules: service.duration_rules || [],
       terms_and_conditions: service.terms_and_conditions || '',
       requires_payment: service.requires_payment,
-      charge_type: service.charge_type === 'none' ? 'none' : service.charge_type as 'all_reservations' | 'large_groups',
+      charge_type: service.charge_type,
       minimum_guests_for_charge: service.minimum_guests_for_charge || 8,
       charge_amount_per_guest: service.charge_amount_per_guest || 0,
     });

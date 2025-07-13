@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -145,7 +144,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                 <Label>Payment Rule</Label>
                 <Select
                   value={formData.charge_type}
-                  onValueChange={(value: 'all_reservations' | 'large_groups') =>
+                  onValueChange={(value: 'all_reservations' | 'large_groups' | 'venue_default') =>
                     onFormDataChange({ charge_type: value })
                   }
                 >
@@ -155,6 +154,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                   <SelectContent>
                     <SelectItem value="all_reservations">All reservations</SelectItem>
                     <SelectItem value="large_groups">Large groups only</SelectItem>
+                    <SelectItem value="venue_default">Use venue default</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

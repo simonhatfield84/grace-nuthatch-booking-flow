@@ -46,7 +46,7 @@ export interface ServiceFormData {
   duration_rules: any[];
   terms_and_conditions: string;
   requires_payment: boolean;
-  charge_type: 'none' | 'all_reservations' | 'large_groups';
+  charge_type: 'none' | 'venue_default' | 'all_reservations' | 'large_groups';
   minimum_guests_for_charge: number;
   charge_amount_per_guest: number;
 }
