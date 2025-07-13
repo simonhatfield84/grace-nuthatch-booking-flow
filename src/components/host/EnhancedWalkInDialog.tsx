@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -5,11 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
-import { useVenueHours } from "@/hooks/useVenueHours";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { Search, UserPlus } from "lucide-react";
+import { Search, UserPlus, AlertTriangle, Clock } from "lucide-react";
+import { BookingConflictService, type BookingConflict } from "@/services/bookingConflictService";
+import { format } from "date-fns";
 
 interface EnhancedWalkInDialogProps {
   open: boolean;
@@ -28,6 +31,7 @@ interface EnhancedWalkInDialogProps {
     guestId?: string;
   }) => void;
   defaultDuration: number;
+  selectedDate: Date;
 }
 
 interface Guest {
@@ -45,7 +49,8 @@ export const EnhancedWalkInDialog = ({
   table,
   time,
   onCreateWalkIn,
-  defaultDuration
+  defaultDuration,
+  selectedDate
 }: EnhancedWalkInDialogProps) => {
   const [partySize, setPartySize] = useState(2);
   const [guestName, setGuestName] = useState("");
@@ -58,9 +63,39 @@ export const EnhancedWalkInDialog = ({
   const [searchResults, setSearchResults] = useState<Guest[]>([]);
   const [selectedGuest, setSelectedGuest] = useState<Guest | null>(null);
   const [searching, setSearching] = useState(false);
+  const [conflict, setConflict] = useState<BookingConflict | null>(null);
+  const [isCheckingConflicts, setIsCheckingConflicts] = useState(false);
+  const [venueDefaultDuration, setVenueDefaultDuration] = useState(defaultDuration);
   
   const { user } = useAuth();
   const { toast } = useToast();
+
+  // Load venue's default walk-in duration
+  useEffect(() => {
+    const loadVenueSettings = async () => {
+      if (!user) return;
+
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('venue_id')
+          .eq('id', user.id)
+          .single();
+
+        if (profile?.venue_id) {
+          const defaultDuration = await BookingConflictService.getDefaultWalkInDuration(profile.venue_id);
+          setVenueDefaultDuration(defaultDuration);
+          if (open) {
+            setDuration(defaultDuration);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading venue settings:', error);
+      }
+    };
+
+    loadVenueSettings();
+  }, [user, open]);
 
   useEffect(() => {
     if (open) {
@@ -70,13 +105,54 @@ export const EnhancedWalkInDialog = ({
       setPhone("");
       setEmail("");
       setNotes("");
-      setDuration(defaultDuration);
+      setDuration(venueDefaultDuration);
       setShowGuestDetails(false);
       setMarketingOptIn(false);
       setSearchResults([]);
       setSelectedGuest(null);
+      setConflict(null);
     }
-  }, [open, defaultDuration]);
+  }, [open, venueDefaultDuration]);
+
+  // Check for conflicts when time, duration, or table changes
+  useEffect(() => {
+    const checkConflicts = async () => {
+      if (!table || !time || !user || !open) return;
+
+      setIsCheckingConflicts(true);
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('venue_id')
+          .eq('id', user.id)
+          .single();
+
+        if (profile?.venue_id) {
+          const conflictInfo = await BookingConflictService.checkWalkInConflicts(
+            [table.id],
+            format(selectedDate, 'yyyy-MM-dd'),
+            time,
+            duration,
+            profile.venue_id
+          );
+
+          setConflict(conflictInfo);
+
+          // Auto-adjust duration if there's a conflict
+          if (conflictInfo.hasConflict && conflictInfo.maxAvailableDuration > 0) {
+            setDuration(conflictInfo.maxAvailableDuration);
+          }
+        }
+      } catch (error) {
+        console.error('Error checking conflicts:', error);
+      } finally {
+        setIsCheckingConflicts(false);
+      }
+    };
+
+    const debounceTimer = setTimeout(checkConflicts, 500);
+    return () => clearTimeout(debounceTimer);
+  }, [table, time, duration, user, open, selectedDate]);
 
   // Search for existing guests
   useEffect(() => {
@@ -131,6 +207,16 @@ export const EnhancedWalkInDialog = ({
     e.preventDefault();
     
     if (!table) return;
+
+    // Prevent submission if there are unresolved conflicts with no available time
+    if (conflict?.hasConflict && conflict.maxAvailableDuration < 30) {
+      toast({
+        title: "Cannot seat walk-in",
+        description: "No available time slot found. Please choose a different time.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     onCreateWalkIn({
       tableId: table.id,
@@ -188,6 +274,35 @@ export const EnhancedWalkInDialog = ({
               />
             </div>
           </div>
+
+          {/* Conflict Warning */}
+          {conflict?.hasConflict && (
+            <Alert className="border-amber-200 bg-amber-50">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-800">
+                {conflict.maxAvailableDuration >= 30 ? (
+                  <>
+                    <strong>Booking conflict detected!</strong> Next booking at{' '}
+                    {conflict.nextBookingTime} ({conflict.conflictingBooking?.guest_name}).
+                    Duration automatically adjusted to {conflict.maxAvailableDuration} minutes.
+                  </>
+                ) : (
+                  <>
+                    <strong>No available time!</strong> Table is fully booked.
+                    Please choose a different time or table.
+                  </>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Loading indicator for conflict checking */}
+          {isCheckingConflicts && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Clock className="h-4 w-4 animate-spin" />
+              Checking availability...
+            </div>
+          )}
 
           <div>
             <Label htmlFor="partySize">Number of Guests</Label>
@@ -313,9 +428,15 @@ export const EnhancedWalkInDialog = ({
               max="360"
               step="15"
               value={duration}
-              onChange={(e) => setDuration(Math.max(30, parseInt(e.target.value) || defaultDuration))}
+              onChange={(e) => setDuration(Math.max(30, parseInt(e.target.value) || venueDefaultDuration))}
               className="text-foreground bg-background border-border"
+              disabled={conflict?.hasConflict} // Disable manual editing when there's a conflict
             />
+            {conflict?.hasConflict && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Duration automatically set based on next booking
+              </p>
+            )}
           </div>
 
           <div className="flex justify-end gap-2 pt-4">
@@ -326,7 +447,10 @@ export const EnhancedWalkInDialog = ({
             >
               Cancel
             </Button>
-            <Button type="submit">
+            <Button 
+              type="submit"
+              disabled={conflict?.hasConflict && conflict.maxAvailableDuration < 30}
+            >
               <UserPlus className="h-4 w-4 mr-2" />
               Seat Walk-In
             </Button>

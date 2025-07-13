@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -37,7 +36,6 @@ import { ChangePasswordDialog } from "@/components/auth/ChangePasswordDialog";
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Host Interface', href: '/host', icon: Calendar },
-  { name: 'Host Interface (New)', href: '/host-new', icon: TestTube, badge: 'NEW' },
   { name: 'Tables', href: '/tables', icon: MapPin },
   { name: 'Services', href: '/services', icon: ChefHat },
   { name: 'Guests', href: '/guests', icon: UserCheck },

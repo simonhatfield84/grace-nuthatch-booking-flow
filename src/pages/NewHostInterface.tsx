@@ -416,6 +416,7 @@ const NewHostInterface = () => {
         time={selectedTime}
         onCreateWalkIn={handleCreateWalkIn}
         defaultDuration={120}
+        selectedDate={selectedDate}
       />
       
       <BlockDialog
