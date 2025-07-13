@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -57,7 +56,7 @@ export const useServices = () => {
       
       console.log('Creating service with data:', { ...newService, venue_id: userVenue });
       
-      // Ensure all required fields are present
+      // Ensure all required fields are present with corrected charge_type default
       const serviceData = {
         title: newService.title,
         description: newService.description || '',
@@ -71,7 +70,7 @@ export const useServices = () => {
         deposit_per_guest: newService.deposit_per_guest || 0,
         lead_time_hours: newService.lead_time_hours || 2,
         cancellation_window_hours: newService.cancellation_window_hours || 24,
-        charge_type: newService.charge_type || 'venue_default',
+        charge_type: newService.charge_type || 'none',
         charge_amount_per_guest: newService.charge_amount_per_guest || 0,
         minimum_guests_for_charge: newService.minimum_guests_for_charge || null,
         terms_and_conditions: newService.terms_and_conditions || '',
