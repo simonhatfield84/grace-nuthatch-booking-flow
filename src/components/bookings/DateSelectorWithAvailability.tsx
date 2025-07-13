@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, addDays, isAfter, isBefore } from "date-fns";
 import { CalendarIcon } from 'lucide-react';
+import { TableAvailabilityService } from "@/services/tableAvailabilityService";
 
 interface DateSelectorWithAvailabilityProps {
   selectedDate: Date | null;
@@ -20,7 +21,7 @@ export const DateSelectorWithAvailability = ({
   partySize,
   venueId
 }: DateSelectorWithAvailabilityProps) => {
-  // Get available dates based on booking windows and existing bookings
+  // Get available dates based on actual time-slot availability
   const { data: availableDates = [], isLoading } = useQuery({
     queryKey: ['available-dates', partySize, venueId],
     queryFn: async () => {
@@ -28,58 +29,65 @@ export const DateSelectorWithAvailability = ({
 
       const endDate = addDays(new Date(), 60); // Show next 60 days
       const startDate = new Date();
-
-      // Get booking windows to understand service availability
-      const { data: bookingWindows } = await supabase
-        .from('booking_windows')
-        .select('*')
-        .eq('venue_id', venueId);
-
-      // Get existing bookings to check capacity
-      const { data: existingBookings } = await supabase
-        .from('bookings')
-        .select('booking_date, party_size')
-        .eq('venue_id', venueId)
-        .gte('booking_date', format(startDate, 'yyyy-MM-dd'))
-        .lte('booking_date', format(endDate, 'yyyy-MM-dd'))
-        .neq('status', 'cancelled');
-
-      // Get venue tables to understand capacity
-      const { data: tables } = await supabase
-        .from('tables')
-        .select('seats')
-        .eq('venue_id', venueId)
-        .eq('status', 'active');
-
-      const totalCapacity = tables?.reduce((sum, table) => sum + table.seats, 0) || 0;
       const availableDates: Date[] = [];
 
       // Check each day in the range
       for (let d = new Date(startDate); d <= endDate; d = addDays(d, 1)) {
-        const dayName = format(d, 'EEE').toLowerCase();
         const dateStr = format(d, 'yyyy-MM-dd');
+        
+        // Get booking windows for this venue to determine service hours
+        const { data: bookingWindows } = await supabase
+          .from('booking_windows')
+          .select('*')
+          .eq('venue_id', venueId);
+
+        if (!bookingWindows || bookingWindows.length === 0) continue;
 
         // Check if any booking window covers this day
-        const hasBookingWindow = bookingWindows?.some(window => 
+        const dayName = format(d, 'EEE').toLowerCase();
+        const hasBookingWindow = bookingWindows.some(window => 
           window.days.includes(dayName) &&
           (!window.start_date || format(d, 'yyyy-MM-dd') >= window.start_date) &&
           (!window.end_date || format(d, 'yyyy-MM-dd') <= window.end_date)
         );
 
-        if (hasBookingWindow) {
-          // Check if there's enough capacity (simple check - could be more sophisticated)
-          const dayBookings = existingBookings?.filter(b => b.booking_date === dateStr) || [];
-          const bookedCapacity = dayBookings.reduce((sum, booking) => sum + booking.party_size, 0);
-          
-          if (bookedCapacity + partySize <= totalCapacity * 0.8) { // Use 80% capacity as threshold
-            availableDates.push(new Date(d));
+        if (!hasBookingWindow) continue;
+
+        // Use the enhanced table availability service to check if any time slots are available
+        let hasAvailability = false;
+        
+        // Check common time slots throughout the day
+        const timeSlots = ['17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30'];
+        
+        for (const timeSlot of timeSlots) {
+          try {
+            const result = await TableAvailabilityService.getEnhancedTableAllocation(
+              partySize,
+              dateStr,
+              timeSlot,
+              venueId,
+              120 // Default 2 hour duration
+            );
+            
+            if (result.success) {
+              hasAvailability = true;
+              break; // Found at least one available slot, date is available
+            }
+          } catch (error) {
+            console.warn(`Error checking availability for ${dateStr} at ${timeSlot}:`, error);
           }
+        }
+
+        if (hasAvailability) {
+          availableDates.push(new Date(d));
         }
       }
 
       return availableDates;
     },
-    enabled: !!venueId && partySize > 0
+    enabled: !!venueId && partySize > 0,
+    staleTime: 2 * 60 * 1000, // Cache for 2 minutes
+    refetchInterval: 5 * 60 * 1000 // Refetch every 5 minutes
   });
 
   const isDateAvailable = (date: Date) => {
