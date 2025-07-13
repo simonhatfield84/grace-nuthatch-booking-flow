@@ -7,6 +7,8 @@ import { DroppableTimeSlot } from "./DroppableTimeSlot";
 import { DraggableBooking } from "./DraggableBooking";
 import { Ban, Users, Clock, CheckCircle } from "lucide-react";
 import { useBlocks, Block } from "@/hooks/useBlocks";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface TimeGridProps {
   venueHours: any;
@@ -44,6 +46,20 @@ export const NewTimeGrid = ({
   const { blocks } = useBlocks(format(selectedDate, 'yyyy-MM-dd'));
 
   console.log('TimeGrid render:', { bookings: bookings.length, tables: tables.length });
+
+  // Get join groups to help with booking display
+  const { data: joinGroups = [] } = useQuery({
+    queryKey: ['join-groups'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('join_groups')
+        .select('*')
+        .order('name');
+      
+      if (error) throw error;
+      return data || [];
+    }
+  });
 
   // Filter out cancelled bookings and no-shows from the grid
   const activeBookings = bookings.filter(booking => 
@@ -99,13 +115,50 @@ export const NewTimeGrid = ({
     }
   };
 
+  // Helper function to check if a booking is part of a join group
+  const getJoinGroupForBooking = (booking: any) => {
+    if (!booking.table_id) return null;
+    
+    const assignedTable = tables.find(t => t.id === booking.table_id);
+    if (!assignedTable) return null;
+
+    // Check if this booking's party size exceeds the assigned table's capacity
+    if (booking.party_size <= assignedTable.seats) return null;
+
+    // Find join groups that contain this table and can accommodate the party size
+    const applicableJoinGroup = joinGroups.find(group => 
+      group.table_ids.includes(booking.table_id) &&
+      booking.party_size >= group.min_party_size &&
+      booking.party_size <= group.max_party_size
+    );
+
+    return applicableJoinGroup;
+  };
+
+  // Enhanced booking lookup that considers join groups
   const getBookingForSlot = (tableId: number, timeSlot: string) => {
-    return activeBookings.find(booking => {
+    // First check for direct table assignments
+    const directBooking = activeBookings.find(booking => {
       if (booking.table_id !== tableId) return false;
       
       const bookingTime = booking.booking_time.substring(0, 5);
       return bookingTime === timeSlot; // Only render at the start slot
     });
+
+    if (directBooking) return directBooking;
+
+    // Check for join group bookings where this table should display the booking
+    const joinGroupBooking = activeBookings.find(booking => {
+      if (booking.table_id === tableId) return false; // Already handled above
+      
+      const bookingTime = booking.booking_time.substring(0, 5);
+      if (bookingTime !== timeSlot) return false;
+
+      const joinGroup = getJoinGroupForBooking(booking);
+      return joinGroup && joinGroup.table_ids.includes(tableId);
+    });
+
+    return joinGroupBooking;
   };
 
   const getBookingSpan = (booking: any) => {
@@ -115,16 +168,26 @@ export const NewTimeGrid = ({
 
   const isBookingSlot = (tableId: number, timeSlot: string) => {
     return activeBookings.some(booking => {
-      if (booking.table_id !== tableId) return false;
-      
       const bookingTime = booking.booking_time.substring(0, 5);
       const duration = booking.duration_minutes || 120;
       const bookingStartIndex = timeSlots.findIndex(slot => slot === bookingTime);
       const currentSlotIndex = timeSlots.findIndex(slot => slot === timeSlot);
       const slotsSpanned = Math.ceil(duration / 15);
       
-      return currentSlotIndex >= bookingStartIndex && 
-             currentSlotIndex < bookingStartIndex + slotsSpanned;
+      // Check direct table assignment
+      if (booking.table_id === tableId) {
+        return currentSlotIndex >= bookingStartIndex && 
+               currentSlotIndex < bookingStartIndex + slotsSpanned;
+      }
+
+      // Check join group assignment
+      const joinGroup = getJoinGroupForBooking(booking);
+      if (joinGroup && joinGroup.table_ids.includes(tableId)) {
+        return currentSlotIndex >= bookingStartIndex && 
+               currentSlotIndex < bookingStartIndex + slotsSpanned;
+      }
+
+      return false;
     });
   };
 
