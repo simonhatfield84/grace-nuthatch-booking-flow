@@ -27,6 +27,7 @@ import PlatformSecurity from "@/pages/PlatformSecurity";
 import PlatformSubscriptions from "@/pages/PlatformSubscriptions";
 import PlatformSupport from "@/pages/PlatformSupport";
 import { PlatformAdminLayout } from "@/components/layouts/PlatformAdminLayout";
+import { AdminLayout } from "@/components/layouts/AdminLayout";
 import { ThemeHandler } from "@/components/ThemeHandler";
 
 const queryClient = new QueryClient({
@@ -53,40 +54,54 @@ function App() {
                 <Route path="/setup" element={<Setup />} />
                 <Route path="/booking/:venueSlug" element={<BookingWidget />} />
                 
-                {/* Protected venue routes */}
+                {/* Protected venue routes with AdminLayout */}
                 <Route path="/dashboard" element={
                   <ProtectedRoute>
-                    <Dashboard />
+                    <AdminLayout>
+                      <Dashboard />
+                    </AdminLayout>
                   </ProtectedRoute>
                 } />
                 <Route path="/tables" element={
                   <ProtectedRoute>
-                    <Tables />
+                    <AdminLayout>
+                      <Tables />
+                    </AdminLayout>
                   </ProtectedRoute>
                 } />
                 <Route path="/settings" element={
                   <ProtectedRoute>
-                    <Settings />
+                    <AdminLayout>
+                      <Settings />
+                    </AdminLayout>
                   </ProtectedRoute>
                 } />
                 <Route path="/guests" element={
                   <ProtectedRoute>
-                    <Guests />
+                    <AdminLayout>
+                      <Guests />
+                    </AdminLayout>
                   </ProtectedRoute>
                 } />
                 <Route path="/services" element={
                   <ProtectedRoute>
-                    <Services />
+                    <AdminLayout>
+                      <Services />
+                    </AdminLayout>
                   </ProtectedRoute>
                 } />
                 <Route path="/reports" element={
                   <ProtectedRoute>
-                    <Reports />
+                    <AdminLayout>
+                      <Reports />
+                    </AdminLayout>
                   </ProtectedRoute>
                 } />
                 <Route path="/host" element={
                   <ProtectedRoute>
-                    <NewHostInterface />
+                    <AdminLayout>
+                      <NewHostInterface />
+                    </AdminLayout>
                   </ProtectedRoute>
                 } />
                 
