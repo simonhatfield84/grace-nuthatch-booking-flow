@@ -29,82 +29,110 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
   const [bookingReference, setBookingReference] = useState<string | null>(null);
 
   useEffect(() => {
-    const createBooking = async () => {
-      if (bookingData.bookingId) return; // Already created
+    const updateBookingStatus = async () => {
+      // If booking already exists and we came from payment, update status to confirmed
+      if (bookingData.bookingId) {
+        setIsCreatingBooking(true);
+        try {
+          const { data, error } = await supabase
+            .from('bookings')
+            .update({ status: 'confirmed' })
+            .eq('id', bookingData.bookingId)
+            .select()
+            .single();
 
-      setIsCreatingBooking(true);
-      try {
-        // First, try to allocate tables before creating the booking
-        const { TableAllocationService } = await import("@/services/tableAllocation");
-        
-        const allocationResult = await TableAllocationService.allocateTable(
-          bookingData.partySize,
-          format(bookingData.date, 'yyyy-MM-dd'),
-          bookingData.time,
-          120, // duration minutes
-          venue.id
-        );
+          if (error) throw error;
 
-        if (!allocationResult.tableIds || allocationResult.tableIds.length === 0) {
-          throw new Error('No tables available for your requested time. Please try a different time slot.');
+          setBookingReference(data.booking_reference);
+          onBookingId(data.id);
+
+          toast({
+            title: "Booking Confirmed!",
+            description: "Your payment has been processed and your table is reserved.",
+          });
+
+        } catch (error) {
+          console.error('Error updating booking status:', error);
+          toast({
+            title: "Booking Error",
+            description: "There was an issue confirming your booking. Please contact us directly.",
+            variant: "destructive",
+          });
+        } finally {
+          setIsCreatingBooking(false);
         }
+        return;
+      }
 
-        const bookingPayload = {
-          venue_id: venue.id,
-          guest_name: bookingData.guestDetails.name,
-          email: bookingData.guestDetails.email || null,
-          phone: bookingData.guestDetails.phone,
-          party_size: bookingData.partySize,
-          booking_date: format(bookingData.date, 'yyyy-MM-dd'),
-          booking_time: bookingData.time,
-          service: bookingData.service?.title || 'Dinner',
-          notes: bookingData.guestDetails.notes || null,
-          status: 'confirmed',
-          table_id: allocationResult.tableIds[0], // Assign primary table
-          is_unallocated: false, // Successfully allocated
-        };
+      // If no booking ID and no payment required, create booking normally
+      if (!bookingData.paymentRequired) {
+        setIsCreatingBooking(true);
+        try {
+          const { TableAllocationService } = await import("@/services/tableAllocation");
+          
+          const allocationResult = await TableAllocationService.allocateTable(
+            bookingData.partySize,
+            format(bookingData.date, 'yyyy-MM-dd'),
+            bookingData.time,
+            120, // duration minutes
+            venue.id
+          );
 
-        const { data, error } = await supabase
-          .from('bookings')
-          .insert([bookingPayload])
-          .select()
-          .single();
+          if (!allocationResult.tableIds || allocationResult.tableIds.length === 0) {
+            throw new Error('No tables available for your requested time. Please try a different time slot.');
+          }
 
-        if (error) throw error;
+          const bookingPayload = {
+            venue_id: venue.id,
+            guest_name: bookingData.guestDetails.name,
+            email: bookingData.guestDetails.email || null,
+            phone: bookingData.guestDetails.phone,
+            party_size: bookingData.partySize,
+            booking_date: format(bookingData.date, 'yyyy-MM-dd'),
+            booking_time: bookingData.time,
+            service: bookingData.service?.title || 'Dinner',
+            notes: bookingData.guestDetails.notes || null,
+            status: 'confirmed',
+            table_id: allocationResult.tableIds[0],
+            is_unallocated: false,
+          };
 
-        onBookingId(data.id);
-        setBookingReference(data.booking_reference);
+          const { data, error } = await supabase
+            .from('bookings')
+            .insert([bookingPayload])
+            .select()
+            .single();
 
-        // Send confirmation email (if email provided)
-        if (bookingData.guestDetails.email) {
-          // TODO: Call email service
-          console.log('Sending confirmation email to:', bookingData.guestDetails.email);
+          if (error) throw error;
+
+          onBookingId(data.id);
+          setBookingReference(data.booking_reference);
+
+          toast({
+            title: "Booking Confirmed!",
+            description: "Your table has been reserved successfully.",
+          });
+
+        } catch (error) {
+          console.error('Error creating booking:', error);
+          
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+          const isTableAvailabilityError = errorMessage.includes('No tables available');
+          
+          toast({
+            title: isTableAvailabilityError ? "No Tables Available" : "Booking Error",
+            description: isTableAvailabilityError 
+              ? "Unfortunately, no tables are available for your selected time. Please try a different time slot."
+              : "There was an issue creating your booking. Please contact us directly.",
+            variant: "destructive",
+          });
+        } finally {
+          setIsCreatingBooking(false);
         }
-
-        toast({
-          title: "Booking Confirmed!",
-          description: "Your table has been reserved successfully.",
-        });
-
-      } catch (error) {
-        console.error('Error creating booking:', error);
-        
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-        const isTableAvailabilityError = errorMessage.includes('No tables available');
-        
-        toast({
-          title: isTableAvailabilityError ? "No Tables Available" : "Booking Error",
-          description: isTableAvailabilityError 
-            ? "Unfortunately, no tables are available for your selected time. Please try a different time slot."
-            : "There was an issue creating your booking. Please contact us directly.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsCreatingBooking(false);
       }
     };
 
-    createBooking();
+    updateBookingStatus();
   }, [bookingData, venue, onBookingId, toast]);
 
   const generateCalendarEvent = () => {

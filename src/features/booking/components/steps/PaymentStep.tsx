@@ -10,12 +10,11 @@ interface PaymentStepProps {
   amount: number;
   paymentRequired: boolean;
   onSuccess: () => void;
-  onSkip?: () => void;
-  bookingId?: number;
+  bookingId: number;
   description?: string;
 }
 
-export function PaymentStep({ amount, paymentRequired, onSuccess, onSkip, bookingId, description }: PaymentStepProps) {
+export function PaymentStep({ amount, paymentRequired, onSuccess, bookingId, description }: PaymentStepProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,13 +59,27 @@ export function PaymentStep({ amount, paymentRequired, onSuccess, onSkip, bookin
         return;
       }
 
-      // Redirect to Stripe Checkout (simulate for now - in production this would be the actual Stripe redirect)
-      toast.success('Redirecting to secure payment...');
+      // For demo purposes, simulate successful payment
+      // In production, this would redirect to actual Stripe Checkout: window.open(data.url, '_blank');
+      toast.success('Processing payment...');
       
-      // For demo purposes, simulate successful payment after a short delay
-      setTimeout(() => {
-        toast.success('Payment completed successfully!');
-        onSuccess();
+      // Simulate successful payment and update booking status
+      setTimeout(async () => {
+        try {
+          // Update booking status to confirmed after successful payment
+          const { error: updateError } = await supabase
+            .from('bookings')
+            .update({ status: 'confirmed' })
+            .eq('id', bookingId);
+
+          if (updateError) throw updateError;
+          
+          toast.success('Payment completed successfully!');
+          onSuccess();
+        } catch (err) {
+          console.error('Error updating booking after payment:', err);
+          toast.error('Payment succeeded but booking confirmation failed. Please contact the venue.');
+        }
       }, 2000);
 
     } catch (err) {
@@ -153,17 +166,6 @@ export function PaymentStep({ amount, paymentRequired, onSuccess, onSkip, bookin
           )}
         </Button>
 
-        {onSkip && (
-          <Button
-            onClick={onSkip}
-            variant="outline"
-            className="w-full border-nuthatch-border text-nuthatch-dark hover:bg-nuthatch-light"
-            size="lg"
-            disabled={isLoading}
-          >
-            Skip Payment (Contact Venue)
-          </Button>
-        )}
 
         <div className="flex items-center space-x-2 text-sm text-nuthatch-muted justify-center">
           <Lock className="h-4 w-4" />

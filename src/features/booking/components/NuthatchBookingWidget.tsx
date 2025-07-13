@@ -215,18 +215,16 @@ export function NuthatchBookingWidget() {
             service={bookingData.service}
             venue={venue}
             partySize={bookingData.partySize}
-            onChange={(guestDetails, paymentRequired, paymentAmount) => {
+            date={bookingData.date!}
+            time={bookingData.time}
+            onChange={(guestDetails, paymentRequired, paymentAmount, bookingId) => {
               updateBookingData({ 
                 guestDetails, 
-                paymentRequired: paymentRequired || bookingData.paymentRequired,
-                paymentAmount: paymentAmount || bookingData.paymentAmount
+                paymentRequired, 
+                paymentAmount,
+                bookingId 
               });
-              if (paymentRequired || bookingData.paymentRequired) {
-                nextStep();
-              } else {
-                // Skip payment step
-                goToStep(steps.findIndex(s => s.id === 'confirmation'));
-              }
+              nextStep();
             }}
           />
         );
@@ -235,10 +233,9 @@ export function NuthatchBookingWidget() {
           <PaymentStep
             amount={bookingData.paymentAmount}
             paymentRequired={bookingData.paymentRequired}
+            bookingId={bookingData.bookingId!}
+            description={`${bookingData.service?.title} - £${(bookingData.paymentAmount / 100).toFixed(2)} per guest`}
             onSuccess={() => {
-              nextStep();
-            }}
-            onSkip={() => {
               nextStep();
             }}
           />

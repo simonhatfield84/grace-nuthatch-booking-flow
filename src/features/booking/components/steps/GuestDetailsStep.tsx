@@ -5,9 +5,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card } from "@/components/ui/card";
-import { AlertCircle, Info } from "lucide-react";
+import { AlertCircle, Info, Loader2 } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { calculatePaymentAmount } from "@/utils/paymentCalculation";
+import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
+import { toast } from "sonner";
 
 interface GuestDetailsStepProps {
   value: {
@@ -21,10 +24,12 @@ interface GuestDetailsStepProps {
   service: any;
   venue: any;
   partySize: number;
-  onChange: (details: any, paymentRequired: boolean, paymentAmount: number) => void;
+  date: Date;
+  time: string;
+  onChange: (details: any, paymentRequired: boolean, paymentAmount: number, bookingId?: number) => void;
 }
 
-export function GuestDetailsStep({ value, service, venue, partySize, onChange }: GuestDetailsStepProps) {
+export function GuestDetailsStep({ value, service, venue, partySize, date, time, onChange }: GuestDetailsStepProps) {
   const [formData, setFormData] = useState({
     name: value?.name || '',
     email: value?.email || '',
@@ -38,6 +43,7 @@ export function GuestDetailsStep({ value, service, venue, partySize, onChange }:
   const [showTerms, setShowTerms] = useState(false);
   const [terms, setTerms] = useState('');
   const [paymentCalculation, setPaymentCalculation] = useState<any>(null);
+  const [isCreatingBooking, setIsCreatingBooking] = useState(false);
 
   // Load terms and conditions and calculate payment
   useEffect(() => {
@@ -87,12 +93,72 @@ export function GuestDetailsStep({ value, service, venue, partySize, onChange }:
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = () => {
-    if (validateForm()) {
-      const paymentRequired = paymentCalculation?.shouldCharge || false;
-      const paymentAmount = paymentCalculation?.amount || 0;
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
 
+    const paymentRequired = paymentCalculation?.shouldCharge || false;
+    const paymentAmount = paymentCalculation?.amount || 0;
+
+    // If payment is required, create booking before payment step
+    if (paymentRequired) {
+      await createBooking(paymentAmount);
+    } else {
+      // No payment required, pass data to next step
       onChange(formData, paymentRequired, paymentAmount);
+    }
+  };
+
+  const createBooking = async (paymentAmount: number) => {
+    setIsCreatingBooking(true);
+    try {
+      // First, try to allocate tables
+      const { TableAllocationService } = await import("@/services/tableAllocation");
+      
+      const allocationResult = await TableAllocationService.allocateTable(
+        partySize,
+        format(date, 'yyyy-MM-dd'),
+        time,
+        120, // duration minutes
+        venue.id
+      );
+
+      if (!allocationResult.tableIds || allocationResult.tableIds.length === 0) {
+        throw new Error('No tables available for your requested time. Please try a different time slot.');
+      }
+
+      const bookingPayload = {
+        venue_id: venue.id,
+        guest_name: formData.name,
+        email: formData.email || null,
+        phone: formData.phone,
+        party_size: partySize,
+        booking_date: format(date, 'yyyy-MM-dd'),
+        booking_time: time,
+        service: service?.title || 'Dinner',
+        notes: formData.notes || null,
+        status: 'pending_payment', // Set as pending payment
+        table_id: allocationResult.tableIds[0],
+        is_unallocated: false,
+      };
+
+      const { data, error } = await supabase
+        .from('bookings')
+        .insert([bookingPayload])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast.success('Booking created - proceed to payment');
+      
+      // Pass booking data including bookingId to next step
+      onChange(formData, true, paymentAmount, data.id);
+
+    } catch (error) {
+      console.error('Error creating booking:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to create booking. Please try again.');
+    } finally {
+      setIsCreatingBooking(false);
     }
   };
 
@@ -262,9 +328,16 @@ export function GuestDetailsStep({ value, service, venue, partySize, onChange }:
       <Button
         onClick={handleSubmit}
         className="w-full bg-nuthatch-green hover:bg-nuthatch-dark text-nuthatch-white"
-        disabled={!formData.name || !formData.phone || !formData.termsAccepted}
+        disabled={!formData.name || !formData.phone || !formData.termsAccepted || isCreatingBooking}
       >
-        {paymentCalculation?.shouldCharge ? 'Continue to Payment' : 'Complete Booking'}
+        {isCreatingBooking ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Creating Booking...
+          </>
+        ) : (
+          paymentCalculation?.shouldCharge ? 'Continue to Payment' : 'Complete Booking'
+        )}
       </Button>
     </div>
   );
