@@ -143,10 +143,9 @@ function BookingWidgetContent({ venueSlug }: BookingWidgetProps) {
   return (
     <div className="max-w-md mx-auto">
       {currentStep !== 6 && (
-        <ProgressIndicator
-          currentStep={currentStep}
-          totalSteps={STEP_TITLES.length}
-          stepTitles={STEP_TITLES}
+        <ProgressIndicator 
+          steps={[]}
+          currentStep={currentStep} 
         />
       )}
       
