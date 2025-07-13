@@ -11,8 +11,10 @@ const corsHeaders = {
 };
 
 interface SendEmailRequest {
-  to: string[];
-  from: string;
+  to: string | string[];
+  from?: string;
+  from_name?: string;
+  from_email?: string;
   subject: string;
   html: string;
   text?: string;
@@ -25,13 +27,31 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { to, from, subject, html, text }: SendEmailRequest = await req.json();
+    const { 
+      to, 
+      from, 
+      from_name, 
+      from_email, 
+      subject, 
+      html, 
+      text 
+    }: SendEmailRequest = await req.json();
 
-    console.log(`Sending email from: ${from} to: ${to.join(', ')}`);
+    // Determine the from address
+    let fromAddress: string;
+    if (from) {
+      fromAddress = from;
+    } else if (from_name && from_email) {
+      fromAddress = `${from_name} <${from_email}>`;
+    } else {
+      fromAddress = from_email || 'noreply@grace-os.co.uk';
+    }
+
+    console.log(`Sending email from: ${fromAddress} to: ${Array.isArray(to) ? to.join(', ') : to}`);
 
     const emailResponse = await resend.emails.send({
-      from,
-      to,
+      from: fromAddress,
+      to: Array.isArray(to) ? to : [to],
       subject,
       html,
       text,

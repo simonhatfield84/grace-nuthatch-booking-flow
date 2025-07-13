@@ -1,58 +1,124 @@
 
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users } from 'lucide-react';
+import { Input } from "@/components/ui/input";
+import { Minus, Plus, Users } from "lucide-react";
 
 interface PartyNumberSelectorProps {
-  selectedPartySize: number;
-  onPartySizeSelect: (size: number) => void;
+  selectedSize: number;
+  onSizeSelect: (size: number) => void;
+  minSize?: number;
+  maxSize?: number;
 }
 
-export const PartyNumberSelector = ({ selectedPartySize, onPartySizeSelect }: PartyNumberSelectorProps) => {
-  const partySizes = Array.from({ length: 12 }, (_, i) => i + 1);
+export const PartyNumberSelector = ({ 
+  selectedSize, 
+  onSizeSelect, 
+  minSize = 1, 
+  maxSize = 20 
+}: PartyNumberSelectorProps) => {
+  const [inputValue, setInputValue] = useState(selectedSize.toString());
+
+  const handleIncrement = () => {
+    const newSize = Math.min(selectedSize + 1, maxSize);
+    onSizeSelect(newSize);
+    setInputValue(newSize.toString());
+  };
+
+  const handleDecrement = () => {
+    const newSize = Math.max(selectedSize - 1, minSize);
+    onSizeSelect(newSize);
+    setInputValue(newSize.toString());
+  };
+
+  const handleInputChange = (value: string) => {
+    setInputValue(value);
+    const numValue = parseInt(value);
+    if (!isNaN(numValue) && numValue >= minSize && numValue <= maxSize) {
+      onSizeSelect(numValue);
+    }
+  };
+
+  const handleInputBlur = () => {
+    const numValue = parseInt(inputValue);
+    if (isNaN(numValue) || numValue < minSize || numValue > maxSize) {
+      setInputValue(selectedSize.toString());
+    }
+  };
+
+  const commonSizes = [2, 4, 6, 8];
 
   return (
-    <Card className="w-full max-w-2xl mx-auto bg-white dark:bg-gray-900">
-      <CardHeader className="bg-gray-50 dark:bg-gray-800 border-b">
-        <CardTitle className="text-2xl text-gray-900 dark:text-gray-100 flex items-center gap-2">
-          <Users className="h-6 w-6" />
-          How many people?
+    <Card>
+      <CardHeader className="text-center">
+        <CardTitle className="flex items-center justify-center gap-2">
+          <Users className="h-5 w-5" />
+          Party Size
         </CardTitle>
-        <CardDescription className="text-gray-600 dark:text-gray-300">
-          Select the number of people for your reservation
+        <CardDescription>
+          How many people will be dining?
         </CardDescription>
       </CardHeader>
-      <CardContent className="p-6 bg-white dark:bg-gray-900">
-        <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-          {partySizes.map((size) => (
+      <CardContent className="space-y-6">
+        {/* Quick selection buttons */}
+        <div className="grid grid-cols-4 gap-2">
+          {commonSizes.map((size) => (
             <Button
               key={size}
-              variant={selectedPartySize === size ? "default" : "outline"}
-              className={`h-16 text-lg font-medium transition-all duration-200 ${
-                selectedPartySize === size
-                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                  : 'hover:bg-gray-50 dark:hover:bg-gray-800'
-              }`}
-              onClick={() => onPartySizeSelect(size)}
+              variant={selectedSize === size ? "default" : "outline"}
+              onClick={() => {
+                onSizeSelect(size);
+                setInputValue(size.toString());
+              }}
+              className="h-12"
             >
-              <div className="flex flex-col items-center">
-                <span className="font-bold">{size}</span>
-                <span className="text-xs opacity-75">
-                  {size === 1 ? 'person' : 'people'}
-                </span>
-              </div>
+              {size}
             </Button>
           ))}
         </div>
-        
-        {selectedPartySize >= 8 && (
-          <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-950 rounded-lg border border-amber-200 dark:border-amber-800">
-            <p className="text-amber-800 dark:text-amber-200 text-sm">
-              <strong>Large Party:</strong> For groups of 8 or more, we recommend calling ahead to ensure we can accommodate your reservation perfectly.
-            </p>
+
+        {/* Custom input with +/- controls */}
+        <div className="flex items-center justify-center space-x-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDecrement}
+            disabled={selectedSize <= minSize}
+          >
+            <Minus className="h-4 w-4" />
+          </Button>
+          
+          <div className="flex items-center space-x-2">
+            <Input
+              type="number"
+              min={minSize}
+              max={maxSize}
+              value={inputValue}
+              onChange={(e) => handleInputChange(e.target.value)}
+              onBlur={handleInputBlur}
+              className="w-16 text-center"
+            />
+            <span className="text-sm text-muted-foreground">guests</span>
           </div>
-        )}
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleIncrement}
+            disabled={selectedSize >= maxSize}
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <Button 
+          onClick={() => onSizeSelect(selectedSize)} 
+          className="w-full"
+          disabled={selectedSize < minSize || selectedSize > maxSize}
+        >
+          Continue with {selectedSize} {selectedSize === 1 ? 'guest' : 'guests'}
+        </Button>
       </CardContent>
     </Card>
   );

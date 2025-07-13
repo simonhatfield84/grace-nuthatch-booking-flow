@@ -1,168 +1,297 @@
 
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { User, Phone, Mail, MessageSquare } from 'lucide-react';
+import { Checkbox } from "@/components/ui/checkbox";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2 } from "lucide-react";
+
+const guestFormSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Please enter a valid email address"),
+  phone: z.string().optional(),
+  notes: z.string().optional(),
+  marketingOptIn: z.boolean().default(false),
+});
+
+type GuestFormData = z.infer<typeof guestFormSchema>;
 
 interface GuestDetailsFormProps {
-  guestName: string;
-  phone: string;
-  email: string;
-  notes: string;
-  onGuestNameChange: (value: string) => void;
-  onPhoneChange: (value: string) => void;
-  onEmailChange: (value: string) => void;
-  onNotesChange: (value: string) => void;
-  paymentRequired?: any;
+  onSubmit: (guestDetails: GuestFormData, paymentRequired: boolean) => void;
+  bookingData: {
+    date: string;
+    time: string;
+    partySize: number;
+    service: string;
+  };
 }
 
-export const GuestDetailsForm = ({
-  guestName,
-  phone,
-  email,
-  notes,
-  onGuestNameChange,
-  onPhoneChange,
-  onEmailChange,
-  onNotesChange,
-  paymentRequired
-}: GuestDetailsFormProps) => {
-  // Phone validation
-  const validatePhone = (phoneNumber: string) => {
-    // Remove all non-digits for validation
-    const digitsOnly = phoneNumber.replace(/\D/g, '');
-    
-    // UK mobile: starts with 07, 11 digits total
-    // UK landline: various formats, 10-11 digits
-    // International: + followed by country code and number
-    const ukMobileRegex = /^07\d{9}$/;
-    const ukLandlineRegex = /^0[1-9]\d{8,9}$/;
-    const internationalRegex = /^\+[1-9]\d{7,14}$/;
-    
-    if (phoneNumber.startsWith('+')) {
-      return internationalRegex.test(phoneNumber);
-    } else {
-      return ukMobileRegex.test(digitsOnly) || ukLandlineRegex.test(digitsOnly);
+export const GuestDetailsForm = ({ onSubmit, bookingData }: GuestDetailsFormProps) => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [paymentRequired, setPaymentRequired] = useState(false);
+  const { toast } = useToast();
+
+  const form = useForm<GuestFormData>({
+    resolver: zodResolver(guestFormSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      phone: "",
+      notes: "",
+      marketingOptIn: false,
+    },
+  });
+
+  // Check if payment is required based on service
+  useEffect(() => {
+    const checkPaymentRequirements = async () => {
+      try {
+        const { data: services } = await supabase
+          .from('services')
+          .select('requires_payment, deposit_per_guest, charge_amount_per_guest, minimum_guests_for_charge')
+          .eq('title', bookingData.service)
+          .single();
+
+        if (services?.requires_payment) {
+          const depositRequired = (services.deposit_per_guest || 0) > 0;
+          const chargeRequired = (services.charge_amount_per_guest || 0) > 0 && 
+                                bookingData.partySize >= (services.minimum_guests_for_charge || 1);
+          setPaymentRequired(depositRequired || chargeRequired);
+        }
+      } catch (error) {
+        console.error('Error checking payment requirements:', error);
+      }
+    };
+
+    checkPaymentRequirements();
+  }, [bookingData.service, bookingData.partySize]);
+
+  const handleSubmit = async (data: GuestFormData) => {
+    setIsLoading(true);
+    try {
+      // Create or update guest in database
+      const { data: existingGuest } = await supabase
+        .from('guests')
+        .select('*')
+        .eq('email', data.email)
+        .maybeSingle();
+
+      let guestId: string;
+
+      if (existingGuest) {
+        // Update existing guest
+        const { data: updatedGuest, error } = await supabase
+          .from('guests')
+          .update({
+            name: data.name,
+            phone: data.phone || null,
+            notes: data.notes || null,
+            opt_in_marketing: data.marketingOptIn,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingGuest.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+        guestId = updatedGuest.id;
+      } else {
+        // Create new guest - we need venue_id, so let's get it from the current venue
+        const { data: venues } = await supabase
+          .from('venues')
+          .select('id')
+          .limit(1)
+          .single();
+
+        if (!venues) throw new Error('Unable to find venue');
+
+        const { data: newGuest, error } = await supabase
+          .from('guests')
+          .insert({
+            name: data.name,
+            email: data.email,
+            phone: data.phone || null,
+            notes: data.notes || null,
+            opt_in_marketing: data.marketingOptIn,
+            venue_id: venues.id,
+          })
+          .select()
+          .single();
+
+        if (error) throw error;
+        guestId = newGuest.id;
+      }
+
+      // Create the booking
+      const bookingDateTime = new Date(`${bookingData.date}T${bookingData.time}`);
+      const endTime = new Date(bookingDateTime.getTime() + (2 * 60 * 60 * 1000)); // Default 2 hours
+
+      const { data: venues } = await supabase
+        .from('venues')
+        .select('id')
+        .limit(1)
+        .single();
+
+      const { data: booking, error: bookingError } = await supabase
+        .from('bookings')
+        .insert({
+          guest_name: data.name,
+          email: data.email,
+          phone: data.phone || null,
+          party_size: bookingData.partySize,
+          booking_date: bookingData.date,
+          booking_time: bookingData.time,
+          service: bookingData.service,
+          notes: data.notes || null,
+          status: 'confirmed',
+          duration_minutes: 120,
+          end_time: endTime.toTimeString().split(' ')[0],
+          venue_id: venues?.id,
+        })
+        .select()
+        .single();
+
+      if (bookingError) throw bookingError;
+
+      toast({
+        title: "Booking details saved",
+        description: "Your information has been saved successfully.",
+      });
+
+      // Pass the guest details and payment requirement to parent
+      onSubmit({ ...data, guestId }, paymentRequired);
+      
+    } catch (error: any) {
+      console.error('Error saving guest details:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save booking details. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const isPhoneValid = phone.trim() === '' || validatePhone(phone);
-  const isFormValid = guestName.trim() !== '' && phone.trim() !== '' && isPhoneValid;
-
   return (
-    <Card className="w-full max-w-2xl mx-auto bg-white dark:bg-gray-900">
-      <CardHeader className="bg-gray-50 dark:bg-gray-800 border-b">
-        <CardTitle className="text-2xl text-gray-900 dark:text-gray-100 flex items-center gap-2">
-          <User className="h-6 w-6" />
-          Your details
-        </CardTitle>
-        <CardDescription className="text-gray-600 dark:text-gray-300">
-          Please provide your contact information for the reservation
+    <Card>
+      <CardHeader>
+        <CardTitle>Your Details</CardTitle>
+        <CardDescription>
+          Please provide your contact information to complete your reservation
         </CardDescription>
       </CardHeader>
-      <CardContent className="p-6 space-y-4 bg-white dark:bg-gray-900">
-        <div>
-          <Label htmlFor="guest-name" className="text-base font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
-            <User className="h-4 w-4" />
-            Full Name *
-          </Label>
-          <Input
-            id="guest-name"
-            value={guestName}
-            onChange={(e) => onGuestNameChange(e.target.value)}
-            className="mt-1 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-            placeholder="Enter your full name"
-            required
-          />
-        </div>
+      <CardContent>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Full Name *</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter your full name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        <div>
-          <Label htmlFor="phone" className="text-base font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
-            <Phone className="h-4 w-4" />
-            Phone Number *
-          </Label>
-          <Input
-            id="phone"
-            type="tel"
-            value={phone}
-            onChange={(e) => onPhoneChange(e.target.value)}
-            className={`mt-1 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 ${
-              !isPhoneValid ? 'border-red-500 focus:border-red-500' : ''
-            }`}
-            placeholder="07123 456789 or +44 7123 456789"
-            required
-          />
-          {!isPhoneValid && phone.trim() !== '' && (
-            <p className="text-red-500 text-xs mt-1">
-              Please enter a valid UK phone number (07123 456789) or international number (+44 7123 456789)
-            </p>
-          )}
-          <p className="text-gray-500 text-xs mt-1">
-            We'll use this to confirm your reservation and contact you if needed
-          </p>
-        </div>
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email Address *</FormLabel>
+                  <FormControl>
+                    <Input type="email" placeholder="Enter your email" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        <div>
-          <Label htmlFor="email" className="text-base font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
-            <Mail className="h-4 w-4" />
-            Email Address (Optional)
-          </Label>
-          <Input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => onEmailChange(e.target.value)}
-            className="mt-1 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-            placeholder="your.email@example.com"
-          />
-          <p className="text-gray-500 text-xs mt-1">
-            Optional - for booking confirmations and updates
-          </p>
-        </div>
+            <FormField
+              control={form.control}
+              name="phone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Phone Number</FormLabel>
+                  <FormControl>
+                    <Input type="tel" placeholder="Enter your phone number" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        <div>
-          <Label htmlFor="notes" className="text-base font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
-            <MessageSquare className="h-4 w-4" />
-            Special Requirements (Optional)
-          </Label>
-          <Textarea
-            id="notes"
-            value={notes}
-            onChange={(e) => onNotesChange(e.target.value)}
-            className="mt-1 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-            placeholder="Any dietary requirements, accessibility needs, or special requests..."
-            rows={3}
-          />
-        </div>
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Special Requests</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="Any dietary requirements, special occasions, or other requests..."
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-        {/* Payment Information */}
-        {paymentRequired?.shouldCharge && (
-          <div className="bg-amber-50 dark:bg-amber-950 rounded-lg p-4 border border-amber-200 dark:border-amber-800">
-            <h3 className="font-semibold text-lg mb-2 text-amber-900 dark:text-amber-100">Payment Required</h3>
-            <p className="text-sm text-amber-800 dark:text-amber-200">
-              {paymentRequired.description} - £{paymentRequired.amount.toFixed(2)}
-            </p>
-            <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-              You will be redirected to complete payment after creating your booking.
-            </p>
-          </div>
-        )}
+            <FormField
+              control={form.control}
+              name="marketingOptIn"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                  <FormControl>
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                  <div className="space-y-1 leading-none">
+                    <FormLabel>
+                      Keep me updated about special offers and events
+                    </FormLabel>
+                  </div>
+                </FormItem>
+              )}
+            />
 
-        {/* Form validation summary */}
-        {!isFormValid && (guestName.trim() !== '' || phone.trim() !== '') && (
-          <div className="bg-red-50 dark:bg-red-950 rounded-lg p-3 border border-red-200 dark:border-red-800">
-            <p className="text-red-800 dark:text-red-200 text-sm">
-              Please ensure all required fields are completed correctly:
-            </p>
-            <ul className="text-red-700 dark:text-red-300 text-xs mt-1 ml-4 list-disc">
-              {guestName.trim() === '' && <li>Full name is required</li>}
-              {phone.trim() === '' && <li>Phone number is required</li>}
-              {!isPhoneValid && phone.trim() !== '' && <li>Phone number format is invalid</li>}
-            </ul>
-          </div>
-        )}
+            {paymentRequired && (
+              <div className="p-4 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  This booking requires payment or a deposit. You'll be redirected to payment after confirming your details.
+                </p>
+              </div>
+            )}
+
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : paymentRequired ? (
+                'Continue to Payment'
+              ) : (
+                'Complete Booking'
+              )}
+            </Button>
+          </form>
+        </Form>
       </CardContent>
     </Card>
   );
