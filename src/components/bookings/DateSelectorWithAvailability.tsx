@@ -31,6 +31,8 @@ export const DateSelectorWithAvailability = ({
       const startDate = new Date();
       const availableDates: Date[] = [];
 
+      console.log(`🔍 Checking availability for ${partySize} guests from ${format(startDate, 'yyyy-MM-dd')} to ${format(endDate, 'yyyy-MM-dd')}`);
+
       // Check each day in the range
       for (let d = new Date(startDate); d <= endDate; d = addDays(d, 1)) {
         const dateStr = format(d, 'yyyy-MM-dd');
@@ -45,19 +47,44 @@ export const DateSelectorWithAvailability = ({
 
         // Check if any booking window covers this day
         const dayName = format(d, 'EEE').toLowerCase();
-        const hasBookingWindow = bookingWindows.some(window => 
+        const activeWindows = bookingWindows.filter(window => 
           window.days.includes(dayName) &&
-          (!window.start_date || format(d, 'yyyy-MM-dd') >= window.start_date) &&
-          (!window.end_date || format(d, 'yyyy-MM-dd') <= window.end_date)
+          (!window.start_date || dateStr >= window.start_date) &&
+          (!window.end_date || dateStr <= window.end_date)
         );
 
-        if (!hasBookingWindow) continue;
+        if (activeWindows.length === 0) continue;
+
+        // Generate time slots based on booking windows
+        const timeSlots: string[] = [];
+        
+        for (const window of activeWindows) {
+          const startHour = parseInt(window.start_time.split(':')[0]);
+          const startMin = parseInt(window.start_time.split(':')[1]);
+          const endHour = parseInt(window.end_time.split(':')[0]);
+          const endMin = parseInt(window.end_time.split(':')[1]);
+          
+          // Generate 15-minute intervals within the booking window
+          for (let hour = startHour; hour <= endHour; hour++) {
+            const startMinute = (hour === startHour) ? startMin : 0;
+            const endMinute = (hour === endHour) ? endMin : 59;
+            
+            for (let minute = startMinute; minute <= endMinute; minute += 15) {
+              if (hour === endHour && minute > endMin) break;
+              
+              const timeSlot = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+              if (!timeSlots.includes(timeSlot)) {
+                timeSlots.push(timeSlot);
+              }
+            }
+          }
+        }
+
+        console.log(`📅 Checking ${dateStr} with ${timeSlots.length} time slots for ${partySize} guests`);
 
         // Use the enhanced table availability service to check if any time slots are available
         let hasAvailability = false;
-        
-        // Check common time slots throughout the day
-        const timeSlots = ['17:00', '17:30', '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', '21:00', '21:30'];
+        let availableSlots = 0;
         
         for (const timeSlot of timeSlots) {
           try {
@@ -71,18 +98,24 @@ export const DateSelectorWithAvailability = ({
             
             if (result.success) {
               hasAvailability = true;
-              break; // Found at least one available slot, date is available
+              availableSlots++;
+              console.log(`✅ Found availability on ${dateStr} at ${timeSlot} for ${partySize} guests`);
+              // Don't break - continue checking to get a count of available slots
             }
           } catch (error) {
-            console.warn(`Error checking availability for ${dateStr} at ${timeSlot}:`, error);
+            console.warn(`⚠️ Error checking availability for ${dateStr} at ${timeSlot}:`, error);
           }
         }
 
         if (hasAvailability) {
+          console.log(`✅ Date ${dateStr} available with ${availableSlots} time slots for ${partySize} guests`);
           availableDates.push(new Date(d));
+        } else {
+          console.log(`❌ Date ${dateStr} unavailable - no time slots work for ${partySize} guests`);
         }
       }
 
+      console.log(`📊 Found ${availableDates.length} available dates for ${partySize} guests`);
       return availableDates;
     },
     enabled: !!venueId && partySize > 0,
