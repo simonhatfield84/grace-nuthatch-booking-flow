@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card } from "@/components/ui/card";
 import { AlertCircle, Info } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { calculatePaymentAmount } from "@/utils/paymentCalculation";
 
 interface GuestDetailsStepProps {
   value: {
@@ -19,10 +20,11 @@ interface GuestDetailsStepProps {
   } | null;
   service: any;
   venue: any;
+  partySize: number;
   onChange: (details: any, paymentRequired: boolean, paymentAmount: number) => void;
 }
 
-export function GuestDetailsStep({ value, service, venue, onChange }: GuestDetailsStepProps) {
+export function GuestDetailsStep({ value, service, venue, partySize, onChange }: GuestDetailsStepProps) {
   const [formData, setFormData] = useState({
     name: value?.name || '',
     email: value?.email || '',
@@ -35,24 +37,29 @@ export function GuestDetailsStep({ value, service, venue, onChange }: GuestDetai
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showTerms, setShowTerms] = useState(false);
   const [terms, setTerms] = useState('');
+  const [paymentCalculation, setPaymentCalculation] = useState<any>(null);
 
-  // Load terms and conditions
+  // Load terms and conditions and calculate payment
   useEffect(() => {
-    const loadTerms = async () => {
-      // Try service-specific terms first, then venue default terms
+    const loadData = async () => {
+      // Load terms
       let termsText = service?.terms_and_conditions;
       
       if (!termsText && venue?.id) {
-        // Load default terms from venue settings
-        // This would typically come from a venue_settings table
         termsText = "Standard booking terms and conditions apply. By proceeding, you agree to our cancellation policy and terms of service.";
       }
       
       setTerms(termsText || "Standard booking terms and conditions apply.");
+
+      // Calculate payment
+      if (service?.id && venue?.id) {
+        const calculation = await calculatePaymentAmount(service.id, partySize, venue.id);
+        setPaymentCalculation(calculation);
+      }
     };
 
-    loadTerms();
-  }, [service, venue]);
+    loadData();
+  }, [service, venue, partySize]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
@@ -82,10 +89,8 @@ export function GuestDetailsStep({ value, service, venue, onChange }: GuestDetai
 
   const handleSubmit = () => {
     if (validateForm()) {
-      const paymentRequired = service?.requires_payment || false;
-      const paymentAmount = service?.charge_amount_per_guest 
-        ? service.charge_amount_per_guest * (service.party_size || 1)
-        : 0;
+      const paymentRequired = paymentCalculation?.shouldCharge || false;
+      const paymentAmount = paymentCalculation?.amount || 0;
 
       onChange(formData, paymentRequired, paymentAmount);
     }
@@ -186,13 +191,15 @@ export function GuestDetailsStep({ value, service, venue, onChange }: GuestDetai
       </div>
 
       {/* Payment Information */}
-      {service?.requires_payment && (
+      {paymentCalculation?.shouldCharge && (
         <Alert>
           <Info className="h-4 w-4" />
           <AlertDescription>
-            This booking requires a payment of £
-            {((service.charge_amount_per_guest || 0) / 100).toFixed(2)} per person. 
-            You will be taken to our secure payment page next.
+            {paymentCalculation.description} - £{paymentCalculation.amount.toFixed(2)}
+            {paymentCalculation.chargeType === 'error' ? 
+              ' (Payment system not configured)' : 
+              '. You will be taken to our secure payment page next.'
+            }
           </AlertDescription>
         </Alert>
       )}
@@ -257,7 +264,7 @@ export function GuestDetailsStep({ value, service, venue, onChange }: GuestDetai
         className="w-full bg-nuthatch-green hover:bg-nuthatch-dark text-nuthatch-white"
         disabled={!formData.name || !formData.phone || !formData.termsAccepted}
       >
-        {service?.requires_payment ? 'Continue to Payment' : 'Complete Booking'}
+        {paymentCalculation?.shouldCharge ? 'Continue to Payment' : 'Complete Booking'}
       </Button>
     </div>
   );

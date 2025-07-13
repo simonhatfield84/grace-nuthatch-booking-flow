@@ -5,8 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { PartyStep } from "./steps/PartyStep";
-import { DateStep } from "./steps/DateStep";
+import { PartyDateStep } from "./steps/PartyDateStep";
 import { ServiceStep } from "./steps/ServiceStep";
 import { TimeStep } from "./steps/TimeStep";
 import { GuestDetailsStep } from "./steps/GuestDetailsStep";
@@ -60,18 +59,11 @@ export function NuthatchBookingWidget() {
 
   const steps: BookingStep[] = [
     {
-      id: 'party',
-      name: 'Party Size',
+      id: 'party-date',
+      name: 'Party & Date',
       icon: Users,
-      isValid: bookingData.partySize >= 1,
-      isCompleted: bookingData.partySize >= 1,
-    },
-    {
-      id: 'date',
-      name: 'Date',
-      icon: Calendar,
-      isValid: bookingData.date !== null,
-      isCompleted: bookingData.date !== null,
+      isValid: bookingData.partySize >= 1 && bookingData.date !== null,
+      isCompleted: bookingData.partySize >= 1 && bookingData.date !== null,
     },
     {
       id: 'service',
@@ -173,24 +165,14 @@ export function NuthatchBookingWidget() {
     const step = steps[currentStep];
     
     switch (step?.id) {
-      case 'party':
+      case 'party-date':
         return (
-          <PartyStep
-            initialSize={bookingData.partySize}
-            onContinue={(partySize) => {
-              updateBookingData({ partySize });
-              nextStep();
-            }}
-          />
-        );
-      case 'date':
-        return (
-          <DateStep
-            venueId={venue?.id}
-            partySize={bookingData.partySize}
+          <PartyDateStep
+            initialPartySize={bookingData.partySize}
             selectedDate={bookingData.date}
-            onDateSelect={(date) => {
-              updateBookingData({ date });
+            venueId={venue?.id}
+            onContinue={(partySize, date) => {
+              updateBookingData({ partySize, date });
               nextStep();
             }}
           />
@@ -232,6 +214,7 @@ export function NuthatchBookingWidget() {
             value={bookingData.guestDetails}
             service={bookingData.service}
             venue={venue}
+            partySize={bookingData.partySize}
             onChange={(guestDetails, paymentRequired, paymentAmount) => {
               updateBookingData({ 
                 guestDetails, 
@@ -251,7 +234,11 @@ export function NuthatchBookingWidget() {
         return (
           <PaymentStep
             amount={bookingData.paymentAmount}
+            paymentRequired={bookingData.paymentRequired}
             onSuccess={() => {
+              nextStep();
+            }}
+            onSkip={() => {
               nextStep();
             }}
           />
