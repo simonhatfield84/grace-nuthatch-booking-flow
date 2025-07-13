@@ -18,14 +18,7 @@ export const SERVICE_DEFAULTS = {
   duration_rules: [],
   useStandardTerms: true,
   requires_payment: false,
-  charge_type: 'none' as const,
-  minimum_guests_for_charge: 8,
-  charge_amount_per_guest: 0,
-};
-
-export const PAYMENT_DEFAULTS = {
-  requires_payment: false,
-  charge_type: 'all_reservations' as const,
+  charge_type: 'none' as const, // Explicitly set to 'none'
   minimum_guests_for_charge: 8,
   charge_amount_per_guest: 0,
 };

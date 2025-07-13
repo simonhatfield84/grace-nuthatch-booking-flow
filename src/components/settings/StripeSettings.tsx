@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -11,12 +11,28 @@ import { useStripeSettings } from "@/hooks/useStripeSettings";
 export const StripeSettings = () => {
   const { stripeSettings, isLoading, updateStripeSettings } = useStripeSettings();
   const [formData, setFormData] = useState({
-    is_active: stripeSettings?.is_active || false,
-    test_mode: stripeSettings?.test_mode ?? true,
+    is_active: false,
+    test_mode: true,
   });
 
-  const handleSave = () => {
-    updateStripeSettings.mutate(formData);
+  // Update form data when stripe settings are loaded
+  useEffect(() => {
+    if (stripeSettings) {
+      console.log('Stripe settings loaded:', stripeSettings);
+      setFormData({
+        is_active: stripeSettings.is_active || false,
+        test_mode: stripeSettings.test_mode ?? true,
+      });
+    }
+  }, [stripeSettings]);
+
+  const handleSave = async () => {
+    console.log('Saving stripe settings:', formData);
+    try {
+      await updateStripeSettings.mutateAsync(formData);
+    } catch (error) {
+      console.error('Error saving stripe settings:', error);
+    }
   };
 
   const isConfigured = stripeSettings?.is_active || false;
@@ -52,6 +68,13 @@ export const StripeSettings = () => {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Debug info */}
+        <div className="bg-muted/50 p-3 rounded text-sm">
+          <strong>Debug:</strong> Settings loaded: {stripeSettings ? 'Yes' : 'No'}, 
+          Active: {formData.is_active ? 'Yes' : 'No'}, 
+          Test Mode: {formData.test_mode ? 'Yes' : 'No'}
+        </div>
+
         {/* Connection Status */}
         <div className="flex items-center justify-between p-4 border rounded-lg">
           <div className="flex items-center gap-3">
@@ -84,9 +107,10 @@ export const StripeSettings = () => {
             </div>
             <Switch
               checked={formData.is_active}
-              onCheckedChange={(checked) => 
-                setFormData(prev => ({ ...prev, is_active: checked }))
-              }
+              onCheckedChange={(checked) => {
+                console.log('Toggling is_active to:', checked);
+                setFormData(prev => ({ ...prev, is_active: checked }));
+              }}
             />
           </div>
 
@@ -100,9 +124,10 @@ export const StripeSettings = () => {
               </div>
               <Switch
                 checked={formData.test_mode}
-                onCheckedChange={(checked) =>
-                  setFormData(prev => ({ ...prev, test_mode: checked }))
-                }
+                onCheckedChange={(checked) => {
+                  console.log('Toggling test_mode to:', checked);
+                  setFormData(prev => ({ ...prev, test_mode: checked }));
+                }}
               />
             </div>
           )}

@@ -41,13 +41,31 @@ export const useStripeSettings = () => {
     queryFn: async () => {
       if (!userVenue) return null;
       
+      console.log('Fetching stripe settings for venue:', userVenue);
+      
       const { data, error } = await supabase
         .from('venue_stripe_settings')
         .select('*')
         .eq('venue_id', userVenue)
         .maybeSingle();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching stripe settings:', error);
+        throw error;
+      }
+      
+      console.log('Fetched stripe settings:', data);
+      
+      // If no settings exist, return default settings (don't create yet)
+      if (!data) {
+        console.log('No stripe settings found, returning defaults');
+        return {
+          venue_id: userVenue,
+          is_active: false,
+          test_mode: true,
+        };
+      }
+      
       return data;
     },
     enabled: !!userVenue,
@@ -58,6 +76,8 @@ export const useStripeSettings = () => {
     mutationFn: async (settings: Partial<StripeSettings>) => {
       if (!userVenue) throw new Error('No venue found');
 
+      console.log('Updating stripe settings with:', settings);
+
       const settingsData = {
         venue_id: userVenue,
         ...settings,
@@ -65,6 +85,7 @@ export const useStripeSettings = () => {
 
       if (stripeSettings?.id) {
         // Update existing settings
+        console.log('Updating existing stripe settings with ID:', stripeSettings.id);
         const { data, error } = await supabase
           .from('venue_stripe_settings')
           .update(settingsData)
@@ -72,21 +93,31 @@ export const useStripeSettings = () => {
           .select()
           .single();
         
-        if (error) throw error;
+        if (error) {
+          console.error('Error updating stripe settings:', error);
+          throw error;
+        }
+        console.log('Updated stripe settings:', data);
         return data;
       } else {
         // Create new settings
+        console.log('Creating new stripe settings');
         const { data, error } = await supabase
           .from('venue_stripe_settings')
           .insert([settingsData])
           .select()
           .single();
         
-        if (error) throw error;
+        if (error) {
+          console.error('Error creating stripe settings:', error);
+          throw error;
+        }
+        console.log('Created stripe settings:', data);
         return data;
       }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('Stripe settings update successful:', data);
       queryClient.invalidateQueries({ queryKey: ['stripe-settings'] });
       toast({
         title: "Stripe settings updated",
