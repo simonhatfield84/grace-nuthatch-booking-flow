@@ -1,53 +1,65 @@
-
-import { useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/contexts/AuthContext";
 
-interface SecurityEvent {
-  event_type: 'login_attempt' | 'login_success' | 'login_failure' | 'password_reset' | 'data_access' | 'permission_denied';
-  details: string;
-  ip_address?: string;
-  user_agent?: string;
+interface SecurityAuditEvent {
+  id: string;
+  user_id: string | null;
+  venue_id: string | null;
+  event_type: string;
+  event_details: any;
+  ip_address: unknown | null;
+  user_agent: string | null;
+  created_at: string;
 }
 
-export const useSecurityAudit = () => {
-  const { user } = useAuth();
+export const useSecurityAudit = (timeRange: '1h' | '24h' | '7d' | '30d' = '24h') => {
+  return useQuery({
+    queryKey: ['security-audit', timeRange],
+    queryFn: async (): Promise<SecurityAuditEvent[]> => {
+      console.log('🔍 Fetching security audit logs for range:', timeRange);
 
-  const logSecurityEvent = useMutation({
-    mutationFn: async (event: SecurityEvent) => {
-      // Log to database security audit table
-      const auditEntry = {
-        user_id: user?.id || null,
-        event_type: event.event_type,
-        event_details: {
-          details: event.details,
-          timestamp: new Date().toISOString(),
-          session_id: crypto.randomUUID(),
-        },
-        ip_address: event.ip_address,
-        user_agent: event.user_agent || navigator.userAgent,
-      };
-
-      console.log('SECURITY_AUDIT:', JSON.stringify(auditEntry, null, 2));
-
-      // Insert into security audit table
-      const { data, error } = await supabase
-        .from('security_audit')
-        .insert(auditEntry)
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Failed to log security event:', error);
-        // Don't throw here to avoid breaking the main flow
-        return null;
+      // Calculate the start time based on the range
+      const now = new Date();
+      let startTime: Date;
+      
+      switch (timeRange) {
+        case '1h':
+          startTime = new Date(now.getTime() - 60 * 60 * 1000);
+          break;
+        case '24h':
+          startTime = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+          break;
+        case '7d':
+          startTime = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          break;
+        case '30d':
+          startTime = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          break;
+        default:
+          startTime = new Date(now.getTime() - 24 * 60 * 60 * 1000);
       }
 
-      return data;
-    }
-  });
+      try {
+        const { data, error } = await supabase
+          .from('security_audit')
+          .select('*')
+          .gte('created_at', startTime.toISOString())
+          .order('created_at', { ascending: false })
+          .limit(100);
 
-  return {
-    logSecurityEvent: logSecurityEvent.mutateAsync,
-  };
+        if (error) {
+          console.error('❌ Error fetching security audit logs:', error);
+          throw new Error(error.message);
+        }
+
+        console.log('✅ Security audit logs fetched:', data?.length || 0);
+        return (data || []) as SecurityAuditEvent[];
+      } catch (error) {
+        console.error('💥 Failed to fetch security audit logs:', error);
+        throw error;
+      }
+    },
+    refetchInterval: 30000, // Refetch every 30 seconds for real-time monitoring
+    staleTime: 10000, // Consider data stale after 10 seconds
+  });
 };

@@ -1,241 +1,234 @@
-
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, Shield, TrendingUp, Users, Zap } from "lucide-react";
-import { SecurityAuditPanel } from "./SecurityAuditPanel";
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useSecurityAlerts } from "@/hooks/useSecurityAlerts";
+import { useSecurityAudit } from "@/hooks/useSecurityAudit";
+import { Shield, AlertTriangle, Eye, Activity, RefreshCw } from "lucide-react";
+import { format } from "date-fns";
 
-interface SecurityMetrics {
-  totalEvents: number;
-  criticalEvents: number;
-  threatLevels: {
-    high: number;
-    medium: number;
-    low: number;
+export default function SecurityMonitoringDashboard() {
+  const [timeRange, setTimeRange] = useState<'1h' | '24h' | '7d' | '30d'>('24h');
+  const { data: alerts, isLoading: alertsLoading, refetch: refetchAlerts } = useSecurityAlerts(timeRange);
+  const { data: auditLogs, isLoading: auditLoading, refetch: refetchAudit } = useSecurityAudit(timeRange);
+
+  const criticalEvents = auditLogs?.filter(log => 
+    ['unauthorized_role_change_attempt', 'self_elevation_attempt', 'owner_demotion_attempt_blocked'].includes(log.event_type)
+  ) || [];
+
+  const suspiciousEvents = auditLogs?.filter(log => 
+    ['venue_creation_rate_limit_exceeded', 'venue_creation_unauthorized', 'direct_role_update_blocked'].includes(log.event_type)
+  ) || [];
+
+  const getEventSeverity = (eventType: string) => {
+    const critical = ['unauthorized_role_change_attempt', 'self_elevation_attempt', 'owner_demotion_attempt_blocked'];
+    const high = ['venue_creation_unauthorized', 'direct_role_update_blocked'];
+    const medium = ['venue_creation_rate_limit_exceeded', 'venue_creation_validation_failed'];
+    
+    if (critical.includes(eventType)) return 'critical';
+    if (high.includes(eventType)) return 'high';
+    if (medium.includes(eventType)) return 'medium';
+    return 'low';
   };
-  topEventTypes: Array<{
-    event_type: string;
-    count: number;
-  }>;
-  recentTrends: {
-    lastHour: number;
-    lastDay: number;
-    lastWeek: number;
-  };
-}
 
-export function SecurityMonitoringDashboard() {
-  const { data: metrics, isLoading } = useQuery({
-    queryKey: ['security-metrics'],
-    queryFn: async (): Promise<SecurityMetrics> => {
-      const now = new Date();
-      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-      const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-      // Get total events
-      const { count: totalEvents } = await supabase
-        .from('security_audit')
-        .select('*', { count: 'exact', head: true });
-
-      // Get critical events (permission_denied, login_failure, etc.)
-      const { count: criticalEvents } = await supabase
-        .from('security_audit')
-        .select('*', { count: 'exact', head: true })
-        .in('event_type', ['permission_denied', 'login_failure']);
-
-      // Get threat level distribution
-      const { data: threatData } = await supabase
-        .from('security_audit')
-        .select('event_details')
-        .not('event_details', 'is', null);
-
-      const threatLevels = { high: 0, medium: 0, low: 0 };
-      threatData?.forEach(event => {
-        if (event.event_details && typeof event.event_details === 'object') {
-          const details = event.event_details as Record<string, any>;
-          const level = details.threat_level;
-          if (level && threatLevels.hasOwnProperty(level)) {
-            threatLevels[level as keyof typeof threatLevels]++;
-          }
-        }
-      });
-
-      // Get top event types - simplified approach
-      const { data: eventData } = await supabase
-        .from('security_audit')
-        .select('event_type')
-        .limit(1000);
-
-      const eventTypeCounts: Record<string, number> = {};
-      eventData?.forEach(event => {
-        eventTypeCounts[event.event_type] = (eventTypeCounts[event.event_type] || 0) + 1;
-      });
-
-      const topEventTypes = Object.entries(eventTypeCounts)
-        .map(([event_type, count]) => ({ event_type, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 5);
-
-      // Get recent trends
-      const { count: lastHour } = await supabase
-        .from('security_audit')
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', oneHourAgo.toISOString());
-
-      const { count: lastDay } = await supabase
-        .from('security_audit')
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', oneDayAgo.toISOString());
-
-      const { count: lastWeek } = await supabase
-        .from('security_audit')
-        .select('*', { count: 'exact', head: true })
-        .gte('created_at', oneWeekAgo.toISOString());
-
-      return {
-        totalEvents: totalEvents || 0,
-        criticalEvents: criticalEvents || 0,
-        threatLevels,
-        topEventTypes,
-        recentTrends: {
-          lastHour: lastHour || 0,
-          lastDay: lastDay || 0,
-          lastWeek: lastWeek || 0,
-        },
-      };
-    },
-    refetchInterval: 30000, // Refresh every 30 seconds
-  });
-
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <Card key={i}>
-              <CardContent className="p-6">
-                <div className="h-20 bg-gray-100 rounded animate-pulse"></div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  const getThreatLevelColor = (level: string, count: number) => {
-    if (count === 0) return "bg-gray-100 text-gray-800";
-    switch (level) {
-      case 'high': return "bg-red-100 text-red-800";
-      case 'medium': return "bg-yellow-100 text-yellow-800";
-      case 'low': return "bg-green-100 text-green-800";
-      default: return "bg-blue-100 text-blue-800";
+  const getSeverityColor = (severity: string) => {
+    switch (severity) {
+      case 'critical': return 'destructive';
+      case 'high': return 'destructive';
+      case 'medium': return 'default';
+      default: return 'secondary';
     }
+  };
+
+  const refreshAll = () => {
+    refetchAlerts();
+    refetchAudit();
   };
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Security Events</CardTitle>
-            <Shield className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{metrics?.totalEvents || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              All tracked security events
-            </p>
-          </CardContent>
-        </Card>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2">
+          <Shield className="h-6 w-6 text-primary" />
+          <h2 className="text-2xl font-bold">Security Monitoring</h2>
+        </div>
+        <div className="flex items-center space-x-2">
+          <select 
+            value={timeRange} 
+            onChange={(e) => setTimeRange(e.target.value as any)}
+            className="px-3 py-2 border rounded-md bg-background"
+          >
+            <option value="1h">Last Hour</option>
+            <option value="24h">Last 24 Hours</option>
+            <option value="7d">Last 7 Days</option>
+            <option value="30d">Last 30 Days</option>
+          </select>
+          <Button onClick={refreshAll} variant="outline" size="sm">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh
+          </Button>
+        </div>
+      </div>
 
+      {/* Security Metrics Overview */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Critical Events</CardTitle>
-            <AlertCircle className="h-4 w-4 text-red-600" />
+            <AlertTriangle className="h-4 w-4 text-destructive" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{metrics?.criticalEvents || 0}</div>
+            <div className="text-2xl font-bold text-destructive">{criticalEvents.length}</div>
             <p className="text-xs text-muted-foreground">
-              Require immediate attention
+              Requiring immediate attention
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Last Hour Activity</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Suspicious Activity</CardTitle>
+            <Eye className="h-4 w-4 text-warning" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metrics?.recentTrends.lastHour || 0}</div>
+            <div className="text-2xl font-bold text-warning">{suspiciousEvents.length}</div>
             <p className="text-xs text-muted-foreground">
-              Events in the last hour
+              Potential security concerns
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Weekly Activity</CardTitle>
-            <Zap className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Total Events</CardTitle>
+            <Activity className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{metrics?.recentTrends.lastWeek || 0}</div>
+            <div className="text-2xl font-bold">{auditLogs?.length || 0}</div>
             <p className="text-xs text-muted-foreground">
-              Events this week
+              All security events
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Alerts</CardTitle>
+            <Shield className="h-4 w-4 text-green-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{alerts?.length || 0}</div>
+            <p className="text-xs text-muted-foreground">
+              Current security alerts
             </p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Threat Level Distribution</CardTitle>
-            <CardDescription>
-              Current threat level breakdown
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+      {/* Critical Alerts */}
+      {criticalEvents.length > 0 && (
+        <Alert className="border-destructive bg-destructive/10">
+          <AlertTriangle className="h-4 w-4 text-destructive" />
+          <AlertDescription className="text-destructive">
+            <strong>Critical Security Events Detected:</strong> {criticalEvents.length} events requiring immediate attention.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Recent Security Events */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Activity className="h-5 w-5" />
+            <span>Recent Security Events</span>
+          </CardTitle>
+          <CardDescription>
+            Latest security events and potential threats
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {auditLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <RefreshCw className="h-6 w-6 animate-spin" />
+            </div>
+          ) : auditLogs?.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No security events found for the selected time range.
+            </div>
+          ) : (
             <div className="space-y-3">
-              {Object.entries(metrics?.threatLevels || {}).map(([level, count]) => (
-                <div key={level} className="flex items-center justify-between">
-                  <Badge className={getThreatLevelColor(level, count)}>
-                    {level.toUpperCase()}
-                  </Badge>
-                  <span className="text-2xl font-semibold">{count}</span>
+              {auditLogs?.slice(0, 10).map((event, index) => (
+                <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <Badge variant={getSeverityColor(getEventSeverity(event.event_type)) as any}>
+                      {getEventSeverity(event.event_type).toUpperCase()}
+                    </Badge>
+                    <div>
+                      <p className="font-medium">{event.event_type.replace(/_/g, ' ').toUpperCase()}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {event.event_details && typeof event.event_details === 'object' 
+                          ? Object.entries(event.event_details as Record<string, any>)
+                              .slice(0, 2)
+                              .map(([key, value]) => `${key}: ${value}`)
+                              .join(', ')
+                          : 'No additional details'
+                        }
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-medium">
+                      {format(new Date(event.created_at), 'MMM dd, HH:mm')}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      IP: {String(event.ip_address) || 'unknown'}
+                    </p>
+                  </div>
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </CardContent>
+      </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Top Event Types</CardTitle>
-            <CardDescription>
-              Most common security events
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {metrics?.topEventTypes.slice(0, 5).map((event, index) => (
-                <div key={event.event_type} className="flex items-center justify-between">
-                  <span className="text-sm font-medium">
-                    {event.event_type.replace(/_/g, ' ').toUpperCase()}
-                  </span>
-                  <Badge variant="outline">{event.count}</Badge>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Security Recommendations */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Shield className="h-5 w-5" />
+            <span>Security Recommendations</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {criticalEvents.length > 0 && (
+              <Alert>
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>High Priority:</strong> Review and investigate critical security events immediately.
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            {suspiciousEvents.length > 5 && (
+              <Alert>
+                <Eye className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>Medium Priority:</strong> Multiple suspicious activities detected. Consider reviewing user access patterns.
+                </AlertDescription>
+              </Alert>
+            )}
 
-      <SecurityAuditPanel />
+            <Alert>
+              <Shield className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Best Practice:</strong> Regularly review security logs and maintain up-to-date access controls.
+              </AlertDescription>
+            </Alert>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

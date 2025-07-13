@@ -18,6 +18,71 @@ interface VenueCreationRequest {
   adminEmail: string;
 }
 
+// Rate limiting map (in production, use Redis or database)
+const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+
+// Security validation functions
+const validateInput = (data: VenueCreationRequest) => {
+  const errors: string[] = [];
+  
+  // Validate venue name
+  if (data.venueName.length < 2 || data.venueName.length > 100) {
+    errors.push('Venue name must be between 2 and 100 characters');
+  }
+  
+  // Validate slug format
+  if (!/^[a-z0-9-]+$/.test(data.venueSlug)) {
+    errors.push('Venue slug must contain only lowercase letters, numbers, and hyphens');
+  }
+  
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(data.venueEmail) || !emailRegex.test(data.adminEmail)) {
+    errors.push('Invalid email format');
+  }
+  
+  // Validate names
+  if (data.adminFirstName.length < 1 || data.adminLastName.length < 1) {
+    errors.push('Admin first and last names are required');
+  }
+  
+  return errors;
+};
+
+const checkRateLimit = (identifier: string): boolean => {
+  const now = Date.now();
+  const windowMs = 15 * 60 * 1000; // 15 minutes
+  const maxAttempts = 3;
+  
+  const current = rateLimitMap.get(identifier);
+  
+  if (!current || now > current.resetTime) {
+    rateLimitMap.set(identifier, { count: 1, resetTime: now + windowMs });
+    return true;
+  }
+  
+  if (current.count >= maxAttempts) {
+    return false;
+  }
+  
+  current.count++;
+  return true;
+};
+
+const logSecurityEvent = async (supabase: any, eventType: string, details: any, userAgent?: string, ipAddress?: string) => {
+  try {
+    await supabase.from('security_audit').insert({
+      event_type: eventType,
+      event_details: details,
+      user_agent: userAgent,
+      ip_address: ipAddress,
+      created_at: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Failed to log security event:', error);
+  }
+};
+
 interface VenueSetupResponse {
   success: boolean;
   venue?: any;
@@ -25,13 +90,45 @@ interface VenueSetupResponse {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  // Enhanced CORS headers with additional security
+  const secureHeaders = {
+    ...corsHeaders,
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'X-XSS-Protection': '1; mode=block',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+  };
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: secureHeaders });
   }
+
+  const clientIP = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+  const userAgent = req.headers.get('user-agent') || '';
 
   try {
     console.log('Create venue admin function called');
+
+    // Rate limiting check
+    if (!checkRateLimit(clientIP)) {
+      await logSecurityEvent(null, 'venue_creation_rate_limit_exceeded', {
+        ip_address: clientIP,
+        user_agent: userAgent,
+        blocked_at: new Date().toISOString()
+      });
+      
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Too many requests. Please try again later.'
+      }), {
+        status: 429,
+        headers: {
+          'Content-Type': 'application/json',
+          ...secureHeaders,
+        },
+      });
+    }
 
     // Create Supabase client with service role key for admin operations
     const supabaseAdmin = createClient(
@@ -48,6 +145,10 @@ const handler = async (req: Request): Promise<Response> => {
     // Verify the request is from a platform admin
     const authHeader = req.headers.get('authorization');
     if (!authHeader) {
+      await logSecurityEvent(supabaseAdmin, 'venue_creation_no_auth', {
+        ip_address: clientIP,
+        user_agent: userAgent
+      });
       throw new Error('Authorization header missing');
     }
 
@@ -56,6 +157,11 @@ const handler = async (req: Request): Promise<Response> => {
     const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
     
     if (authError || !user) {
+      await logSecurityEvent(supabaseAdmin, 'venue_creation_invalid_auth', {
+        ip_address: clientIP,
+        user_agent: userAgent,
+        error: authError?.message
+      });
       throw new Error('Invalid authentication');
     }
 
@@ -68,12 +174,66 @@ const handler = async (req: Request): Promise<Response> => {
       .single();
 
     if (adminError || !adminCheck) {
+      await logSecurityEvent(supabaseAdmin, 'venue_creation_unauthorized', {
+        user_id: user.id,
+        ip_address: clientIP,
+        user_agent: userAgent
+      });
       throw new Error('Unauthorized: Platform admin access required');
     }
 
     // Parse request body
     const requestData: VenueCreationRequest = await req.json();
     console.log('Creating venue with data:', requestData);
+
+    // Enhanced input validation
+    const validationErrors = validateInput(requestData);
+    if (validationErrors.length > 0) {
+      await logSecurityEvent(supabaseAdmin, 'venue_creation_validation_failed', {
+        user_id: user.id,
+        validation_errors: validationErrors,
+        ip_address: clientIP,
+        user_agent: userAgent
+      });
+      
+      return new Response(JSON.stringify({
+        success: false,
+        error: `Validation failed: ${validationErrors.join(', ')}`
+      }), {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          ...secureHeaders,
+        },
+      });
+    }
+
+    // Check for duplicate venue slug
+    const { data: existingVenue } = await supabaseAdmin
+      .from('venues')
+      .select('id')
+      .eq('slug', requestData.venueSlug)
+      .single();
+
+    if (existingVenue) {
+      await logSecurityEvent(supabaseAdmin, 'venue_creation_duplicate_slug', {
+        user_id: user.id,
+        attempted_slug: requestData.venueSlug,
+        ip_address: clientIP,
+        user_agent: userAgent
+      });
+      
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'A venue with this slug already exists'
+      }), {
+        status: 400,
+        headers: {
+          'Content-Type': 'application/json',
+          ...secureHeaders,
+        },
+      });
+    }
 
     // Validate required fields
     const requiredFields = ['venueName', 'venueSlug', 'venueEmail', 'adminFirstName', 'adminLastName', 'adminEmail'];
@@ -84,7 +244,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Generate a secure temporary password
-    const tempPassword = 'Grace' + Math.random().toString(36).slice(-8) + '!';
+    const tempPassword = 'Grace' + Math.random().toString(36).slice(-8) + '!' + Math.floor(Math.random() * 100);
 
     // Create the admin user account
     const { data: authData, error: authCreateError } = await supabaseAdmin.auth.admin.createUser({
@@ -99,6 +259,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (authCreateError) {
       console.error('Auth creation error:', authCreateError);
+      await logSecurityEvent(supabaseAdmin, 'venue_creation_auth_failed', {
+        user_id: user.id,
+        error: authCreateError.message,
+        admin_email: requestData.adminEmail,
+        ip_address: clientIP,
+        user_agent: userAgent
+      });
       throw new Error(`Failed to create user account: ${authCreateError.message}`);
     }
 
@@ -123,8 +290,18 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (venueError) {
       console.error('Venue creation error:', venueError);
+      
       // Clean up the created user if venue creation fails
       await supabaseAdmin.auth.admin.deleteUser(authData.user.id);
+      
+      await logSecurityEvent(supabaseAdmin, 'venue_creation_setup_failed', {
+        user_id: user.id,
+        created_user_id: authData.user.id,
+        error: venueError.message,
+        ip_address: clientIP,
+        user_agent: userAgent
+      });
+      
       throw new Error(`Failed to create venue: ${venueError.message}`);
     }
 
@@ -139,6 +316,16 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Venue created successfully:', response);
 
+    // Log successful venue creation
+    await logSecurityEvent(supabaseAdmin, 'venue_creation_successful', {
+      created_by: user.id,
+      venue_id: response.venue?.id,
+      venue_slug: requestData.venueSlug,
+      admin_user_id: authData.user.id,
+      ip_address: clientIP,
+      user_agent: userAgent
+    });
+
     // Return success response with temporary password info
     return new Response(JSON.stringify({
       success: true,
@@ -149,7 +336,7 @@ const handler = async (req: Request): Promise<Response> => {
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        ...corsHeaders,
+        ...secureHeaders,
       },
     });
 
@@ -163,7 +350,7 @@ const handler = async (req: Request): Promise<Response> => {
       status: 500,
       headers: {
         'Content-Type': 'application/json',
-        ...corsHeaders,
+        ...secureHeaders,
       },
     });
   }

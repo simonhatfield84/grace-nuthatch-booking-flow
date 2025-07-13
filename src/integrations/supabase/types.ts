@@ -1414,6 +1414,16 @@ export type Database = {
         Args: { user_email: string }
         Returns: string
       }
+      detect_role_anomalies: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          user_id: string
+          venue_id: string
+          suspicious_activity: string
+          event_count: number
+          last_event: string
+        }[]
+      }
       find_duplicate_guests: {
         Args: { guest_email?: string; guest_phone?: string }
         Returns: {
