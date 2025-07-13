@@ -15,7 +15,7 @@ import { SafeHtml } from "@/components/SafeHtml";
 import { calculatePaymentAmount } from "@/utils/paymentCalculation";
 import { PaymentStep } from "@/components/bookings/PaymentStep";
 import { TableAllocationService } from "@/services/tableAllocation";
-import { useGuests } from "@/hooks/useGuests";
+import { guestService } from "@/services/guestService";
 
 const BookingWidget = () => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -33,7 +33,6 @@ const BookingWidget = () => {
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { createGuestSilent } = useGuests();
 
   // Get first venue ID for public bookings (this is a temporary solution)
   const { data: firstVenue } = useQuery({
@@ -164,7 +163,7 @@ const BookingWidget = () => {
       // Create guest record if guest details provided
       if (guestName.trim() && (email || phone)) {
         try {
-          await createGuestSilent({
+          await guestService.createGuest({
             name: guestName,
             email: email || null,
             phone: phone || null,
