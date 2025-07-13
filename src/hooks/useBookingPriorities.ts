@@ -73,7 +73,7 @@ export const useBookingPriorities = () => {
         .eq('party_size', priority.party_size)
         .order('priority_rank', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       const { data, error } = await supabase
         .from('booking_priorities')
@@ -93,6 +93,11 @@ export const useBookingPriorities = () => {
     },
     onError: (error: any) => {
       console.error('Add priority error:', error);
+      toast({ 
+        title: "Error", 
+        description: "Failed to add priority. Please try again.", 
+        variant: "destructive" 
+      });
     }
   });
 

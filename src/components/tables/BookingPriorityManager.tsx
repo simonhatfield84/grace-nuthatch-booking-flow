@@ -9,7 +9,7 @@ import { useBookingPriorities } from "@/hooks/useBookingPriorities";
 import { useTables } from "@/hooks/useTables";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { GripVertical, Users, Table, RefreshCw } from "lucide-react";
+import { GripVertical, Users, Table, RefreshCw, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface BookingPriorityManagerProps {
@@ -42,12 +42,27 @@ export const BookingPriorityManager = ({ tables: propTables, joinGroups: propJoi
   const [selectedPartySize, setSelectedPartySize] = useState<number>(2);
   const [localPriorities, setLocalPriorities] = useState<any[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
 
   useEffect(() => {
-    const filtered = priorities.filter(p => p.party_size === selectedPartySize);
+    // Filter priorities to only show items that can accommodate the party size
+    const filtered = priorities.filter(p => {
+      if (p.party_size !== selectedPartySize) return false;
+      
+      // Check if the item can accommodate the party size
+      if (p.item_type === 'table') {
+        const table = tables.find(t => t.id === p.item_id);
+        return table && table.seats >= selectedPartySize;
+      } else if (p.item_type === 'join_group') {
+        const group = joinGroups.find(g => g.id === p.item_id);
+        return group && group.max_party_size >= selectedPartySize;
+      }
+      return false;
+    });
+    
     const sorted = [...filtered].sort((a, b) => a.priority_rank - b.priority_rank);
     setLocalPriorities(sorted);
-  }, [priorities, selectedPartySize]);
+  }, [priorities, selectedPartySize, tables, joinGroups]);
 
   const handleDragEnd = async (result: any) => {
     if (!result.destination) return;
@@ -79,15 +94,70 @@ export const BookingPriorityManager = ({ tables: propTables, joinGroups: propJoi
     }
   };
 
+  const cleanupInvalidPriorities = async () => {
+    setIsCleaningUp(true);
+    try {
+      // Get all priorities for this party size that are invalid
+      const invalidPriorities = priorities.filter(p => {
+        if (p.party_size !== selectedPartySize) return false;
+        
+        if (p.item_type === 'table') {
+          const table = tables.find(t => t.id === p.item_id);
+          return !table || table.seats < selectedPartySize;
+        } else if (p.item_type === 'join_group') {
+          const group = joinGroups.find(g => g.id === p.item_id);
+          return !group || group.max_party_size < selectedPartySize;
+        }
+        return false;
+      });
+
+      if (invalidPriorities.length > 0) {
+        // Delete invalid priorities
+        for (const priority of invalidPriorities) {
+          const { error } = await supabase
+            .from('booking_priorities')
+            .delete()
+            .eq('id', priority.id);
+          if (error) throw error;
+        }
+
+        toast({
+          title: "Cleanup complete",
+          description: `Removed ${invalidPriorities.length} invalid priorities for ${selectedPartySize} guests.`
+        });
+      } else {
+        toast({
+          title: "No cleanup needed",
+          description: `All priorities for ${selectedPartySize} guests are valid.`
+        });
+      }
+    } catch (error) {
+      console.error('Failed to cleanup priorities:', error);
+      toast({
+        title: "Cleanup failed",
+        description: "Failed to remove invalid priorities.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsCleaningUp(false);
+    }
+  };
+
   const generateMissingPriorities = async () => {
     setIsGenerating(true);
     try {
-      const allItems = [
-        ...tables.map(t => ({ type: 'table' as const, id: t.id, capacity: t.seats })),
-        ...joinGroups.map(g => ({ type: 'join_group' as const, id: g.id, capacity: g.max_party_size }))
+      // Filter items to only include those that can accommodate the party size
+      const validTables = tables.filter(t => t.seats >= selectedPartySize);
+      const validJoinGroups = joinGroups.filter(g => g.max_party_size >= selectedPartySize);
+      
+      const allValidItems = [
+        ...validTables.map(t => ({ type: 'table' as const, id: t.id, capacity: t.seats, name: `Table ${t.label}` })),
+        ...validJoinGroups.map(g => ({ type: 'join_group' as const, id: g.id, capacity: g.max_party_size, name: g.name }))
       ];
 
-      for (const item of allItems) {
+      let addedCount = 0;
+
+      for (const item of allValidItems) {
         // Check if priority already exists for this party size and item
         const exists = priorities.some(p => 
           p.party_size === selectedPartySize && 
@@ -101,13 +171,21 @@ export const BookingPriorityManager = ({ tables: propTables, joinGroups: propJoi
             item_type: item.type,
             item_id: item.id
           });
+          addedCount++;
         }
       }
 
-      toast({
-        title: "Priorities generated",
-        description: `Missing booking priorities have been created for ${selectedPartySize} guests.`
-      });
+      if (addedCount > 0) {
+        toast({
+          title: "Priorities generated",
+          description: `Added ${addedCount} new booking priorities for ${selectedPartySize} guests.`
+        });
+      } else {
+        toast({
+          title: "No new priorities needed",
+          description: `All valid priorities for ${selectedPartySize} guests already exist.`
+        });
+      }
     } catch (error) {
       console.error('Failed to generate priorities:', error);
       toast({
@@ -160,7 +238,7 @@ export const BookingPriorityManager = ({ tables: propTables, joinGroups: propJoi
           Booking Priority Order
         </CardTitle>
         <CardDescription>
-          Drag and drop to set the priority order for table assignments. Higher items will be assigned first.
+          Drag and drop to set the priority order for table assignments. Only tables and groups that can accommodate the selected party size are shown.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -184,23 +262,34 @@ export const BookingPriorityManager = ({ tables: propTables, joinGroups: propJoi
             </Select>
           </div>
           
-          {localPriorities.length === 0 && (
+          <div className="flex gap-2">
             <Button 
               onClick={generateMissingPriorities}
               disabled={isGenerating}
               variant="outline"
+              size="sm"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${isGenerating ? 'animate-spin' : ''}`} />
-              Generate Priorities
+              Generate
             </Button>
-          )}
+            
+            <Button 
+              onClick={cleanupInvalidPriorities}
+              disabled={isCleaningUp}
+              variant="outline"
+              size="sm"
+            >
+              <Trash2 className={`h-4 w-4 mr-2 ${isCleaningUp ? 'animate-spin' : ''}`} />
+              Cleanup
+            </Button>
+          </div>
         </div>
 
         {localPriorities.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <Table className="h-8 w-8 mx-auto mb-2 opacity-50" />
             <p>No booking priorities set for {selectedPartySize} guests</p>
-            <p className="text-sm">Click "Generate Priorities" to create them automatically</p>
+            <p className="text-sm">Click "Generate" to create them automatically</p>
           </div>
         ) : (
           <DragDropContext onDragEnd={handleDragEnd}>
@@ -264,10 +353,11 @@ export const BookingPriorityManager = ({ tables: propTables, joinGroups: propJoi
 
         <div className="text-xs text-muted-foreground p-3 bg-muted/50 rounded-lg">
           <p><strong>How it works:</strong></p>
+          <p>• Only tables and groups that can accommodate {selectedPartySize} guests are shown</p>
           <p>• Higher items in the list get priority for bookings</p>
-          <p>• Tables with exact capacity matches are preferred</p>
+          <p>• Tables with exact capacity matches are preferred over larger tables</p>
           <p>• Join groups are used when individual tables can't accommodate the party</p>
-          <p>• Use "Generate Priorities" to automatically create missing entries</p>
+          <p>• Use "Generate" to create missing priorities, "Cleanup" to remove invalid ones</p>
         </div>
       </CardContent>
     </Card>
