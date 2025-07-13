@@ -12,6 +12,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { calculatePaymentAmount } from "@/utils/paymentCalculation";
 
 const guestFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -19,6 +20,9 @@ const guestFormSchema = z.object({
   phone: z.string().optional(),
   notes: z.string().optional(),
   marketingOptIn: z.boolean().default(false),
+  termsAccepted: z.boolean().refine(val => val === true, {
+    message: "You must accept the terms and conditions to proceed"
+  }),
 });
 
 type GuestFormData = z.infer<typeof guestFormSchema>;
@@ -36,6 +40,8 @@ interface GuestDetailsFormProps {
 export const GuestDetailsForm = ({ onSubmit, bookingData }: GuestDetailsFormProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [paymentRequired, setPaymentRequired] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState(0);
+  const [termsAndConditions, setTermsAndConditions] = useState('');
   const { toast } = useToast();
 
   const form = useForm<GuestFormData>({
@@ -46,31 +52,46 @@ export const GuestDetailsForm = ({ onSubmit, bookingData }: GuestDetailsFormProp
       phone: "",
       notes: "",
       marketingOptIn: false,
+      termsAccepted: false,
     },
   });
 
-  // Check if payment is required based on service
   useEffect(() => {
-    const checkPaymentRequirements = async () => {
+    const checkPaymentAndTerms = async () => {
       try {
-        const { data: services } = await supabase
+        // Get service details including terms
+        const { data: service } = await supabase
           .from('services')
-          .select('requires_payment, deposit_per_guest, charge_amount_per_guest, minimum_guests_for_charge')
+          .select('*')
           .eq('title', bookingData.service)
           .single();
 
-        if (services?.requires_payment) {
-          const depositRequired = (services.deposit_per_guest || 0) > 0;
-          const chargeRequired = (services.charge_amount_per_guest || 0) > 0 && 
-                                bookingData.partySize >= (services.minimum_guests_for_charge || 1);
-          setPaymentRequired(depositRequired || chargeRequired);
+        if (service) {
+          // Set terms - use service terms or default terms
+          const serviceTerms = service.terms_and_conditions;
+          const defaultTerms = localStorage.getItem('standardTerms') || '';
+          setTermsAndConditions(serviceTerms || defaultTerms);
+
+          // Calculate payment requirement
+          const venueId = service.venue_id;
+          const paymentCalculation = await calculatePaymentAmount(
+            service.id,
+            bookingData.partySize,
+            venueId
+          );
+
+          setPaymentRequired(paymentCalculation.shouldCharge);
+          setPaymentAmount(paymentCalculation.amount);
         }
       } catch (error) {
-        console.error('Error checking payment requirements:', error);
+        console.error('Error checking payment requirements and terms:', error);
+        // Set default terms if service lookup fails
+        const defaultTerms = localStorage.getItem('standardTerms') || '';
+        setTermsAndConditions(defaultTerms);
       }
     };
 
-    checkPaymentRequirements();
+    checkPaymentAndTerms();
   }, [bookingData.service, bookingData.partySize]);
 
   const handleSubmit = async (data: GuestFormData) => {
@@ -270,10 +291,42 @@ export const GuestDetailsForm = ({ onSubmit, bookingData }: GuestDetailsFormProp
               )}
             />
 
+            {termsAndConditions && (
+              <div className="space-y-4 border rounded-lg p-4 bg-muted/50">
+                <div>
+                  <h4 className="font-semibold text-sm mb-2">Terms and Conditions</h4>
+                  <div className="max-h-32 overflow-y-auto text-xs text-muted-foreground whitespace-pre-wrap border rounded p-2 bg-background">
+                    {termsAndConditions}
+                  </div>
+                </div>
+                
+                <FormField
+                  control={form.control}
+                  name="termsAccepted"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>
+                          I accept the terms and conditions *
+                        </FormLabel>
+                        <FormMessage />
+                      </div>
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
+
             {paymentRequired && (
               <div className="p-4 bg-blue-50 rounded-lg">
                 <p className="text-sm text-blue-800">
-                  This booking requires payment or a deposit. You'll be redirected to payment after confirming your details.
+                  This booking requires a payment of £{paymentAmount.toFixed(2)}. You'll be redirected to payment after confirming your details.
                 </p>
               </div>
             )}

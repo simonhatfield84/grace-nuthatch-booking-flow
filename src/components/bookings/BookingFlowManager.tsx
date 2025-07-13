@@ -9,6 +9,7 @@ import { PaymentStep } from "./PaymentStep";
 import { BookingConfirmation } from "./BookingConfirmation";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft } from "lucide-react";
+import { calculatePaymentAmount } from "@/utils/paymentCalculation";
 
 export type BookingStep = 'date' | 'time' | 'party' | 'service' | 'details' | 'payment' | 'confirmation';
 
@@ -24,8 +25,10 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
     time: '',
     partySize: 2, // Default party size
     service: '',
+    serviceId: '',
     guestDetails: null as any,
     paymentRequired: false,
+    paymentAmount: 0,
     bookingId: null as number | null,
   });
 
@@ -106,7 +109,10 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
           <ServiceSelector
             selectedService={bookingData.service}
             onServiceSelect={(service) => {
-              updateBookingData({ service });
+              updateBookingData({ 
+                service: service.title,
+                serviceId: service.id
+              });
               handleStepChange('details');
             }}
             partySize={bookingData.partySize}
@@ -118,15 +124,31 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
       case 'details':
         return (
           <GuestDetailsForm
-            onSubmit={(details, paymentRequired) => {
+            onSubmit={async (details, paymentRequired) => {
+              let paymentAmount = 0;
+              
+              if (paymentRequired && bookingData.serviceId) {
+                try {
+                  const paymentCalculation = await calculatePaymentAmount(
+                    bookingData.serviceId,
+                    bookingData.partySize,
+                    venueSlug
+                  );
+                  paymentAmount = paymentCalculation.amount;
+                } catch (error) {
+                  console.error('Error calculating payment:', error);
+                }
+              }
+
               updateBookingData({ 
                 guestDetails: details, 
-                paymentRequired 
+                paymentRequired,
+                paymentAmount
               });
+              
               if (paymentRequired) {
                 handleStepChange('payment');
               } else {
-                // Create booking and go to confirmation
                 handleStepChange('confirmation');
               }
             }}
@@ -142,8 +164,8 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
       case 'payment':
         return (
           <PaymentStep
-            amount={50} // This should be calculated based on service
-            description="Booking deposit"
+            amount={bookingData.paymentAmount}
+            description={`Payment for ${bookingData.service} - ${bookingData.partySize} guests`}
             bookingId={bookingData.bookingId || undefined}
             onPaymentSuccess={() => {
               handleStepChange('confirmation');

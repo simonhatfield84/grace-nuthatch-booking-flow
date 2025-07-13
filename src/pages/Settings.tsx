@@ -5,7 +5,8 @@ import { VenueHoursSettings } from "@/components/settings/VenueHoursSettings";
 import { EmailSettings } from "@/components/settings/EmailSettings";
 import { TagManagement } from "@/components/settings/TagManagement";
 import { StripeSettings } from "@/components/settings/StripeSettings";
-import { Settings as SettingsIcon, Clock, Mail, Tag, CreditCard } from "lucide-react";
+import { DefaultTermsSettings } from "@/components/settings/DefaultTermsSettings";
+import { Settings as SettingsIcon, Clock, Mail, Tag, CreditCard, FileText } from "lucide-react";
 
 const Settings = () => {
   return (
@@ -16,7 +17,7 @@ const Settings = () => {
       </div>
 
       <Tabs defaultValue="hours" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="hours" className="flex items-center gap-2">
             <Clock className="h-4 w-4" />
             Hours
@@ -32,6 +33,10 @@ const Settings = () => {
           <TabsTrigger value="tags" className="flex items-center gap-2">
             <Tag className="h-4 w-4" />
             Tags
+          </TabsTrigger>
+          <TabsTrigger value="terms" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Terms
           </TabsTrigger>
         </TabsList>
 
@@ -49,6 +54,10 @@ const Settings = () => {
 
         <TabsContent value="tags">
           <TagManagement />
+        </TabsContent>
+
+        <TabsContent value="terms">
+          <DefaultTermsSettings />
         </TabsContent>
       </Tabs>
     </div>
