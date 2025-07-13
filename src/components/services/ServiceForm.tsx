@@ -1,0 +1,253 @@
+
+import React from 'react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ServiceFormData } from '@/hooks/useServicesData';
+
+interface ServiceFormProps {
+  formData: ServiceFormData;
+  onFormDataChange: (updates: Partial<ServiceFormData>) => void;
+  onSubmit: (e: React.FormEvent) => void;
+  onCancel: () => void;
+  isSubmitting: boolean;
+  isEditing: boolean;
+}
+
+export const ServiceForm: React.FC<ServiceFormProps> = ({
+  formData,
+  onFormDataChange,
+  onSubmit,
+  onCancel,
+  isSubmitting,
+  isEditing
+}) => {
+  return (
+    <form onSubmit={onSubmit} className="space-y-6">
+      <Tabs defaultValue="basic" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="basic">Basic</TabsTrigger>
+          <TabsTrigger value="booking">Booking</TabsTrigger>
+          <TabsTrigger value="payments">Payments</TabsTrigger>
+          <TabsTrigger value="advanced">Advanced</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="basic" className="space-y-4">
+          <div>
+            <Label htmlFor="title">Service Title *</Label>
+            <Input
+              id="title"
+              value={formData.title}
+              onChange={(e) => onFormDataChange({ title: e.target.value })}
+              required
+            />
+          </div>
+          <div>
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              value={formData.description}
+              onChange={(e) => onFormDataChange({ description: e.target.value })}
+            />
+          </div>
+          <div>
+            <Label htmlFor="image_url">Image URL</Label>
+            <Input
+              id="image_url"
+              value={formData.image_url}
+              onChange={(e) => onFormDataChange({ image_url: e.target.value })}
+              placeholder="https://example.com/image.jpg"
+            />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="booking" className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="min_guests">Minimum Guests</Label>
+              <Input
+                id="min_guests"
+                type="number"
+                min="1"
+                value={formData.min_guests}
+                onChange={(e) => onFormDataChange({ min_guests: parseInt(e.target.value) || 1 })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="max_guests">Maximum Guests</Label>
+              <Input
+                id="max_guests"
+                type="number"
+                min="1"
+                value={formData.max_guests}
+                onChange={(e) => onFormDataChange({ max_guests: parseInt(e.target.value) || 8 })}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="lead_time_hours">Lead Time (Hours)</Label>
+              <Input
+                id="lead_time_hours"
+                type="number"
+                min="0"
+                value={formData.lead_time_hours}
+                onChange={(e) => onFormDataChange({ lead_time_hours: parseInt(e.target.value) || 0 })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="cancellation_window_hours">Cancellation Window (Hours)</Label>
+              <Input
+                id="cancellation_window_hours"
+                type="number"
+                min="0"
+                value={formData.cancellation_window_hours}
+                onChange={(e) => onFormDataChange({ cancellation_window_hours: parseInt(e.target.value) || 0 })}
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <Label>Online Bookable</Label>
+              <p className="text-sm text-muted-foreground">Allow customers to book online</p>
+            </div>
+            <Switch
+              checked={formData.online_bookable}
+              onCheckedChange={(checked) => onFormDataChange({ online_bookable: checked })}
+            />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="payments" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label>Require Payment</Label>
+              <p className="text-sm text-muted-foreground">Charge customers when they book</p>
+            </div>
+            <Switch
+              checked={formData.requires_payment}
+              onCheckedChange={(checked) => onFormDataChange({ 
+                requires_payment: checked,
+                charge_type: checked ? 'all_reservations' : 'none'
+              })}
+            />
+          </div>
+
+          {formData.requires_payment && (
+            <>
+              <div>
+                <Label>Payment Rule</Label>
+                <Select
+                  value={formData.charge_type}
+                  onValueChange={(value: 'all_reservations' | 'large_groups') =>
+                    onFormDataChange({ charge_type: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all_reservations">All reservations</SelectItem>
+                    <SelectItem value="large_groups">Large groups only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {formData.charge_type === 'large_groups' && (
+                <div>
+                  <Label htmlFor="minimum_guests_for_charge">Minimum Guests for Charge</Label>
+                  <Input
+                    id="minimum_guests_for_charge"
+                    type="number"
+                    min="1"
+                    value={formData.minimum_guests_for_charge}
+                    onChange={(e) =>
+                      onFormDataChange({ minimum_guests_for_charge: parseInt(e.target.value) || 8 })
+                    }
+                  />
+                </div>
+              )}
+
+              <div>
+                <Label htmlFor="charge_amount_per_guest">Charge Amount per Guest (£)</Label>
+                <Input
+                  id="charge_amount_per_guest"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={formData.charge_amount_per_guest / 100}
+                  onChange={(e) =>
+                    onFormDataChange({ 
+                      charge_amount_per_guest: Math.round((parseFloat(e.target.value) || 0) * 100)
+                    })
+                  }
+                />
+              </div>
+            </>
+          )}
+        </TabsContent>
+
+        <TabsContent value="advanced" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label>Active</Label>
+              <p className="text-sm text-muted-foreground">Service is available for booking</p>
+            </div>
+            <Switch
+              checked={formData.active}
+              onCheckedChange={(checked) => onFormDataChange({ active: checked })}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <Label>Secret Service</Label>
+              <p className="text-sm text-muted-foreground">Only accessible via a secret link</p>
+            </div>
+            <Switch
+              checked={formData.is_secret}
+              onCheckedChange={(checked) => onFormDataChange({ is_secret: checked })}
+            />
+          </div>
+
+          {formData.is_secret && (
+            <div>
+              <Label htmlFor="secret_slug">Secret Slug</Label>
+              <Input
+                id="secret_slug"
+                value={formData.secret_slug}
+                onChange={(e) => onFormDataChange({ secret_slug: e.target.value })}
+                placeholder="secret-link-name"
+              />
+            </div>
+          )}
+
+          <div>
+            <Label htmlFor="terms_and_conditions">Terms and Conditions</Label>
+            <Textarea
+              id="terms_and_conditions"
+              value={formData.terms_and_conditions}
+              onChange={(e) => onFormDataChange({ terms_and_conditions: e.target.value })}
+              rows={6}
+            />
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      <div className="flex gap-2 justify-end">
+        <Button type="button" variant="outline" onClick={onCancel}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? 'Saving...' : (isEditing ? 'Update Service' : 'Create Service')}
+        </Button>
+      </div>
+    </form>
+  );
+};

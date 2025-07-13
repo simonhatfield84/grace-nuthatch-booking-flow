@@ -1,42 +1,38 @@
 
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { ServiceCard } from "@/components/services/ServiceCard";
 import ServiceDialog from "@/components/services/ServiceDialog";
 import { BookingWindowManager } from "@/components/services/BookingWindowManager";
-import { useServices } from "@/hooks/useServices";
+import { useServicesData } from "@/hooks/useServicesData";
 import { useServiceForm } from "@/hooks/useServiceForm";
-import { useServiceDialogs } from "@/hooks/useServiceDialogs";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useBookingWindows } from "@/hooks/useBookingWindows";
 import { getServiceTags, getServiceWindows } from "@/utils/serviceHelpers";
 
 const Services = () => {
-  const { services, isServicesLoading, updateServiceMutation } = useServices();
+  const [showDialog, setShowDialog] = useState(false);
+  const [managingWindowsServiceId, setManagingWindowsServiceId] = useState<string | null>(null);
+  
+  const { 
+    services, 
+    isServicesLoading, 
+    createServiceMutation, 
+    updateServiceMutation, 
+    deleteServiceMutation 
+  } = useServicesData();
   
   const {
-    editingService,
-    setEditingService,
-    newService,
-    setNewService,
+    formData,
+    editingServiceId,
+    isEditing,
+    updateFormData,
     resetForm,
-    handleAddService,
-    handleUpdateService,
-    handleEditService,
-    handleDeleteService,
-    handleDuplicateService,
-    handleToggleActive,
-    createServiceMutation
+    startEditing,
+    startCreating,
   } = useServiceForm();
-
-  const {
-    showDialog,
-    setShowDialog,
-    managingWindowsServiceId,
-    handleManageWindows,
-    closeWindowsManager
-  } = useServiceDialogs();
 
   // Fetch tags
   const { data: allTags = [] } = useQuery({
@@ -52,50 +48,98 @@ const Services = () => {
     }
   });
 
-  // Fetch booking windows for all services
-  const { allBookingWindows: allWindows = [], isLoadingWindows: isWindowsLoading, windowsError } = useBookingWindows();
+  // Fetch booking windows
+  const { allBookingWindows: allWindows = [], isLoadingWindows, windowsError } = useBookingWindows();
 
-  const handleServiceAdd = async (): Promise<boolean> => {
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!formData.title.trim()) {
+      return;
+    }
+
     try {
-      await handleAddService();
+      if (isEditing && editingServiceId) {
+        await updateServiceMutation.mutateAsync({
+          id: editingServiceId,
+          updates: formData
+        });
+      } else {
+        await createServiceMutation.mutateAsync(formData);
+      }
+      
       setShowDialog(false);
       resetForm();
-      return true;
     } catch (error) {
-      return false;
+      console.error('Error saving service:', error);
     }
   };
 
-  const handleServiceUpdate = async (): Promise<boolean> => {
-    try {
-      await handleUpdateService();
-      setShowDialog(false);
-      resetForm();
-      return true;
-    } catch (error) {
-      return false;
+  const handleCancel = () => {
+    setShowDialog(false);
+    resetForm();
+  };
+
+  const handleEdit = (service: any) => {
+    startEditing(service);
+    setShowDialog(true);
+  };
+
+  const handleCreate = () => {
+    startCreating();
+    setShowDialog(true);
+  };
+
+  const handleDuplicate = (service: any) => {
+    startCreating();
+    updateFormData({
+      title: `${service.title} (Copy)`,
+      description: service.description || '',
+      min_guests: service.min_guests,
+      max_guests: service.max_guests,
+      lead_time_hours: service.lead_time_hours,
+      cancellation_window_hours: service.cancellation_window_hours,
+      online_bookable: service.online_bookable,
+      active: service.active,
+      is_secret: service.is_secret,
+      secret_slug: service.secret_slug ? `${service.secret_slug}-copy` : '',
+      image_url: service.image_url || '',
+      tag_ids: service.tag_ids || [],
+      duration_rules: service.duration_rules || [],
+      terms_and_conditions: service.terms_and_conditions || '',
+      requires_payment: service.requires_payment,
+      charge_type: service.charge_type === 'none' ? 'none' : service.charge_type,
+      minimum_guests_for_charge: service.minimum_guests_for_charge || 8,
+      charge_amount_per_guest: service.charge_amount_per_guest || 0,
+    });
+    setShowDialog(true);
+  };
+
+  const handleDelete = async (serviceId: string) => {
+    if (window.confirm('Are you sure you want to delete this service?')) {
+      await deleteServiceMutation.mutateAsync(serviceId);
     }
   };
 
-  const handleServiceEdit = (service) => {
-    handleEditService(service);
-    setShowDialog(true);
+  const handleToggleActive = async (serviceId: string) => {
+    const service = services.find(s => s.id === serviceId);
+    if (!service) return;
+
+    await updateServiceMutation.mutateAsync({
+      id: serviceId,
+      updates: {
+        ...service,
+        active: !service.active
+      }
+    });
   };
 
-  const handleServiceDuplicate = (service) => {
-    handleDuplicateService(service);
-    setShowDialog(true);
+  const handleManageWindows = (serviceId: string) => {
+    setManagingWindowsServiceId(serviceId);
   };
 
-  const handleServiceToggleActive = async (serviceId) => {
-    await handleToggleActive(serviceId, services, updateServiceMutation);
-  };
-
-  // Fix: Clear editing state when adding new service
-  const handleAddClick = () => {
-    setEditingService(null); // Clear any existing editing state
-    resetForm(); // Reset form to defaults
-    setShowDialog(true);
+  const closeWindowsManager = () => {
+    setManagingWindowsServiceId(null);
   };
 
   if (isServicesLoading) {
@@ -109,7 +153,7 @@ const Services = () => {
           <h1 className="text-3xl font-bold text-foreground">Services</h1>
           <p className="text-muted-foreground">Manage your restaurant's services and booking options</p>
         </div>
-        <Button onClick={handleAddClick}>
+        <Button onClick={handleCreate}>
           <Plus className="h-4 w-4 mr-2" />
           Add Service
         </Button>
@@ -122,12 +166,12 @@ const Services = () => {
             service={service}
             serviceTags={getServiceTags(service, allTags)}
             serviceWindows={getServiceWindows(service.id, allWindows)}
-            isLoadingWindows={isWindowsLoading}
+            isLoadingWindows={isLoadingWindows}
             windowsError={windowsError}
-            onEdit={handleServiceEdit}
-            onDuplicate={handleServiceDuplicate}
-            onDelete={handleDeleteService}
-            onToggleActive={handleServiceToggleActive}
+            onEdit={handleEdit}
+            onDuplicate={handleDuplicate}
+            onDelete={handleDelete}
+            onToggleActive={handleToggleActive}
             onManageWindows={handleManageWindows}
           />
         ))}
@@ -136,15 +180,12 @@ const Services = () => {
       <ServiceDialog
         open={showDialog}
         onOpenChange={setShowDialog}
-        editingService={editingService}
-        newService={newService}
-        setEditingService={setEditingService}
-        setNewService={setNewService}
-        onAddService={handleServiceAdd}
-        onUpdateService={handleServiceUpdate}
-        createServiceMutation={createServiceMutation}
-        updateServiceMutation={updateServiceMutation}
-        onReset={resetForm}
+        formData={formData}
+        onFormDataChange={updateFormData}
+        onSubmit={handleSubmit}
+        onCancel={handleCancel}
+        isSubmitting={createServiceMutation.isPending || updateServiceMutation.isPending}
+        isEditing={isEditing}
       />
 
       <BookingWindowManager
