@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { TableAvailabilityService } from "./tableAvailabilityService";
+import { UnifiedAvailabilityService } from "./unifiedAvailabilityService";
 
 export class TableAllocationService {
   private static readonly DEFAULT_DURATION_MINUTES = 120;
@@ -34,26 +34,37 @@ export class TableAllocationService {
         targetVenueId = venue.id;
       }
 
-      // Use enhanced allocation service
-      const result = await TableAvailabilityService.getEnhancedTableAllocation(
-        partySize,
+      // Use unified availability service for consistency
+      const availabilityResult = await UnifiedAvailabilityService.checkTimeSlotAvailability(
+        targetVenueId,
         bookingDate,
         bookingTime,
-        targetVenueId,
+        partySize,
         durationMinutes
       );
 
-      if (result.success) {
-        console.log(`✅ Enhanced allocation successful: tables [${result.tableIds?.join(', ')}]`);
-        return { tableIds: result.tableIds };
-      } else {
-        console.log(`❌ No tables available, found ${result.alternatives?.length || 0} alternatives`);
-        return {
-          tableIds: null,
-          alternatives: result.alternatives,
-          reason: result.reason
-        };
+      if (availabilityResult.available) {
+        // If available, run the full allocation to get specific table IDs
+        const result = await this.performActualAllocation(
+          partySize,
+          bookingDate,
+          bookingTime,
+          targetVenueId,
+          durationMinutes
+        );
+
+        if (result.success) {
+          console.log(`✅ Allocation successful: tables [${result.tableIds?.join(', ')}]`);
+          return { tableIds: result.tableIds };
+        }
       }
+
+      console.log(`❌ No tables available, found ${availabilityResult.suggestedTimes?.length || 0} alternatives`);
+      return {
+        tableIds: null,
+        alternatives: availabilityResult.suggestedTimes?.map(time => ({ time })) || [],
+        reason: availabilityResult.reason
+      };
 
     } catch (error) {
       console.error('❌ Table allocation error:', error);
@@ -62,6 +73,83 @@ export class TableAllocationService {
         reason: 'System error during allocation'
       };
     }
+  }
+
+  private static async performActualAllocation(
+    partySize: number,
+    bookingDate: string,
+    bookingTime: string,
+    venueId: string,
+    durationMinutes: number
+  ): Promise<{
+    success: boolean;
+    tableIds: number[] | null;
+  }> {
+    // Fetch all data needed for allocation
+    const [tablesResult, joinGroupsResult, bookingsResult, prioritiesResult] = await Promise.all([
+      supabase.from('tables').select('*').eq('status', 'active').eq('venue_id', venueId).order('priority_rank'),
+      supabase.from('join_groups').select('*').eq('venue_id', venueId),
+      supabase.from('bookings').select('*').eq('booking_date', bookingDate).eq('venue_id', venueId).neq('status', 'cancelled').neq('status', 'finished'),
+      supabase.from('booking_priorities').select('*').eq('venue_id', venueId).eq('party_size', partySize).order('priority_rank')
+    ]);
+
+    const tables = tablesResult.data || [];
+    const joinGroups = joinGroupsResult.data || [];
+    const existingBookings = bookingsResult.data || [];
+    const rawPriorities = prioritiesResult.data || [];
+
+    // Filter priorities
+    const priorities = rawPriorities
+      .filter(p => p.item_type === 'table' || p.item_type === 'group')
+      .map(p => ({
+        id: p.id,
+        party_size: p.party_size,
+        item_type: p.item_type as 'table' | 'group',
+        item_id: p.item_id,
+        priority_rank: p.priority_rank
+      }));
+
+    // Get occupied table IDs
+    const occupiedTableIds = this.getOccupiedTableIds(existingBookings, bookingTime, durationMinutes);
+
+    // Try priority-based allocation
+    for (const priority of priorities) {
+      if (priority.item_type === 'table') {
+        const table = tables.find(t => t.id === priority.item_id);
+        if (table && !occupiedTableIds.includes(table.id) && table.seats >= partySize) {
+          return { success: true, tableIds: [table.id] };
+        }
+      } else if (priority.item_type === 'group') {
+        const group = joinGroups.find(g => g.id === priority.item_id);
+        if (group && this.isJoinGroupAvailable(group, occupiedTableIds, partySize)) {
+          return { success: true, tableIds: group.table_ids };
+        }
+      }
+    }
+
+    // Try fallback allocation - join groups for larger parties
+    if (partySize >= 7) {
+      for (const group of joinGroups) {
+        if (this.isJoinGroupAvailable(group, occupiedTableIds, partySize)) {
+          return { success: true, tableIds: group.table_ids };
+        }
+      }
+    }
+
+    // Try individual tables
+    const availableTables = tables
+      .filter(table => !occupiedTableIds.includes(table.id) && table.seats >= partySize)
+      .sort((a, b) => {
+        const efficiencyA = partySize / a.seats;
+        const efficiencyB = partySize / b.seats;
+        return efficiencyB - efficiencyA || a.priority_rank - b.priority_rank;
+      });
+
+    if (availableTables.length > 0) {
+      return { success: true, tableIds: [availableTables[0].id] };
+    }
+
+    return { success: false, tableIds: null };
   }
 
   static async allocateBookingToTables(
@@ -220,6 +308,12 @@ export class TableAllocationService {
       console.error('Error getting available tables:', error);
       return [];
     }
+  }
+
+  private static isJoinGroupAvailable(group: any, occupiedTableIds: number[], partySize: number): boolean {
+    return partySize >= group.min_party_size &&
+           partySize <= group.max_party_size &&
+           group.table_ids.every((tableId: number) => !occupiedTableIds.includes(tableId));
   }
 
   private static getOccupiedTableIds(

@@ -5,7 +5,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { useQuery } from "@tanstack/react-query";
 import { format, addDays, isAfter, isBefore } from "date-fns";
 import { CalendarIcon, Loader2 } from 'lucide-react';
-import { OptimizedAvailabilityService } from "@/services/optimizedAvailabilityService";
+import { UnifiedAvailabilityService } from "@/services/unifiedAvailabilityService";
+import { supabase } from "@/integrations/supabase/client";
 
 interface DateSelectorWithAvailabilityProps {
   selectedDate: Date | null;
@@ -22,32 +23,79 @@ export const DateSelectorWithAvailability = ({
 }: DateSelectorWithAvailabilityProps) => {
   const [loadingProgress, setLoadingProgress] = useState(0);
 
-  // Get available dates using optimized service
-  const { data: availableDates = [], isLoading, error } = useQuery({
-    queryKey: ['optimized-available-dates', partySize, venueId],
+  // Get booking windows for the venue
+  const { data: bookingWindows = [] } = useQuery({
+    queryKey: ['booking-windows', venueId],
     queryFn: async () => {
       if (!venueId) return [];
+      
+      const { data, error } = await supabase
+        .from('booking_windows')
+        .select('*')
+        .eq('venue_id', venueId);
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!venueId,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
 
-      console.log(`🚀 Starting optimized availability check for ${partySize} guests`);
+  // Get available dates using unified service
+  const { data: availableDates = [], isLoading, error } = useQuery({
+    queryKey: ['unified-available-dates', partySize, venueId],
+    queryFn: async () => {
+      if (!venueId || bookingWindows.length === 0) return [];
+
+      console.log(`🚀 Starting unified availability check for ${partySize} guests`);
       const startTime = performance.now();
       
       try {
-        const dates = await OptimizedAvailabilityService.getAvailableDatesInChunks(
-          venueId,
-          partySize,
-          15 // Process 15 dates at a time
-        );
+        const dates: Date[] = [];
+        const totalDays = 60;
+        let processedDays = 0;
+
+        // Process dates in chunks for better UX
+        const chunkSize = 10;
+        for (let i = 0; i < totalDays; i += chunkSize) {
+          const chunkPromises: Promise<{ date: Date; available: boolean }>[] = [];
+          
+          for (let j = 0; j < chunkSize && (i + j) < totalDays; j++) {
+            const date = addDays(new Date(), i + j);
+            const dateStr = format(date, 'yyyy-MM-dd');
+            
+            chunkPromises.push(
+              UnifiedAvailabilityService.checkDateAvailability(venueId, dateStr, partySize, bookingWindows)
+                .then(available => ({ date, available }))
+            );
+          }
+
+          const chunkResults = await Promise.all(chunkPromises);
+          const availableInChunk = chunkResults
+            .filter(result => result.available)
+            .map(result => result.date);
+          
+          dates.push(...availableInChunk);
+          processedDays += chunkResults.length;
+          
+          // Update progress
+          const progress = Math.round((processedDays / totalDays) * 100);
+          setLoadingProgress(progress);
+          
+          console.log(`✅ Processed chunk ${Math.floor(i/chunkSize) + 1}: ${availableInChunk.length} available`);
+        }
         
         const endTime = performance.now();
-        console.log(`⚡ Optimized check completed in ${Math.round(endTime - startTime)}ms`);
+        console.log(`⚡ Unified availability check completed in ${Math.round(endTime - startTime)}ms`);
+        console.log(`🎯 Total available dates: ${dates.length}`);
         
         return dates;
       } catch (error) {
-        console.error('❌ Optimized availability check failed:', error);
+        console.error('❌ Unified availability check failed:', error);
         throw error;
       }
     },
-    enabled: !!venueId && partySize > 0,
+    enabled: !!venueId && partySize > 0 && bookingWindows.length > 0,
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
     refetchInterval: 10 * 60 * 1000, // Refetch every 10 minutes
     refetchOnWindowFocus: false, // Don't refetch when user returns to tab
@@ -91,10 +139,10 @@ export const DateSelectorWithAvailability = ({
             <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
             <div className="text-center">
               <p className="text-gray-700 dark:text-gray-300 font-medium">
-                Checking availability...
+                Checking availability with precise table allocation...
               </p>
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                This may take a moment for the first search
+                {loadingProgress > 0 ? `${loadingProgress}% complete` : 'This may take a moment for accurate results'}
               </p>
             </div>
           </div>
@@ -136,7 +184,7 @@ export const DateSelectorWithAvailability = ({
                   {availableDates.length} dates available for your party size
                 </div>
                 <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
-                  ⚡ Powered by optimized availability checking
+                  ✅ Validated against actual table allocation logic
                 </div>
               </div>
             )}

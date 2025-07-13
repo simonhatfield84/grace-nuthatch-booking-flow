@@ -14,6 +14,7 @@ import { DateSelectorWithAvailability } from "@/components/bookings/DateSelector
 import { ServiceSelector } from "@/components/bookings/ServiceSelector";
 import { SimplifiedTimeSelector } from "@/components/bookings/SimplifiedTimeSelector";
 import { GuestDetailsForm } from "@/components/bookings/GuestDetailsForm";
+import { UnifiedAvailabilityService } from "@/services/unifiedAvailabilityService";
 
 const BookingWidget = () => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -71,12 +72,35 @@ const BookingWidget = () => {
     checkPaymentRequirement();
   }, [selectedService, partySize, firstVenue]);
 
-  // Create booking mutation
+  // Create booking mutation with pre-booking validation
   const createBookingMutation = useMutation({
     mutationFn: async () => {
       if (!selectedDate || !selectedTime || !firstVenue || !selectedService) {
         throw new Error("Missing required booking details.");
       }
+
+      console.log(`🛡️ Pre-booking validation starting...`);
+      
+      // CRITICAL: Validate availability before creating booking
+      const validationResult = await UnifiedAvailabilityService.validateBookingBeforeCreation(
+        firstVenue.id,
+        format(selectedDate, 'yyyy-MM-dd'),
+        selectedTime,
+        partySize,
+        selectedService.id
+      );
+
+      if (!validationResult.valid) {
+        console.error(`❌ Pre-booking validation failed: ${validationResult.reason}`);
+        
+        if (validationResult.alternatives && validationResult.alternatives.length > 0) {
+          throw new Error(`No tables available at ${selectedTime}. Try these times instead: ${validationResult.alternatives.join(', ')}`);
+        } else {
+          throw new Error(`No tables available at ${selectedTime}. Please select a different time or date.`);
+        }
+      }
+
+      console.log(`✅ Pre-booking validation passed, creating booking...`);
 
       const bookingData = {
         service: selectedService.title,
@@ -152,8 +176,8 @@ const BookingWidget = () => {
     onError: (error) => {
       console.error('Booking creation error:', error);
       toast({
-        title: "Error",
-        description: "Failed to create booking. Please try again.",
+        title: "Booking Failed",
+        description: error.message || "Failed to create booking. Please try again.",
         variant: "destructive",
       });
     }
