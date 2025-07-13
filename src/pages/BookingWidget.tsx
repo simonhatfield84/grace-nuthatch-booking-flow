@@ -1,15 +1,9 @@
 
-import { useParams } from "react-router-dom";
-import { BookingWidget } from "@/features/booking/components/BookingWidget";
+import { NuthatchBookingWidget } from "@/features/booking/components/NuthatchBookingWidget";
 
 const BookingWidgetPage = () => {
-  const { venueSlug } = useParams<{ venueSlug: string }>();
-
-  if (!venueSlug) {
-    return <div>Invalid venue</div>;
-  }
-
-  return <BookingWidget venueSlug={venueSlug} />;
+  // Hard-coded for The Nuthatch - no dynamic slug needed
+  return <NuthatchBookingWidget />;
 };
 
 export default BookingWidgetPage;

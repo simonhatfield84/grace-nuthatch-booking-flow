@@ -15,7 +15,7 @@ import Services from "@/pages/Services";
 import Reports from "@/pages/Reports";
 import Auth from "@/pages/Auth";
 import Setup from "@/pages/Setup";
-import BookingWidget from "@/pages/BookingWidget";
+import BookingWidgetPage from "@/pages/BookingWidget";
 import NewHostInterface from "@/pages/NewHostInterface";
 import NotFound from "@/pages/NotFound";
 import PlatformAuth from "@/pages/PlatformAuth";
@@ -52,7 +52,7 @@ function App() {
                 <Route path="/home" element={<HomePage />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/setup" element={<Setup />} />
-                <Route path="/booking/:venueSlug" element={<BookingWidget />} />
+                <Route path="/booking/nuthatch" element={<BookingWidgetPage />} />
                 
                 {/* Protected venue routes with AdminLayout */}
                 <Route path="/dashboard" element={

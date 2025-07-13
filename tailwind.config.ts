@@ -88,6 +88,15 @@ export default {
 					'status-late': '#F1C8D0',
 					'status-finished': '#676767',
 					'status-error': '#E47272'
+				},
+				// The Nuthatch Brand Colors
+				nuthatch: {
+					'dark': '#2B3840',      // Primary dark
+					'white': '#FFFFFF',     // Pure white  
+					'green': '#384140',     // Secondary green
+					'light': '#F8F9FA',     // Light background variant
+					'border': '#E9ECEF',    // Border color
+					'muted': '#6C757D'      // Muted text
 				}
 			},
 			fontFamily: {
@@ -95,7 +104,10 @@ export default {
 				'playfair': ['Playfair Display', 'serif'],
 				'poppins': ['Poppins', 'sans-serif'],
 				'karla': ['Karla', 'sans-serif'],
-				'inter': ['Inter', 'sans-serif']
+				'inter': ['Inter', 'sans-serif'],
+				'lato': ['Lato', 'sans-serif'],
+				'nuthatch-heading': ['Playfair Display', 'serif'],
+				'nuthatch-body': ['Lato', 'sans-serif']
 			},
 			borderRadius: {
 				lg: 'var(--radius)',

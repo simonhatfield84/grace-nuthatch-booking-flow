@@ -1,5 +1,5 @@
 
-@import "https://fonts.googleapis.com/css2?family=Markazi+Text:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&family=Poppins:wght@300;400;500;600;700&family=Karla:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap";
+@import "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@300;400;500;600;700&family=Lato:wght@300;400;500;600;700&family=Markazi+Text:wght@400;500;600;700&family=Poppins:wght@300;400;500;600;700&family=Karla:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap";
 
 @tailwind base;
 @tailwind components;
@@ -47,6 +47,19 @@
     --sidebar-accent-foreground: 0 0% 18%;
     --sidebar-border: 33 20% 77%;
     --sidebar-ring: 16 53% 60%;
+
+    /* The Nuthatch Theme Colors */
+    --nuthatch-dark: 200 14% 21%; /* #2B3840 */
+    --nuthatch-white: 0 0% 100%; /* #FFFFFF */
+    --nuthatch-green: 155 5% 26%; /* #384140 */
+    
+    /* Nuthatch theme variants */
+    --nuthatch-background: var(--nuthatch-white);
+    --nuthatch-foreground: var(--nuthatch-dark);
+    --nuthatch-primary: var(--nuthatch-green);
+    --nuthatch-primary-foreground: var(--nuthatch-white);
+    --nuthatch-muted: 200 8% 90%; /* Lighter variant of dark */
+    --nuthatch-border: 200 8% 85%; /* Even lighter for borders */
   }
 
   /* Dark theme with host interface colors */
