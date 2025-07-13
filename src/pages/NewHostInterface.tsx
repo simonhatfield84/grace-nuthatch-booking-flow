@@ -161,7 +161,8 @@ const NewHostInterface = () => {
         email: walkInData.email || null,
         notes: walkInData.notes || 'Walk-in customer',
         service: 'Walk-In',
-        original_table_id: walkInData.tableId
+        original_table_id: walkInData.tableId,
+        duration_minutes: walkInData.duration
       });
 
       toast({

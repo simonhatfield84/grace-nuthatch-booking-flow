@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -66,6 +65,8 @@ export const EnhancedWalkInDialog = ({
   const [conflict, setConflict] = useState<BookingConflict | null>(null);
   const [isCheckingConflicts, setIsCheckingConflicts] = useState(false);
   const [venueDefaultDuration, setVenueDefaultDuration] = useState(defaultDuration);
+  const [persistentConflict, setPersistentConflict] = useState<BookingConflict | null>(null); // Keep conflict visible
+  const [conflictCheckDebounce, setConflictCheckDebounce] = useState<NodeJS.Timeout | null>(null);
   
   const { user } = useAuth();
   const { toast } = useToast();
@@ -111,14 +112,20 @@ export const EnhancedWalkInDialog = ({
       setSearchResults([]);
       setSelectedGuest(null);
       setConflict(null);
+      setPersistentConflict(null); // Reset persistent conflict
     }
   }, [open, venueDefaultDuration]);
 
-  // Check for conflicts when time, duration, or table changes
+  // Improved conflict checking with debouncing
   useEffect(() => {
-    const checkConflicts = async () => {
-      if (!table || !time || !user || !open) return;
+    if (!table || !time || !user || !open) return;
 
+    // Clear existing debounce
+    if (conflictCheckDebounce) {
+      clearTimeout(conflictCheckDebounce);
+    }
+
+    const checkConflicts = async () => {
       setIsCheckingConflicts(true);
       try {
         const { data: profile } = await supabase
@@ -137,10 +144,17 @@ export const EnhancedWalkInDialog = ({
           );
 
           setConflict(conflictInfo);
-
-          // Auto-adjust duration if there's a conflict
-          if (conflictInfo.hasConflict && conflictInfo.maxAvailableDuration > 0) {
-            setDuration(conflictInfo.maxAvailableDuration);
+          
+          // Set persistent conflict to keep message stable
+          if (conflictInfo.hasConflict) {
+            setPersistentConflict(conflictInfo);
+            // Auto-adjust duration if there's a conflict
+            if (conflictInfo.maxAvailableDuration > 0) {
+              setDuration(conflictInfo.maxAvailableDuration);
+            }
+          } else {
+            // Only clear persistent conflict if no new conflict exists
+            setPersistentConflict(null);
           }
         }
       } catch (error) {
@@ -150,8 +164,13 @@ export const EnhancedWalkInDialog = ({
       }
     };
 
-    const debounceTimer = setTimeout(checkConflicts, 500);
-    return () => clearTimeout(debounceTimer);
+    // Debounce conflict checking to prevent flickering
+    const debounceTimer = setTimeout(checkConflicts, 300);
+    setConflictCheckDebounce(debounceTimer);
+
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+    };
   }, [table, time, duration, user, open, selectedDate]);
 
   // Search for existing guests
@@ -208,8 +227,11 @@ export const EnhancedWalkInDialog = ({
     
     if (!table) return;
 
+    // Use persistent conflict for validation to ensure stability
+    const currentConflict = persistentConflict || conflict;
+
     // Prevent submission if there are unresolved conflicts with no available time
-    if (conflict?.hasConflict && conflict.maxAvailableDuration < 30) {
+    if (currentConflict?.hasConflict && currentConflict.maxAvailableDuration < 30) {
       toast({
         title: "Cannot seat walk-in",
         description: "No available time slot found. Please choose a different time.",
@@ -246,6 +268,9 @@ export const EnhancedWalkInDialog = ({
 
   if (!table) return null;
 
+  // Use persistent conflict for display to keep message stable
+  const displayConflict = persistentConflict || conflict;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
@@ -275,16 +300,16 @@ export const EnhancedWalkInDialog = ({
             </div>
           </div>
 
-          {/* Conflict Warning */}
-          {conflict?.hasConflict && (
+          {/* Enhanced Conflict Warning - now stable */}
+          {displayConflict?.hasConflict && (
             <Alert className="border-amber-200 bg-amber-50">
               <AlertTriangle className="h-4 w-4 text-amber-600" />
               <AlertDescription className="text-amber-800">
-                {conflict.maxAvailableDuration >= 30 ? (
+                {displayConflict.maxAvailableDuration >= 30 ? (
                   <>
                     <strong>Booking conflict detected!</strong> Next booking at{' '}
-                    {conflict.nextBookingTime} ({conflict.conflictingBooking?.guest_name}).
-                    Duration automatically adjusted to {conflict.maxAvailableDuration} minutes.
+                    {displayConflict.nextBookingTime} ({displayConflict.conflictingBooking?.guest_name}).
+                    Duration automatically adjusted to {displayConflict.maxAvailableDuration} minutes.
                   </>
                 ) : (
                   <>
@@ -296,9 +321,9 @@ export const EnhancedWalkInDialog = ({
             </Alert>
           )}
 
-          {/* Loading indicator for conflict checking */}
+          {/* Improved loading indicator */}
           {isCheckingConflicts && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted p-2 rounded">
               <Clock className="h-4 w-4 animate-spin" />
               Checking availability...
             </div>
@@ -449,7 +474,7 @@ export const EnhancedWalkInDialog = ({
             </Button>
             <Button 
               type="submit"
-              disabled={conflict?.hasConflict && conflict.maxAvailableDuration < 30}
+              disabled={displayConflict?.hasConflict && displayConflict.maxAvailableDuration < 30}
             >
               <UserPlus className="h-4 w-4 mr-2" />
               Seat Walk-In

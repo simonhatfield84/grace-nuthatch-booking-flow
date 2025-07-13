@@ -92,23 +92,26 @@ export const useBookings = (date?: string) => {
   });
 
   const createBookingMutation = useMutation({
-    mutationFn: async (newBooking: Omit<Booking, 'id' | 'created_at' | 'updated_at' | 'table_id' | 'is_unallocated' | 'duration_minutes' | 'end_time' | 'booking_reference' | 'venue_id'>) => {
+    mutationFn: async (newBooking: Omit<Booking, 'id' | 'created_at' | 'updated_at' | 'table_id' | 'is_unallocated' | 'end_time' | 'booking_reference' | 'venue_id'> & { duration_minutes?: number }) => {
       if (!userVenue) {
         throw new Error('No venue associated with user');
       }
 
       console.log('🚶‍♂️ Creating booking with data:', newBooking);
 
-      // Calculate duration from service rules
-      const serviceId = newBooking.service ? await getServiceIdFromServiceName(newBooking.service) : null;
-      const duration = await calculateBookingDuration(serviceId || undefined, newBooking.party_size);
+      // Use provided duration or calculate from service rules
+      let duration = newBooking.duration_minutes;
+      if (!duration) {
+        const serviceId = newBooking.service ? await getServiceIdFromServiceName(newBooking.service) : null;
+        duration = await calculateBookingDuration(serviceId || undefined, newBooking.party_size);
+      }
 
       // For walk-ins, assign table immediately if original_table_id is provided
       const tableId = newBooking.status === 'seated' && newBooking.original_table_id 
         ? newBooking.original_table_id 
         : null;
 
-      // First create the booking with calculated duration
+      // First create the booking with the duration
       const { data: booking, error } = await supabase
         .from('bookings')
         .insert([{
