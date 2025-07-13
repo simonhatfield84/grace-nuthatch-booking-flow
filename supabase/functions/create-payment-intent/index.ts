@@ -240,7 +240,7 @@ serve(async (req) => {
 
     // Create payment intent with enhanced metadata
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(paymentData.amount * 100), // Convert to pence
+      amount: Math.round(paymentData.amount), // Amount already in pence
       currency: paymentData.currency,
       automatic_payment_methods: {
         enabled: true,
@@ -261,7 +261,7 @@ serve(async (req) => {
     const paymentRecord = {
       booking_id: paymentData.bookingId,
       stripe_payment_intent_id: paymentIntent.id,
-      amount_cents: Math.round(paymentData.amount * 100),
+      amount_cents: Math.round(paymentData.amount), // Amount already in pence
       status: 'pending',
     };
 

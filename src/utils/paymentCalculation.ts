@@ -64,7 +64,7 @@ export const calculatePaymentAmount = async (
     switch (serviceSettings.charge_type) {
       case 'all_reservations':
         shouldCharge = true;
-        amount = (serviceSettings.charge_amount_per_guest * partySize) / 100; // Convert from pence
+        amount = serviceSettings.charge_amount_per_guest * partySize; // Keep in pence
         description = `Booking fee for ${partySize} guests`;
         break;
         
@@ -72,7 +72,7 @@ export const calculatePaymentAmount = async (
         const minGuests = serviceSettings.minimum_guests_for_charge || 8;
         if (partySize >= minGuests) {
           shouldCharge = true;
-          amount = (serviceSettings.charge_amount_per_guest * partySize) / 100; // Convert from pence
+          amount = serviceSettings.charge_amount_per_guest * partySize; // Keep in pence
           description = `Large group fee for ${partySize} guests`;
         }
         break;
