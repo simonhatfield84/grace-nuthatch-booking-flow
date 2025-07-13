@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 
 const BookingWidget = () => {
   const { venueSlug } = useParams<{ venueSlug: string }>();
-  const [currentStep, setCurrentStep] = useState<BookingStep>('date');
+  const [currentStep, setCurrentStep] = useState<BookingStep>('party');
 
   if (!venueSlug) {
     return <div>Invalid venue</div>;
@@ -14,9 +14,9 @@ const BookingWidget = () => {
 
   const getStepProgress = (step: BookingStep): number => {
     const stepMap: Record<BookingStep, number> = {
-      'date': 16,
-      'time': 32,
-      'party': 48,
+      'party': 16,
+      'date': 32,
+      'time': 48,
       'service': 64,
       'details': 80,
       'payment': 90,
@@ -27,9 +27,9 @@ const BookingWidget = () => {
 
   const getStepTitle = (step: BookingStep): string => {
     const titleMap: Record<BookingStep, string> = {
+      'party': 'Party Size',
       'date': 'Select Date',
       'time': 'Choose Time',
-      'party': 'Party Size',
       'service': 'Select Service',
       'details': 'Your Details',
       'payment': 'Payment',

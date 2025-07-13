@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { DateSelectorWithAvailability } from "./DateSelectorWithAvailability";
-import { EnhancedTimeSlotSelector } from "./EnhancedTimeSlotSelector";
+import { SimplifiedTimeSelector } from "./SimplifiedTimeSelector";
 import { PartyNumberSelector } from "./PartyNumberSelector";
 import { ServiceSelector } from "./ServiceSelector";
 import { GuestDetailsForm } from "./GuestDetailsForm";
@@ -12,7 +12,7 @@ import { ChevronLeft, Loader2 } from "lucide-react";
 import { calculatePaymentAmount } from "@/utils/paymentCalculation";
 import { useVenueBySlug } from "@/hooks/useVenueBySlug";
 
-export type BookingStep = 'date' | 'time' | 'party' | 'service' | 'details' | 'payment' | 'confirmation';
+export type BookingStep = 'party' | 'date' | 'time' | 'service' | 'details' | 'payment' | 'confirmation';
 
 interface BookingFlowManagerProps {
   venueSlug: string;
@@ -20,12 +20,12 @@ interface BookingFlowManagerProps {
 }
 
 export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManagerProps) => {
-  const [currentStep, setCurrentStep] = useState<BookingStep>('date');
+  const [currentStep, setCurrentStep] = useState<BookingStep>('party');
   const [bookingData, setBookingData] = useState({
+    partySize: 2, // Default party size
     date: null as Date | null,
     time: '',
-    partySize: 2, // Default party size
-    service: '',
+    service: null as any,
     serviceId: '',
     guestDetails: null as any,
     paymentRequired: false,
@@ -42,7 +42,7 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
   };
 
   const handleBack = () => {
-    const steps: BookingStep[] = ['date', 'time', 'party', 'service', 'details', 'payment', 'confirmation'];
+    const steps: BookingStep[] = ['party', 'date', 'time', 'service', 'details', 'payment', 'confirmation'];
     const currentIndex = steps.indexOf(currentStep);
     if (currentIndex > 0) {
       handleStepChange(steps[currentIndex - 1]);
@@ -78,7 +78,7 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
   }
 
   const renderBackButton = () => {
-    if (currentStep === 'date' || currentStep === 'confirmation') return null;
+    if (currentStep === 'party' || currentStep === 'confirmation') return null;
     
     return (
       <Button 
@@ -94,6 +94,17 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
 
   const renderCurrentStep = () => {
     switch (currentStep) {
+      case 'party':
+        return (
+          <PartyNumberSelector
+            selectedSize={bookingData.partySize}
+            onSizeSelect={(size) => {
+              updateBookingData({ partySize: size });
+              handleStepChange('date');
+            }}
+          />
+        );
+
       case 'date':
         return (
           <DateSelectorWithAvailability
@@ -109,26 +120,16 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
 
       case 'time':
         return (
-          <EnhancedTimeSlotSelector
+          <SimplifiedTimeSelector
             selectedDate={bookingData.date}
             selectedTime={bookingData.time}
             onTimeSelect={(time) => {
               updateBookingData({ time });
-              handleStepChange('party');
-            }}
-            partySize={bookingData.partySize}
-            venueId={venue.id}
-          />
-        );
-
-      case 'party':
-        return (
-          <PartyNumberSelector
-            selectedSize={bookingData.partySize}
-            onSizeSelect={(size) => {
-              updateBookingData({ partySize: size });
               handleStepChange('service');
             }}
+            selectedService={bookingData.service}
+            partySize={bookingData.partySize}
+            venueId={venue.id}
           />
         );
 
@@ -138,7 +139,7 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
             selectedService={bookingData.service}
             onServiceSelect={(service) => {
               updateBookingData({ 
-                service: service.title,
+                service: service,
                 serviceId: service.id
               });
               handleStepChange('details');
@@ -184,7 +185,7 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
               date: bookingData.date?.toISOString().split('T')[0] || '',
               time: bookingData.time,
               partySize: bookingData.partySize,
-              service: bookingData.service,
+              service: bookingData.service?.title || '',
             }}
           />
         );
@@ -193,7 +194,7 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
         return (
           <PaymentStep
             amount={bookingData.paymentAmount}
-            description={`Payment for ${bookingData.service} - ${bookingData.partySize} guests`}
+            description={`Payment for ${bookingData.service?.title} - ${bookingData.partySize} guests`}
             bookingId={bookingData.bookingId || undefined}
             onPaymentSuccess={() => {
               handleStepChange('confirmation');
@@ -209,6 +210,7 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
           <BookingConfirmation
             bookingData={{
               ...bookingData,
+              service: bookingData.service?.title || '',
               date: bookingData.date?.toISOString().split('T')[0] || '',
             }}
             venueSlug={venueSlug}
