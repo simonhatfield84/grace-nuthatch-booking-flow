@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,13 +15,13 @@ import { SafeHtml } from "@/components/SafeHtml";
 import { calculatePaymentAmount } from "@/utils/paymentCalculation";
 import { PaymentStep } from "@/components/bookings/PaymentStep";
 import { TableAllocationService } from "@/services/tableAllocation";
-import { guestService } from "@/services/guestService";
+import { useGuests } from "@/hooks/useGuests";
 
 const BookingWidget = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
-  const [partySize, setPartySize] = useState(2); // Changed default from 1 to 2
+  const [partySize, setPartySize] = useState(2);
   const [selectedService, setSelectedService] = useState(null);
   const [guestName, setGuestName] = useState('');
   const [phone, setPhone] = useState('');
@@ -34,6 +33,7 @@ const BookingWidget = () => {
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { createGuestSilent } = useGuests();
 
   // Get first venue ID for public bookings (this is a temporary solution)
   const { data: firstVenue } = useQuery({
@@ -164,7 +164,7 @@ const BookingWidget = () => {
       // Create guest record if guest details provided
       if (guestName.trim() && (email || phone)) {
         try {
-          await guestService.createGuestSilent({
+          await createGuestSilent({
             name: guestName,
             email: email || null,
             phone: phone || null,
