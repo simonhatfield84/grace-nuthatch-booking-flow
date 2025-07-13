@@ -1,30 +1,26 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { format, addDays, addHours } from "date-fns";
-import { SafeHtml } from "@/components/SafeHtml";
+import { format } from "date-fns";
 import { calculatePaymentAmount } from "@/utils/paymentCalculation";
 import { PaymentStep } from "@/components/bookings/PaymentStep";
 import { TableAllocationService } from "@/services/tableAllocation";
 import { guestService } from "@/services/guestService";
-import { TableAvailabilityService } from "@/services/tableAvailabilityService";
-import { EnhancedTimeSlotSelector } from "@/components/bookings/EnhancedTimeSlotSelector";
+import { PartyNumberSelector } from "@/components/bookings/PartyNumberSelector";
+import { DateSelectorWithAvailability } from "@/components/bookings/DateSelectorWithAvailability";
+import { ServiceSelector } from "@/components/bookings/ServiceSelector";
+import { SimplifiedTimeSelector } from "@/components/bookings/SimplifiedTimeSelector";
+import { GuestDetailsForm } from "@/components/bookings/GuestDetailsForm";
 
 const BookingWidget = () => {
   const [currentStep, setCurrentStep] = useState(1);
-  const [selectedDate, setSelectedDate] = useState(null);
-  const [selectedTime, setSelectedTime] = useState(null);
   const [partySize, setPartySize] = useState(2);
+  const [selectedDate, setSelectedDate] = useState(null);
   const [selectedService, setSelectedService] = useState(null);
+  const [selectedTime, setSelectedTime] = useState(null);
   const [guestName, setGuestName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
@@ -38,7 +34,7 @@ const BookingWidget = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Get first venue ID for public bookings (this is a temporary solution)
+  // Get first venue ID for public bookings
   const { data: firstVenue } = useQuery({
     queryKey: ['first-venue'],
     queryFn: async () => {
@@ -53,63 +49,6 @@ const BookingWidget = () => {
       return data;
     }
   });
-
-  // Fetch services
-  const { data: services, isLoading: isServicesLoading } = useQuery({
-    queryKey: ['services'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('services')
-        .select('*')
-        .order('title');
-      
-      if (error) throw error;
-      return data;
-    }
-  });
-
-  // Fetch booking windows for the selected service and date
-  const { data: bookingWindows = [] } = useQuery({
-    queryKey: ['booking-windows', selectedService?.id, selectedDate],
-    queryFn: async () => {
-      if (!selectedService?.id || !selectedDate) return [];
-
-      const formattedDate = format(selectedDate, 'yyyy-MM-dd');
-      const { data, error } = await supabase
-        .from('booking_windows')
-        .select('*')
-        .eq('service_id', selectedService.id)
-        .contains('days', [format(selectedDate, 'EEE').toLowerCase()])
-        .lte('start_date', formattedDate)
-        .gte('end_date', formattedDate);
-
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // Calculate available time slots based on booking windows
-  const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
-
-  useEffect(() => {
-    if (bookingWindows && bookingWindows.length > 0) {
-      const slots = [];
-      bookingWindows.forEach(window => {
-        let startTime = window.start_time;
-        const endTime = window.end_time;
-
-        while (startTime < endTime) {
-          slots.push(startTime);
-          const [hours, minutes] = startTime.split(':').map(Number);
-          const nextTime = format(addHours(new Date(0, 0, 0, hours, minutes), 1), 'HH:mm');
-          startTime = nextTime;
-        }
-      });
-      setAvailableTimeSlots(slots);
-    } else {
-      setAvailableTimeSlots([]);
-    }
-  }, [bookingWindows]);
 
   // Check payment requirements when service/party size changes
   useEffect(() => {
@@ -132,15 +71,15 @@ const BookingWidget = () => {
     checkPaymentRequirement();
   }, [selectedService, partySize, firstVenue]);
 
-  // Create booking mutation with enhanced allocation handling
+  // Create booking mutation
   const createBookingMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedDate || !selectedTime || !firstVenue) {
-        throw new Error("Missing required booking details or venue information.");
+      if (!selectedDate || !selectedTime || !firstVenue || !selectedService) {
+        throw new Error("Missing required booking details.");
       }
 
       const bookingData = {
-        service: selectedService?.title || 'General Booking',
+        service: selectedService.title,
         booking_date: format(selectedDate, 'yyyy-MM-dd'),
         booking_time: selectedTime,
         party_size: partySize,
@@ -179,7 +118,7 @@ const BookingWidget = () => {
         }
       }
 
-      // Try to allocate table automatically with enhanced logic
+      // Try to allocate table automatically
       try {
         const allocationResult = await TableAllocationService.allocateBookingToTables(
           data.id,
@@ -204,10 +143,10 @@ const BookingWidget = () => {
       
       // If payment is required, go to payment step
       if (paymentRequired?.shouldCharge) {
-        setCurrentStep(6); // Payment step
+        setCurrentStep(7); // Payment step
       } else {
         // No payment required, go to confirmation
-        setCurrentStep(5); // Confirmation step
+        setCurrentStep(6); // Confirmation step
       }
     },
     onError: (error) => {
@@ -234,7 +173,7 @@ const BookingWidget = () => {
 
   const handlePaymentSuccess = () => {
     queryClient.invalidateQueries({ queryKey: ['bookings'] });
-    setCurrentStep(5); // Go to confirmation
+    setCurrentStep(6); // Go to confirmation
   };
 
   const handlePaymentError = (error: string) => {
@@ -245,57 +184,21 @@ const BookingWidget = () => {
     });
   };
 
-  const handleAlternativeSelection = async (alternative) => {
-    try {
-      // Update booking with new time
-      const { error } = await supabase
-        .from('bookings')
-        .update({
-          booking_time: alternative.time,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', createdBookingId);
-
-      if (error) throw error;
-
-      // Try allocation again
-      const allocationResult = await TableAllocationService.allocateBookingToTables(
-        createdBookingId,
-        partySize,
-        format(selectedDate, 'yyyy-MM-dd'),
-        alternative.time
-      );
-
-      if (allocationResult.success) {
-        setShowAlternatives(false);
-        toast({
-          title: "Table Allocated!",
-          description: `Your booking has been moved to ${alternative.time} and a table has been assigned.`,
-        });
-      }
-    } catch (error) {
-      console.error('Error updating booking time:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update booking time.",
-        variant: "destructive",
-      });
-    }
-  };
-
   const canProceed = () => {
     switch (currentStep) {
       case 1:
-        return !!selectedDate;
-      case 2:
-        return !!selectedTime;
-      case 3:
         return partySize >= 1;
+      case 2:
+        return !!selectedDate;
+      case 3:
+        return !!selectedService;
       case 4:
-        return guestName.trim() !== '' && phone.trim() !== '';
+        return !!selectedTime;
       case 5:
-        return false; // Confirmation step
+        return guestName.trim() !== '' && phone.trim() !== '' && /^(\+44|0)[0-9\s-()]{9,}$/.test(phone.trim());
       case 6:
+        return false; // Confirmation step
+      case 7:
         return false; // Payment step handles its own navigation
       default:
         return false;
@@ -303,10 +206,10 @@ const BookingWidget = () => {
   };
 
   const resetForm = () => {
-    setSelectedDate(null);
-    setSelectedTime(null);
     setPartySize(2);
+    setSelectedDate(null);
     setSelectedService(null);
+    setSelectedTime(null);
     setGuestName('');
     setPhone('');
     setEmail('');
@@ -321,190 +224,61 @@ const BookingWidget = () => {
     switch (currentStep) {
       case 1:
         return (
-          <Card className="w-full max-w-2xl mx-auto bg-white dark:bg-gray-900">
-            <CardHeader className="bg-gray-50 dark:bg-gray-800 border-b">
-              <CardTitle className="text-2xl text-gray-900 dark:text-gray-100">Select Date</CardTitle>
-              <CardDescription className="text-gray-600 dark:text-gray-300">
-                Choose your preferred date
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-6 bg-white dark:bg-gray-900">
-              <div>
-                <Label className="text-base font-medium text-gray-900 dark:text-gray-100">Select Date</Label>
-                <div className="mt-2">
-                  <Calendar
-                    mode="single"
-                    selected={selectedDate}
-                    onSelect={setSelectedDate}
-                    disabled={(date) => date < new Date()}
-                    className="rounded-md border border-gray-300 dark:border-gray-600"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <PartyNumberSelector
+            selectedPartySize={partySize}
+            onPartySizeSelect={setPartySize}
+          />
         );
 
       case 2:
         return (
-          <Card className="w-full max-w-2xl mx-auto bg-white dark:bg-gray-900">
-            <CardHeader className="bg-gray-50 dark:bg-gray-800 border-b">
-              <CardTitle className="text-2xl text-gray-900 dark:text-gray-100">Select Time</CardTitle>
-              <CardDescription className="text-gray-600 dark:text-gray-300">
-                Choose your preferred time slot
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-6 space-y-6 bg-white dark:bg-gray-900">
-              <EnhancedTimeSlotSelector
-                selectedDate={selectedDate}
-                selectedTime={selectedTime}
-                onTimeSelect={setSelectedTime}
-                partySize={partySize}
-                venueId={firstVenue?.id}
-              />
-            </CardContent>
-          </Card>
+          <DateSelectorWithAvailability
+            selectedDate={selectedDate}
+            onDateSelect={setSelectedDate}
+            partySize={partySize}
+            venueId={firstVenue?.id}
+          />
         );
 
       case 3:
         return (
-          <Card className="w-full max-w-2xl mx-auto bg-white dark:bg-gray-900">
-            <CardHeader className="bg-gray-50 dark:bg-gray-800 border-b">
-              <CardTitle className="text-2xl text-gray-900 dark:text-gray-100">Party Size</CardTitle>
-              <CardDescription className="text-gray-600 dark:text-gray-300">
-                How many people will be joining?
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-6 space-y-4 bg-white dark:bg-gray-900">
-              <div>
-                <Label htmlFor="party-size" className="text-base font-medium text-gray-900 dark:text-gray-100">
-                  Number of People
-                </Label>
-                <Select value={partySize.toString()} onValueChange={(value) => setPartySize(parseInt(value))}>
-                  <SelectTrigger className="mt-1 border-gray-300 dark:border-gray-600">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white dark:bg-gray-800">
-                    {Array.from({ length: 12 }, (_, i) => (
-                      <SelectItem key={i} value={(i + 1).toString()}>
-                        {i + 1} {i + 1 === 1 ? 'person' : 'people'}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Optional service selection */}
-              <div>
-                <Label className="text-base font-medium text-gray-900 dark:text-gray-100">Service (Optional)</Label>
-                <div className="grid gap-2 mt-2">
-                  {services?.filter(service => service.active && service.online_bookable).map((service) => (
-                    <Card 
-                      key={service.id} 
-                      className={`cursor-pointer transition-all hover:shadow-md border-2 ${
-                        selectedService?.id === service.id 
-                          ? 'border-blue-500 bg-blue-50 dark:bg-blue-950 dark:border-blue-400' 
-                          : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                      }`}
-                      onClick={() => setSelectedService(service)}
-                    >
-                      <CardContent className="p-3">
-                        <h4 className="font-medium text-gray-900 dark:text-gray-100">{service.title}</h4>
-                        {service.description && (
-                          <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{service.description}</p>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <ServiceSelector
+            selectedService={selectedService}
+            onServiceSelect={setSelectedService}
+            partySize={partySize}
+            selectedDate={selectedDate}
+            venueId={firstVenue?.id}
+          />
         );
 
       case 4:
         return (
-          <Card className="w-full max-w-2xl mx-auto bg-white dark:bg-gray-900">
-            <CardHeader className="bg-gray-50 dark:bg-gray-800 border-b">
-              <CardTitle className="text-2xl text-gray-900 dark:text-gray-100">Guest Details</CardTitle>
-              <CardDescription className="text-gray-600 dark:text-gray-300">
-                Please provide your contact information
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-6 space-y-4 bg-white dark:bg-gray-900">
-              <div>
-                <Label htmlFor="guest-name" className="text-base font-medium text-gray-900 dark:text-gray-100">
-                  Name *
-                </Label>
-                <Input
-                  id="guest-name"
-                  value={guestName}
-                  onChange={(e) => setGuestName(e.target.value)}
-                  className="mt-1 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                  placeholder="Your name"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="phone" className="text-base font-medium text-gray-900 dark:text-gray-100">
-                  Phone Number *
-                </Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="mt-1 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                  placeholder="Your phone number"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="email" className="text-base font-medium text-gray-900 dark:text-gray-100">
-                  Email Address
-                </Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="mt-1 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                  placeholder="your.email@example.com"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="notes" className="text-base font-medium text-gray-900 dark:text-gray-100">
-                  Special Requirements
-                </Label>
-                <Textarea
-                  id="notes"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="mt-1 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                  placeholder="Any dietary requirements, accessibility needs, or special requests..."
-                  rows={3}
-                />
-              </div>
-
-              {/* Payment Information */}
-              {paymentRequired?.shouldCharge && (
-                <div className="bg-amber-50 dark:bg-amber-950 rounded-lg p-4 border border-amber-200 dark:border-amber-800">
-                  <h3 className="font-semibold text-lg mb-2 text-amber-900 dark:text-amber-100">Payment Required</h3>
-                  <p className="text-sm text-amber-800 dark:text-amber-200">
-                    {paymentRequired.description} - £{paymentRequired.amount.toFixed(2)}
-                  </p>
-                  <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-                    You will be redirected to complete payment after creating your booking.
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <SimplifiedTimeSelector
+            selectedTime={selectedTime}
+            onTimeSelect={setSelectedTime}
+            selectedDate={selectedDate}
+            selectedService={selectedService}
+            partySize={partySize}
+            venueId={firstVenue?.id}
+          />
         );
 
       case 5:
-        // Enhanced confirmation page with alternatives handling
+        return (
+          <GuestDetailsForm
+            guestName={guestName}
+            phone={phone}
+            email={email}
+            notes={notes}
+            onGuestNameChange={setGuestName}
+            onPhoneChange={setPhone}
+            onEmailChange={setEmail}
+            onNotesChange={setNotes}
+            paymentRequired={paymentRequired}
+          />
+        );
+
+      case 6:
         return (
           <Card className="w-full max-w-2xl mx-auto bg-white dark:bg-gray-900">
             <CardHeader className="bg-green-50 dark:bg-green-950 border-b border-green-200 dark:border-green-800">
@@ -520,36 +294,6 @@ const BookingWidget = () => {
             </CardHeader>
             <CardContent className="p-6 bg-white dark:bg-gray-900">
               <div className="space-y-6">
-                {/* Show alternatives if needed */}
-                {showAlternatives && allocationAlternatives.length > 0 && (
-                  <div className="bg-amber-50 dark:bg-amber-950 rounded-lg p-4 border border-amber-200 dark:border-amber-800">
-                    <h3 className="font-semibold text-lg mb-3 text-amber-900 dark:text-amber-100">Available Alternative Times</h3>
-                    <div className="space-y-2">
-                      {allocationAlternatives.map((alt, index) => (
-                        <div key={index} className="flex justify-between items-center p-3 bg-white dark:bg-gray-800 rounded border">
-                          <div>
-                            <span className="font-medium">{alt.time}</span>
-                            <p className="text-sm text-gray-600 dark:text-gray-400">{alt.reason}</p>
-                            {alt.suggestedTable && (
-                              <p className="text-xs text-gray-500">Table: {alt.suggestedTable.label} ({alt.suggestedTable.seats} seats)</p>
-                            )}
-                          </div>
-                          <Button
-                            size="sm"
-                            onClick={() => handleAlternativeSelection(alt)}
-                            className="bg-amber-600 hover:bg-amber-700 text-white"
-                          >
-                            Select This Time
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                    <p className="text-xs text-amber-700 dark:text-amber-300 mt-3">
-                      Or keep your original time and we'll try to accommodate you as a walk-in.
-                    </p>
-                  </div>
-                )}
-
                 {/* Booking Reference */}
                 <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
                   <h3 className="font-semibold text-lg mb-3 text-gray-900 dark:text-gray-100">Booking Reference</h3>
@@ -589,47 +333,10 @@ const BookingWidget = () => {
                   </div>
                 </div>
 
-                {/* Guest Details */}
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700">
-                  <h3 className="font-semibold text-lg mb-3 text-gray-900 dark:text-gray-100">Guest Details</h3>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Name:</span>
-                      <span className="font-medium text-gray-900 dark:text-gray-100">{guestName}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600 dark:text-gray-400">Phone:</span>
-                      <span className="font-medium text-gray-900 dark:text-gray-100">{phone}</span>
-                    </div>
-                    {email && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600 dark:text-gray-400">Email:</span>
-                        <span className="font-medium text-gray-900 dark:text-gray-100">{email}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
                 {/* Action buttons */}
                 <div className="flex flex-col gap-3">
                   <Button 
-                    onClick={() => {
-                      setShowAlternatives(false);
-                      setAllocationAlternatives([]);
-                      // Reset form logic
-                      setSelectedDate(null);
-                      setSelectedTime(null);
-                      setPartySize(2);
-                      setSelectedService(null);
-                      setGuestName('');
-                      setPhone('');
-                      setEmail('');
-                      setNotes('');
-                      setPaymentRequired(null);
-                      setCreatedBookingId(null);
-                      setCreatedBooking(null);
-                      setCurrentStep(1);
-                    }}
+                    onClick={resetForm}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white"
                   >
                     Make Another Booking
@@ -647,7 +354,7 @@ const BookingWidget = () => {
           </Card>
         );
 
-      case 6:
+      case 7:
         // Payment step
         return paymentRequired?.shouldCharge && (
           <PaymentStep
@@ -664,7 +371,7 @@ const BookingWidget = () => {
     }
   };
 
-  const totalSteps = paymentRequired?.shouldCharge ? 6 : 5;
+  const totalSteps = paymentRequired?.shouldCharge ? 7 : 6;
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-950 py-8">
@@ -696,11 +403,11 @@ const BookingWidget = () => {
         {getStepContent()}
 
         {/* Navigation Buttons */}
-        {currentStep < 5 && (
+        {currentStep < 6 && (
           <div className="flex justify-between mt-8 max-w-2xl mx-auto">
             <Button 
               variant="outline" 
-              onClick={() => setCurrentStep(currentStep - 1)}
+              onClick={handlePrevious}
               disabled={currentStep === 1}
               className="border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300"
             >
@@ -708,13 +415,13 @@ const BookingWidget = () => {
             </Button>
             
             <Button 
-              onClick={currentStep === 4 ? () => createBookingMutation.mutateAsync() : () => setCurrentStep(currentStep + 1)}
+              onClick={currentStep === 5 ? handleSubmit : handleNext}
               disabled={!canProceed() || createBookingMutation.isPending}
               className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               {createBookingMutation.isPending 
                 ? 'Creating Booking...' 
-                : currentStep === 4 
+                : currentStep === 5 
                   ? 'Create Booking' 
                   : 'Next'
               }
