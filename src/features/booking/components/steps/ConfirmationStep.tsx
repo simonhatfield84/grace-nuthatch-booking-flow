@@ -248,17 +248,19 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
       </Card>
 
       {/* Payment Details */}
-      {bookingData.paymentDetails && (
+      {(bookingData.paymentRequired && bookingData.paymentAmount > 0) && (
         <Card className="p-6 border-nuthatch-border">
           <h3 className="font-medium text-nuthatch-dark mb-4">Payment Details</h3>
           <div className="space-y-2">
             <div className="flex justify-between">
               <span className="text-nuthatch-muted">Total Amount:</span>
-              <span className="text-nuthatch-dark font-medium">${bookingData.paymentDetails.amount}</span>
+              <span className="text-nuthatch-dark font-medium">
+                ${(bookingData.paymentAmount / 100).toFixed(2)}
+              </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-nuthatch-muted">Payment Method:</span>
-              <span className="text-nuthatch-dark">{bookingData.paymentDetails.method}</span>
+              <span className="text-nuthatch-muted">Status:</span>
+              <span className="text-green-600 font-medium">Paid</span>
             </div>
           </div>
         </Card>

@@ -121,8 +121,8 @@ export class OptimizedAvailabilityService {
 
       console.log(`🗓️ Checking ${datesToCheck.length} dates`);
 
-      // Check availability for each date in smaller batches
-      const batchSize = 7; // Check one week at a time
+      // Check availability for each date in optimized batches
+      const batchSize = 14; // Check two weeks at a time for better performance
       const availableDates: string[] = [];
 
       for (let i = 0; i < datesToCheck.length; i += batchSize) {
@@ -152,9 +152,9 @@ export class OptimizedAvailabilityService {
         availableDates.push(...batchAvailable);
         console.log(`✅ Batch complete: ${batchAvailable.length}/${batch.length} dates available`);
 
-        // Small delay between batches to prevent overwhelming the system
+        // Reduced delay for better performance
         if (i + batchSize < datesToCheck.length) {
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise(resolve => setTimeout(resolve, 50));
         }
       }
 

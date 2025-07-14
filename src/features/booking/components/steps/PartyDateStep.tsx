@@ -107,15 +107,6 @@ export function PartyDateStep({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-nuthatch-heading font-light text-nuthatch-dark mb-2">
-          How many guests?
-        </h2>
-        <p className="text-nuthatch-muted">
-          Select your party size and preferred date
-        </p>
-      </div>
-
       {/* Party Size Section */}
       <Card className="border-nuthatch-border">
         <CardHeader>
@@ -202,29 +193,25 @@ export function PartyDateStep({
             </div>
           ) : (
             <div className="space-y-4">
-              <Calendar
-                mode="single"
-                selected={date}
-                onSelect={handleDateSelect}
-                onMonthChange={setCurrentMonth}
-                disabled={disabledDates}
-                className="mx-auto"
-                fromDate={new Date()}
-                toDate={addDays(new Date(), 90)}
-              />
-              
-              <div className="text-center text-sm text-nuthatch-muted">
-                {availableDates.length === 0 && !isLoading ? (
-                  <p className="text-amber-600">
-                    No availability found for {partySize} {partySize === 1 ? 'person' : 'people'} this month.
-                    Try selecting a different month or reducing your party size.
-                  </p>
-                ) : (
-                  <p>
-                    {availableDates.length} {availableDates.length === 1 ? 'date' : 'dates'} available this month
-                  </p>
-                )}
+              <div className="flex justify-center">
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  onSelect={handleDateSelect}
+                  onMonthChange={setCurrentMonth}
+                  disabled={disabledDates}
+                  className="mx-auto"
+                  fromDate={new Date()}
+                  toDate={addDays(new Date(), 90)}
+                />
               </div>
+              
+              {availableDates.length === 0 && !isLoading && (
+                <div className="text-center text-sm text-amber-600">
+                  No availability found for {partySize} {partySize === 1 ? 'person' : 'people'} this month.
+                  Try selecting a different month or reducing your party size.
+                </div>
+              )}
 
               {date && (
                 <div className="mt-4 p-3 bg-nuthatch-light rounded-lg border border-nuthatch-border">

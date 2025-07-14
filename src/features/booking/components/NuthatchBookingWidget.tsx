@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { ChevronRight, Clock, Users, Calendar, CreditCard, Check, ArrowLeft } from "lucide-react";
+import { format } from "date-fns";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
@@ -56,6 +57,24 @@ export function NuthatchBookingWidget() {
     paymentAmount: 0,
     bookingId: null,
   });
+
+  const getStepLabel = (stepId: string, step: BookingStep) => {
+    if (!step.isCompleted) return step.name;
+    
+    switch (stepId) {
+      case 'party-date':
+        if (bookingData.date) {
+          return `${bookingData.partySize} on ${format(bookingData.date, 'dd/MM')}`;
+        }
+        return step.name;
+      case 'service':
+        return bookingData.service?.title || step.name;
+      case 'time':
+        return bookingData.time || step.name;
+      default:
+        return step.name;
+    }
+  };
 
   const steps: BookingStep[] = [
     {
@@ -152,7 +171,14 @@ export function NuthatchBookingWidget() {
   };
 
   const goToStep = (stepIndex: number) => {
-    setCurrentStep(stepIndex);
+    // Don't allow navigation if booking is confirmed
+    if (bookingData.bookingId !== null) return;
+    
+    // Only allow navigation to completed steps or the next step
+    const allowedSteps = steps.slice(0, currentStep + 1).map((_, idx) => idx);
+    if (steps[stepIndex]?.isCompleted || allowedSteps.includes(stepIndex)) {
+      setCurrentStep(stepIndex);
+    }
   };
 
   const renderStep = () => {
@@ -259,19 +285,27 @@ export function NuthatchBookingWidget() {
         {/* Navigation tabs - simple like Guestplan */}
         <div className="border-b bg-gray-50">
           <div className="flex">
-            {steps.slice(0, -1).map((step, index) => (
-              <button
-                key={step.id}
-                onClick={() => goToStep(index)}
-                className={`flex-1 px-3 py-2 text-sm font-medium border-r last:border-r-0 ${
-                  currentStep === index 
-                    ? 'bg-white text-black' 
-                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                }`}
-              >
-                {step.name}
-              </button>
-            ))}
+            {steps.slice(0, -1).map((step, index) => {
+              const isDisabled = bookingData.bookingId !== null || 
+                                (!step.isCompleted && index > currentStep);
+              
+              return (
+                <button
+                  key={step.id}
+                  onClick={() => !isDisabled && goToStep(index)}
+                  disabled={isDisabled}
+                  className={`flex-1 px-2 py-2 text-xs font-medium border-r last:border-r-0 transition-colors ${
+                    currentStep === index 
+                      ? 'bg-white text-black' 
+                      : isDisabled
+                        ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
+                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  {getStepLabel(step.id, step)}
+                </button>
+              );
+            })}
           </div>
         </div>
 
