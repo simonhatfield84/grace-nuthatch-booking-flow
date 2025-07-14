@@ -17,7 +17,7 @@ export const calculatePaymentAmount = async (
     // Check if venue has Stripe enabled
     const { data: venueSettings } = await supabase
       .from('venue_stripe_settings')
-      .select('is_active')
+      .select('is_active, charge_type, charge_amount_per_guest, minimum_guests_for_charge')
       .eq('venue_id', venueId)
       .single();
 
@@ -31,13 +31,39 @@ export const calculatePaymentAmount = async (
       };
     }
 
-    // Get service payment settings
+    // Get service payment settings if service is specified
     if (!serviceId) {
+      // Use venue-level settings as fallback
+      let shouldCharge = false;
+      let amount = 0;
+      let description = '';
+
+      switch (venueSettings.charge_type) {
+        case 'all_reservations':
+          shouldCharge = true;
+          amount = (venueSettings.charge_amount_per_guest || 0) * partySize;
+          description = `Booking fee for ${partySize} guests`;
+          break;
+          
+        case 'large_groups':
+          const minGuests = venueSettings.minimum_guests_for_charge || 8;
+          if (partySize >= minGuests) {
+            shouldCharge = true;
+            amount = (venueSettings.charge_amount_per_guest || 0) * partySize;
+            description = `Large group fee for ${partySize} guests`;
+          }
+          break;
+          
+        default:
+          shouldCharge = false;
+          break;
+      }
+
       return {
-        shouldCharge: false,
-        amount: 0,
-        description: 'No payment required',
-        chargeType: 'none'
+        shouldCharge,
+        amount,
+        description: description || 'No payment required',
+        chargeType: venueSettings.charge_type || 'none'
       };
     }
 
@@ -47,6 +73,7 @@ export const calculatePaymentAmount = async (
       .eq('id', serviceId)
       .single();
 
+    // If service doesn't require payment, check if venue has default settings
     if (!serviceSettings?.requires_payment) {
       return {
         shouldCharge: false,
@@ -56,29 +83,33 @@ export const calculatePaymentAmount = async (
       };
     }
 
-    // Apply charge logic based on service settings
+    // Prioritize service-level payment settings
     let shouldCharge = false;
     let amount = 0;
     let description = '';
+    let chargeType = serviceSettings.charge_type || 'none';
 
-    switch (serviceSettings.charge_type) {
+    // Use service settings if available, otherwise fall back to venue settings
+    const effectiveChargeType = serviceSettings.charge_type || venueSettings.charge_type || 'none';
+    const effectiveChargeAmount = serviceSettings.charge_amount_per_guest || venueSettings.charge_amount_per_guest || 0;
+    const effectiveMinGuests = serviceSettings.minimum_guests_for_charge || venueSettings.minimum_guests_for_charge || 8;
+
+    switch (effectiveChargeType) {
       case 'all_reservations':
         shouldCharge = true;
-        amount = serviceSettings.charge_amount_per_guest * partySize; // Keep in pence
+        amount = effectiveChargeAmount * partySize;
         description = `Booking fee for ${partySize} guests`;
         break;
         
       case 'large_groups':
-        const minGuests = serviceSettings.minimum_guests_for_charge || 8;
-        if (partySize >= minGuests) {
+        if (partySize >= effectiveMinGuests) {
           shouldCharge = true;
-          amount = serviceSettings.charge_amount_per_guest * partySize; // Keep in pence
+          amount = effectiveChargeAmount * partySize;
           description = `Large group fee for ${partySize} guests`;
         }
         break;
         
       default:
-        // 'none' or any other value
         shouldCharge = false;
         break;
     }
@@ -87,7 +118,7 @@ export const calculatePaymentAmount = async (
       shouldCharge,
       amount,
       description: description || 'No payment required',
-      chargeType: serviceSettings.charge_type
+      chargeType: effectiveChargeType
     };
 
   } catch (error) {
