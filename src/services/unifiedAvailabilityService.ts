@@ -107,26 +107,56 @@ export class UnifiedAvailabilityService {
 
       console.log(`📋 [${date}] Found ${applicableWindows.length} applicable windows`);
 
-      // Get tables that can accommodate the party size
+      // Get tables and join groups that can accommodate the party size
       const { data: tables, error: tablesError } = await supabase
         .from('tables')
         .select('*')
         .eq('venue_id', venueId)
         .eq('online_bookable', true)
-        .eq('status', 'active')
-        .gte('seats', partySize);
+        .eq('status', 'active');
 
       if (tablesError) {
         console.error(`❌ [${date}] Error fetching tables:`, tablesError);
         return false;
       }
 
-      if (!tables || tables.length === 0) {
-        console.log(`❌ [${date}] No suitable tables found for ${partySize} people`);
+      // Get join groups for this venue
+      const { data: joinGroups, error: joinGroupsError } = await supabase
+        .from('join_groups')
+        .select('*')
+        .eq('venue_id', venueId)
+        .gte('max_party_size', partySize)
+        .lte('min_party_size', partySize);
+
+      if (joinGroupsError) {
+        console.error(`❌ [${date}] Error fetching join groups:`, joinGroupsError);
+      }
+
+      console.log(`🪑 [${date}] Found ${tables?.length || 0} tables, ${joinGroups?.length || 0} join groups`);
+      console.log(`🔗 [${date}] Join groups:`, joinGroups?.map(jg => `${jg.name} (${jg.min_party_size}-${jg.max_party_size} people)`) || []);
+
+      // Filter tables that can accommodate party size individually
+      const suitableIndividualTables = tables?.filter(table => table.seats >= partySize) || [];
+      
+      // Get all tables that are part of suitable join groups
+      const joinGroupTableIds = new Set();
+      if (joinGroups && joinGroups.length > 0) {
+        joinGroups.forEach(group => {
+          group.table_ids.forEach((tableId: number) => joinGroupTableIds.add(tableId));
+        });
+      }
+      
+      const joinGroupTables = tables?.filter(table => joinGroupTableIds.has(table.id)) || [];
+      
+      // Combine individual suitable tables and join group tables (remove duplicates)
+      const allSuitableTables = [...new Map([...suitableIndividualTables, ...joinGroupTables].map(table => [table.id, table])).values()];
+
+      if (allSuitableTables.length === 0) {
+        console.log(`❌ [${date}] No suitable tables or join groups found for ${partySize} people`);
         return false;
       }
 
-      console.log(`🪑 [${date}] Found ${tables.length} suitable tables`);
+      console.log(`🪑 [${date}] Found ${suitableIndividualTables.length} individual tables, ${joinGroupTables.length} join group tables (${allSuitableTables.length} total suitable)`)
 
       // Check for existing bookings on this date
       const { data: existingBookings, error: bookingsError } = await supabase
@@ -149,8 +179,9 @@ export class UnifiedAvailabilityService {
           window,
           date,
           partySize,
-          tables,
-          existingBookings || []
+          allSuitableTables,
+          existingBookings || [],
+          joinGroups || []
         );
 
         if (hasAvailability) {
@@ -175,7 +206,8 @@ export class UnifiedAvailabilityService {
     date: string,
     partySize: number,
     tables: any[],
-    existingBookings: any[]
+    existingBookings: any[],
+    joinGroups: any[] = []
   ): Promise<boolean> {
     console.log(`🕐 [${date}] Checking window availability for ${window.start_time}-${window.end_time}`);
 
@@ -191,15 +223,38 @@ export class UnifiedAvailabilityService {
       const timeSlot = format(currentTime, 'HH:mm');
       checkedSlots++;
       
-      // Check if any table is available at this time slot
-      const availableTables = tables.filter(table => {
-        return !this.isTableBooked(table.id, date, timeSlot, existingBookings, 120);
-      });
+      // Get occupied table IDs for this time slot
+      const occupiedTableIds = existingBookings
+        .filter(booking => this.isTimeSlotOverlapping(booking.booking_time, timeSlot, booking.duration_minutes || 120, 120))
+        .map(booking => booking.table_id);
 
-      if (availableTables.length > 0) {
+      console.log(`⏰ [${date}] Checking ${timeSlot} - occupied tables: [${occupiedTableIds.join(', ')}]`);
+      
+      // Check individual tables that can accommodate the party size
+      const availableIndividualTables = tables.filter(table => 
+        table.seats >= partySize && !occupiedTableIds.includes(table.id)
+      );
+
+      if (availableIndividualTables.length > 0) {
         availableSlots++;
-        console.log(`✅ [${date}] Found ${availableTables.length} available tables at ${timeSlot}`);
+        console.log(`   ✅ ${timeSlot}: Available individual tables: ${availableIndividualTables.map(t => t.id).join(', ')}`);
         return true;
+      }
+
+      // Check join groups if no individual tables are available
+      for (const joinGroup of joinGroups) {
+        if (partySize >= joinGroup.min_party_size && partySize <= joinGroup.max_party_size) {
+          // Check if all tables in the join group are available
+          const allTablesAvailable = joinGroup.table_ids.every((tableId: number) => 
+            !occupiedTableIds.includes(tableId)
+          );
+          
+          if (allTablesAvailable) {
+            availableSlots++;
+            console.log(`   ✅ ${timeSlot}: Available join group: ${joinGroup.name} (tables ${joinGroup.table_ids.join(', ')})`);
+            return true;
+          }
+        }
       }
 
       // Move to next 15-minute slot
@@ -227,24 +282,39 @@ export class UnifiedAvailabilityService {
     try {
       console.log(`🕐 Checking time slot ${timeSlot} on ${date} for ${partySize} people`);
 
-      // Get tables that can accommodate the party size
+      // Get all tables and join groups that can accommodate the party size
       const { data: tables, error: tablesError } = await supabase
         .from('tables')
         .select('*')
         .eq('venue_id', venueId)
         .eq('online_bookable', true)
-        .eq('status', 'active')
-        .gte('seats', partySize);
+        .eq('status', 'active');
 
       if (tablesError) {
         console.error('Error fetching tables:', tablesError);
         return { available: false, reason: 'System error' };
       }
 
-      if (!tables || tables.length === 0) {
+      // Get join groups for this venue
+      const { data: joinGroups, error: joinGroupsError } = await supabase
+        .from('join_groups')
+        .select('*')
+        .eq('venue_id', venueId)
+        .gte('max_party_size', partySize)
+        .lte('min_party_size', partySize);
+
+      if (joinGroupsError) {
+        console.error('Error fetching join groups:', joinGroupsError);
+      }
+
+      // Filter individual tables that can accommodate party size
+      const suitableIndividualTables = tables?.filter(table => table.seats >= partySize) || [];
+      
+      // Check if we have any suitable individual tables or join groups
+      if (suitableIndividualTables.length === 0 && (!joinGroups || joinGroups.length === 0)) {
         return { 
           available: false, 
-          reason: `No tables available for ${partySize} people` 
+          reason: `No tables or join groups available for ${partySize} people` 
         };
       }
 
@@ -261,14 +331,34 @@ export class UnifiedAvailabilityService {
         return { available: false, reason: 'System error' };
       }
 
-      // Check if any table is available at this time slot
-      const availableTables = tables.filter(table => {
-        return !this.isTableBooked(table.id, date, timeSlot, existingBookings || [], durationMinutes);
-      });
+      // Get occupied table IDs for this time slot
+      const occupiedTableIds = (existingBookings || [])
+        .filter(booking => this.isTimeSlotOverlapping(booking.booking_time, timeSlot, booking.duration_minutes || 120, durationMinutes))
+        .map(booking => booking.table_id);
 
-      if (availableTables.length > 0) {
-        console.log(`✅ Time slot ${timeSlot} is available`);
+      // Check individual tables that can accommodate the party size
+      const availableIndividualTables = suitableIndividualTables.filter(table => 
+        !occupiedTableIds.includes(table.id)
+      );
+
+      if (availableIndividualTables.length > 0) {
+        console.log(`✅ Time slot ${timeSlot} is available (individual tables)`);
         return { available: true };
+      }
+
+      // Check join groups if no individual tables are available
+      for (const joinGroup of joinGroups || []) {
+        if (partySize >= joinGroup.min_party_size && partySize <= joinGroup.max_party_size) {
+          // Check if all tables in the join group are available
+          const allTablesAvailable = joinGroup.table_ids.every((tableId: number) => 
+            !occupiedTableIds.includes(tableId)
+          );
+          
+          if (allTablesAvailable) {
+            console.log(`✅ Time slot ${timeSlot} is available (join group: ${joinGroup.name})`);
+            return { available: true };
+          }
+        }
       }
 
       // Generate suggested alternative times if no availability
@@ -277,7 +367,7 @@ export class UnifiedAvailabilityService {
         date,
         timeSlot,
         partySize,
-        tables,
+        [...suitableIndividualTables, ...(tables?.filter(table => joinGroups?.some(jg => jg.table_ids.includes(table.id))) || [])],
         existingBookings || [],
         durationMinutes
       );
@@ -370,5 +460,22 @@ export class UnifiedAvailabilityService {
     }
 
     return false;
+  }
+
+  /**
+   * Check if two time slots overlap
+   */
+  private static isTimeSlotOverlapping(
+    bookingTime: string,
+    checkTime: string,
+    bookingDuration: number,
+    checkDuration: number
+  ): boolean {
+    const bookingStart = parse(bookingTime, 'HH:mm', new Date());
+    const bookingEnd = addMinutes(bookingStart, bookingDuration);
+    const checkStart = parse(checkTime, 'HH:mm', new Date());
+    const checkEnd = addMinutes(checkStart, checkDuration);
+
+    return checkStart < bookingEnd && checkEnd > bookingStart;
   }
 }

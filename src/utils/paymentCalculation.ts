@@ -73,26 +73,22 @@ export const calculatePaymentAmount = async (
       .eq('id', serviceId)
       .single();
 
-    // If service doesn't require payment, check if venue has default settings
-    if (!serviceSettings?.requires_payment) {
-      return {
-        shouldCharge: false,
-        amount: 0,
-        description: 'No payment required',
-        chargeType: 'none'
-      };
-    }
-
-    // Prioritize service-level payment settings
+    // Prioritize service-level payment settings over venue settings
     let shouldCharge = false;
     let amount = 0;
     let description = '';
-    let chargeType = serviceSettings.charge_type || 'none';
+    let chargeType = serviceSettings?.charge_type || 'none';
 
-    // Use service settings if available, otherwise fall back to venue settings
-    const effectiveChargeType = serviceSettings.charge_type || venueSettings.charge_type || 'none';
-    const effectiveChargeAmount = serviceSettings.charge_amount_per_guest || venueSettings.charge_amount_per_guest || 0;
-    const effectiveMinGuests = serviceSettings.minimum_guests_for_charge || venueSettings.minimum_guests_for_charge || 8;
+    // If service requires payment, use service settings, otherwise fall back to venue settings
+    const effectiveChargeType = serviceSettings?.requires_payment ? 
+      (serviceSettings.charge_type || 'all_reservations') : 
+      (venueSettings.charge_type || 'none');
+    const effectiveChargeAmount = serviceSettings?.requires_payment ? 
+      (serviceSettings.charge_amount_per_guest || 0) : 
+      (venueSettings.charge_amount_per_guest || 0);
+    const effectiveMinGuests = serviceSettings?.requires_payment ? 
+      (serviceSettings.minimum_guests_for_charge || 1) : 
+      (venueSettings.minimum_guests_for_charge || 8);
 
     switch (effectiveChargeType) {
       case 'all_reservations':
