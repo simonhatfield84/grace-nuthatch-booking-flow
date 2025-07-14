@@ -9,7 +9,7 @@ interface StripeProviderProps {
 }
 
 export const StripeProvider = ({ children }: StripeProviderProps) => {
-  const { publishableKey, isTestMode } = useStripePublishableKey();
+  const { publishableKey, isTestMode, isActive, isLoading } = useStripePublishableKey();
 
   const stripePromise = useMemo(() => {
     if (!publishableKey) return null;
@@ -51,8 +51,22 @@ export const StripeProvider = ({ children }: StripeProviderProps) => {
     },
   };
 
-  if (!stripePromise) {
-    return <div>{children}</div>;
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-4">
+        <div className="text-sm text-muted-foreground">Loading payment system...</div>
+      </div>
+    );
+  }
+
+  // Show error state if Stripe is not configured
+  if (!isActive || !stripePromise) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-800">
+        <strong>Payment system unavailable:</strong> Stripe is not configured for this venue.
+      </div>
+    );
   }
 
   return (
