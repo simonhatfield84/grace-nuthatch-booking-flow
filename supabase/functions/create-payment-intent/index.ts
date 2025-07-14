@@ -206,6 +206,21 @@ serve(async (req) => {
       throw new Error('Stripe payments not configured for this venue')
     }
 
+    // Use appropriate Stripe key based on test mode setting
+    const stripeKeyName = stripeSettings.test_mode ? 'STRIPE_TEST_SECRET_KEY' : 'STRIPE_LIVE_SECRET_KEY';
+    const stripeKey = Deno.env.get(stripeKeyName);
+    
+    if (!stripeKey) {
+      console.error(`❌ ${stripeKeyName} not configured`);
+      await logSecurityEvent(supabaseClient, 'data_access', {
+        error: 'stripe_key_missing',
+        key_type: stripeKeyName,
+        venue_id: booking.venue_id,
+        threat_level: threatLevel
+      }, req, booking.venue_id);
+      throw new Error(`Stripe ${stripeSettings.test_mode ? 'test' : 'live'} key not configured`)
+    }
+
     // Validate payment amount against expected amount
     if (paymentData.amount < 100 || paymentData.amount > 50000) { // £1 to £500
       console.error('❌ Invalid payment amount:', paymentData.amount);
@@ -233,8 +248,8 @@ serve(async (req) => {
       );
     }
 
-    // Initialize Stripe
-    const stripe = new Stripe(Deno.env.get('Stripe Secret Key') || '', {
+    // Initialize Stripe with the appropriate key
+    const stripe = new Stripe(stripeKey, {
       apiVersion: '2023-10-16',
     })
 

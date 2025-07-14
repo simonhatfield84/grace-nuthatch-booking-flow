@@ -138,7 +138,24 @@ export const StripeSettings = () => {
           <Alert>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              Test mode is enabled. No real payments will be processed. Use test card numbers for testing.
+              <strong>Test mode is enabled.</strong> No real payments will be processed. Use test card numbers like 4242 4242 4242 4242.
+              <br />
+              <span className="text-sm text-muted-foreground">
+                Make sure you have set your STRIPE_TEST_SECRET_KEY in the edge function secrets.
+              </span>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {!formData.test_mode && formData.is_active && (
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Live mode is enabled.</strong> Real payments will be processed using your live Stripe account.
+              <br />
+              <span className="text-sm text-muted-foreground">
+                Make sure you have set your STRIPE_LIVE_SECRET_KEY in the edge function secrets.
+              </span>
             </AlertDescription>
           </Alert>
         )}
