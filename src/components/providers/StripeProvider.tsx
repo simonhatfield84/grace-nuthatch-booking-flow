@@ -3,7 +3,7 @@ import { Elements } from '@stripe/react-stripe-js';
 import { ReactNode } from 'react';
 
 // Initialize Stripe with The Nuthatch's publishable key
-const stripePromise = loadStripe('pk_test_51QP5ZGGKo5PoX7bk6DYPHnmqWCMVkwj7qvLjKEFXbUvvCLg7bNIXKJQ0iQmJHiQ7HHZ9HKyMKNc4c5FVJjLbKoB400DGk4uSTD');
+const stripePromise = loadStripe('pk_live_gd8JdMEmr2PUXOoRHjpxhJxn00ndF8BhX4');
 
 interface StripeProviderProps {
   children: ReactNode;
