@@ -67,7 +67,10 @@ export const WalkInDialog = ({
       setFormData(prev => ({ ...prev, date: preSelectedDate }));
     }
     if (preSelectedTime) {
-      setFormData(prev => ({ ...prev, time: preSelectedTime }));
+      // Use exact time instead of rounding to 15-minute segments
+      const now = new Date();
+      const currentTimeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+      setFormData(prev => ({ ...prev, time: preSelectedTime || currentTimeStr }));
     }
   }, [preSelectedDate, preSelectedTime]);
 

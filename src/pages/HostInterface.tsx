@@ -23,7 +23,9 @@ import { BlockDialog } from "@/components/BlockDialog";
 import { WalkInDialog } from "@/components/WalkInDialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Booking } from "@/hooks/useBookings";
+import { useAuth } from "@/contexts/AuthContext";
 import { backfillBookingDurations } from "@/utils/backfillBookingDurations";
+
 import { Users, Link, Ban } from "lucide-react";
 
 const HostInterface = () => {
@@ -35,6 +37,7 @@ const HostInterface = () => {
   const [backfillComplete, setBackfillComplete] = useState(false);
   const [dragOverTable, setDragOverTable] = useState<number | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const { data: venueHours } = useVenueHours();
   const { sections } = useSections();
@@ -45,10 +48,22 @@ const HostInterface = () => {
   const { data: bookings = [], refetch: refetchBookings } = useQuery({
     queryKey: ['bookings', format(selectedDate, 'yyyy-MM-dd')],
     queryFn: async () => {
+      if (!user) return [];
+      
+      // Get user's venue ID first
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('venue_id')
+        .eq('id', user.id)
+        .single();
+      
+      if (!profile?.venue_id) return [];
+      
       const { data, error } = await supabase
         .from('bookings')
         .select('*')
         .eq('booking_date', format(selectedDate, 'yyyy-MM-dd'))
+        .eq('venue_id', profile.venue_id)
         .neq('status', 'cancelled')
         .order('booking_time');
       
@@ -75,7 +90,8 @@ const HostInterface = () => {
       }
       
       return typedBookings;
-    }
+    },
+    enabled: !!user
   });
 
   useEffect(() => {
@@ -219,7 +235,17 @@ const HostInterface = () => {
     const target = event.target as HTMLElement;
     if (!target.closest('[data-booking-bar]')) {
       setClickedTime(time);
-      setWalkInDialogOpen(true);
+      
+      // Check if the selected date is today
+      const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+      
+      if (isToday) {
+        setWalkInDialogOpen(true);
+      } else {
+        // For future dates, open booking creation dialog instead
+        // TODO: Implement BookingDialog for future dates
+        setWalkInDialogOpen(true); // Temporary - will be replaced with BookingDialog
+      }
     }
   };
 

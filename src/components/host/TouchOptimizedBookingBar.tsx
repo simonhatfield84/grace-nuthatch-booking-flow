@@ -1,7 +1,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Clock, Users, Phone, Mail } from "lucide-react";
+import { Clock, Users, Phone, Mail, DollarSign } from "lucide-react";
 import { useState } from "react";
 
 interface Booking {
@@ -9,7 +9,7 @@ interface Booking {
   guest_name: string;
   party_size: number;
   booking_time: string;
-  status: string;
+  status: 'confirmed' | 'seated' | 'finished' | 'cancelled' | 'late' | 'no_show' | 'pending_payment';
   duration_minutes?: number;
   phone?: string;
   email?: string;
@@ -17,6 +17,7 @@ interface Booking {
   service?: string;
   end_time?: string;
   booking_reference?: string;
+  requires_payment?: boolean;
 }
 
 interface TouchOptimizedBookingBarProps {
@@ -140,6 +141,9 @@ export const TouchOptimizedBookingBar = ({
                   <Users className="h-3 w-3 mr-1" />
                   {booking.party_size}
                 </Badge>
+                {booking.requires_payment && (
+                  <DollarSign className="h-3 w-3 text-green-400" />
+                )}
               </div>
               <div className="flex items-center gap-1 ml-2">
                 <Clock className="h-3 w-3" />

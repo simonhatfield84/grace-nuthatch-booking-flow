@@ -1,4 +1,5 @@
 
+import { useEffect, useState } from "react";
 import { format, addMinutes } from "date-fns";
 
 interface Table {
@@ -32,6 +33,17 @@ interface OptimizedTimeGridProps {
 }
 
 export const OptimizedTimeGrid = ({ venueHours, tables, sections, children, onTableRowRender }: OptimizedTimeGridProps) => {
+  const [currentTime, setCurrentTime] = useState(new Date());
+  
+  // Update current time every minute
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000); // Update every minute
+    
+    return () => clearInterval(interval);
+  }, []);
+
   console.log("OptimizedTimeGrid rendered successfully");
   
   const generateTimeSlots = () => {
@@ -58,23 +70,25 @@ export const OptimizedTimeGrid = ({ venueHours, tables, sections, children, onTa
   };
 
   const timeSlots = generateTimeSlots();
-  const currentTime = new Date();
   const currentTimeStr = format(currentTime, 'HH:mm');
   
   const getCurrentTimePosition = () => {
     if (!venueHours) return -1;
     
     const [startHour, startMin] = venueHours.start_time.split(':').map(Number);
+    const [endHour, endMin] = venueHours.end_time.split(':').map(Number);
     const currentHour = currentTime.getHours();
     const currentMin = currentTime.getMinutes();
     
-    if (currentHour < startHour) return -1;
-    
-    const startTotalMin = startHour * 60 + startMin;
+    // Only show current time line during operating hours
     const currentTotalMin = currentHour * 60 + currentMin;
-    const diffMin = currentTotalMin - startTotalMin;
+    const startTotalMin = startHour * 60 + startMin;
+    const endTotalMin = endHour * 60 + endMin;
     
-    return (diffMin / 15) * 60;
+    if (currentTotalMin < startTotalMin || currentTotalMin > endTotalMin) return -1;
+    
+    const diffMin = currentTotalMin - startTotalMin;
+    return (diffMin / 15) * 60; // 60px per 15-minute slot
   };
 
   const currentTimePosition = getCurrentTimePosition();

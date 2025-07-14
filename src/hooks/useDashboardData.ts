@@ -16,6 +16,7 @@ export const useDashboardData = () => {
         .from('bookings')
         .select('*')
         .eq('booking_date', today)
+        .not('status', 'in', '(cancelled,no_show)')
         .order('booking_time');
       
       if (error) throw error;
@@ -31,7 +32,8 @@ export const useDashboardData = () => {
         .from('bookings')
         .select('booking_date, party_size, status, service')
         .gte('booking_date', weekStart)
-        .lte('booking_date', weekEnd);
+        .lte('booking_date', weekEnd)
+        .not('status', 'in', '(cancelled,no_show)');
       
       if (error) throw error;
       return data || [];

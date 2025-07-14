@@ -1,4 +1,3 @@
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -20,6 +19,7 @@ export const BookingListView = ({ bookings, tables, onBookingClick }: BookingLis
       case 'cancelled': return 'bg-[#E47272] text-white border-[#E47272]/30';
       case 'late': return 'bg-[#F1C8D0] text-[#111315] border-[#F1C8D0]/30';
       case 'no-show': return 'bg-[#E47272] text-white border-[#E47272]/30';
+      case 'pending_payment': return 'bg-[#FFA500] text-white border-[#FFA500]/30';
       default: return 'bg-[#C2D8E9] text-[#111315] border-[#C2D8E9]/30';
     }
   };
@@ -31,103 +31,133 @@ export const BookingListView = ({ bookings, tables, onBookingClick }: BookingLis
       : 'bg-[#292C2D] border-[#676767]/20 hover:bg-[#676767]/20';
   };
 
-  // Sort bookings by time, then by status (no-show and cancelled at bottom)
+  // Sort bookings by priority: unallocated first, then by status, then by time
   const sortedBookings = [...bookings].sort((a, b) => {
-    // First sort by status priority (active bookings first)
-    const aIsInactive = a.status === 'no-show' || a.status === 'cancelled';
-    const bIsInactive = b.status === 'no-show' || b.status === 'cancelled';
+    // Unallocated bookings first
+    if (a.is_unallocated && !b.is_unallocated) return -1;
+    if (!a.is_unallocated && b.is_unallocated) return 1;
     
-    if (aIsInactive !== bIsInactive) {
-      return aIsInactive ? 1 : -1;
+    // Then sort by status priority
+    const statusPriority = {
+      'pending_payment': 1,
+      'confirmed': 2,
+      'seated': 3,
+      'finished': 4,
+      'cancelled': 5,
+      'no_show': 6
+    };
+    
+    const aPriority = statusPriority[a.status] || 10;
+    const bPriority = statusPriority[b.status] || 10;
+    
+    if (aPriority !== bPriority) {
+      return aPriority - bPriority;
     }
     
-    // Then sort by time
+    // Finally sort by time
     return a.booking_time.localeCompare(b.booking_time);
   });
 
-  return (
-    <div className="h-full bg-[#111315] rounded-2xl overflow-hidden border border-[#292C2D] shadow-2xl">
-      <div className="bg-[#292C2D] border-b border-[#676767]/20 p-6 shadow-lg rounded-t-2xl">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-white font-inter">Bookings List</h2>
-          <div className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-[#CCF0DB]" />
-            <span className="text-white font-inter">{bookings.length} total</span>
-          </div>
+  // Group bookings by category
+  const unallocatedBookings = sortedBookings.filter(b => b.is_unallocated || !b.table_id);
+  const activeBookings = sortedBookings.filter(b => !b.is_unallocated && b.table_id && !['cancelled', 'no_show', 'finished'].includes(b.status));
+  const cancelledBookings = sortedBookings.filter(b => ['cancelled', 'no_show'].includes(b.status));
+  const finishedBookings = sortedBookings.filter(b => b.status === 'finished');
+  const failedBookings = sortedBookings.filter(b => b.status === 'pending_payment');
+
+  const renderBookingGroup = (bookings: any[], title: string, highlightClass?: string) => {
+    if (bookings.length === 0) return null;
+
+    return (
+      <div className="mb-4">
+        <div className={`text-xs font-semibold text-[#676767] mb-2 px-2 py-1 rounded ${highlightClass || ''}`}>
+          {title} ({bookings.length})
         </div>
-      </div>
-      
-      <ScrollArea className="h-[calc(100%-88px)] scrollbar-hide">
-        <div className="p-6 space-y-4">
-          {sortedBookings.map((booking) => {
+        <div className="space-y-2">
+          {bookings.map((booking) => {
             const table = tables.find(t => t.id === booking.table_id);
             
             return (
               <div
                 key={booking.id}
-                className={`p-5 rounded-2xl border cursor-pointer transition-all duration-200 shadow-lg hover:shadow-xl ${getBookingCardStyle(booking.status)}`}
+                className={`p-2 rounded border cursor-pointer transition-all duration-200 ${getBookingCardStyle(booking.status)}`}
                 onClick={() => onBookingClick(booking)}
               >
                 <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-3">
-                      <h3 className="font-semibold text-white text-lg font-inter">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-white text-sm font-inter truncate">
                         {booking.guest_name}
-                      </h3>
-                      <Badge className={`${getStatusColor(booking.status)} font-inter font-medium px-3 py-1 text-sm`}>
+                      </span>
+                      <Badge className={`${getStatusColor(booking.status)} font-inter font-medium px-1.5 py-0.5 text-xs`}>
                         {booking.status}
                       </Badge>
-                      {booking.deposit_per_guest > 0 && (
-                        <DollarSign className="h-4 w-4 text-[#CCF0DB] opacity-80" />
+                      {booking.requires_payment && (
+                        <DollarSign className="h-3 w-3 text-[#CCF0DB] opacity-80" />
                       )}
                     </div>
                     
-                    <div className="flex items-center gap-6 text-sm text-[#676767]">
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-4 w-4 text-[#C2D8E9]" />
-                        <span className="font-inter font-medium">{booking.booking_time}</span>
+                    <div className="flex items-center gap-3 text-xs text-[#676767]">
+                      <div className="flex items-center gap-1">
+                        <Clock className="h-3 w-3 text-[#C2D8E9]" />
+                        <span className="font-inter">{booking.booking_time}</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4 text-[#CCF0DB]" />
-                        <span className="font-inter font-medium">{booking.party_size} guests</span>
+                      <div className="flex items-center gap-1">
+                        <Users className="h-3 w-3 text-[#CCF0DB]" />
+                        <span className="font-inter">{booking.party_size}</span>
                       </div>
                       {table && (
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4 text-[#F1C8D0]" />
-                          <span className="font-inter font-medium">{table.label}</span>
+                        <div className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3 text-[#F1C8D0]" />
+                          <span className="font-inter">{table.label}</span>
                         </div>
                       )}
-                      {booking.service && (
-                        <div className="text-[#676767] font-inter">
+                      {booking.service && booking.service !== 'Walk-in' && (
+                        <span className="text-[#676767] font-inter text-xs truncate">
                           {booking.service}
-                        </div>
+                        </span>
                       )}
                     </div>
 
                     {booking.notes && (
-                      <div className="mt-2 text-sm text-[#676767] font-inter italic">
+                      <div className="mt-1 text-xs text-[#676767] font-inter italic truncate">
                         {booking.notes}
                       </div>
                     )}
                   </div>
-                  
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="text-[#CCF0DB] hover:text-white hover:bg-[#676767]/30 font-inter ml-4"
-                  >
-                    View Details
-                  </Button>
                 </div>
               </div>
             );
           })}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="h-full bg-[#111315] rounded-lg overflow-hidden border border-[#292C2D]">
+      <div className="bg-[#292C2D] border-b border-[#676767]/20 p-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold text-white font-inter">Bookings</h2>
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-[#CCF0DB]" />
+            <span className="text-white font-inter text-sm">{bookings.length}</span>
+          </div>
+        </div>
+      </div>
+      
+      <ScrollArea className="h-[calc(100%-60px)]">
+        <div className="p-3">
+          {renderBookingGroup(unallocatedBookings, "Needs Table Assignment", "bg-orange-500/20 text-orange-400")}
+          {renderBookingGroup(activeBookings, "Active Reservations")}
+          {renderBookingGroup(failedBookings, "Payment Failed", "bg-red-500/20 text-red-400")}
+          {renderBookingGroup(cancelledBookings, "Cancelled & No-Shows")}
+          {renderBookingGroup(finishedBookings, "Finished")}
           
           {bookings.length === 0 && (
-            <div className="text-center text-[#676767] py-12">
-              <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-inter">No bookings for this date</p>
-              <p className="text-sm font-inter mt-2">Bookings will appear here when created</p>
+            <div className="text-center text-[#676767] py-8">
+              <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+              <p className="text-sm font-inter">No bookings for this date</p>
             </div>
           )}
         </div>
