@@ -279,11 +279,11 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
             className="mt-1"
           />
           <div>
-            <Label htmlFor="marketing" className="text-nuthatch-dark text-sm">
-              I would like to receive marketing communications
+            <Label htmlFor="marketing" className="text-nuthatch-muted text-xs">
+              Keep me in the loop about special offers and events
             </Label>
-            <p className="text-xs text-nuthatch-muted">
-              Get updates about special offers and events at The Nuthatch
+            <p className="text-xs text-nuthatch-muted opacity-75">
+              We'll only send you the good stuff, promise!
             </p>
           </div>
         </div>
