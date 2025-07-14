@@ -233,6 +233,13 @@ export class AvailabilityService {
     partySize: number
   ): Promise<boolean> {
     try {
+      // Check if this time slot is blocked
+      const isBlocked = await this.checkBlockedTimeSlot(venueId, date, time);
+      if (isBlocked) {
+        console.log(`🚫 Time slot ${time} is blocked`);
+        return false;
+      }
+
       // Get existing bookings for this time slot
       const { data: existingBookings, error } = await supabase
         .from('bookings')
@@ -264,5 +271,44 @@ export class AvailabilityService {
       console.error('Error checking time slot availability:', error);
       return false;
     }
+  }
+
+  private static async checkBlockedTimeSlot(venueId: string, date: string, time: string): Promise<boolean> {
+    try {
+      const { data: blocks, error } = await supabase
+        .from('blocks')
+        .select('start_time, end_time, table_ids')
+        .eq('venue_id', venueId)
+        .eq('date', date);
+
+      if (error || !blocks) return false;
+
+      // Check if the requested time falls within any block
+      for (const block of blocks) {
+        if (this.isTimeInBlock(time, block.start_time, block.end_time)) {
+          // If block has no specific tables (table_ids is empty), it blocks all tables
+          // If block has specific tables, it only blocks those tables
+          return block.table_ids?.length === 0 || !block.table_ids;
+        }
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Error checking blocked time slots:', error);
+      return false;
+    }
+  }
+
+  private static isTimeInBlock(checkTime: string, blockStart: string, blockEnd: string): boolean {
+    const check = this.parseTimeToMinutes(checkTime);
+    const start = this.parseTimeToMinutes(blockStart);
+    const end = this.parseTimeToMinutes(blockEnd);
+    
+    return check >= start && check < end;
+  }
+
+  private static parseTimeToMinutes(time: string): number {
+    const [hours, minutes] = time.split(':').map(Number);
+    return hours * 60 + minutes;
   }
 }

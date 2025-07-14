@@ -5,7 +5,7 @@ import { Ban } from "lucide-react";
 
 interface BlockOverlayProps {
   selectedDate: Date;
-  venueHours: { start_time: string } | null;
+  venueHours: { start_time: string; end_time: string } | null;
   tableId: number;
 }
 
@@ -15,20 +15,28 @@ export const BlockOverlay = ({ selectedDate, venueHours, tableId }: BlockOverlay
   if (!venueHours) return null;
 
   const calculateLeftPixels = (blockStartTime: string) => {
-    // Generate the same time slots as in NewTimeGrid
+    // Generate the same time slots as in OptimizedTimeGrid using venue hours
     const timeSlots: string[] = [];
-    const startHour = 12;
-    const endHour = 23;
+    const [startHour, startMin] = venueHours.start_time.split(':').map(Number);
+    const [endHour, endMin] = venueHours.end_time.split(':').map(Number);
     
-    for (let hour = startHour; hour <= endHour; hour++) {
-      for (let minute = 0; minute < 60; minute += 15) {
-        const timeString = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-        timeSlots.push(timeString);
+    // Generate time slots in 15-minute intervals
+    let currentHour = startHour;
+    let currentMin = startMin;
+    
+    while (currentHour < endHour || (currentHour === endHour && currentMin <= endMin)) {
+      const timeString = `${currentHour.toString().padStart(2, '0')}:${currentMin.toString().padStart(2, '0')}`;
+      timeSlots.push(timeString);
+      
+      currentMin += 15;
+      if (currentMin >= 60) {
+        currentHour++;
+        currentMin = 0;
       }
     }
 
     const startIndex = timeSlots.findIndex(slot => slot === blockStartTime);
-    return startIndex * 40; // 40px per slot
+    return startIndex * 60; // 60px per slot (matching OptimizedTimeGrid)
   };
 
   const calculateWidthPixels = (startTime: string, endTime: string) => {
@@ -39,8 +47,8 @@ export const BlockOverlay = ({ selectedDate, venueHours, tableId }: BlockOverlay
     const endTotalMin = endHour * 60 + endMin;
     const durationMin = endTotalMin - startTotalMin;
     
-    // Each 15-minute slot is 40px wide
-    return (durationMin / 15) * 40;
+    // Each 15-minute slot is 60px wide (matching OptimizedTimeGrid)
+    return (durationMin / 15) * 60;
   };
 
   const relevantBlocks = blocks.filter(block => 

@@ -79,6 +79,13 @@ export const useBlocks = (date?: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['blocks'] });
+      // Clear availability caches when blocks change
+      import("@/services/core/AvailabilityService").then(({ AvailabilityService }) => {
+        AvailabilityService.clearCache();
+      });
+      import("@/features/booking/services/BookingService").then(({ BookingService }) => {
+        BookingService.clearCache();
+      });
       toast({ 
         title: "Block created", 
         description: "Time slot blocked successfully." 
@@ -105,6 +112,13 @@ export const useBlocks = (date?: string) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['blocks'] });
+      // Clear availability caches when blocks change
+      import("@/services/core/AvailabilityService").then(({ AvailabilityService }) => {
+        AvailabilityService.clearCache();
+      });
+      import("@/features/booking/services/BookingService").then(({ BookingService }) => {
+        BookingService.clearCache();
+      });
       toast({ 
         title: "Block removed", 
         description: "Time slot unblocked successfully." 

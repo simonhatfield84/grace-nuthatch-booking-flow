@@ -16,19 +16,22 @@ export class EnhancedAvailabilityService {
     try {
       console.log(`🔍 Enhanced availability check for party of ${partySize} from ${startTime} to ${endTime}`);
 
-      // Fetch all data we need
-      const [tablesResult, joinGroupsResult, bookingsResult] = await Promise.all([
+      // Fetch all data we need including blocks
+      const [tablesResult, joinGroupsResult, bookingsResult, blocksResult] = await Promise.all([
         supabase.from('tables').select('*').eq('status', 'active').eq('venue_id', venueId),
         supabase.from('join_groups').select('*').eq('venue_id', venueId),
-        supabase.from('bookings').select('*').eq('booking_date', date).eq('venue_id', venueId).neq('status', 'cancelled').neq('status', 'finished')
+        supabase.from('bookings').select('*').eq('booking_date', date).eq('venue_id', venueId).neq('status', 'cancelled').neq('status', 'finished'),
+        supabase.from('blocks').select('*').eq('venue_id', venueId).eq('date', date)
       ]);
 
       const tables = tablesResult.data || [];
       const joinGroups = joinGroupsResult.data || [];
       const existingBookings = bookingsResult.data || [];
+      const blocks = blocksResult.data || [];
 
-      console.log(`📊 Found ${tables.length} tables, ${joinGroups.length} join groups`);
+      console.log(`📊 Found ${tables.length} tables, ${joinGroups.length} join groups, ${blocks.length} blocks`);
       console.log(`🔗 Join groups:`, joinGroups.map(g => `${g.name} (${g.min_party_size}-${g.max_party_size} people, tables: [${g.table_ids.join(',')}])`));
+      console.log(`🚫 Blocks:`, blocks.map(b => `${b.start_time}-${b.end_time} (tables: [${b.table_ids?.join(',') || 'ALL'}]):`));
 
       const availability: { [time: string]: { available: boolean; reason?: string; suggestedTables?: string[] } } = {};
 
@@ -43,21 +46,35 @@ export class EnhancedAvailabilityService {
           
           const timeSlot = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
           
+          // Check if this time slot is blocked
+          const blockedInfo = this.getBlockedTableIds(blocks, timeSlot);
+          if (blockedInfo.isFullyBlocked) {
+            console.log(`🚫 ${timeSlot} - FULLY BLOCKED`);
+            availability[timeSlot] = {
+              available: false,
+              reason: 'Time slot is blocked'
+            };
+            continue;
+          }
+          
           // Get occupied table IDs for this time slot
           const occupiedTableIds = this.getOccupiedTableIds(existingBookings, timeSlot, durationMinutes);
           
-          console.log(`⏰ Checking ${timeSlot} - occupied tables: [${occupiedTableIds.join(',')}]`);
+          // Combine occupied and blocked table IDs
+          const unavailableTableIds = [...occupiedTableIds, ...blockedInfo.blockedTableIds];
+          
+          console.log(`⏰ Checking ${timeSlot} - occupied tables: [${occupiedTableIds.join(',')}], blocked tables: [${blockedInfo.blockedTableIds.join(',')}]`);
           
           // Check if any join groups can accommodate the party
           const availableJoinGroups = joinGroups.filter(group => 
             partySize >= group.min_party_size &&
             partySize <= group.max_party_size &&
-            group.table_ids.every((tableId: number) => !occupiedTableIds.includes(tableId))
+            group.table_ids.every((tableId: number) => !unavailableTableIds.includes(tableId))
           );
 
           // Check individual tables
           const availableTables = tables.filter(table => 
-            !occupiedTableIds.includes(table.id) &&
+            !unavailableTableIds.includes(table.id) &&
             table.seats >= partySize
           );
 
@@ -129,5 +146,38 @@ export class EnhancedAvailabilityService {
     const date = new Date();
     date.setHours(hours, minutes, 0, 0);
     return date;
+  }
+
+  private static getBlockedTableIds(blocks: any[], timeSlot: string): { isFullyBlocked: boolean; blockedTableIds: number[] } {
+    const blockedTableIds: number[] = [];
+    let isFullyBlocked = false;
+
+    for (const block of blocks) {
+      if (this.isTimeInBlock(timeSlot, block.start_time, block.end_time)) {
+        // If block has no specific tables (empty or null table_ids), it blocks everything
+        if (!block.table_ids || block.table_ids.length === 0) {
+          isFullyBlocked = true;
+          break;
+        } else {
+          // Block only specific tables
+          blockedTableIds.push(...block.table_ids);
+        }
+      }
+    }
+
+    return { isFullyBlocked, blockedTableIds: [...new Set(blockedTableIds)] };
+  }
+
+  private static isTimeInBlock(checkTime: string, blockStart: string, blockEnd: string): boolean {
+    const check = this.parseTimeToMinutes(checkTime);
+    const start = this.parseTimeToMinutes(blockStart);
+    const end = this.parseTimeToMinutes(blockEnd);
+    
+    return check >= start && check < end;
+  }
+
+  private static parseTimeToMinutes(time: string): number {
+    const [hours, minutes] = time.split(':').map(Number);
+    return hours * 60 + minutes;
   }
 }
