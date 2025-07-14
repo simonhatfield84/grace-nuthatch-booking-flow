@@ -4,9 +4,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Search, User, Phone, Mail } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Search, User, Phone, Mail, Calendar, AlertTriangle } from "lucide-react";
+import { format, isBefore, parseISO } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+
+interface BookingConflict {
+  id: number;
+  booking_date: string;
+  booking_time: string;
+  party_size: number;
+  status: string;
+  service?: string;
+}
 
 interface Guest {
   id: string;
@@ -15,6 +26,7 @@ interface Guest {
   phone?: string;
   notes?: string;
   opt_in_marketing?: boolean;
+  bookingConflicts?: BookingConflict[];
 }
 
 interface WalkInGuestSearchProps {
@@ -67,6 +79,7 @@ export const WalkInGuestSearch = ({
           .single();
 
         if (profile?.venue_id) {
+          // Search for guests (simplified to avoid complex join for now)
           const { data: guests } = await supabase
             .from('guests')
             .select('*')
@@ -75,8 +88,14 @@ export const WalkInGuestSearch = ({
             .limit(5)
             .order('name');
 
-          setSearchResults(guests || []);
-          setShowResults((guests || []).length > 0);
+          // For now, just set empty conflicts - future enhancement
+          const guestsWithConflicts = (guests || []).map(guest => ({
+            ...guest,
+            bookingConflicts: []
+          }));
+
+          setSearchResults(guestsWithConflicts);
+          setShowResults(guestsWithConflicts.length > 0);
         }
       } catch (error) {
         console.error('Error searching guests:', error);
@@ -143,26 +162,60 @@ export const WalkInGuestSearch = ({
                   onClick={() => handleGuestSelect(guest)}
                   className="w-full justify-start text-left p-3 hover:bg-muted"
                 >
-                  <div className="flex items-center gap-3 w-full">
-                    <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-foreground truncate">{guest.name}</div>
-                      <div className="text-sm text-muted-foreground flex items-center gap-2 truncate">
-                        {guest.email && (
-                          <span className="flex items-center gap-1">
-                            <Mail className="h-3 w-3" />
-                            {guest.email}
-                          </span>
-                        )}
-                        {guest.phone && (
-                          <span className="flex items-center gap-1">
-                            <Phone className="h-3 w-3" />
-                            {guest.phone}
-                          </span>
+                    <div className="flex items-center gap-3 w-full">
+                      <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-foreground truncate">{guest.name}</div>
+                        <div className="text-sm text-muted-foreground flex items-center gap-2 truncate">
+                          {guest.email && (
+                            <span className="flex items-center gap-1">
+                              <Mail className="h-3 w-3" />
+                              {guest.email}
+                            </span>
+                          )}
+                          {guest.phone && (
+                            <span className="flex items-center gap-1">
+                              <Phone className="h-3 w-3" />
+                              {guest.phone}
+                            </span>
+                          )}
+                        </div>
+                        
+                        {/* Booking Conflicts */}
+                        {guest.bookingConflicts && guest.bookingConflicts.length > 0 && (
+                          <div className="mt-2 space-y-1">
+                            {guest.bookingConflicts.map((conflict) => {
+                              // Determine if this is a future booking
+                              const bookingDateTime = parseISO(`${conflict.booking_date}T${conflict.booking_time}`);
+                              const isFutureBooking = isBefore(new Date(), bookingDateTime);
+                              
+                              return (
+                                <div key={conflict.id} className="flex items-center gap-2">
+                                  <AlertTriangle className="h-3 w-3 text-orange-600 flex-shrink-0" />
+                                  <span className="text-xs text-orange-600">
+                                    {isFutureBooking ? (
+                                      <>
+                                        {format(new Date(conflict.booking_date), 'MMM d, yyyy')} at {conflict.booking_time}
+                                        <Badge variant="outline" className="ml-1 text-xs bg-blue-50 text-blue-700 border-blue-200">
+                                          Future
+                                        </Badge>
+                                      </>
+                                    ) : (
+                                      <>
+                                        Today at {conflict.booking_time}
+                                      </>
+                                    )}
+                                    <span className="ml-1">
+                                      ({conflict.party_size} guests, {conflict.status})
+                                    </span>
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
                         )}
                       </div>
                     </div>
-                  </div>
                 </Button>
               ))}
             </div>

@@ -13,6 +13,7 @@ import { format } from "date-fns";
 import { useState } from "react";
 import { Booking } from "@/hooks/useBookings";
 import { BookingAuditTrail } from "./BookingAuditTrail";
+import { PaymentStatus } from "@/components/payments/PaymentStatus";
 import { useTables } from "@/hooks/useTables";
 import { useServices } from "@/hooks/useServices";
 import { useToast } from "@/hooks/use-toast";
@@ -396,6 +397,19 @@ export const BookingDetailsPanel = ({
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+            </div>
+
+            <Separator className="bg-[#676767]/20" />
+
+            {/* Payment Information */}
+            <div>
+              <h3 className="font-medium text-sm mb-3 flex items-center gap-2 text-white font-inter">
+                <Hash className="h-4 w-4 text-[#CCF0DB]" />
+                Payment Information
+              </h3>
+              <div className="bg-[#111315] p-4 rounded-xl border border-[#676767]/20">
+                <PaymentStatus bookingId={booking.id} />
               </div>
             </div>
 
