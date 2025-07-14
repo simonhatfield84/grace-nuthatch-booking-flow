@@ -39,22 +39,39 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
       if (bookingData.bookingId) {
         setIsCreatingBooking(true);
         try {
-          const { data, error } = await supabase
+          // First check if booking already exists and get its current status
+          const { data: existingBooking, error: fetchError } = await supabase
             .from('bookings')
-            .update({ status: 'confirmed' })
+            .select('*')
             .eq('id', bookingData.bookingId)
-            .select()
             .single();
 
-          if (error) throw error;
+          if (fetchError) throw fetchError;
 
-          setBookingReference(data.booking_reference);
-          onBookingId(data.id);
+          // If already confirmed, just set the reference and continue
+          if (existingBooking.status === 'confirmed') {
+            setBookingReference(existingBooking.booking_reference);
+            onBookingId(existingBooking.id);
+            // Don't show success toast if already confirmed to avoid duplicate notifications
+          } else {
+            // Update status to confirmed
+            const { data, error } = await supabase
+              .from('bookings')
+              .update({ status: 'confirmed' })
+              .eq('id', bookingData.bookingId)
+              .select()
+              .single();
 
-          toast({
-            title: "Booking Confirmed!",
-            description: "Your payment has been processed and your table is reserved.",
-          });
+            if (error) throw error;
+
+            setBookingReference(data.booking_reference);
+            onBookingId(data.id);
+
+            toast({
+              title: "Booking Confirmed!",
+              description: "Your payment has been processed and your table is reserved.",
+            });
+          }
 
         } catch (error) {
           console.error('Error updating booking status:', error);

@@ -163,13 +163,14 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
       console.log('Booking created successfully:', data.id);
       setBookingId(data.id);
       
-      toast.success("Booking created successfully!");
-      
       // If payment is required, create payment intent and show payment form
       if (paymentAmount > 0) {
+        console.log('Payment required, creating payment intent...');
         await createPaymentIntent(data.id, paymentAmount);
+        // Don't call onChange here - wait for payment completion
       } else {
         // No payment required, proceed to confirmation
+        toast.success("Booking created successfully!");
         onChange(formData, false, 0, data.id);
       }
 
@@ -204,9 +205,10 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
         throw new Error('Payment system error. Please contact the venue.');
       }
 
-      console.log('Payment intent created successfully:', data);
+      console.log('✅ Payment intent created successfully:', data);
       setClientSecret(data.client_secret);
       setShowPaymentForm(true);
+      toast.success("Payment form is ready. Please complete your payment below.");
 
     } catch (err) {
       console.error('Payment setup error:', err);
@@ -216,7 +218,9 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
   };
 
   const handlePaymentSuccess = () => {
+    console.log('Payment successful, proceeding to confirmation');
     toast.success('Payment completed successfully!');
+    setShowPaymentForm(false);
     onChange(formData, true, paymentCalculation?.amount || 0, bookingId!);
   };
 
