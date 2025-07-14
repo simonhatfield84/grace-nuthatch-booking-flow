@@ -98,6 +98,8 @@ export function PartyDateStep({
     if (selectedDate) {
       console.log(`📅 Date selected: ${format(selectedDate, 'yyyy-MM-dd')}`);
       setDate(selectedDate);
+      // Auto-advance to next step
+      onContinue(partySize, selectedDate);
     }
   };
 
@@ -107,10 +109,10 @@ export function PartyDateStep({
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-nuthatch-heading font-light text-nuthatch-dark mb-2">
-          Party Size & Date
+          How many guests?
         </h2>
         <p className="text-nuthatch-muted">
-          How many people and when would you like to dine?
+          Select your party size and preferred date
         </p>
       </div>
 
@@ -122,7 +124,7 @@ export function PartyDateStep({
             Party Size
           </CardTitle>
           <CardDescription className="text-nuthatch-muted">
-            How many people will be dining?
+            Select your party size
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -147,28 +149,22 @@ export function PartyDateStep({
             ))}
           </div>
 
-          {/* Custom input with +/- controls */}
-          <div className="flex items-center justify-center space-x-3">
+          {/* +/- controls only */}
+          <div className="flex items-center justify-center space-x-4">
             <Button
               variant="outline"
               size="sm"
               onClick={handleDecrement}
               disabled={partySize <= minSize}
-              className="border-nuthatch-border text-nuthatch-dark hover:bg-nuthatch-light"
+              className="border-nuthatch-border text-nuthatch-dark hover:bg-nuthatch-light h-10 w-10"
             >
               <Minus className="h-4 w-4" />
             </Button>
             
             <div className="flex items-center space-x-2">
-              <Input
-                type="number"
-                min={minSize}
-                max={maxSize}
-                value={inputValue}
-                onChange={(e) => handleInputChange(e.target.value)}
-                onBlur={handleInputBlur}
-                className="w-16 text-center border-nuthatch-border focus:border-nuthatch-green"
-              />
+              <span className="text-lg font-medium text-nuthatch-dark min-w-[2rem] text-center">
+                {partySize}
+              </span>
               <span className="text-sm text-nuthatch-muted">guests</span>
             </div>
 
@@ -177,7 +173,7 @@ export function PartyDateStep({
               size="sm"
               onClick={handleIncrement}
               disabled={partySize >= maxSize}
-              className="border-nuthatch-border text-nuthatch-dark hover:bg-nuthatch-light"
+              className="border-nuthatch-border text-nuthatch-dark hover:bg-nuthatch-light h-10 w-10"
             >
               <Plus className="h-4 w-4" />
             </Button>
@@ -242,13 +238,7 @@ export function PartyDateStep({
         </CardContent>
       </Card>
 
-      <Button 
-        onClick={() => date && onContinue(partySize, date)} 
-        className="w-full bg-nuthatch-green hover:bg-nuthatch-dark text-white"
-        disabled={!date || partySize < minSize || partySize > maxSize}
-      >
-        Continue with {partySize} {partySize === 1 ? 'guest' : 'guests'} on {date ? format(date, 'MMM do') : '...'}
-      </Button>
+      {/* No continue button needed - auto-advance on date selection */}
     </div>
   );
 }

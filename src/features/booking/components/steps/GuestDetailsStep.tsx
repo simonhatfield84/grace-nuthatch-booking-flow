@@ -5,12 +5,15 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card } from "@/components/ui/card";
-import { AlertCircle, Info, Loader2 } from "lucide-react";
+import { AlertCircle, Info, Loader2, CreditCard } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { calculatePaymentAmount } from "@/utils/paymentCalculation";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { StripeProvider } from "@/components/providers/StripeProvider";
+import { StripeCardForm } from "@/components/payments/StripeCardForm";
+import { AppleGooglePayButton } from "@/components/payments/AppleGooglePayButton";
 
 interface GuestDetailsStepProps {
   value: {
@@ -44,6 +47,9 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
   const [terms, setTerms] = useState('');
   const [paymentCalculation, setPaymentCalculation] = useState<any>(null);
   const [isCreatingBooking, setIsCreatingBooking] = useState(false);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [bookingId, setBookingId] = useState<number | null>(null);
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
 
   // Load terms and conditions and calculate payment
   useEffect(() => {
@@ -99,13 +105,8 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
     const paymentRequired = paymentCalculation?.shouldCharge || false;
     const paymentAmount = paymentCalculation?.amount || 0;
 
-    // If payment is required, create booking before payment step
-    if (paymentRequired) {
-      await createBooking(paymentAmount);
-    } else {
-      // No payment required, pass data to next step
-      onChange(formData, paymentRequired, paymentAmount);
-    }
+    // Create booking first
+    await createBooking(paymentAmount);
   };
 
   const createBooking = async (paymentAmount: number) => {
@@ -149,10 +150,18 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
 
       if (error) throw error;
 
-      toast.success('Booking created - proceed to payment');
+      console.log('Booking created successfully:', data.id);
+      setBookingId(data.id);
       
-      // Pass booking data including bookingId to next step
-      onChange(formData, true, paymentAmount, data.id);
+      toast.success("Booking created successfully!");
+      
+      // If payment is required, create payment intent and show payment form
+      if (paymentAmount > 0) {
+        await createPaymentIntent(data.id, paymentAmount);
+      } else {
+        // No payment required, proceed to confirmation
+        onChange(formData, false, 0, data.id);
+      }
 
     } catch (error) {
       console.error('Error creating booking:', error);
@@ -160,6 +169,49 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
     } finally {
       setIsCreatingBooking(false);
     }
+  };
+
+  const createPaymentIntent = async (bookingId: number, amount: number) => {
+    try {
+      console.log('Creating payment intent for booking:', bookingId, 'amount:', amount);
+
+      const { data, error: paymentError } = await supabase.functions.invoke('create-payment-intent', {
+        body: {
+          bookingId: bookingId,
+          amount: amount,
+          currency: 'gbp',
+          description: `${service?.title} - The Nuthatch`
+        }
+      });
+
+      if (paymentError) {
+        console.error('Payment intent error:', paymentError);
+        throw new Error('Failed to initialize payment. Please try again.');
+      }
+
+      if (!data?.client_secret) {
+        console.error('No client secret returned:', data);
+        throw new Error('Payment system error. Please contact the venue.');
+      }
+
+      console.log('Payment intent created successfully:', data);
+      setClientSecret(data.client_secret);
+      setShowPaymentForm(true);
+
+    } catch (err) {
+      console.error('Payment setup error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to initialize payment';
+      toast.error(errorMessage);
+    }
+  };
+
+  const handlePaymentSuccess = () => {
+    toast.success('Payment completed successfully!');
+    onChange(formData, true, paymentCalculation?.amount || 0, bookingId!);
+  };
+
+  const handlePaymentError = (errorMessage: string) => {
+    toast.error(errorMessage);
   };
 
   const updateField = (field: string, value: any) => {
@@ -325,20 +377,73 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
         )}
       </div>
 
-      <Button
-        onClick={handleSubmit}
-        className="w-full bg-nuthatch-green hover:bg-nuthatch-dark text-nuthatch-white"
-        disabled={!formData.name || !formData.phone || !formData.termsAccepted || isCreatingBooking}
-      >
-        {isCreatingBooking ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Creating Booking...
-          </>
-        ) : (
-          paymentCalculation?.shouldCharge ? 'Continue to Payment' : 'Complete Booking'
-        )}
-      </Button>
+      {!showPaymentForm ? (
+        <Button
+          onClick={handleSubmit}
+          className="w-full bg-nuthatch-green hover:bg-nuthatch-dark text-nuthatch-white"
+          disabled={!formData.name || !formData.phone || !formData.termsAccepted || isCreatingBooking}
+        >
+          {isCreatingBooking ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Creating Booking...
+            </>
+          ) : paymentCalculation?.shouldCharge ? (
+            <>
+              <CreditCard className="mr-2 h-4 w-4" />
+              Continue to Payment
+            </>
+          ) : (
+            "Complete Booking"
+          )}
+        </Button>
+      ) : null}
+
+      {/* Payment Section */}
+      {showPaymentForm && clientSecret && (
+        <div className="mt-8 p-6 border border-nuthatch-border rounded-lg bg-nuthatch-light">
+          <div className="mb-6">
+            <h3 className="text-xl font-nuthatch-heading font-light text-nuthatch-dark mb-2">
+              Secure Payment
+            </h3>
+            <p className="text-nuthatch-muted">
+              Complete your booking with a secure payment
+            </p>
+          </div>
+
+          <Card className="p-4 bg-white border-nuthatch-border mb-6">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-nuthatch-dark">Booking Total:</span>
+              <span className="text-2xl font-bold text-nuthatch-dark">
+                £{((paymentCalculation?.amount || 0) / 100).toFixed(2)}
+              </span>
+            </div>
+            <p className="text-sm text-nuthatch-muted">
+              This payment secures your reservation at The Nuthatch
+            </p>
+          </Card>
+
+          <StripeProvider>
+            <div className="space-y-4">
+              <AppleGooglePayButton
+                clientSecret={clientSecret}
+                amount={paymentCalculation?.amount || 0}
+                description={`${service?.title} - The Nuthatch`}
+                onSuccess={handlePaymentSuccess}
+                onError={handlePaymentError}
+              />
+              
+              <StripeCardForm
+                clientSecret={clientSecret}
+                amount={paymentCalculation?.amount || 0}
+                description={`${service?.title} - The Nuthatch`}
+                onSuccess={handlePaymentSuccess}
+                onError={handlePaymentError}
+              />
+            </div>
+          </StripeProvider>
+        </div>
+      )}
     </div>
   );
 }

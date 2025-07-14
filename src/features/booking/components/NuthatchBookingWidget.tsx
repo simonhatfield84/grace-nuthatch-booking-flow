@@ -88,13 +88,7 @@ export function NuthatchBookingWidget() {
                bookingData.guestDetails?.termsAccepted === true,
       isCompleted: bookingData.guestDetails?.termsAccepted === true,
     },
-    ...(bookingData.paymentRequired ? [{
-      id: 'payment',
-      name: 'Payment',
-      icon: CreditCard,
-      isValid: false, // Will be set after payment
-      isCompleted: false,
-    }] : []),
+    // Payment is now integrated into details step
     {
       id: 'confirmation',
       name: 'Confirmation',
@@ -224,22 +218,12 @@ export function NuthatchBookingWidget() {
                 paymentAmount,
                 bookingId 
               });
-              nextStep();
+              // Skip payment step and go directly to confirmation
+              goToStep(steps.length - 1);
             }}
           />
         );
-      case 'payment':
-        return (
-          <PaymentStep
-            amount={bookingData.paymentAmount}
-            paymentRequired={bookingData.paymentRequired}
-            bookingId={bookingData.bookingId!}
-            description={`${bookingData.service?.title} - £${(bookingData.paymentAmount / 100).toFixed(2)} per guest`}
-            onSuccess={() => {
-              nextStep();
-            }}
-          />
-        );
+      // Payment is now integrated into the details step
       case 'confirmation':
         return (
           <ConfirmationStep
