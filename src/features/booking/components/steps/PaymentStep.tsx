@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Loader2, CreditCard, Lock } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { StripeProvider } from "@/components/providers/StripeProvider";
+import { StripeCardForm } from "@/components/payments/StripeCardForm";
 
 interface PaymentStepProps {
   amount: number;
@@ -17,65 +19,63 @@ interface PaymentStepProps {
 export function PaymentStep({ amount, paymentRequired, onSuccess, bookingId, description }: PaymentStepProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
 
-  const handlePayment = async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      // Check if payment is actually required
-      if (!paymentRequired || amount <= 0) {
-        onSuccess();
-        return;
-      }
-
-      // If we don't have a booking ID yet, we need to create the booking first
-      if (!bookingId) {
-        setError('Booking must be created before payment can be processed.');
-        return;
-      }
-
-      console.log('Creating payment intent for booking:', bookingId, 'amount:', amount);
-
-      // Create payment intent using the existing edge function
-      const { data, error: paymentError } = await supabase.functions.invoke('create-payment-intent', {
-        body: {
-          bookingId: bookingId,
-          amount: amount,
-          currency: 'gbp',
-          description: description || 'Booking payment'
-        }
-      });
-
-      if (paymentError) {
-        console.error('Payment intent error:', paymentError);
-        setError('Failed to initialize payment. Please try again.');
-        return;
-      }
-
-      if (!data?.client_secret) {
-        console.error('No client secret returned:', data);
-        setError('Payment system error. Please contact the venue.');
-        return;
-      }
-
-      // Real Stripe integration - redirect to Stripe Checkout
-      console.log('Redirecting to Stripe payment...');
-      toast.success('Redirecting to secure payment...');
-      
-      // TODO: In production, implement proper Stripe Elements or redirect to Stripe Checkout
-      // For now, simulate the payment flow
-      setTimeout(() => {
-        toast.success('Payment completed successfully!');
-        onSuccess();
-      }, 2000);
-
-    } catch (err) {
-      console.error('Payment error:', err);
-      setError('Payment failed. Please try again.');
-    } finally {
-      setIsLoading(false);
+  // Create payment intent when component mounts
+  useEffect(() => {
+    if (!paymentRequired || amount <= 0 || !bookingId) {
+      return;
     }
+
+    const createPaymentIntent = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        console.log('Creating payment intent for booking:', bookingId, 'amount:', amount);
+
+        const { data, error: paymentError } = await supabase.functions.invoke('create-payment-intent', {
+          body: {
+            bookingId: bookingId,
+            amount: amount,
+            currency: 'gbp',
+            description: description || 'Booking payment'
+          }
+        });
+
+        if (paymentError) {
+          console.error('Payment intent error:', paymentError);
+          throw new Error('Failed to initialize payment. Please try again.');
+        }
+
+        if (!data?.client_secret) {
+          console.error('No client secret returned:', data);
+          throw new Error('Payment system error. Please contact the venue.');
+        }
+
+        console.log('Payment intent created successfully:', data);
+        setClientSecret(data.client_secret);
+
+      } catch (err) {
+        console.error('Payment setup error:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Failed to initialize payment';
+        setError(errorMessage);
+        toast.error(errorMessage);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    createPaymentIntent();
+  }, [bookingId, amount, paymentRequired, description]);
+
+  const handlePaymentSuccess = () => {
+    toast.success('Payment completed successfully!');
+    onSuccess();
+  };
+
+  const handlePaymentError = (errorMessage: string) => {
+    setError(errorMessage);
   };
 
   // If no payment required, auto-proceed
@@ -134,36 +134,33 @@ export function PaymentStep({ amount, paymentRequired, onSuccess, bookingId, des
         </Alert>
       )}
 
-      <div className="space-y-4">
-        <Button
-          onClick={handlePayment}
-          disabled={isLoading}
-          className="w-full bg-nuthatch-green hover:bg-nuthatch-dark text-nuthatch-white"
-          size="lg"
-        >
-          {isLoading ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Processing Payment...
-            </>
-          ) : (
-            <>
-              <CreditCard className="mr-2 h-4 w-4" />
-              Pay £{formatAmount(amount)}
-            </>
-          )}
-        </Button>
-
-
-        <div className="flex items-center space-x-2 text-sm text-nuthatch-muted justify-center">
-          <Lock className="h-4 w-4" />
-          <span>Secure payment powered by Stripe</span>
+      {isLoading ? (
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin mr-2" />
+          <span>Setting up secure payment...</span>
         </div>
-
-        <p className="text-xs text-center text-nuthatch-muted">
-          Your payment is protected by industry-standard encryption
-        </p>
-      </div>
+      ) : clientSecret ? (
+        <StripeProvider>
+          <StripeCardForm
+            clientSecret={clientSecret}
+            amount={amount}
+            description={description || `Booking payment for booking ${bookingId}`}
+            onSuccess={handlePaymentSuccess}
+            onError={handlePaymentError}
+          />
+        </StripeProvider>
+      ) : (
+        <div className="text-center py-8">
+          <p className="text-nuthatch-muted">Failed to initialize payment system</p>
+          <Button 
+            onClick={() => window.location.reload()} 
+            variant="outline" 
+            className="mt-4"
+          >
+            Retry
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
