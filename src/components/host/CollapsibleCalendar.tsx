@@ -60,12 +60,16 @@ export const CollapsibleCalendar = ({ selectedDate, onDateSelect, bookingDates }
     const monthStart = startOfMonth(month);
     const monthEnd = endOfMonth(month);
 
-    // Create a full calendar grid with proper week structure
+    // Create a full calendar grid with proper week structure (Monday start)
     const startDate = new Date(monthStart);
-    startDate.setDate(startDate.getDate() - monthStart.getDay());
+    const dayOfWeek = monthStart.getDay();
+    const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Sunday = 0, so 6 days from Monday
+    startDate.setDate(startDate.getDate() - daysFromMonday);
     
     const endDate = new Date(monthEnd);
-    endDate.setDate(endDate.getDate() + (6 - monthEnd.getDay()));
+    const endDayOfWeek = monthEnd.getDay();
+    const daysToSunday = endDayOfWeek === 0 ? 0 : 7 - endDayOfWeek;
+    endDate.setDate(endDate.getDate() + daysToSunday);
     
     const allDays = eachDayOfInterval({ start: startDate, end: endDate });
 
@@ -132,7 +136,7 @@ export const CollapsibleCalendar = ({ selectedDate, onDateSelect, bookingDates }
 
         {/* Day headers */}
         <div className="grid grid-cols-7 gap-1 mb-2">
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => (
             <div key={day} className="text-center text-xs font-medium text-[#676767] p-2 font-inter">
               {day}
             </div>

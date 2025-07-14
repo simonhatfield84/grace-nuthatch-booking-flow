@@ -46,7 +46,7 @@ function convertToBookingWindow(dbWindow: DatabaseBookingWindow) {
 
 export class OptimizedAvailabilityService {
   private static cache = new Map<string, { data: string[], timestamp: number }>();
-  private static CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+  private static CACHE_DURATION = 10 * 60 * 1000; // 10 minutes - Extended for better performance
 
   static clearCache() {
     console.log('🗑️ Clearing availability cache');
@@ -122,7 +122,7 @@ export class OptimizedAvailabilityService {
       console.log(`🗓️ Checking ${datesToCheck.length} dates`);
 
       // Check availability for each date in optimized batches
-      const batchSize = 14; // Check two weeks at a time for better performance
+      const batchSize = 21; // Increased from 14 to 21 days for better performance
       const availableDates: string[] = [];
 
       for (let i = 0; i < datesToCheck.length; i += batchSize) {
@@ -152,9 +152,9 @@ export class OptimizedAvailabilityService {
         availableDates.push(...batchAvailable);
         console.log(`✅ Batch complete: ${batchAvailable.length}/${batch.length} dates available`);
 
-        // Reduced delay for better performance
+        // Reduced delay for better performance - decreased from 50ms to 25ms
         if (i + batchSize < datesToCheck.length) {
-          await new Promise(resolve => setTimeout(resolve, 50));
+          await new Promise(resolve => setTimeout(resolve, 25));
         }
       }
 
