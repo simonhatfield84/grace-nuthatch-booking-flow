@@ -115,6 +115,14 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
     const paymentRequired = paymentCalculation?.shouldCharge || false;
     const paymentAmount = paymentCalculation?.amount || 0;
 
+    console.log('📝 Form submitted:', {
+      paymentRequired,
+      paymentAmount,
+      paymentCalculation,
+      service: service?.title,
+      partySize
+    });
+
     // Create booking first
     await createBooking(paymentAmount);
   };

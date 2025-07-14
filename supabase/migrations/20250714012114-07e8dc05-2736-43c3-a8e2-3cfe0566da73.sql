@@ -1,0 +1,1 @@
+UPDATE bookings SET status = 'pending_payment' WHERE id = 77;
