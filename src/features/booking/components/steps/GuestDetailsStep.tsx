@@ -63,9 +63,19 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
       
       setTerms(termsText || "Standard booking terms and conditions apply.");
 
-      // Calculate payment
+  // Calculate payment
       if (service?.id && venue?.id) {
+        console.log('🔍 Calculating payment for:', {
+          serviceId: service.id,
+          partySize,
+          venueId: venue.id,
+          serviceTitle: service.title,
+          serviceRequiresPayment: service.requires_payment,
+          serviceChargeType: service.charge_type,
+          serviceChargeAmount: service.charge_amount_per_guest
+        });
         const calculation = await calculatePaymentAmount(service.id, partySize, venue.id);
+        console.log('💰 Payment calculation result:', calculation);
         setPaymentCalculation(calculation);
       }
     };

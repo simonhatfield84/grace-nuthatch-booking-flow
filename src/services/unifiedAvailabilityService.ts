@@ -134,6 +134,13 @@ export class UnifiedAvailabilityService {
 
       console.log(`🪑 [${date}] Found ${tables?.length || 0} tables, ${joinGroups?.length || 0} join groups`);
       console.log(`🔗 [${date}] Join groups:`, joinGroups?.map(jg => `${jg.name} (${jg.min_party_size}-${jg.max_party_size} people)`) || []);
+      
+      if (partySize >= 6) {
+        console.log(`👥 [${date}] Large party (${partySize} people) - checking join groups:`)
+        joinGroups?.forEach(jg => {
+          console.log(`   - ${jg.name}: ${jg.min_party_size}-${jg.max_party_size} people, tables [${jg.table_ids.join(', ')}], suitable: ${partySize >= jg.min_party_size && partySize <= jg.max_party_size}`)
+        })
+      }
 
       // Filter tables that can accommodate party size individually
       const suitableIndividualTables = tables?.filter(table => table.seats >= partySize) || [];
@@ -243,11 +250,18 @@ export class UnifiedAvailabilityService {
 
       // Check join groups if no individual tables are available
       for (const joinGroup of joinGroups) {
-        if (partySize >= joinGroup.min_party_size && partySize <= joinGroup.max_party_size) {
+        const isPartySizeValid = partySize >= joinGroup.min_party_size && partySize <= joinGroup.max_party_size;
+        console.log(`   🔍 ${timeSlot}: Checking join group ${joinGroup.name} (${joinGroup.min_party_size}-${joinGroup.max_party_size} people) for party of ${partySize}, valid: ${isPartySizeValid}`);
+        
+        if (isPartySizeValid) {
           // Check if all tables in the join group are available
-          const allTablesAvailable = joinGroup.table_ids.every((tableId: number) => 
-            !occupiedTableIds.includes(tableId)
-          );
+          const allTablesAvailable = joinGroup.table_ids.every((tableId: number) => {
+            const isOccupied = occupiedTableIds.includes(tableId);
+            console.log(`     Table ${tableId}: ${isOccupied ? 'OCCUPIED' : 'available'}`);
+            return !isOccupied;
+          });
+          
+          console.log(`   📊 ${timeSlot}: Join group ${joinGroup.name} all tables available: ${allTablesAvailable}`);
           
           if (allTablesAvailable) {
             availableSlots++;
