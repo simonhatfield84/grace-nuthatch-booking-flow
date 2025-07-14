@@ -261,7 +261,7 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
         <Alert>
           <Info className="h-4 w-4" />
           <AlertDescription>
-            {paymentCalculation.description} - £{paymentCalculation.amount.toFixed(2)}
+            {paymentCalculation.description} - £{(paymentCalculation.amount / 100).toFixed(2)}
             {paymentCalculation.chargeType === 'error' ? 
               ' (Payment system not configured)' : 
               '. You will be taken to our secure payment page next.'

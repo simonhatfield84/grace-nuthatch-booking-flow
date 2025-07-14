@@ -103,7 +103,7 @@ function detectThreatLevel(req: Request, identifier: string): 'low' | 'medium' |
 // Enhanced validation schema
 const paymentIntentSchema = z.object({
   bookingId: z.number().int().positive("Invalid booking ID"),
-  amount: z.number().positive().max(10000, "Amount too large"), // Max £100
+  amount: z.number().positive().max(50000, "Amount too large"), // Max £500
   currency: z.string().length(3).default('gbp'),
   description: z.string().max(200, "Description too long").optional(),
 });
@@ -207,7 +207,7 @@ serve(async (req) => {
     }
 
     // Validate payment amount against expected amount
-    if (paymentData.amount < 1 || paymentData.amount > 10000) { // £1 to £100
+    if (paymentData.amount < 100 || paymentData.amount > 50000) { // £1 to £500
       console.error('❌ Invalid payment amount:', paymentData.amount);
       await logSecurityEvent(supabaseClient, 'data_access', {
         error: 'invalid_payment_amount',
