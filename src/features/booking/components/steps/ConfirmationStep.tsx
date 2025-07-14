@@ -219,7 +219,14 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
           
           <div className="flex items-center space-x-3">
             <Clock className="h-5 w-5 text-nuthatch-green" />
-            <span className="text-nuthatch-dark">{bookingData.time}</span>
+            <span className="text-nuthatch-dark">
+              {bookingData.time} - {(() => {
+                const [hours, minutes] = bookingData.time.split(':').map(Number);
+                const endTime = new Date();
+                endTime.setHours(hours + 2, minutes); // Assuming 2-hour duration
+                return endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              })()}
+            </span>
           </div>
           
           <div className="flex items-center space-x-3">
@@ -239,6 +246,23 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
           )}
         </div>
       </Card>
+
+      {/* Payment Details */}
+      {bookingData.paymentDetails && (
+        <Card className="p-6 border-nuthatch-border">
+          <h3 className="font-medium text-nuthatch-dark mb-4">Payment Details</h3>
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span className="text-nuthatch-muted">Total Amount:</span>
+              <span className="text-nuthatch-dark font-medium">${bookingData.paymentDetails.amount}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-nuthatch-muted">Payment Method:</span>
+              <span className="text-nuthatch-dark">{bookingData.paymentDetails.method}</span>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Contact Information */}
       <Card className="p-6 border-nuthatch-border">
@@ -286,13 +310,10 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
           <Button
             variant="outline"
             className="border-nuthatch-border text-nuthatch-dark hover:bg-nuthatch-light"
-            onClick={() => {
-              // TODO: Implement booking modification
-              console.log('Modify booking');
-            }}
+            onClick={() => window.location.reload()}
           >
             <Edit className="h-4 w-4 mr-2" />
-            Modify
+            Modify Reservation
           </Button>
 
           <Button
