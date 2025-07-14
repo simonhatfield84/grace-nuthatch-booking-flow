@@ -27,22 +27,16 @@ export function useBookingFlow(venueSlug: string) {
     nextStep();
   };
 
-  const handleGuestDetails = (details: any, paymentRequired: boolean, paymentAmount: number = 0) => {
+  const handleGuestDetails = (details: any, paymentRequired: boolean, paymentAmount: number = 0, bookingId?: number) => {
     updateBookingData({
       guestDetails: details,
       paymentRequired,
-      paymentAmount
+      paymentAmount,
+      bookingId
     });
     
-    if (paymentRequired) {
-      nextStep(); // Go to payment step
-    } else {
-      goToStep(6); // Skip to confirmation
-    }
-  };
-
-  const handlePaymentSuccess = () => {
-    nextStep(); // Go to confirmation
+    // Always go to confirmation step (step 5) after guest details/payment is complete
+    goToStep(5);
   };
 
   return {
@@ -59,7 +53,6 @@ export function useBookingFlow(venueSlug: string) {
     handleTimeSelection,
     handleServiceSelection,
     handleGuestDetails,
-    handlePaymentSuccess,
     goBack: prevStep,
     goToStep,
 

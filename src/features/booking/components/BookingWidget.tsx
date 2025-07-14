@@ -5,8 +5,7 @@ import { PartyStep } from './steps/PartyStep';
 import { DateStep } from './steps/DateStep';
 import { TimeStep } from './steps/TimeStep';
 import { ServiceStep } from './steps/ServiceStep';
-import { GuestDetailsForm } from '@/components/bookings/GuestDetailsForm';
-import { PaymentStep } from '@/components/bookings/PaymentStep';
+import { GuestDetailsStep } from './steps/GuestDetailsStep';
 import { BookingConfirmation } from '@/components/bookings/BookingConfirmation';
 import { StepNavigation } from './shared/StepNavigation';
 import { ProgressIndicator } from './shared/ProgressIndicator';
@@ -22,7 +21,6 @@ const STEP_TITLES = [
   'Choose Time',
   'Select Service',
   'Your Details',
-  'Payment',
   'Confirmed'
 ];
 
@@ -38,7 +36,6 @@ function BookingWidgetContent({ venueSlug }: BookingWidgetProps) {
     handleTimeSelection,
     handleServiceSelection,
     handleGuestDetails,
-    handlePaymentSuccess,
     goBack,
   } = useBookingFlow(venueSlug);
 
@@ -104,27 +101,31 @@ function BookingWidgetContent({ venueSlug }: BookingWidgetProps) {
         );
       case 4:
         return (
-          <GuestDetailsForm
-            onSubmit={handleGuestDetails}
-            bookingData={{
-              date: bookingData.date?.toISOString().split('T')[0] || '',
-              time: bookingData.time,
-              partySize: bookingData.partySize,
-              service: bookingData.service?.title || '',
+          <GuestDetailsStep
+            value={bookingData.guestDetails ? {
+              name: bookingData.guestDetails.name,
+              email: bookingData.guestDetails.email,
+              phone: bookingData.guestDetails.phone || '',
+              notes: bookingData.guestDetails.notes || '',
+              marketingOptIn: bookingData.guestDetails.marketingOptIn,
+              termsAccepted: bookingData.guestDetails.termsAccepted
+            } : {
+              name: '',
+              email: '',
+              phone: '',
+              notes: '',
+              marketingOptIn: false,
+              termsAccepted: false
             }}
+            service={bookingData.service}
+            venue={venue}
+            partySize={bookingData.partySize}
+            date={bookingData.date}
+            time={bookingData.time}
+            onChange={handleGuestDetails}
           />
         );
       case 5:
-        return (
-          <PaymentStep
-            amount={bookingData.paymentAmount}
-            description={`Payment for ${bookingData.service?.title} - ${bookingData.partySize} guests`}
-            bookingId={bookingData.bookingId || undefined}
-            onPaymentSuccess={handlePaymentSuccess}
-            onPaymentError={(error) => console.error('Payment error:', error)}
-          />
-        );
-      case 6:
         return (
           <BookingConfirmation
             bookingData={{
@@ -142,7 +143,7 @@ function BookingWidgetContent({ venueSlug }: BookingWidgetProps) {
 
   return (
     <div className="max-w-md mx-auto">
-      {currentStep !== 6 && (
+      {currentStep !== 5 && (
         <ProgressIndicator 
           steps={[]}
           currentStep={currentStep} 
@@ -153,7 +154,7 @@ function BookingWidgetContent({ venueSlug }: BookingWidgetProps) {
         currentStep={currentStep}
         totalSteps={STEP_TITLES.length}
         onBack={goBack}
-        showBack={currentStep > 0 && currentStep !== 6}
+        showBack={currentStep > 0 && currentStep !== 5}
       />
       
       {renderStep()}
