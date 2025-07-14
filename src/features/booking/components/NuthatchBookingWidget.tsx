@@ -265,55 +265,62 @@ export function NuthatchBookingWidget() {
   }
 
   return (
-    <div className="min-h-screen bg-nuthatch-white font-nuthatch-body">
-      <NuthatchHeader />
-      
-      <div className="container mx-auto px-4 py-8 max-w-2xl">
-        <div className="mb-8">
-          <h1 className="text-3xl font-nuthatch-heading font-light text-nuthatch-dark mb-2">
-            Reserve Your Table
-          </h1>
-          <p className="text-nuthatch-muted">
-            Book your experience at The Nuthatch
-          </p>
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md bg-white shadow-lg rounded-lg overflow-hidden">
+        {/* Header - matching Guestplan style */}
+        <div className="bg-black text-white p-4 text-center">
+          <h1 className="text-xl font-medium">The Nuthatch</h1>
         </div>
 
-        <ProgressIndicator 
-          steps={steps} 
-          currentStep={currentStep} 
-          onStepClick={goToStep}
-        />
-
-        <Card className="mt-8 border-nuthatch-border bg-nuthatch-white shadow-sm">
-          <div className="p-6">
-            {renderStep()}
+        {/* Navigation tabs - simple like Guestplan */}
+        <div className="border-b bg-gray-50">
+          <div className="flex">
+            {steps.slice(0, -1).map((step, index) => (
+              <button
+                key={step.id}
+                onClick={() => goToStep(index)}
+                className={`flex-1 px-3 py-2 text-sm font-medium border-r last:border-r-0 ${
+                  currentStep === index 
+                    ? 'bg-white text-black' 
+                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                {step.name}
+              </button>
+            ))}
           </div>
-        </Card>
+        </div>
 
-        {/* Navigation */}
+        {/* Content */}
+        <div className="p-6 min-h-[400px]">
+          {renderStep()}
+        </div>
+
+        {/* Navigation - minimal and clean */}
         {currentStep > 0 && currentStep < steps.length - 1 && (
-          <div className="mt-6 flex justify-between">
+          <div className="p-4 border-t bg-gray-50 flex justify-between">
             <Button
               variant="outline"
               onClick={prevStep}
-              className="border-nuthatch-border text-nuthatch-dark hover:bg-nuthatch-light"
+              size="sm"
             >
-              <ArrowLeft className="h-4 w-4 mr-2" />
+              <ArrowLeft className="h-4 w-4 mr-1" />
               Back
             </Button>
             
             {steps[currentStep]?.isValid && (
               <Button
                 onClick={nextStep}
-                className="bg-nuthatch-green hover:bg-nuthatch-dark text-nuthatch-white"
+                size="sm"
+                className="bg-black hover:bg-gray-800 text-white"
               >
                 Continue
-                <ChevronRight className="h-4 w-4 ml-2" />
+                <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             )}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }
