@@ -24,6 +24,7 @@ export const StripeCardForm = ({
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
   const [cardError, setCardError] = useState<string | null>(null);
+  const [paymentDeclined, setPaymentDeclined] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -41,6 +42,7 @@ export const StripeCardForm = ({
 
     setIsProcessing(true);
     setCardError(null);
+    setPaymentDeclined(false);
 
     try {
       // Confirm the payment with the card element
@@ -55,9 +57,17 @@ export const StripeCardForm = ({
 
       if (error) {
         console.error('Payment failed:', error);
-        setCardError(error.message || 'Payment failed');
+        const isDeclined = error.type === 'card_error' && 
+          (error.decline_code || error.code === 'card_declined');
+        
+        if (isDeclined) {
+          setPaymentDeclined(true);
+          setCardError(null); // Clear generic error, we'll show declined message
+        } else {
+          setCardError(error.message || 'Payment failed');
+        }
+        
         onError(error.message || 'Payment failed');
-        toast.error(error.message || 'Payment failed');
       } else if (paymentIntent?.status === 'succeeded') {
         console.log('Payment succeeded:', paymentIntent);
         toast.success('Payment completed successfully!');
@@ -131,7 +141,30 @@ export const StripeCardForm = ({
           </div>
         </div>
 
-        {cardError && (
+        {paymentDeclined && (
+          <Alert className="border-orange-200 bg-orange-50 text-orange-800">
+            <AlertDescription className="space-y-3">
+              <div>
+                <p className="font-medium">Your booking has not been completed</p>
+                <p className="text-sm">Your card was declined. Please check your card details and try again, or use a different payment method.</p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setPaymentDeclined(false);
+                  setCardError(null);
+                }}
+                className="w-full"
+              >
+                Try Again
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {cardError && !paymentDeclined && (
           <Alert variant="destructive">
             <AlertDescription>{cardError}</AlertDescription>
           </Alert>
@@ -147,13 +180,18 @@ export const StripeCardForm = ({
       {/* Submit Button */}
       <Button
         type="submit"
-        disabled={!stripe || isProcessing}
+        disabled={!stripe || isProcessing || paymentDeclined}
         className="w-full h-12 text-base font-medium"
       >
         {isProcessing ? (
           <>
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
             Processing Payment...
+          </>
+        ) : paymentDeclined ? (
+          <>
+            <CreditCard className="h-4 w-4 mr-2" />
+            Update Payment Details
           </>
         ) : (
           <>
