@@ -1,15 +1,21 @@
+
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
-import { ReactNode } from 'react';
-
-// Initialize Stripe with The Nuthatch's publishable key
-const stripePromise = loadStripe('pk_live_gd8JdMEmr2PUXOoRHjpxhJxn00ndF8BhX4');
+import { ReactNode, useMemo } from 'react';
+import { useStripePublishableKey } from '@/hooks/useStripePublishableKey';
 
 interface StripeProviderProps {
   children: ReactNode;
 }
 
 export const StripeProvider = ({ children }: StripeProviderProps) => {
+  const { publishableKey, isTestMode } = useStripePublishableKey();
+
+  const stripePromise = useMemo(() => {
+    if (!publishableKey) return null;
+    return loadStripe(publishableKey);
+  }, [publishableKey]);
+
   const options = {
     // Appearance customization to match The Nuthatch brand
     appearance: {
@@ -45,8 +51,17 @@ export const StripeProvider = ({ children }: StripeProviderProps) => {
     },
   };
 
+  if (!stripePromise) {
+    return <div>{children}</div>;
+  }
+
   return (
     <Elements stripe={stripePromise} options={options}>
+      {isTestMode && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-2 mb-4 text-sm text-yellow-800">
+          <strong>Test Mode:</strong> No real payments will be processed. Use test card 4242 4242 4242 4242.
+        </div>
+      )}
       {children}
     </Elements>
   );
