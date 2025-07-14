@@ -20,7 +20,8 @@ import { BookingDetailsPanel } from "@/components/host/BookingDetailsPanel";
 import { BlockOverlay } from "@/components/host/BlockOverlay";
 import { CancelledBookingsPanel } from "@/components/host/CancelledBookingsPanel";
 import { BlockDialog } from "@/components/BlockDialog";
-import { WalkInDialog } from "@/components/WalkInDialog";
+import { WalkInDialog } from "@/features/host/components/walkin/WalkInDialog";
+import { FullBookingDialog } from "@/components/host/FullBookingDialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Booking } from "@/hooks/useBookings";
 import { useAuth } from "@/contexts/AuthContext";
@@ -33,6 +34,7 @@ const HostInterface = () => {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [walkInDialogOpen, setWalkInDialogOpen] = useState(false);
+  const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
   const [clickedTime, setClickedTime] = useState<string>("");
   const [backfillComplete, setBackfillComplete] = useState(false);
   const [dragOverTable, setDragOverTable] = useState<number | null>(null);
@@ -172,6 +174,8 @@ const HostInterface = () => {
 
   const handleStatusChange = async (booking: Booking, newStatus: string) => {
     try {
+      console.log(`Updating booking ${booking.id} status from ${booking.status} to ${newStatus}`);
+      
       const oldStatus = booking.status;
       const updateData: any = { 
         status: newStatus, 
@@ -188,6 +192,8 @@ const HostInterface = () => {
         const bookingDateTime = new Date(bookingDate.getFullYear(), bookingDate.getMonth(), bookingDate.getDate(), bookingHour, bookingMin);
         const actualDuration = Math.max(30, Math.floor((now.getTime() - bookingDateTime.getTime()) / (1000 * 60)));
         updateData.duration_minutes = actualDuration;
+        
+        console.log(`Setting end_time to ${endTime} and duration to ${actualDuration} minutes`);
       }
 
       const { error } = await supabase
@@ -195,7 +201,12 @@ const HostInterface = () => {
         .update(updateData)
         .eq('id', booking.id);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Database error updating booking status:', error);
+        throw error;
+      }
+
+      console.log('Booking status updated successfully in database');
 
       await logAudit({
         booking_id: booking.id,
@@ -219,9 +230,10 @@ const HostInterface = () => {
         description: `Booking status changed to ${newStatus}`,
       });
     } catch (error) {
+      console.error('Error updating booking status:', error);
       toast({
         title: "Error",
-        description: "Failed to update booking status",
+        description: `Failed to update booking status: ${error.message || 'Unknown error'}`,
         variant: "destructive"
       });
     }
@@ -236,15 +248,22 @@ const HostInterface = () => {
     if (!target.closest('[data-booking-bar]')) {
       setClickedTime(time);
       
-      // Check if the selected date is today
+      // Check if the selected date is today and clicked time is current or past
       const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+      const now = new Date();
+      const [clickHour, clickMin] = time.split(':').map(Number);
+      const clickTime = new Date();
+      clickTime.setHours(clickHour, clickMin, 0, 0);
       
-      if (isToday) {
+      // If today and clicked time is within 30 minutes of now, show walk-in dialog
+      const timeDiff = clickTime.getTime() - now.getTime();
+      const isWalkInTime = isToday && timeDiff <= 30 * 60 * 1000; // 30 minutes
+      
+      if (isWalkInTime) {
         setWalkInDialogOpen(true);
       } else {
-        // For future dates, open booking creation dialog instead
-        // TODO: Implement BookingDialog for future dates
-        setWalkInDialogOpen(true); // Temporary - will be replaced with BookingDialog
+        // For future times/dates, open booking creation dialog
+        setBookingDialogOpen(true);
       }
     }
   };
@@ -454,9 +473,49 @@ const HostInterface = () => {
             <WalkInDialog
               open={walkInDialogOpen}
               onOpenChange={setWalkInDialogOpen}
-              preSelectedDate={format(selectedDate, 'yyyy-MM-dd')}
-              preSelectedTime={clickedTime}
-              onBookingCreated={handleBookingUpdate}
+              selectedDate={format(selectedDate, 'yyyy-MM-dd')}
+              selectedTime={clickedTime}
+            />
+            <FullBookingDialog
+              open={bookingDialogOpen}
+              onOpenChange={setBookingDialogOpen}
+              selectedDate={selectedDate}
+              onCreateBooking={async (bookingData) => {
+                try {
+                  // Get user's venue ID
+                  const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('venue_id')
+                    .eq('id', user?.id)
+                    .single();
+                  
+                  if (!profile?.venue_id) {
+                    throw new Error('No venue ID found');
+                  }
+
+                  const { error } = await supabase
+                    .from('bookings')
+                    .insert({
+                      ...bookingData,
+                      venue_id: profile.venue_id
+                    });
+                  
+                  if (error) throw error;
+                  
+                  handleBookingUpdate();
+                  toast({
+                    title: "Booking Created",
+                    description: `Booking for ${bookingData.guest_name} created successfully`,
+                  });
+                } catch (error) {
+                  console.error('Error creating booking:', error);
+                  toast({
+                    title: "Error",
+                    description: "Failed to create booking",
+                    variant: "destructive"
+                  });
+                }
+              }}
             />
           </div>
         </div>

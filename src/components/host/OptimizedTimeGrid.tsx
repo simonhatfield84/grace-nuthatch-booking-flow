@@ -47,25 +47,31 @@ export const OptimizedTimeGrid = ({ venueHours, tables, sections, children, onTa
   console.log("OptimizedTimeGrid rendered successfully");
   
   const generateTimeSlots = () => {
-    if (!venueHours) return [];
+    // Default to 17:00-23:00 if no venue hours are set
+    const defaultStart = "17:00";
+    const defaultEnd = "23:00";
     
-    const [startHour, startMin] = venueHours.start_time.split(':').map(Number);
-    const [endHour, endMin] = venueHours.end_time.split(':').map(Number);
+    const startTime = venueHours?.start_time || defaultStart;
+    const endTime = venueHours?.end_time || defaultEnd;
     
-    const startTime = new Date();
-    startTime.setHours(startHour, startMin, 0, 0);
+    const [startHour, startMin] = startTime.split(':').map(Number);
+    const [endHour, endMin] = endTime.split(':').map(Number);
     
-    const endTime = new Date();
-    endTime.setHours(endHour, endMin, 0, 0);
+    const startDateTime = new Date();
+    startDateTime.setHours(startHour, startMin, 0, 0);
+    
+    const endDateTime = new Date();
+    endDateTime.setHours(endHour, endMin, 0, 0);
     
     const timeSlots = [];
-    let currentTime = new Date(startTime);
+    let currentDateTime = new Date(startDateTime);
     
-    while (currentTime <= endTime) {
-      timeSlots.push(format(currentTime, 'HH:mm'));
-      currentTime = addMinutes(currentTime, 15);
+    while (currentDateTime <= endDateTime) {
+      timeSlots.push(format(currentDateTime, 'HH:mm'));
+      currentDateTime = addMinutes(currentDateTime, 15);
     }
     
+    console.log(`TimeGrid: Generated ${timeSlots.length} slots from ${startTime} to ${endTime}`, { venueHours });
     return timeSlots;
   };
 
@@ -73,10 +79,11 @@ export const OptimizedTimeGrid = ({ venueHours, tables, sections, children, onTa
   const currentTimeStr = format(currentTime, 'HH:mm');
   
   const getCurrentTimePosition = () => {
-    if (!venueHours) return -1;
+    const startTime = venueHours?.start_time || "17:00";
+    const endTime = venueHours?.end_time || "23:00";
     
-    const [startHour, startMin] = venueHours.start_time.split(':').map(Number);
-    const [endHour, endMin] = venueHours.end_time.split(':').map(Number);
+    const [startHour, startMin] = startTime.split(':').map(Number);
+    const [endHour, endMin] = endTime.split(':').map(Number);
     const currentHour = currentTime.getHours();
     const currentMin = currentTime.getMinutes();
     
