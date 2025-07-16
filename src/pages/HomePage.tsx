@@ -3,6 +3,7 @@ import React from 'react';
 import Header from '@/components/homepage/Header';
 import HeroSection from '@/components/homepage/HeroSection';
 import AboutSection from '@/components/homepage/AboutSection';
+import InActionSection from '@/components/homepage/InActionSection';
 import DevelopmentJournal from '@/components/homepage/DevelopmentJournal';
 import ArchitectureSection from '@/components/homepage/ArchitectureSection';
 import StatsSection from '@/components/homepage/StatsSection';
@@ -15,6 +16,7 @@ const HomePage = () => {
       <Header />
       <HeroSection />
       <AboutSection />
+      <InActionSection />
       <DevelopmentJournal />
       <ArchitectureSection />
       <StatsSection />
