@@ -35,7 +35,7 @@ export const SecurityMockup = () => {
           Security Dashboard - System Monitoring
         </CardTitle>
         <CardDescription>
-          Real-time security monitoring and threat detection
+          Real-time security monitoring and threat detection with automated alerts
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">

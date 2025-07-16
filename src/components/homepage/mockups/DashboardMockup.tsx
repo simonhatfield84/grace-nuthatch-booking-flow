@@ -46,7 +46,7 @@ export const DashboardMockup = () => {
           />
           <KpiCard
             title="Revenue"
-            value={`$${mockKpis.revenue.toLocaleString()}`}
+            value={`£${mockKpis.revenue.toLocaleString()}`}
             description="This week"
             icon={DollarSign}
             trend={{ value: 15, isPositive: true }}

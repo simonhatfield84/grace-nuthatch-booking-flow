@@ -90,6 +90,104 @@ export const mockKpis = {
   unallocatedBookings: 3
 };
 
+// Enhanced mock data for more realistic host screen
+export const mockHostBookings = [
+  {
+    id: 1,
+    guest_name: "Sarah Johnson",
+    party_size: 4,
+    booking_time: "18:00",
+    status: "confirmed",
+    table_id: 1,
+    notes: "Anniversary dinner",
+    phone: "+44 20 7123 4567"
+  },
+  {
+    id: 2,
+    guest_name: "Michael Chen",
+    party_size: 2,
+    booking_time: "18:15",
+    status: "seated",
+    table_id: 3,
+    notes: "Allergies: nuts",
+    phone: "+44 20 7123 4568"
+  },
+  {
+    id: 3,
+    guest_name: "Emily Davis",
+    party_size: 6,
+    booking_time: "18:30",
+    status: "confirmed",
+    table_id: 8,
+    notes: "Birthday celebration",
+    phone: "+44 20 7123 4569"
+  },
+  {
+    id: 4,
+    guest_name: "Walk-in: James Wilson",
+    party_size: 3,
+    booking_time: "19:00",
+    status: "seated",
+    table_id: 12,
+    notes: "Walk-in guest",
+    phone: "+44 20 7123 4570"
+  },
+  {
+    id: 5,
+    guest_name: "Lisa Thompson",
+    party_size: 2,
+    booking_time: "19:15",
+    status: "finished",
+    table_id: 15,
+    notes: "Regular customer",
+    phone: "+44 20 7123 4571"
+  },
+  {
+    id: 6,
+    guest_name: "David Martinez",
+    party_size: 8,
+    booking_time: "19:30",
+    status: "confirmed",
+    table_id: 20,
+    notes: "Corporate dinner",
+    phone: "+44 20 7123 4572"
+  },
+  {
+    id: 7,
+    guest_name: "Rachel Green",
+    party_size: 4,
+    booking_time: "20:00",
+    status: "confirmed",
+    table_id: 21,
+    notes: "Vegetarian menu",
+    phone: "+44 20 7123 4573"
+  },
+  {
+    id: 8,
+    guest_name: "Tom Hardy",
+    party_size: 2,
+    booking_time: "20:30",
+    status: "confirmed",
+    table_id: 22,
+    notes: "Quiet table requested",
+    phone: "+44 20 7123 4574"
+  }
+];
+
+// Enhanced mock tables with join groups and priorities
+export const mockEnhancedTables = [
+  { id: 1, label: "T1", seats: 2, section_id: 1, online_bookable: true, status: "active" as const, priority_rank: 1, position_x: 0, position_y: 0, join_groups: [1], deleted_at: null, created_at: null, updated_at: null, venue_id: "mock-venue" },
+  { id: 2, label: "T2", seats: 2, section_id: 1, online_bookable: true, status: "active" as const, priority_rank: 2, position_x: 0, position_y: 0, join_groups: [1], deleted_at: null, created_at: null, updated_at: null, venue_id: "mock-venue" },
+  { id: 3, label: "T3", seats: 4, section_id: 1, online_bookable: true, status: "active" as const, priority_rank: 3, position_x: 0, position_y: 0, join_groups: [], deleted_at: null, created_at: null, updated_at: null, venue_id: "mock-venue" },
+  { id: 5, label: "T5", seats: 4, section_id: 1, online_bookable: false, status: "active" as const, priority_rank: 4, position_x: 0, position_y: 0, join_groups: [], deleted_at: null, created_at: null, updated_at: null, venue_id: "mock-venue" },
+  { id: 8, label: "T8", seats: 6, section_id: 2, online_bookable: true, status: "active" as const, priority_rank: 1, position_x: 0, position_y: 0, join_groups: [2], deleted_at: null, created_at: null, updated_at: null, venue_id: "mock-venue" },
+  { id: 12, label: "T12", seats: 4, section_id: 2, online_bookable: true, status: "active" as const, priority_rank: 2, position_x: 0, position_y: 0, join_groups: [2], deleted_at: null, created_at: null, updated_at: null, venue_id: "mock-venue" },
+  { id: 15, label: "T15", seats: 2, section_id: 2, online_bookable: true, status: "active" as const, priority_rank: 3, position_x: 0, position_y: 0, join_groups: [], deleted_at: null, created_at: null, updated_at: null, venue_id: "mock-venue" },
+  { id: 20, label: "T20", seats: 8, section_id: 3, online_bookable: true, status: "active" as const, priority_rank: 1, position_x: 0, position_y: 0, join_groups: [], deleted_at: null, created_at: null, updated_at: null, venue_id: "mock-venue" },
+  { id: 21, label: "T21", seats: 6, section_id: 3, online_bookable: true, status: "active" as const, priority_rank: 2, position_x: 0, position_y: 0, join_groups: [3], deleted_at: null, created_at: null, updated_at: null, venue_id: "mock-venue" },
+  { id: 22, label: "T22", seats: 4, section_id: 3, online_bookable: true, status: "active" as const, priority_rank: 3, position_x: 0, position_y: 0, join_groups: [3], deleted_at: null, created_at: null, updated_at: null, venue_id: "mock-venue" }
+];
+
 export const mockServicePopularity = {
   "Dinner": 45,
   "Afternoon Tea": 28,
