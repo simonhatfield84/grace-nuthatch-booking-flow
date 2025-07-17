@@ -27,28 +27,29 @@ export const HostScreenMockup = () => {
 
   return (
     <Card className="w-full max-w-5xl mx-auto">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Clock className="h-5 w-5" />
-          Host Screen - Tonight's Service
+      <CardHeader className="pb-3 sm:pb-6">
+        <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+          <Clock className="h-4 w-4 sm:h-5 sm:w-5" />
+          <span className="hidden sm:inline">Host Screen - Tonight's Service</span>
+          <span className="sm:hidden">Host Screen</span>
         </CardTitle>
-        <CardDescription>
+        <CardDescription className="text-sm">
           Real-time table management and booking synchronisation
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-0">
+      <CardContent className="space-y-0 p-3 sm:p-6">
         {/* Time Grid in OptimizedTimeGrid style */}
-        <div className="relative bg-background rounded-lg border">
+        <div className="relative bg-background rounded-lg border overflow-hidden">
           {/* Time Headers */}
           <div className="sticky top-0 z-20 bg-muted/50 border-b">
             <div className="flex">
-              <div className="w-36 p-2 font-semibold text-center border-r bg-muted flex-shrink-0">
+              <div className="w-24 sm:w-36 p-1 sm:p-2 font-semibold text-center border-r bg-muted flex-shrink-0 text-xs sm:text-sm">
                 Tables
               </div>
               <div className="flex-1 overflow-x-auto">
-                <div className="flex" style={{ minWidth: `${timeSlots.length * 56}px` }}>
+                <div className="flex" style={{ minWidth: `${timeSlots.length * (window.innerWidth < 640 ? 40 : 56)}px` }}>
                   {timeSlots.map((time) => (
-                    <div key={time} className="w-[56px] p-2 text-xs font-medium text-center border-r last:border-r-0 bg-muted/50 flex-shrink-0">
+                    <div key={time} className="w-[40px] sm:w-[56px] p-1 sm:p-2 text-xs font-medium text-center border-r last:border-r-0 bg-muted/50 flex-shrink-0">
                       {time}
                     </div>
                   ))}
@@ -67,35 +68,36 @@ export const HostScreenMockup = () => {
               return (
                 <div key={section.id}>
                   {/* Section Header */}
-                  <div 
-                    className="bg-muted/30 px-3 py-2 border-b flex items-center"
+                   <div 
+                    className="bg-muted/30 px-2 sm:px-3 py-1 sm:py-2 border-b flex items-center"
                     style={{ borderLeftColor: section.color, borderLeftWidth: '3px' }}
                   >
-                    <div className="w-36 flex-shrink-0">
-                      <h3 className="font-semibold text-sm" style={{ color: section.color }}>
-                        {section.name} ({sectionTables.length})
+                    <div className="w-24 sm:w-36 flex-shrink-0">
+                      <h3 className="font-semibold text-xs sm:text-sm" style={{ color: section.color }}>
+                        <span className="hidden sm:inline">{section.name} ({sectionTables.length})</span>
+                        <span className="sm:hidden">{section.name}</span>
                       </h3>
                     </div>
                     <div className="flex-1 overflow-x-auto">
-                      <div style={{ minWidth: `${timeSlots.length * 56}px` }}></div>
+                      <div style={{ minWidth: `${timeSlots.length * (window.innerWidth < 640 ? 40 : 56)}px` }}></div>
                     </div>
                   </div>
 
-                  {/* Table Rows */}
+                   {/* Table Rows */}
                   {sectionTables.map((table) => (
-                    <div key={table.id} className="flex border-b min-h-[40px]">
+                    <div key={table.id} className="flex border-b min-h-[32px] sm:min-h-[40px]">
                       {/* Fixed Table Name Column */}
-                      <div className="w-36 p-2 border-r flex items-center bg-background flex-shrink-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-sm">{table.label}</span>
-                          <Badge variant="outline" className="text-xs px-1 py-0 h-4">
+                      <div className="w-24 sm:w-36 p-1 sm:p-2 border-r flex items-center bg-background flex-shrink-0">
+                        <div className="flex items-center gap-1 sm:gap-2 overflow-hidden">
+                          <span className="font-semibold text-xs sm:text-sm truncate">{table.label}</span>
+                          <Badge variant="outline" className="text-xs px-1 py-0 h-3 sm:h-4 hidden sm:inline-flex">
                             {table.seats}
                           </Badge>
                           {table.join_groups && table.join_groups.length > 0 && (
-                            <Link className="h-3 w-3 text-blue-600" />
+                            <Link className="h-2 w-2 sm:h-3 sm:w-3 text-blue-600 flex-shrink-0" />
                           )}
                           {!table.online_bookable && (
-                            <Badge variant="secondary" className="text-xs px-1 py-0 h-4">
+                            <Badge variant="secondary" className="text-xs px-1 py-0 h-3 sm:h-4 hidden sm:inline-flex">
                               Offline
                             </Badge>
                           )}
@@ -105,20 +107,21 @@ export const HostScreenMockup = () => {
                       {/* Scrollable Content Area */}
                       <div className="flex-1 overflow-x-auto">
                         <div 
-                          className="relative bg-background min-h-[40px] flex"
-                          style={{ minWidth: `${timeSlots.length * 56}px` }}
+                          className="relative bg-background min-h-[32px] sm:min-h-[40px] flex"
+                          style={{ minWidth: `${timeSlots.length * (window.innerWidth < 640 ? 40 : 56)}px` }}
                         >
                           {timeSlots.map((time) => {
                             const booking = getBookingForTable(table.id, time);
                             
                             return (
-                              <div key={time} className="w-[56px] border-r flex items-center justify-center p-1">
+                              <div key={time} className="w-[40px] sm:w-[56px] border-r flex items-center justify-center p-0.5 sm:p-1">
                                 {booking ? (
                                   <div className="w-full">
-                                    <div className={`text-xs px-1 py-0.5 rounded text-center ${getStatusColor(booking.status)}`}>
-                                      {booking.guest_name.split(' ')[0]}
+                                    <div className={`text-xs px-0.5 sm:px-1 py-0.5 rounded text-center ${getStatusColor(booking.status)}`}>
+                                      <span className="hidden sm:inline">{booking.guest_name.split(' ')[0]}</span>
+                                      <span className="sm:hidden">{booking.guest_name.split(' ')[0].substring(0, 3)}</span>
                                     </div>
-                                    <div className="text-xs text-muted-foreground text-center mt-0.5">
+                                    <div className="text-xs text-muted-foreground text-center mt-0.5 hidden sm:block">
                                       {booking.party_size}p
                                     </div>
                                   </div>
@@ -139,25 +142,25 @@ export const HostScreenMockup = () => {
         </div>
         
         {/* Current Bookings Summary */}
-        <div className="border-t pt-4 mt-4">
-          <div className="grid grid-cols-3 gap-4">
+        <div className="border-t pt-3 sm:pt-4 mt-3 sm:mt-4">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4">
             <div className="text-center">
-              <div className="text-2xl font-bold text-primary">
+              <div className="text-lg sm:text-2xl font-bold text-primary">
                 {mockHostBookings.filter(b => b.status === 'confirmed').length}
               </div>
-              <div className="text-sm text-muted-foreground">Confirmed</div>
+              <div className="text-xs sm:text-sm text-muted-foreground">Confirmed</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-green-600">
+              <div className="text-lg sm:text-2xl font-bold text-green-600">
                 {mockHostBookings.filter(b => b.status === 'seated').length}
               </div>
-              <div className="text-sm text-muted-foreground">Seated</div>
+              <div className="text-xs sm:text-sm text-muted-foreground">Seated</div>
             </div>
             <div className="text-center">
-              <div className="text-2xl font-bold text-blue-600">
+              <div className="text-lg sm:text-2xl font-bold text-blue-600">
                 {mockHostBookings.filter(b => b.status === 'finished').length}
               </div>
-              <div className="text-sm text-muted-foreground">Finished</div>
+              <div className="text-xs sm:text-sm text-muted-foreground">Finished</div>
             </div>
           </div>
         </div>
