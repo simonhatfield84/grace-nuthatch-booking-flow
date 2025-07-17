@@ -3,13 +3,21 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 import { ReactNode, useMemo } from 'react';
 import { useStripePublishableKey } from '@/hooks/useStripePublishableKey';
+import { usePublicStripeSettings } from '@/hooks/usePublicStripeSettings';
 
 interface StripeProviderProps {
   children: ReactNode;
+  venueId?: string;
+  venueSlug?: string;
+  usePublicMode?: boolean;
 }
 
-export const StripeProvider = ({ children }: StripeProviderProps) => {
-  const { publishableKey, isTestMode, isActive, isLoading } = useStripePublishableKey();
+export const StripeProvider = ({ children, venueId, venueSlug, usePublicMode = false }: StripeProviderProps) => {
+  // Use public hook for unauthenticated users, authenticated hook for admin users
+  const authenticatedStripe = useStripePublishableKey();
+  const publicStripe = usePublicStripeSettings({ venueId, venueSlug });
+  
+  const { publishableKey, isTestMode, isActive, isLoading } = usePublicMode ? publicStripe : authenticatedStripe;
 
   const stripePromise = useMemo(() => {
     if (!publishableKey) return null;

@@ -445,7 +445,7 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
             </p>
           </Card>
 
-          <StripeProvider>
+          <StripeProvider venueId={venue?.id} usePublicMode={true}>
             <div className="space-y-4">
               <AppleGooglePayButton
                 clientSecret={clientSecret}
