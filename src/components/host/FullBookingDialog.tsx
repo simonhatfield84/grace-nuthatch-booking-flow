@@ -87,10 +87,10 @@ export const FullBookingDialog = ({
         original_table_id: tableId
       };
 
-      const createdBooking = await onCreateBooking(bookingData);
+      await onCreateBooking(bookingData);
 
       // Send confirmation email if requested and email is provided
-      if (sendConfirmationEmail && formData.email && createdBooking) {
+      if (sendConfirmationEmail && formData.email) {
         try {
           // Get venue info - we need to pass this somehow
           await sendBookingConfirmation(
@@ -101,7 +101,7 @@ export const FullBookingDialog = ({
               booking_date: format(selectedDate, 'EEEE, MMMM do, yyyy'),
               booking_time: formData.booking_time,
               party_size: formData.party_size.toString(),
-              booking_reference: createdBooking.booking_reference || 'TBD'
+              booking_reference: 'TBD' // TODO: Generate or retrieve booking reference
             },
             "venue-slug" // TODO: Get actual venue slug
           );
