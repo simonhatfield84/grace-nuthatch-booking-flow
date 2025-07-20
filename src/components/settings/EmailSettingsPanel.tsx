@@ -5,11 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEmailService } from "@/hooks/useEmailService";
-import { Mail, Send, Settings } from "lucide-react";
+import { EmailTemplatesList } from "./EmailTemplateEditor";
+import { Mail, Send, Settings, FileText } from "lucide-react";
 
 export function EmailSettingsPanel() {
   const { toast } = useToast();
@@ -190,70 +192,89 @@ export function EmailSettingsPanel() {
       <CardHeader>
         <div className="flex items-center space-x-2">
           <Mail className="h-5 w-5" />
-          <CardTitle>Email Settings</CardTitle>
+          <CardTitle>Email Configuration</CardTitle>
         </div>
         <CardDescription>
-          Configure email settings for booking confirmations and communications
+          Configure email settings and manage templates for booking communications
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="from_name">From Name</Label>
-            <Input
-              id="from_name"
-              value={settings.from_name}
-              onChange={(e) => setSettings({...settings, from_name: e.target.value})}
-              placeholder="Your Venue Name"
-            />
-          </div>
-          <div>
-            <Label htmlFor="from_email">From Email</Label>
-            <Input
-              id="from_email"
-              type="email"
-              value={settings.from_email}
-              onChange={(e) => setSettings({...settings, from_email: e.target.value})}
-              placeholder="bookings@yourvenue.com"
-            />
-          </div>
-        </div>
+      <CardContent>
+        <Tabs defaultValue="settings" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="settings" className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              Settings
+            </TabsTrigger>
+            <TabsTrigger value="templates" className="flex items-center gap-2">
+              <FileText className="h-4 w-4" />
+              Templates
+            </TabsTrigger>
+          </TabsList>
 
-        <div>
-          <Label htmlFor="email_signature">Email Signature</Label>
-          <Textarea
-            id="email_signature"
-            value={settings.email_signature}
-            onChange={(e) => setSettings({...settings, email_signature: e.target.value})}
-            placeholder="Best regards,&#10;Your Venue Team"
-            rows={3}
-          />
-        </div>
+          <TabsContent value="settings" className="space-y-4 mt-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="from_name">From Name</Label>
+                <Input
+                  id="from_name"
+                  value={settings.from_name}
+                  onChange={(e) => setSettings({...settings, from_name: e.target.value})}
+                  placeholder="Your Venue Name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="from_email">From Email</Label>
+                <Input
+                  id="from_email"
+                  type="email"
+                  value={settings.from_email}
+                  onChange={(e) => setSettings({...settings, from_email: e.target.value})}
+                  placeholder="bookings@yourvenue.com"
+                />
+              </div>
+            </div>
 
-        <div className="flex gap-2 pt-4">
-          <Button 
-            onClick={saveEmailSettings}
-            disabled={isLoading}
-            className="flex-1"
-          >
-            <Settings className="h-4 w-4 mr-2" />
-            {isLoading ? 'Saving...' : 'Save Settings'}
-          </Button>
-          
-          <Button 
-            variant="outline"
-            onClick={sendTestEmail}
-            disabled={isTesting || !settings.from_email}
-          >
-            <Send className="h-4 w-4 mr-2" />
-            {isTesting ? 'Sending...' : 'Send Test Email'}
-          </Button>
-        </div>
+            <div>
+              <Label htmlFor="email_signature">Email Signature</Label>
+              <Textarea
+                id="email_signature"
+                value={settings.email_signature}
+                onChange={(e) => setSettings({...settings, email_signature: e.target.value})}
+                placeholder="Best regards,&#10;Your Venue Team"
+                rows={3}
+              />
+            </div>
 
-        <div className="text-sm text-muted-foreground mt-4 p-3 bg-muted rounded-md">
-          <strong>Note:</strong> Email functionality requires proper configuration. 
-          If emails are not being sent, please contact support for assistance with email setup.
-        </div>
+            <div className="flex gap-2 pt-4">
+              <Button 
+                onClick={saveEmailSettings}
+                disabled={isLoading}
+                className="flex-1"
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                {isLoading ? 'Saving...' : 'Save Settings'}
+              </Button>
+              
+              <Button 
+                variant="outline"
+                onClick={sendTestEmail}
+                disabled={isTesting || !settings.from_email}
+              >
+                <Send className="h-4 w-4 mr-2" />
+                {isTesting ? 'Sending...' : 'Send Test Email'}
+              </Button>
+            </div>
+
+            <div className="text-sm text-muted-foreground mt-4 p-3 bg-muted rounded-md">
+              <strong>Note:</strong> Email functionality requires proper configuration. 
+              If emails are not being sent, please contact support for assistance with email setup.
+            </div>
+          </TabsContent>
+
+          <TabsContent value="templates" className="mt-6">
+            <EmailTemplatesList />
+          </TabsContent>
+        </Tabs>
       </CardContent>
     </Card>
   );
