@@ -16,6 +16,7 @@ import {
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useEmailService } from "@/hooks/useEmailService";
 
 interface ConfirmationStepProps {
   bookingData: any;
@@ -25,6 +26,7 @@ interface ConfirmationStepProps {
 
 export function ConfirmationStep({ bookingData, venue, onBookingId }: ConfirmationStepProps) {
   const { toast } = useToast();
+  const { sendBookingConfirmation } = useEmailService();
   const [isCreatingBooking, setIsCreatingBooking] = useState(false);
   const [bookingReference, setBookingReference] = useState<string | null>(null);
   const [hasProcessed, setHasProcessed] = useState(false);
@@ -52,7 +54,27 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
           if (existingBooking.status === 'confirmed') {
             setBookingReference(existingBooking.booking_reference);
             onBookingId(existingBooking.id);
-            // Don't show success toast if already confirmed to avoid duplicate notifications
+            
+            // Send booking confirmation email if guest has email
+            if (bookingData.guestDetails.email) {
+              try {
+                await sendBookingConfirmation(
+                  bookingData.guestDetails.email,
+                  {
+                    guest_name: existingBooking.guest_name,
+                    venue_name: venue.name,
+                    booking_date: format(new Date(existingBooking.booking_date), 'EEEE, MMMM do, yyyy'),
+                    booking_time: existingBooking.booking_time,
+                    party_size: existingBooking.party_size.toString(),
+                    booking_reference: existingBooking.booking_reference
+                  },
+                  venue.slug
+                );
+              } catch (emailError) {
+                console.error('Failed to send confirmation email:', emailError);
+                // Don't fail the booking process if email fails
+              }
+            }
           } else {
             // Update status to confirmed
             const { data, error } = await supabase
@@ -66,6 +88,27 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
 
             setBookingReference(data.booking_reference);
             onBookingId(data.id);
+
+            // Send booking confirmation email if guest has email
+            if (bookingData.guestDetails.email) {
+              try {
+                await sendBookingConfirmation(
+                  bookingData.guestDetails.email,
+                  {
+                    guest_name: data.guest_name,
+                    venue_name: venue.name,
+                    booking_date: format(new Date(data.booking_date), 'EEEE, MMMM do, yyyy'),
+                    booking_time: data.booking_time,
+                    party_size: data.party_size.toString(),
+                    booking_reference: data.booking_reference
+                  },
+                  venue.slug
+                );
+              } catch (emailError) {
+                console.error('Failed to send confirmation email:', emailError);
+                // Don't fail the booking process if email fails
+              }
+            }
 
             toast({
               title: "Booking Confirmed!",
@@ -129,6 +172,27 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
 
           onBookingId(data.id);
           setBookingReference(data.booking_reference);
+
+          // Send booking confirmation email if guest has email
+          if (bookingData.guestDetails.email) {
+            try {
+              await sendBookingConfirmation(
+                bookingData.guestDetails.email,
+                {
+                  guest_name: data.guest_name,
+                  venue_name: venue.name,
+                  booking_date: format(new Date(data.booking_date), 'EEEE, MMMM do, yyyy'),
+                  booking_time: data.booking_time,
+                  party_size: data.party_size.toString(),
+                  booking_reference: data.booking_reference
+                },
+                venue.slug
+              );
+            } catch (emailError) {
+              console.error('Failed to send confirmation email:', emailError);
+              // Don't fail the booking process if email fails
+            }
+          }
 
           toast({
             title: "Booking Confirmed!",

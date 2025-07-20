@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,7 @@ import { format } from 'date-fns';
 import { useTables } from '@/hooks/useTables';
 import { useServices } from '@/hooks/useServices';
 import { useToast } from '@/hooks/use-toast';
+import { useEmailService } from '@/hooks/useEmailService';
 import { EnhancedTimeSlotSelector } from "@/components/bookings/EnhancedTimeSlotSelector";
 import { ManualTableSelector } from './ManualTableSelector';
 import { TableConflictResolver } from './TableConflictResolver';
@@ -40,10 +42,12 @@ export const FullBookingDialog = ({
 
   const [selectedTab, setSelectedTab] = useState('quick');
   const [conflicts, setConflicts] = useState<any[]>([]);
+  const [sendConfirmationEmail, setSendConfirmationEmail] = useState(true);
 
   const { tables } = useTables();
   const { services } = useServices();
   const { toast } = useToast();
+  const { sendBookingConfirmation } = useEmailService();
 
   const handleSubmit = async () => {
     if (!formData.guest_name.trim()) {
@@ -70,7 +74,7 @@ export const FullBookingDialog = ({
         ? formData.table_ids[0] // For now, take the first selected table
         : null;
 
-      await onCreateBooking({
+      const bookingData = {
         guest_name: formData.guest_name,
         party_size: formData.party_size,
         booking_date: format(selectedDate, 'yyyy-MM-dd'),
@@ -81,7 +85,35 @@ export const FullBookingDialog = ({
         service: formData.service || 'Dinner',
         status: 'confirmed',
         original_table_id: tableId
-      });
+      };
+
+      const createdBooking = await onCreateBooking(bookingData);
+
+      // Send confirmation email if requested and email is provided
+      if (sendConfirmationEmail && formData.email && createdBooking) {
+        try {
+          // Get venue info - we need to pass this somehow
+          await sendBookingConfirmation(
+            formData.email,
+            {
+              guest_name: formData.guest_name,
+              venue_name: "Your Venue", // TODO: Get actual venue name
+              booking_date: format(selectedDate, 'EEEE, MMMM do, yyyy'),
+              booking_time: formData.booking_time,
+              party_size: formData.party_size.toString(),
+              booking_reference: createdBooking.booking_reference || 'TBD'
+            },
+            "venue-slug" // TODO: Get actual venue slug
+          );
+        } catch (emailError) {
+          console.error('Failed to send confirmation email:', emailError);
+          toast({
+            title: "Booking Created",
+            description: "Booking created successfully, but confirmation email could not be sent.",
+            variant: "destructive"
+          });
+        }
+      }
 
       // Reset form
       setFormData({
@@ -276,6 +308,22 @@ export const FullBookingDialog = ({
               placeholder="Special requests, dietary requirements..."
             />
           </div>
+
+          {/* Email Confirmation Option */}
+          {formData.email && (
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id="sendConfirmationEmail"
+                checked={sendConfirmationEmail}
+                onChange={(e) => setSendConfirmationEmail(e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              <Label htmlFor="sendConfirmationEmail" className="text-sm">
+                Send confirmation email to guest
+              </Label>
+            </div>
+          )}
           
           <div className="flex gap-2 pt-4">
             <Button onClick={handleSubmit} className="flex-1">
