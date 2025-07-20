@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +8,9 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ServiceFormData } from '@/hooks/useServicesData';
+import { DurationRules, DurationRule } from './DurationRules';
+import { MediaUpload } from './MediaUpload';
+import { TagSelector } from './TagSelector';
 
 interface ServiceFormProps {
   formData: ServiceFormData;
@@ -25,6 +29,22 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
   isSubmitting,
   isEditing
 }) => {
+  const handleDurationRulesChange = (rules: DurationRule[]) => {
+    onFormDataChange({ duration_rules: rules });
+  };
+
+  const handleImageChange = (url: string) => {
+    onFormDataChange({ image_url: url });
+  };
+
+  const handleImageRemove = () => {
+    onFormDataChange({ image_url: '' });
+  };
+
+  const handleTagsChange = (tagIds: string[]) => {
+    onFormDataChange({ tag_ids: tagIds });
+  };
+
   return (
     <form onSubmit={onSubmit} className="space-y-6">
       <Tabs defaultValue="basic" className="w-full">
@@ -45,23 +65,22 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
               required
             />
           </div>
+          
           <div>
             <Label htmlFor="description">Description</Label>
             <Textarea
               id="description"
               value={formData.description}
               onChange={(e) => onFormDataChange({ description: e.target.value })}
+              rows={4}
             />
           </div>
-          <div>
-            <Label htmlFor="image_url">Image URL</Label>
-            <Input
-              id="image_url"
-              value={formData.image_url}
-              onChange={(e) => onFormDataChange({ image_url: e.target.value })}
-              placeholder="https://example.com/image.jpg"
-            />
-          </div>
+
+          <MediaUpload
+            imageUrl={formData.image_url}
+            onImageChange={handleImageChange}
+            onRemove={handleImageRemove}
+          />
         </TabsContent>
 
         <TabsContent value="booking" className="space-y-4">
@@ -86,6 +105,14 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                 onChange={(e) => onFormDataChange({ max_guests: parseInt(e.target.value) || 8 })}
               />
             </div>
+          </div>
+
+          <div>
+            <Label>Duration Rules</Label>
+            <DurationRules
+              rules={formData.duration_rules || []}
+              onChange={handleDurationRulesChange}
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -127,7 +154,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
           <div className="flex items-center justify-between">
             <div>
               <Label>Require Payment</Label>
-              <p className="text-sm text-muted-foreground">Charge customers when they book</p>
+              <p className="text-sm text-muted-foregreen">Charge customers when they book</p>
             </div>
             <Switch
               checked={formData.requires_payment}
@@ -227,6 +254,11 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
               />
             </div>
           )}
+
+          <TagSelector
+            selectedTagIds={formData.tag_ids}
+            onTagsChange={handleTagsChange}
+          />
 
           <div>
             <Label htmlFor="terms_and_conditions">Terms and Conditions</Label>
