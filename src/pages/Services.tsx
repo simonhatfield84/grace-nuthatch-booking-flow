@@ -134,7 +134,7 @@ const Services = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Services</h1>
-          <p className="text-muted-foreground">Manage your restaurant's services and booking options</p>
+          <p className="text-muted-foreground">Manage your venue's services and booking options</p>
         </div>
         <Button onClick={handleCreate}>
           <Plus className="h-4 w-4 mr-2" />

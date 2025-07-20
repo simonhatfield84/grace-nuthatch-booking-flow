@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -151,7 +152,7 @@ const Tables = () => {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Tables Management</h1>
-          <p className="text-muted-foreground">Manage your restaurant tables, sections, and seating arrangements</p>
+          <p className="text-muted-foreground">Manage your venue tables, sections, and seating arrangements</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => handleCreateTable()}>

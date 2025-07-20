@@ -41,7 +41,7 @@ const Dashboard = () => {
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground">Welcome to Grace OS - Restaurant Management</p>
+          <p className="text-muted-foreground">Welcome to Grace OS - Venue Management</p>
         </div>
         <div className="flex gap-2">
           <Link to="/host">

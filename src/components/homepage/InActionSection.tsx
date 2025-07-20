@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -79,7 +80,7 @@ const InActionSection = () => {
           See Grace OS in Action
         </h2>
         <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto px-4">
-          Experience the power of our restaurant management system through interactive demonstrations 
+          Experience the power of our venue management system through interactive demonstrations 
           of real features built with AI assistance.
         </p>
       </div>
@@ -257,7 +258,7 @@ const InActionSection = () => {
             </div>
             <h4 className="font-semibold mb-1 sm:mb-2 text-sm sm:text-base">Smart Analytics</h4>
             <p className="text-xs sm:text-sm text-muted-foreground">
-              AI-powered insights to optimise your restaurant operations
+              AI-powered insights to optimise your venue operations
             </p>
           </div>
           <div className="flex flex-col items-center">
@@ -266,7 +267,7 @@ const InActionSection = () => {
             </div>
             <h4 className="font-semibold mb-1 sm:mb-2 text-sm sm:text-base">Flexible Management</h4>
             <p className="text-xs sm:text-sm text-muted-foreground">
-              Intuitive tools that adapt to your restaurant's unique needs
+              Intuitive tools that adapt to your venue's unique needs
             </p>
           </div>
           <div className="flex flex-col items-center">

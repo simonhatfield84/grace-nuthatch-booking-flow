@@ -197,7 +197,7 @@ const AdminSidebar = ({ collapsed = false, onToggleCollapse, showUserProfile = f
       {!collapsed && (
         <div className="p-3 border-t">
           <p className="text-xs text-muted-foreground">
-            Grace OS • Restaurant Management
+            Grace OS • Venue Management
           </p>
         </div>
       )}
