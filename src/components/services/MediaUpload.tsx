@@ -87,7 +87,10 @@ export const MediaUpload = ({ imageUrl, onImageChange, onRemove }: MediaUploadPr
     }
   };
 
-  const handleRemove = async () => {
+  const handleRemove = async (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    
     // If it's a Supabase Storage URL, try to delete the file
     if (imageUrl.includes('supabase')) {
       try {
@@ -109,14 +112,31 @@ export const MediaUpload = ({ imageUrl, onImageChange, onRemove }: MediaUploadPr
     }
   };
 
+  const handleChooseImage = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    fileInputRef.current?.click();
+  };
+
+  const handleTooltipClick = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+  };
+
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <Label>Service Image</Label>
         <TooltipProvider>
           <Tooltip>
-            <TooltipTrigger>
-              <Info className="h-4 w-4 text-muted-foreground" />
+            <TooltipTrigger asChild>
+              <button 
+                type="button"
+                onClick={handleTooltipClick}
+                className="inline-flex items-center justify-center"
+              >
+                <Info className="h-4 w-4 text-muted-foreground" />
+              </button>
             </TooltipTrigger>
             <TooltipContent className="max-w-xs">
               <div className="space-y-2 text-sm">
@@ -147,6 +167,7 @@ export const MediaUpload = ({ imageUrl, onImageChange, onRemove }: MediaUploadPr
               </div>
             </div>
             <Button
+              type="button"
               variant="destructive"
               size="sm"
               className="absolute top-2 right-2"
@@ -164,8 +185,9 @@ export const MediaUpload = ({ imageUrl, onImageChange, onRemove }: MediaUploadPr
               Upload a service image
             </p>
             <Button 
+              type="button"
               variant="outline" 
-              onClick={() => fileInputRef.current?.click()}
+              onClick={handleChooseImage}
               disabled={isUploading}
             >
               {isUploading ? "Uploading..." : "Choose Image"}

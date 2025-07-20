@@ -10,7 +10,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ServiceFormData } from '@/hooks/useServicesData';
 import { DurationRules, DurationRule } from './DurationRules';
 import { MediaUpload } from './MediaUpload';
-import { TagSelector } from './TagSelector';
 
 interface ServiceFormProps {
   formData: ServiceFormData;
@@ -39,10 +38,6 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
 
   const handleImageRemove = () => {
     onFormDataChange({ image_url: '' });
-  };
-
-  const handleTagsChange = (tagIds: string[]) => {
-    onFormDataChange({ tag_ids: tagIds });
   };
 
   return (
@@ -154,7 +149,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
           <div className="flex items-center justify-between">
             <div>
               <Label>Require Payment</Label>
-              <p className="text-sm text-muted-foregreen">Charge customers when they book</p>
+              <p className="text-sm text-muted-foreground">Charge customers when they book</p>
             </div>
             <Switch
               checked={formData.requires_payment}
@@ -254,11 +249,6 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
               />
             </div>
           )}
-
-          <TagSelector
-            selectedTagIds={formData.tag_ids}
-            onTagsChange={handleTagsChange}
-          />
 
           <div>
             <Label htmlFor="terms_and_conditions">Terms and Conditions</Label>

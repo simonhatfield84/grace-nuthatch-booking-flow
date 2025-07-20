@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -6,10 +7,8 @@ import ServiceDialog from "@/components/services/ServiceDialog";
 import { BookingWindowManager } from "@/components/services/BookingWindowManager";
 import { useServicesData } from "@/hooks/useServicesData";
 import { useServiceForm } from "@/hooks/useServiceForm";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useBookingWindows } from "@/hooks/useBookingWindows";
-import { getServiceTags, getServiceWindows } from "@/utils/serviceHelpers";
+import { getServiceWindows } from "@/utils/serviceHelpers";
 
 const Services = () => {
   const [showDialog, setShowDialog] = useState(false);
@@ -32,20 +31,6 @@ const Services = () => {
     startEditing,
     startCreating,
   } = useServiceForm();
-
-  // Fetch tags
-  const { data: allTags = [] } = useQuery({
-    queryKey: ['tags'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('tags')
-        .select('*')
-        .order('name');
-      
-      if (error) throw error;
-      return data;
-    }
-  });
 
   // Fetch booking windows
   const { allBookingWindows: allWindows = [], isLoadingWindows, windowsError } = useBookingWindows();
@@ -103,7 +88,6 @@ const Services = () => {
       is_secret: service.is_secret,
       secret_slug: service.secret_slug ? `${service.secret_slug}-copy` : '',
       image_url: service.image_url || '',
-      tag_ids: service.tag_ids || [],
       duration_rules: service.duration_rules || [],
       terms_and_conditions: service.terms_and_conditions || '',
       requires_payment: service.requires_payment,
@@ -163,7 +147,7 @@ const Services = () => {
           <ServiceCard
             key={service.id}
             service={service}
-            serviceTags={getServiceTags(service, allTags)}
+            serviceTags={[]}
             serviceWindows={getServiceWindows(service.id, allWindows)}
             isLoadingWindows={isLoadingWindows}
             windowsError={windowsError}
