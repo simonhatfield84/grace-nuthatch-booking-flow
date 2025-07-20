@@ -14,6 +14,12 @@ export const calculatePaymentAmount = async (
   venueId: string
 ): Promise<PaymentCalculation> => {
   try {
+    console.log('🔍 Payment calculation starting:', {
+      serviceId,
+      partySize,
+      venueId
+    });
+
     // Check if venue has Stripe enabled
     const { data: venueSettings } = await supabase
       .from('venue_stripe_settings')
@@ -21,8 +27,11 @@ export const calculatePaymentAmount = async (
       .eq('venue_id', venueId)
       .single();
 
+    console.log('🏢 Venue Stripe settings:', venueSettings);
+
     // If venue payments are not active, no charge
     if (!venueSettings?.is_active) {
+      console.log('❌ Venue payments not active');
       return {
         shouldCharge: false,
         amount: 0,
@@ -31,9 +40,9 @@ export const calculatePaymentAmount = async (
       };
     }
 
-    // Get service payment settings if service is specified
+    // If no service specified, use venue-level settings
     if (!serviceId) {
-      // Use venue-level settings as fallback
+      console.log('📍 Using venue-level settings only');
       let shouldCharge = false;
       let amount = 0;
       let description = '';
@@ -59,6 +68,8 @@ export const calculatePaymentAmount = async (
           break;
       }
 
+      console.log('🏢 Venue-level result:', { shouldCharge, amount, description });
+
       return {
         shouldCharge,
         amount,
@@ -67,58 +78,103 @@ export const calculatePaymentAmount = async (
       };
     }
 
+    // Get service payment settings
     const { data: serviceSettings } = await supabase
       .from('services')
-      .select('requires_payment, charge_type, minimum_guests_for_charge, charge_amount_per_guest')
+      .select('requires_payment, charge_type, minimum_guests_for_charge, charge_amount_per_guest, title')
       .eq('id', serviceId)
       .single();
 
-    // Prioritize service-level payment settings over venue settings
+    console.log('🍽️ Service settings:', serviceSettings);
+
     let shouldCharge = false;
     let amount = 0;
     let description = '';
-    let chargeType = serviceSettings?.charge_type || 'none';
+    let chargeType = 'none';
 
-    // If service requires payment, use service settings, otherwise fall back to venue settings
-    const effectiveChargeType = serviceSettings?.requires_payment ? 
-      (serviceSettings.charge_type || 'all_reservations') : 
-      (venueSettings.charge_type || 'none');
-    const effectiveChargeAmount = serviceSettings?.requires_payment ? 
-      (serviceSettings.charge_amount_per_guest || 0) : 
-      (venueSettings.charge_amount_per_guest || 0);
-    const effectiveMinGuests = serviceSettings?.requires_payment ? 
-      (serviceSettings.minimum_guests_for_charge || 1) : 
-      (venueSettings.minimum_guests_for_charge || 8);
+    // Check if service requires payment
+    if (serviceSettings?.requires_payment) {
+      console.log('💰 Service requires payment - calculating...');
+      
+      // Use service-level settings when service requires payment
+      const serviceChargeType = serviceSettings.charge_type || 'all_reservations';
+      const serviceChargeAmount = serviceSettings.charge_amount_per_guest || 0;
+      const serviceMinGuests = serviceSettings.minimum_guests_for_charge || 1;
 
-    switch (effectiveChargeType) {
-      case 'all_reservations':
-        shouldCharge = true;
-        amount = effectiveChargeAmount * partySize;
-        description = `Booking fee for ${partySize} guests`;
-        break;
-        
-      case 'large_groups':
-        if (partySize >= effectiveMinGuests) {
+      console.log('💰 Service payment details:', {
+        serviceChargeType,
+        serviceChargeAmount,
+        serviceMinGuests,
+        partySize
+      });
+
+      switch (serviceChargeType) {
+        case 'all_reservations':
           shouldCharge = true;
-          amount = effectiveChargeAmount * partySize;
-          description = `Large group fee for ${partySize} guests`;
-        }
-        break;
-        
-      default:
-        shouldCharge = false;
-        break;
+          amount = serviceChargeAmount * partySize;
+          description = `${serviceSettings.title} booking fee for ${partySize} guests`;
+          chargeType = serviceChargeType;
+          break;
+          
+        case 'large_groups':
+          if (partySize >= serviceMinGuests) {
+            shouldCharge = true;
+            amount = serviceChargeAmount * partySize;
+            description = `${serviceSettings.title} large group fee for ${partySize} guests`;
+            chargeType = serviceChargeType;
+          }
+          break;
+          
+        default:
+          // For any other charge type, still charge if requires_payment is true
+          shouldCharge = true;
+          amount = serviceChargeAmount * partySize;
+          description = `${serviceSettings.title} booking fee for ${partySize} guests`;
+          chargeType = serviceChargeType;
+          break;
+      }
+    } else {
+      console.log('🔄 Service doesn\'t require payment, checking venue settings...');
+      
+      // Fall back to venue-level settings if service doesn't require payment
+      switch (venueSettings.charge_type) {
+        case 'all_reservations':
+          shouldCharge = true;
+          amount = (venueSettings.charge_amount_per_guest || 0) * partySize;
+          description = `Booking fee for ${partySize} guests`;
+          chargeType = venueSettings.charge_type;
+          break;
+          
+        case 'large_groups':
+          const minGuests = venueSettings.minimum_guests_for_charge || 8;
+          if (partySize >= minGuests) {
+            shouldCharge = true;
+            amount = (venueSettings.charge_amount_per_guest || 0) * partySize;
+            description = `Large group fee for ${partySize} guests`;
+            chargeType = venueSettings.charge_type;
+          }
+          break;
+          
+        default:
+          shouldCharge = false;
+          chargeType = 'none';
+          break;
+      }
     }
 
-    return {
+    const result = {
       shouldCharge,
       amount,
       description: description || 'No payment required',
-      chargeType: effectiveChargeType
+      chargeType
     };
 
+    console.log('✅ Final payment calculation result:', result);
+
+    return result;
+
   } catch (error) {
-    console.error('Error calculating payment amount:', error);
+    console.error('💥 Error calculating payment amount:', error);
     return {
       shouldCharge: false,
       amount: 0,
