@@ -23,7 +23,6 @@ export interface Service {
   minimum_guests_for_charge: number | null;
   terms_and_conditions: string | null;
   image_url: string | null;
-  tag_ids: string[];
   is_secret: boolean;
   secret_slug: string | null;
   created_at: string;
@@ -42,7 +41,6 @@ export interface ServiceFormData {
   is_secret: boolean;
   secret_slug: string;
   image_url: string;
-  tag_ids: string[];
   duration_rules: any[];
   terms_and_conditions: string;
   requires_payment: boolean;
