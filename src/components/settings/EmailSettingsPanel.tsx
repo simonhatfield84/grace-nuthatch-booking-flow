@@ -48,7 +48,7 @@ export function EmailSettingsPanel() {
         .eq('id', profile.venue_id)
         .single();
 
-      // Get email settings
+      // Get email settings from venue_settings table
       const { data: venueSettings } = await supabase
         .from('venue_settings')
         .select('setting_key, setting_value')
@@ -68,7 +68,7 @@ export function EmailSettingsPanel() {
       });
 
       setSettings({
-        from_name: emailSettings.from_name || 'Your Venue',
+        from_name: emailSettings.from_name || venue?.name || 'Your Venue',
         from_email: emailSettings.from_email || '',
         email_signature: emailSettings.email_signature || 'Best regards,\nYour Venue Team',
         venue_name: venue?.name || 'Your Venue'
@@ -97,9 +97,16 @@ export function EmailSettingsPanel() {
         .eq('id', user?.id)
         .single();
 
-      if (!profile?.venue_id) return;
+      if (!profile?.venue_id) {
+        toast({
+          title: "Error",
+          description: "No venue found for user",
+          variant: "destructive"
+        });
+        return;
+      }
 
-      // Save each setting
+      // Save each setting to venue_settings table
       const settingsToSave = [
         { key: 'from_name', value: settings.from_name },
         { key: 'from_email', value: settings.from_email },

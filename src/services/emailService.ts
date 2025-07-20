@@ -15,22 +15,34 @@ export const emailService = {
     venue_slug: string
   ) {
     try {
-      // Get platform settings for branding
-      const { data: settings } = await supabase
-        .from('platform_settings')
+      // Get current user's venue ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('venue_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.venue_id) throw new Error('Venue not found');
+
+      // Get venue-specific email settings
+      const { data: venueSettings } = await supabase
+        .from('venue_settings')
         .select('setting_key, setting_value')
+        .eq('venue_id', profile.venue_id)
         .in('setting_key', ['from_email', 'from_name', 'email_signature']);
 
-      const platformSettings: Record<string, string> = {};
-      settings?.forEach(setting => {
+      const emailSettings: Record<string, string> = {};
+      venueSettings?.forEach(setting => {
         try {
-          // Parse JSON values and ensure they are strings
           const parsedValue = typeof setting.setting_value === 'string' 
             ? JSON.parse(setting.setting_value) 
             : setting.setting_value;
-          platformSettings[setting.setting_key] = String(parsedValue || '');
+          emailSettings[setting.setting_key] = String(parsedValue || '');
         } catch {
-          platformSettings[setting.setting_key] = String(setting.setting_value || '');
+          emailSettings[setting.setting_key] = String(setting.setting_value || '');
         }
       });
 
@@ -63,12 +75,12 @@ export const emailService = {
               </div>
               
               <div style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 30px;">
-                <p>${platformSettings.email_signature || 'Best regards,\nFred at Grace OS'}</p>
+                <p>${emailSettings.email_signature || 'Best regards,\nYour Venue Team'}</p>
               </div>
             </div>
           `,
-          from_email: platformSettings.from_email || 'noreply@grace-os.co.uk',
-          from_name: platformSettings.from_name || 'Fred at Grace OS',
+          from_email: emailSettings.from_email || 'noreply@grace-os.co.uk',
+          from_name: emailSettings.from_name || bookingData.venue_name,
         },
       });
 
@@ -93,22 +105,34 @@ export const emailService = {
     venue_slug: string
   ) {
     try {
-      // Get platform settings for branding
-      const { data: settings } = await supabase
-        .from('platform_settings')
+      // Get current user's venue ID
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('venue_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.venue_id) throw new Error('Venue not found');
+
+      // Get venue-specific email settings
+      const { data: venueSettings } = await supabase
+        .from('venue_settings')
         .select('setting_key, setting_value')
+        .eq('venue_id', profile.venue_id)
         .in('setting_key', ['from_email', 'from_name', 'email_signature']);
 
-      const platformSettings: Record<string, string> = {};
-      settings?.forEach(setting => {
+      const emailSettings: Record<string, string> = {};
+      venueSettings?.forEach(setting => {
         try {
-          // Parse JSON values and ensure they are strings
           const parsedValue = typeof setting.setting_value === 'string' 
             ? JSON.parse(setting.setting_value) 
             : setting.setting_value;
-          platformSettings[setting.setting_key] = String(parsedValue || '');
+          emailSettings[setting.setting_key] = String(parsedValue || '');
         } catch {
-          platformSettings[setting.setting_key] = String(setting.setting_value || '');
+          emailSettings[setting.setting_key] = String(setting.setting_value || '');
         }
       });
 
@@ -141,12 +165,12 @@ export const emailService = {
               </div>
               
               <div style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 30px;">
-                <p>${platformSettings.email_signature || 'Best regards,\nFred at Grace OS'}</p>
+                <p>${emailSettings.email_signature || 'Best regards,\nYour Venue Team'}</p>
               </div>
             </div>
           `,
-          from_email: platformSettings.from_email || 'noreply@grace-os.co.uk',
-          from_name: platformSettings.from_name || 'Fred at Grace OS',
+          from_email: emailSettings.from_email || 'noreply@grace-os.co.uk',
+          from_name: emailSettings.from_name || bookingData.venue_name,
         },
       });
 
@@ -166,7 +190,7 @@ export const emailService = {
     }
   ) {
     try {
-      // Get platform settings for branding
+      // Get platform settings for user invitations (these should still use platform settings)
       const { data: settings } = await supabase
         .from('platform_settings')
         .select('setting_key, setting_value')
@@ -175,7 +199,6 @@ export const emailService = {
       const platformSettings: Record<string, string> = {};
       settings?.forEach(setting => {
         try {
-          // Parse JSON values and ensure they are strings
           const parsedValue = typeof setting.setting_value === 'string' 
             ? JSON.parse(setting.setting_value) 
             : setting.setting_value;
