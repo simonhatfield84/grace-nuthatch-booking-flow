@@ -21,28 +21,33 @@ export const calculatePaymentAmount = async (
     });
 
     // Check if venue has Stripe enabled
-    const { data: venueSettings } = await supabase
+    const { data: venueSettings, error: venueError } = await supabase
       .from('venue_stripe_settings')
       .select('is_active, charge_type, charge_amount_per_guest, minimum_guests_for_charge')
       .eq('venue_id', venueId)
-      .single();
+      .maybeSingle();
 
     console.log('🏢 Venue Stripe settings:', venueSettings);
+    console.log('🏢 Venue settings error (if any):', venueError);
 
-    // If venue payments are not active, no charge
-    if (!venueSettings?.is_active) {
-      console.log('❌ Venue payments not active');
-      return {
-        shouldCharge: false,
-        amount: 0,
-        description: 'No payment required',
-        chargeType: 'none'
-      };
-    }
+    // If venue settings are not accessible or payments not active, 
+    // we'll fall back to service-level requirements
+    const venuePaymentsActive = venueSettings?.is_active === true;
 
-    // If no service specified, use venue-level settings
+    // If no service specified, use venue-level settings (if accessible)
     if (!serviceId) {
       console.log('📍 Using venue-level settings only');
+      
+      if (!venuePaymentsActive) {
+        console.log('❌ Venue payments not active or not accessible');
+        return {
+          shouldCharge: false,
+          amount: 0,
+          description: 'No payment required',
+          chargeType: 'none'
+        };
+      }
+
       let shouldCharge = false;
       let amount = 0;
       let description = '';
@@ -133,10 +138,10 @@ export const calculatePaymentAmount = async (
           chargeType = serviceChargeType;
           break;
       }
-    } else {
+    } else if (venuePaymentsActive) {
       console.log('🔄 Service doesn\'t require payment, checking venue settings...');
       
-      // Fall back to venue-level settings if service doesn't require payment
+      // Fall back to venue-level settings if service doesn't require payment and venue settings are accessible
       switch (venueSettings.charge_type) {
         case 'all_reservations':
           shouldCharge = true;
@@ -160,6 +165,10 @@ export const calculatePaymentAmount = async (
           chargeType = 'none';
           break;
       }
+    } else {
+      console.log('❌ Venue settings not accessible and service doesn\'t require payment - no charge');
+      shouldCharge = false;
+      chargeType = 'none';
     }
 
     const result = {
