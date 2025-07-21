@@ -181,11 +181,12 @@ const NewHostInterface = () => {
 
   const handleFullBookingCreate = async (bookingData: any) => {
     try {
-      await createBooking(bookingData);
+      const booking = await createBooking(bookingData);
       toast({
         title: "Booking created",
         description: `Booking created for ${bookingData.guest_name}`,
       });
+      return booking;
     } catch (error) {
       console.error('❌ Full booking creation error:', error);
       toast({
@@ -193,6 +194,7 @@ const NewHostInterface = () => {
         description: "Failed to create booking",
         variant: "destructive"
       });
+      throw error;
     }
   };
 

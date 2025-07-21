@@ -159,7 +159,7 @@ export const useBookings = (date?: string) => {
         }
       }
 
-      return booking;
+      return booking as Booking;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bookings'] });

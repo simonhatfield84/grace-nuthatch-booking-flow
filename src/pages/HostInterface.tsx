@@ -493,12 +493,14 @@ const HostInterface = () => {
                     throw new Error('No venue ID found');
                   }
 
-                  const { error } = await supabase
+                  const { data: booking, error } = await supabase
                     .from('bookings')
                     .insert({
                       ...bookingData,
                       venue_id: profile.venue_id
-                    });
+                    })
+                    .select()
+                    .single();
                   
                   if (error) throw error;
                   
@@ -507,6 +509,8 @@ const HostInterface = () => {
                     title: "Booking Created",
                     description: `Booking for ${bookingData.guest_name} created successfully`,
                   });
+                  
+                  return booking;
                 } catch (error) {
                   console.error('Error creating booking:', error);
                   toast({

@@ -11,7 +11,9 @@ import { format } from 'date-fns';
 import { useTables } from '@/hooks/useTables';
 import { useServices } from '@/hooks/useServices';
 import { useToast } from '@/hooks/use-toast';
-import { useEmailService } from '@/hooks/useEmailService';
+import { bookingEmailService } from '@/services/bookingEmailService';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 import { EnhancedTimeSlotSelector } from "@/components/bookings/EnhancedTimeSlotSelector";
 import { ManualTableSelector } from './ManualTableSelector';
 import { TableConflictResolver } from './TableConflictResolver';
@@ -20,7 +22,7 @@ interface FullBookingDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedDate: Date;
-  onCreateBooking: (bookingData: any) => void;
+  onCreateBooking: (bookingData: any) => Promise<any>;
 }
 
 export const FullBookingDialog = ({ 
@@ -47,7 +49,7 @@ export const FullBookingDialog = ({
   const { tables } = useTables();
   const { services } = useServices();
   const { toast } = useToast();
-  const { sendBookingConfirmation } = useEmailService();
+  const { user } = useAuth();
 
   const handleSubmit = async () => {
     if (!formData.guest_name.trim()) {
@@ -87,24 +89,34 @@ export const FullBookingDialog = ({
         original_table_id: tableId
       };
 
-      await onCreateBooking(bookingData);
+      const createdBooking = await onCreateBooking(bookingData);
 
       // Send confirmation email if requested and email is provided
-      if (sendConfirmationEmail && formData.email) {
+      if (sendConfirmationEmail && formData.email && createdBooking) {
         try {
-          // Get venue info - we need to pass this somehow
-          await sendBookingConfirmation(
-            formData.email,
-            {
-              guest_name: formData.guest_name,
-              venue_name: "Your Venue", // TODO: Get actual venue name
-              booking_date: format(selectedDate, 'EEEE, MMMM do, yyyy'),
-              booking_time: formData.booking_time,
-              party_size: formData.party_size.toString(),
-              booking_reference: 'TBD' // TODO: Generate or retrieve booking reference
-            },
-            "venue-slug" // TODO: Get actual venue slug
-          );
+          // Get user's venue info
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('venue_id, venues!inner(name, slug)')
+            .eq('id', user?.id)
+            .single();
+
+          if (profile?.venue_id) {
+            const venue = profile.venues as any;
+            await bookingEmailService.sendConfirmation(
+              createdBooking.id,
+              formData.email,
+              {
+                guest_name: formData.guest_name,
+                venue_name: venue.name || "Your Venue",
+                booking_date: format(selectedDate, 'EEEE, MMMM do, yyyy'),
+                booking_time: formData.booking_time,
+                party_size: formData.party_size.toString(),
+                booking_reference: createdBooking.booking_reference || 'N/A'
+              },
+              profile.venue_id
+            );
+          }
         } catch (emailError) {
           console.error('Failed to send confirmation email:', emailError);
           toast({
