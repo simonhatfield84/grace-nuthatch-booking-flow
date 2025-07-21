@@ -1,4 +1,5 @@
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,8 +9,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Edit, Eye, Plus, Trash2, Save, X, Power, Clock } from "lucide-react";
-import { useEmailTemplates, EmailTemplate, EmailTemplateCreate, EmailTemplateUpdate } from "@/hooks/useEmailTemplates";
+import { Edit, Eye, Save, X, Clock } from "lucide-react";
+import { useEmailTemplates, EmailTemplate, EmailTemplateUpdate } from "@/hooks/useEmailTemplates";
 import { emailTemplateService } from "@/services/emailTemplateService";
 
 interface EmailTemplateEditorProps {
@@ -19,39 +20,26 @@ interface EmailTemplateEditorProps {
 }
 
 export function EmailTemplateEditor({ template, onSave, onCancel }: EmailTemplateEditorProps) {
-  const { createTemplate, updateTemplate } = useEmailTemplates();
+  const { updateTemplate } = useEmailTemplates();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
-    template_key: template?.template_key || '',
-    template_type: template?.template_type || 'venue',
     subject: template?.subject || '',
     html_content: template?.html_content || '',
     text_content: template?.text_content || '',
   });
 
   const handleSave = async () => {
+    if (!template) return;
+    
     try {
       setIsLoading(true);
       
-      if (template) {
-        // Update existing template
-        const updates: EmailTemplateUpdate = {
-          subject: formData.subject,
-          html_content: formData.html_content,
-          text_content: formData.text_content || undefined,
-        };
-        await updateTemplate(template.id, updates);
-      } else {
-        // Create new template
-        const newTemplate: EmailTemplateCreate = {
-          template_key: formData.template_key,
-          template_type: formData.template_type,
-          subject: formData.subject,
-          html_content: formData.html_content,
-          text_content: formData.text_content || undefined,
-        };
-        await createTemplate(newTemplate);
-      }
+      const updates: EmailTemplateUpdate = {
+        subject: formData.subject,
+        html_content: formData.html_content,
+        text_content: formData.text_content || undefined,
+      };
+      await updateTemplate(template.id, updates);
       
       onSave?.();
     } catch (error) {
@@ -66,29 +54,6 @@ export function EmailTemplateEditor({ template, onSave, onCancel }: EmailTemplat
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="template_key">Template Key</Label>
-          <Input
-            id="template_key"
-            value={formData.template_key}
-            onChange={(e) => setFormData({ ...formData, template_key: e.target.value })}
-            placeholder="booking_confirmation"
-            disabled={!!template} // Don't allow editing key for existing templates
-          />
-        </div>
-        <div>
-          <Label htmlFor="template_type">Template Type</Label>
-          <Input
-            id="template_type"
-            value={formData.template_type}
-            onChange={(e) => setFormData({ ...formData, template_type: e.target.value })}
-            placeholder="venue"
-            disabled={!!template}
-          />
-        </div>
-      </div>
-
       <div>
         <Label htmlFor="subject">Subject Line</Label>
         <Input
@@ -177,8 +142,8 @@ export function EmailTemplateEditor({ template, onSave, onCancel }: EmailTemplat
 }
 
 export function EmailTemplatesList() {
-  const { templates, isLoading, createDefaultTemplates, toggleTemplateActive } = useEmailTemplates();
-  const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
+  const { templates, isLoading, createDefaultTemplates, toggleTemplateActive, loadTemplates } = useEmailTemplates();
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   const predefinedTemplates = [
     { key: 'booking_confirmation', name: 'Booking Confirmation', description: 'Sent immediately after a booking is confirmed' },
@@ -189,6 +154,14 @@ export function EmailTemplatesList() {
     { key: 'booking_no_show', name: 'No-Show Follow-up', description: 'Sent when a booking is marked as no-show' },
     { key: 'walk_in_confirmation', name: 'Walk-in Confirmation', description: 'Sent when a walk-in visit is recorded' },
   ];
+
+  // Auto-create default templates if none exist
+  useEffect(() => {
+    if (!isLoading && !hasInitialized && templates.length === 0) {
+      setHasInitialized(true);
+      createDefaultTemplates();
+    }
+  }, [isLoading, templates.length, hasInitialized, createDefaultTemplates]);
 
   if (isLoading) {
     return <div>Loading templates...</div>;
@@ -203,11 +176,9 @@ export function EmailTemplatesList() {
             Manage automated email communications for your venue
           </p>
         </div>
-        {templates.length === 0 && (
-          <Button onClick={createDefaultTemplates} variant="outline">
-            Create Default Templates
-          </Button>
-        )}
+        <Button onClick={loadTemplates} variant="outline">
+          Refresh Templates
+        </Button>
       </div>
 
       <div className="grid gap-4">
@@ -239,11 +210,11 @@ export function EmailTemplatesList() {
                           )}
                         </div>
                       ) : (
-                        <Badge variant="secondary">Not Created</Badge>
+                        <Badge variant="secondary">Creating...</Badge>
                       )}
                     </div>
                     <CardDescription className="text-sm mb-2">
-                      {existingTemplate ? existingTemplate.subject : 'Template not yet created'}
+                      {existingTemplate ? existingTemplate.subject : 'Template is being created...'}
                     </CardDescription>
                     <p className="text-xs text-muted-foreground">
                       <strong>When sent:</strong> {predefined.description}
@@ -290,7 +261,9 @@ export function EmailTemplatesList() {
                             </DialogHeader>
                             <EmailTemplateEditor
                               template={existingTemplate}
-                              onSave={() => {}}
+                              onSave={() => {
+                                loadTemplates();
+                              }}
                               onCancel={() => {}}
                             />
                           </DialogContent>
@@ -303,7 +276,7 @@ export function EmailTemplatesList() {
                         onClick={createDefaultTemplates}
                         disabled={isLoading}
                       >
-                        Create Templates
+                        Retry Creation
                       </Button>
                     )}
                   </div>
@@ -313,17 +286,6 @@ export function EmailTemplatesList() {
           );
         })}
       </div>
-
-      {templates.length === 0 && (
-        <Card>
-          <CardContent className="text-center py-8">
-            <p className="text-muted-foreground mb-4">No email templates found</p>
-            <Button onClick={createDefaultTemplates}>
-              Create Default Templates
-            </Button>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
