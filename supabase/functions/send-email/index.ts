@@ -208,11 +208,20 @@ async function handleBookingEmail(supabase: any, request: SendEmailRequest): Pro
         .single();
 
       if (!cancelError && cancelTokenData) {
-        // Use consistent base URL - prioritize referer header, then origin, then default
-        const baseUrl = req.headers.get('referer')?.split('/')[0] + '//' + req.headers.get('referer')?.split('/')[2] || 
-                       req.headers.get('origin') || 
-                       'https://wxyotttvyexxzeaewyga.supabase.co';
+        // Generate proper base URL for booking links
+        const origin = req.headers.get('origin');
+        const referer = req.headers.get('referer');
+        let baseUrl = 'https://graceful-kangaroo-afa6b6.netlify.app'; // Default production URL
+        
+        if (origin) {
+          baseUrl = origin;
+        } else if (referer) {
+          const url = new URL(referer);
+          baseUrl = `${url.protocol}//${url.host}`;
+        }
+        
         cancelLink = `${baseUrl}/cancel-booking?token=${cancelTokenData.token}`;
+        console.log('🔗 Generated cancel link:', cancelLink);
       }
 
       const { data: modifyTokenResult, error: modifyTokenError } = await supabase
@@ -231,15 +240,27 @@ async function handleBookingEmail(supabase: any, request: SendEmailRequest): Pro
         .single();
 
       if (!modifyError && modifyTokenData) {
-        // Use consistent base URL - prioritize referer header, then origin, then default
-        const baseUrl = req.headers.get('referer')?.split('/')[0] + '//' + req.headers.get('referer')?.split('/')[2] || 
-                       req.headers.get('origin') || 
-                       'https://wxyotttvyexxzeaewyga.supabase.co';
+        // Generate proper base URL for booking links
+        const origin = req.headers.get('origin');
+        const referer = req.headers.get('referer');
+        let baseUrl = 'https://graceful-kangaroo-afa6b6.netlify.app'; // Default production URL
+        
+        if (origin) {
+          baseUrl = origin;
+        } else if (referer) {
+          const url = new URL(referer);
+          baseUrl = `${url.protocol}//${url.host}`;
+        }
+        
         modifyLink = `${baseUrl}/modify-booking?token=${modifyTokenData.token}`;
+        console.log('🔗 Generated modify link:', modifyLink);
       }
     } catch (error) {
-      console.warn('⚠️ Failed to generate booking tokens:', error);
+      console.error('❌ Failed to generate booking tokens:', error);
+      console.error('Token generation error details:', error);
     }
+    
+    console.log('🔗 Final links generated:', { cancelLink, modifyLink });
 
     // Calculate end time
     let bookingEndTime = '';
