@@ -48,20 +48,10 @@ export const useEmailTemplates = () => {
     try {
       setIsLoading(true);
 
-      // Get user's venue
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('venue_id')
-        .eq('id', user?.id)
-        .single();
-
-      if (!profile?.venue_id) return;
-
-      // Load venue-specific templates and platform templates
+      // Load venue-specific templates only
       const { data, error } = await supabase
         .from('email_templates')
         .select('*')
-        .or(`venue_id.eq.${profile.venue_id},venue_id.is.null`)
         .order('template_key');
 
       if (error) throw error;
@@ -80,7 +70,7 @@ export const useEmailTemplates = () => {
 
   const createTemplate = async (template: EmailTemplateCreate) => {
     try {
-      // Get user's venue
+      // Get user's venue from profile
       const { data: profile } = await supabase
         .from('profiles')
         .select('venue_id')
@@ -178,7 +168,7 @@ export const useEmailTemplates = () => {
 
   const createDefaultTemplates = async () => {
     try {
-      // Get user's venue
+      // Get user's venue from profile
       const { data: profile } = await supabase
         .from('profiles')
         .select('venue_id')

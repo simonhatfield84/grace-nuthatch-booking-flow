@@ -157,7 +157,7 @@ export function EmailTemplatesList() {
 
   // Auto-create default templates if none exist
   useEffect(() => {
-    if (!isLoading && !hasInitialized && templates.length === 0) {
+    if (!isLoading && templates.length === 0 && !hasInitialized) {
       setHasInitialized(true);
       createDefaultTemplates();
     }

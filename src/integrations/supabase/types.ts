@@ -465,7 +465,7 @@ export type Database = {
           template_type: string
           text_content: string | null
           updated_at: string
-          venue_id: string | null
+          venue_id: string
         }
         Insert: {
           auto_send?: boolean
@@ -479,7 +479,7 @@ export type Database = {
           template_type?: string
           text_content?: string | null
           updated_at?: string
-          venue_id?: string | null
+          venue_id: string
         }
         Update: {
           auto_send?: boolean
@@ -493,7 +493,7 @@ export type Database = {
           template_type?: string
           text_content?: string | null
           updated_at?: string
-          venue_id?: string | null
+          venue_id?: string
         }
         Relationships: [
           {
