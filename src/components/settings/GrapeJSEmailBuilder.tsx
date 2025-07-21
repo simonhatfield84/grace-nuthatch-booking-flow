@@ -59,9 +59,6 @@ export function GrapeJSEmailBuilder({
           },
           storageManager: false,
           assetManager: {
-            storageType: '',
-            storeOnChange: true,
-            storeAfterUpload: true,
             assets: []
           },
           blockManager: {
@@ -91,10 +88,10 @@ export function GrapeJSEmailBuilder({
                 resizable: {
                   maxDim: 350,
                   minDim: 200,
-                  tc: 0,
-                  cl: 1,
-                  cr: 0,
-                  bc: 0,
+                  tc: false,
+                  cl: true,
+                  cr: false,
+                  bc: false,
                 },
               },
               {
@@ -194,7 +191,12 @@ export function GrapeJSEmailBuilder({
         grapesEditor.Commands.add('show-styles', {
           run: () => {
             const panel = grapesEditor.Panels.getPanel('layers');
-            panel.set('appendContent', grapesEditor.SelectorManager.render([]) + grapesEditor.StyleManager.render()).trigger('change:appendContent');
+            const container = document.createElement('div');
+            const selectorRender = grapesEditor.SelectorManager.render([]);
+            const styleRender = grapesEditor.StyleManager.render();
+            if (selectorRender) container.appendChild(selectorRender);
+            if (styleRender) container.appendChild(styleRender);
+            panel.set('appendContent', container).trigger('change:appendContent');
           }
         });
 
