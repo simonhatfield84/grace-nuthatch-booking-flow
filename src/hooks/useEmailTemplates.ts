@@ -172,6 +172,8 @@ export const useEmailTemplates = () => {
 
   const createDefaultTemplates = async () => {
     try {
+      console.log('🔄 Starting template creation/migration...');
+      
       // Get user's venue from profile
       const { data: profile } = await supabase
         .from('profiles')
@@ -189,6 +191,14 @@ export const useEmailTemplates = () => {
         .single();
 
       const venueName = venue?.name || 'Your Venue';
+
+      // Check existing templates
+      const { data: existingTemplates } = await supabase
+        .from('email_templates')
+        .select('*')
+        .eq('venue_id', profile.venue_id);
+
+      console.log('📋 Found existing templates:', existingTemplates?.length || 0);
 
       // Define template configurations
       const templateConfigs = [
@@ -243,40 +253,82 @@ export const useEmailTemplates = () => {
         }
       ];
 
-      // Create templates with simple Unlayer designs
-      for (const config of templateConfigs) {
-        const design = unlayerTemplateService.createSimpleDesign(config.key);
-        const html = unlayerTemplateService.generateSimpleHTML(config.key);
+      let successCount = 0;
+      let errorCount = 0;
 
-        await supabase
-          .from('email_templates')
-          .upsert({
-            venue_id: profile.venue_id,
-            template_key: config.key,
-            template_type: 'venue',
-            subject: config.subject,
-            html_content: html,
-            description: config.description,
-            is_active: true,
-            auto_send: config.auto_send,
-            design_json: design
-          }, {
-            onConflict: 'venue_id,template_key'
-          });
+      // Process each template individually
+      for (const config of templateConfigs) {
+        try {
+          console.log(`🔄 Processing template: ${config.key}`);
+          
+          const existingTemplate = existingTemplates?.find(t => t.template_key === config.key);
+          const design = unlayerTemplateService.createSimpleDesign(config.key);
+          const html = unlayerTemplateService.generateSimpleHTML(config.key);
+
+          if (existingTemplate) {
+            // Update existing template if it's missing design_json
+            if (!existingTemplate.design_json) {
+              console.log(`📝 Updating template with design: ${config.key}`);
+              await supabase
+                .from('email_templates')
+                .update({
+                  design_json: design,
+                  subject: config.subject,
+                  html_content: html
+                })
+                .eq('id', existingTemplate.id);
+              console.log(`✅ Updated template: ${config.key}`);
+            } else {
+              console.log(`⏭️ Template already has design: ${config.key}`);
+            }
+          } else {
+            // Create new template
+            console.log(`➕ Creating new template: ${config.key}`);
+            await supabase
+              .from('email_templates')
+              .insert({
+                venue_id: profile.venue_id,
+                template_key: config.key,
+                template_type: 'venue',
+                subject: config.subject,
+                html_content: html,
+                description: config.description,
+                is_active: true,
+                auto_send: config.auto_send,
+                design_json: design
+              });
+            console.log(`✅ Created template: ${config.key}`);
+          }
+          
+          successCount++;
+        } catch (templateError) {
+          console.error(`❌ Error processing template ${config.key}:`, templateError);
+          errorCount++;
+        }
       }
 
       // Reload templates
       await loadTemplates();
 
-      toast({
-        title: "Templates Created",
-        description: "Simple email templates have been created with visual editor support"
-      });
+      console.log(`📊 Template processing complete: ${successCount} success, ${errorCount} errors`);
+
+      if (errorCount === 0) {
+        toast({
+          title: "Templates Ready",
+          description: `Successfully processed ${successCount} email templates with visual editor support`
+        });
+      } else {
+        toast({
+          title: "Partial Success", 
+          description: `Processed ${successCount} templates, ${errorCount} failed. Check console for details.`,
+          variant: "destructive"
+        });
+      }
     } catch (error) {
-      console.error('Error creating default templates:', error);
+      console.error('💥 Fatal error in template creation:', error);
       toast({
         title: "Error",
-        description: "Failed to create default templates",
+        description: "Failed to create default templates. Check console for details.",
         variant: "destructive"
       });
     }

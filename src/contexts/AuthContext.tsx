@@ -58,16 +58,41 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signOut = async () => {
     console.log('👋 Signing out user...');
-    try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error('❌ Sign out error:', error);
-        throw error;
+    
+    // Retry logic for sign out
+    const maxRetries = 3;
+    let retryCount = 0;
+    
+    while (retryCount < maxRetries) {
+      try {
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+          console.error(`❌ Sign out error (attempt ${retryCount + 1}):`, error);
+          if (retryCount === maxRetries - 1) {
+            // On final attempt, try to clear session manually
+            console.log('🧹 Attempting manual session clear...');
+            setSession(null);
+            setUser(null);
+            localStorage.removeItem('supabase.auth.token');
+            return;
+          }
+          throw error;
+        }
+        console.log('✅ Sign out successful');
+        return;
+      } catch (error) {
+        retryCount++;
+        if (retryCount < maxRetries) {
+          console.log(`🔄 Retrying sign out in ${retryCount * 1000}ms...`);
+          await new Promise(resolve => setTimeout(resolve, retryCount * 1000));
+        } else {
+          console.error('💥 Sign out failed after all retries, clearing session manually');
+          // Clear session state manually as fallback
+          setSession(null);
+          setUser(null);
+          localStorage.removeItem('supabase.auth.token');
+        }
       }
-      console.log('✅ Sign out successful');
-    } catch (error) {
-      console.error('💥 Sign out failed:', error);
-      throw error;
     }
   };
 
