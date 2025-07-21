@@ -64,22 +64,27 @@ export function EmailTemplateEditor({ template, onSave, onCancel }: EmailTemplat
   const availableVariables = emailTemplateService.getAvailableVariables();
 
   if (showBuilder) {
-    return useUnlayerBuilder ? (
-      <UnlayerEmailBuilder
-        initialHtml={formData.html_content}
-        initialDesign={formData.design_json}
-        onSave={handleBuilderSave}
-        onCancel={() => setShowBuilder(false)}
-        availableVariables={availableVariables}
-      />
-    ) : (
-      <GrapeJSEmailBuilder
-        initialHtml={formData.html_content}
-        initialDesign={formData.design_json}
-        onSave={handleBuilderSave}
-        onCancel={() => setShowBuilder(false)}
-        availableVariables={availableVariables}
-      />
+    return (
+      <div className="fixed inset-0 z-50">
+        {useUnlayerBuilder ? (
+          <UnlayerEmailBuilder
+            initialHtml={formData.html_content}
+            initialDesign={formData.design_json}
+            onSave={handleBuilderSave}
+            onCancel={() => setShowBuilder(false)}
+            availableVariables={availableVariables}
+            fullScreen={true}
+          />
+        ) : (
+          <GrapeJSEmailBuilder
+            initialHtml={formData.html_content}
+            initialDesign={formData.design_json}
+            onSave={handleBuilderSave}
+            onCancel={() => setShowBuilder(false)}
+            availableVariables={availableVariables}
+          />
+        )}
+      </div>
     );
   }
 
