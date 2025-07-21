@@ -18,7 +18,7 @@ export const WebhookConfiguration = () => {
   const webhookUrl = `https://wxyotttvyexxzeaewyga.supabase.co/functions/v1/stripe-webhook-secure`;
 
   useEffect(() => {
-    if (stripeSettings?.webhook_endpoint_secret) {
+    if (stripeSettings && 'webhook_endpoint_secret' in stripeSettings && stripeSettings.webhook_endpoint_secret) {
       setWebhookSecret(stripeSettings.webhook_endpoint_secret);
     }
   }, [stripeSettings]);
@@ -156,20 +156,20 @@ export const WebhookConfiguration = () => {
         <div className="space-y-4">
           <div className="flex items-center gap-3 p-3 border rounded-lg">
             <div className={`w-3 h-3 rounded-full ${
-              stripeSettings?.webhook_endpoint_secret ? 'bg-green-500' : 'bg-gray-300'
+              (stripeSettings && 'webhook_endpoint_secret' in stripeSettings && stripeSettings.webhook_endpoint_secret) ? 'bg-green-500' : 'bg-gray-300'
             }`} />
             <div>
               <p className="font-medium">
-                {stripeSettings?.webhook_endpoint_secret ? 'Webhook Secret Configured' : 'No Webhook Secret'}
+                {(stripeSettings && 'webhook_endpoint_secret' in stripeSettings && stripeSettings.webhook_endpoint_secret) ? 'Webhook Secret Configured' : 'No Webhook Secret'}
               </p>
               <p className="text-sm text-muted-foreground">
-                {stripeSettings?.webhook_endpoint_secret 
+                {(stripeSettings && 'webhook_endpoint_secret' in stripeSettings && stripeSettings.webhook_endpoint_secret)
                   ? 'Webhook secret is configured for secure payment processing'
                   : 'Configure webhook secret to enable automatic payment status updates'
                 }
               </p>
             </div>
-            {stripeSettings?.webhook_endpoint_secret && (
+            {(stripeSettings && 'webhook_endpoint_secret' in stripeSettings && stripeSettings.webhook_endpoint_secret) && (
               <CheckCircle className="h-5 w-5 text-green-500" />
             )}
           </div>
