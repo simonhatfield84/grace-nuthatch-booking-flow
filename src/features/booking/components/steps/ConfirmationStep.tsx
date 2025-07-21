@@ -12,11 +12,13 @@ import {
   Mail,
   Download,
   Edit,
-  ExternalLink
+  ExternalLink,
+  AlertTriangle
 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface ConfirmationStepProps {
   bookingData: any;
@@ -30,6 +32,7 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
   const [bookingReference, setBookingReference] = useState<string | null>(null);
   const [hasProcessed, setHasProcessed] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
 
   const sendPublicBookingConfirmation = async (bookingId: number, guestEmail: string) => {
     try {
@@ -57,6 +60,26 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
     }
   };
 
+  const checkPaymentStatus = async (bookingId: number) => {
+    try {
+      const { data: payment, error } = await supabase
+        .from('booking_payments')
+        .select('status')
+        .eq('booking_id', bookingId)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('Error checking payment status:', error);
+        return null;
+      }
+
+      return payment?.status || null;
+    } catch (error) {
+      console.error('Error checking payment status:', error);
+      return null;
+    }
+  };
+
   useEffect(() => {
     const processBooking = async () => {
       // Prevent multiple executions
@@ -71,6 +94,10 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
         setIsCreatingBooking(true);
         
         try {
+          // Check payment status first
+          const paymentStatusResult = await checkPaymentStatus(bookingData.bookingId);
+          setPaymentStatus(paymentStatusResult);
+          
           // First check if booking already exists and get its current status
           const { data: existingBooking, error: fetchError } = await supabase
             .from('bookings')
@@ -84,13 +111,14 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
           }
 
           console.log('📋 Existing booking found:', existingBooking.status);
+          console.log('💰 Payment status:', paymentStatusResult);
 
           // If already confirmed, just set the reference and continue
           if (existingBooking.status === 'confirmed') {
             setBookingReference(existingBooking.booking_reference);
             onBookingId(existingBooking.id);
             
-            // Send booking confirmation email if guest has email
+            // Send booking confirmation email if guest has email and hasn't been sent
             if (bookingData.guestDetails.email) {
               console.log('📧 Sending confirmation email to:', bookingData.guestDetails.email);
               const emailSuccess = await sendPublicBookingConfirmation(
@@ -99,8 +127,8 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
               );
               setEmailSent(emailSuccess);
             }
-          } else {
-            // Update status to confirmed
+          } else if (paymentStatusResult === 'succeeded' || !bookingData.paymentRequired) {
+            // Update status to confirmed if payment succeeded or no payment required
             console.log('🔄 Updating booking status to confirmed');
             const { data, error } = await supabase
               .from('bookings')
@@ -131,6 +159,23 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
               title: "Booking Confirmed!",
               description: "Your payment has been processed and your table is reserved.",
             });
+          } else {
+            // Payment is still pending or failed
+            setBookingReference(existingBooking.booking_reference);
+            onBookingId(existingBooking.id);
+            
+            if (paymentStatusResult === 'failed') {
+              toast({
+                title: "Payment Failed",
+                description: "Your booking was created but payment failed. Please contact the venue.",
+                variant: "destructive",
+              });
+            } else {
+              toast({
+                title: "Payment Processing",
+                description: "Your booking was created. Payment may still be processing.",
+              });
+            }
           }
 
         } catch (error) {
@@ -300,6 +345,18 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
         )}
       </div>
 
+      {/* Payment Status Warning */}
+      {bookingData.paymentRequired && paymentStatus && paymentStatus !== 'succeeded' && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            <strong>Payment Status: {paymentStatus}</strong>
+            {paymentStatus === 'pending' && ' - Your payment may still be processing. Please contact the venue if this persists.'}
+            {paymentStatus === 'failed' && ' - Your payment failed. Please contact the venue to resolve this issue.'}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Email Status */}
       {bookingData.guestDetails.email && (
         <Card className="p-4 border-nuthatch-border">
@@ -365,12 +422,20 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
             <div className="flex justify-between">
               <span className="text-nuthatch-muted">Total Amount:</span>
               <span className="text-nuthatch-dark font-medium">
-                ${(bookingData.paymentAmount / 100).toFixed(2)}
+                £{(bookingData.paymentAmount / 100).toFixed(2)}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="text-nuthatch-muted">Status:</span>
-              <span className="text-green-600 font-medium">Paid</span>
+              <span className={`font-medium ${
+                paymentStatus === 'succeeded' ? 'text-green-600' : 
+                paymentStatus === 'failed' ? 'text-red-600' : 
+                'text-yellow-600'
+              }`}>
+                {paymentStatus === 'succeeded' ? 'Paid' : 
+                 paymentStatus === 'failed' ? 'Failed' : 
+                 paymentStatus || 'Processing'}
+              </span>
             </div>
           </div>
         </Card>
@@ -446,6 +511,9 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
           <li>• A reminder will be sent 24 hours before your booking</li>
           <li>• Please arrive on time for your reservation</li>
           <li>• Contact us directly if you need to make changes</li>
+          {paymentStatus && paymentStatus !== 'succeeded' && (
+            <li>• <strong>Payment Issue:</strong> Please contact the venue regarding your payment status</li>
+          )}
         </ul>
       </Card>
     </div>

@@ -1,7 +1,8 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Loader2, CreditCard, Lock } from "lucide-react";
+import { Loader2, CreditCard, Lock, CheckCircle, AlertTriangle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -20,6 +21,8 @@ export function PaymentStep({ amount, paymentRequired, onSuccess, bookingId, des
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [paymentCompleted, setPaymentCompleted] = useState(false);
+  const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
 
   // Create payment intent when component mounts
   useEffect(() => {
@@ -69,9 +72,102 @@ export function PaymentStep({ amount, paymentRequired, onSuccess, bookingId, des
     createPaymentIntent();
   }, [bookingId, amount, paymentRequired, description]);
 
+  // Verify payment status after completion
+  const verifyPaymentStatus = async () => {
+    setIsVerifyingPayment(true);
+    console.log('🔍 Verifying payment status for booking:', bookingId);
+
+    try {
+      // Check payment status in our database
+      const { data: paymentData, error: paymentError } = await supabase
+        .from('booking_payments')
+        .select('status, stripe_payment_intent_id')
+        .eq('booking_id', bookingId)
+        .single();
+
+      if (paymentError) {
+        console.error('Error checking payment status:', paymentError);
+        throw new Error('Failed to verify payment status');
+      }
+
+      console.log('💰 Payment status:', paymentData);
+
+      if (paymentData?.status === 'succeeded') {
+        // Update booking status to confirmed
+        const { error: bookingUpdateError } = await supabase
+          .from('bookings')
+          .update({ status: 'confirmed' })
+          .eq('id', bookingId);
+
+        if (bookingUpdateError) {
+          console.error('Error updating booking status:', bookingUpdateError);
+        }
+
+        // Send confirmation email
+        await sendConfirmationEmail();
+        
+        setPaymentCompleted(true);
+        toast.success('Payment completed successfully!');
+        
+        // Auto-proceed after a short delay
+        setTimeout(() => {
+          onSuccess();
+        }, 2000);
+      } else {
+        // Payment might still be processing, show message
+        toast.info('Payment is being processed. Please wait...');
+        
+        // Retry verification after a delay
+        setTimeout(() => {
+          verifyPaymentStatus();
+        }, 3000);
+      }
+    } catch (err) {
+      console.error('Payment verification error:', err);
+      setError('Payment verification failed. Please contact the venue if payment was deducted.');
+    } finally {
+      setIsVerifyingPayment(false);
+    }
+  };
+
+  const sendConfirmationEmail = async () => {
+    try {
+      console.log('📧 Sending confirmation email for booking:', bookingId);
+      
+      // Get booking details to get guest email
+      const { data: booking, error: bookingError } = await supabase
+        .from('bookings')
+        .select('email, venue_id')
+        .eq('id', bookingId)
+        .single();
+
+      if (bookingError || !booking?.email) {
+        console.log('No email found for booking, skipping email send');
+        return;
+      }
+
+      const { error: emailError } = await supabase.functions.invoke('send-email', {
+        body: {
+          booking_id: bookingId,
+          guest_email: booking.email,
+          venue_id: booking.venue_id,
+          email_type: 'booking_confirmation'
+        }
+      });
+
+      if (emailError) {
+        console.error('Email sending failed:', emailError);
+      } else {
+        console.log('✅ Confirmation email sent successfully');
+      }
+    } catch (error) {
+      console.error('Error sending confirmation email:', error);
+    }
+  };
+
   const handlePaymentSuccess = () => {
-    toast.success('Payment completed successfully!');
-    onSuccess();
+    console.log('💳 Payment successful, verifying status...');
+    verifyPaymentStatus();
   };
 
   const handlePaymentError = (errorMessage: string) => {
@@ -104,6 +200,51 @@ export function PaymentStep({ amount, paymentRequired, onSuccess, bookingId, des
   const formatAmount = (pence: number) => {
     return (pence / 100).toFixed(2);
   };
+
+  // Show payment completed state
+  if (paymentCompleted) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+            <CheckCircle className="h-8 w-8 text-green-600" />
+          </div>
+          <h2 className="text-2xl font-nuthatch-heading font-light text-nuthatch-dark mb-2">
+            Payment Successful!
+          </h2>
+          <p className="text-nuthatch-muted">
+            Your booking has been confirmed and you'll be redirected shortly
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show payment verification state
+  if (isVerifyingPayment) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
+            <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+          </div>
+          <h2 className="text-2xl font-nuthatch-heading font-light text-nuthatch-dark mb-2">
+            Verifying Payment
+          </h2>
+          <p className="text-nuthatch-muted">
+            Please wait while we confirm your payment...
+          </p>
+        </div>
+        
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            This may take a few moments. Please don't close this page.
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
