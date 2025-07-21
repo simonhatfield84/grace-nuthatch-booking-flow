@@ -28,11 +28,6 @@ export function GrapeJSEmailBuilder({
     const initializeEditor = async () => {
       console.log('Starting GrapeJS initialization...');
       try {
-        if (!editorRef.current) {
-          console.error('Editor container not found');
-          return;
-        }
-
         console.log('Loading GrapeJS modules...');
         // Dynamic import to avoid SSR issues
         const grapesjs = await import('grapesjs');
@@ -43,6 +38,11 @@ export function GrapeJSEmailBuilder({
         // Import CSS for GrapeJS
         await import('grapesjs/dist/css/grapes.min.css');
         console.log('GrapeJS CSS loaded');
+
+        if (!editorRef.current) {
+          console.error('Editor container not found after loading modules');
+          throw new Error('Editor container not available');
+        }
 
         console.log('Initializing GrapeJS editor...');
         const grapesEditor = grapesjs.default.init({
@@ -278,7 +278,17 @@ export function GrapeJSEmailBuilder({
       }
     };
 
-    initializeEditor();
+    const initializeWithRetry = () => {
+      if (!editorRef.current) {
+        console.log('Container not ready, retrying in 100ms...');
+        setTimeout(initializeWithRetry, 100);
+        return;
+      }
+      initializeEditor();
+    };
+
+    // Small delay to ensure dialog is mounted, then start retry mechanism
+    setTimeout(initializeWithRetry, 50);
 
     return () => {
       if (editor) {
