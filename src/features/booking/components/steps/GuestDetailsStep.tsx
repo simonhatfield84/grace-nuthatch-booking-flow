@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +51,7 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [bookingId, setBookingId] = useState<number | null>(null);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   // Load terms and conditions and calculate payment
   useEffect(() => {
@@ -63,7 +65,7 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
       
       setTerms(termsText || "Standard booking terms and conditions apply.");
 
-  // Calculate payment
+      // Calculate payment
       if (service?.id && venue?.id) {
         console.log('🔍 Calculating payment for:', {
           serviceId: service.id,
@@ -175,7 +177,6 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
       if (paymentAmount > 0) {
         console.log('Payment required, creating payment intent...');
         await createPaymentIntent(data.id, paymentAmount);
-        // Don't call onChange here - wait for payment completion
       } else {
         // No payment required, proceed to confirmation
         toast.success("Booking created successfully!");
@@ -227,7 +228,7 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
 
   const handlePaymentSuccess = async () => {
     console.log('Payment successful, verifying and updating booking status...');
-    setIsCreatingBooking(true);
+    setIsProcessingPayment(true);
     
     try {
       // Verify payment status first
@@ -293,12 +294,13 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
       // Still proceed to confirmation but with error state
       onChange(formData, true, paymentCalculation?.amount || 0, bookingId!);
     } finally {
-      setIsCreatingBooking(false);
+      setIsProcessingPayment(false);
     }
   };
 
   const handlePaymentError = (errorMessage: string) => {
     toast.error(errorMessage);
+    setIsProcessingPayment(false);
   };
 
   const updateField = (field: string, value: any) => {
@@ -307,6 +309,31 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
+  };
+
+  const getButtonText = () => {
+    if (isProcessingPayment) {
+      return 'Confirming Payment...';
+    }
+    if (isCreatingBooking) {
+      return showPaymentForm ? 'Processing Payment...' : 'Creating Booking...';
+    }
+    if (showPaymentForm) {
+      return 'Complete Payment Above';
+    }
+    if (paymentCalculation?.shouldCharge) {
+      return 'Continue to Payment';
+    }
+    return 'Complete Booking';
+  };
+
+  const isButtonDisabled = () => {
+    return !formData.name || 
+           !formData.phone || 
+           !formData.termsAccepted || 
+           isCreatingBooking || 
+           isProcessingPayment ||
+           (showPaymentForm && !clientSecret);
   };
 
   return (
@@ -464,27 +491,26 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
         )}
       </div>
 
-      {!showPaymentForm ? (
-        <Button
-          onClick={handleSubmit}
-          className="w-full bg-nuthatch-green hover:bg-nuthatch-dark text-nuthatch-white"
-          disabled={!formData.name || !formData.phone || !formData.termsAccepted || isCreatingBooking}
-        >
-          {isCreatingBooking ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              {showPaymentForm ? 'Processing Payment...' : 'Creating Booking...'}
-            </>
-          ) : paymentCalculation?.shouldCharge ? (
-            <>
-              <CreditCard className="mr-2 h-4 w-4" />
-              Continue to Payment
-            </>
-          ) : (
-            "Complete Booking"
-          )}
-        </Button>
-      ) : null}
+      {/* Submit Button - Always show but change text based on state */}
+      <Button
+        onClick={handleSubmit}
+        className="w-full bg-nuthatch-green hover:bg-nuthatch-dark text-nuthatch-white"
+        disabled={isButtonDisabled()}
+      >
+        {isProcessingPayment || isCreatingBooking ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            {getButtonText()}
+          </>
+        ) : paymentCalculation?.shouldCharge ? (
+          <>
+            <CreditCard className="mr-2 h-4 w-4" />
+            {getButtonText()}
+          </>
+        ) : (
+          getButtonText()
+        )}
+      </Button>
 
       {/* Payment Section */}
       {showPaymentForm && clientSecret && (
@@ -494,7 +520,7 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
               Secure Payment
             </h3>
             <p className="text-nuthatch-muted">
-              Complete your booking with a secure payment
+              Complete your booking with a secure payment. Use the payment form below or the button above when ready.
             </p>
           </div>
 
@@ -511,7 +537,7 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
           </Card>
 
           <StripeProvider venueId={venue?.id} usePublicMode={true}>
-            <div className={`space-y-4 ${isCreatingBooking ? 'opacity-50 pointer-events-none' : ''}`}>
+            <div className={`space-y-4 ${isProcessingPayment ? 'opacity-50 pointer-events-none' : ''}`}>
               <AppleGooglePayButton
                 clientSecret={clientSecret}
                 amount={paymentCalculation?.amount || 0}
@@ -530,7 +556,7 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
             </div>
           </StripeProvider>
 
-          {isCreatingBooking && (
+          {isProcessingPayment && (
             <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <div className="flex items-center space-x-2">
                 <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
