@@ -114,6 +114,7 @@ export const unlayerTemplateService = {
                 values: {
                   containerPadding: "20px",
                   fontSize: "16px",
+                  fontWeight: "normal",
                   lineHeight: "1.6",
                   color: "#374151",
                   text: this.getContentForTemplate(templateType),
@@ -154,6 +155,7 @@ export const unlayerTemplateService = {
                 values: {
                   containerPadding: "20px",
                   fontSize: "14px",
+                  fontWeight: "normal",
                   lineHeight: "1.5",
                   color: "#000000",
                   backgroundColor: "#ffffff",
@@ -208,54 +210,22 @@ export const unlayerTemplateService = {
         cells: [1],
         columns: [{
           id: "u_column_5",
-          contents: [
-            {
-              id: "u_content_button_1",
-              type: "button",
-              values: {
-                containerPadding: "10px",
-                buttonColors: {
-                  color: "#ffffff",
-                  backgroundColor: "#000000",
-                  hoverColor: "#ffffff",
-                  hoverBackgroundColor: "#374151"
-                },
-                size: {
-                  autoWidth: true,
-                  width: "150px"
-                },
-                text: "Modify Booking",
-                href: "{{modify_link}}",
-                _meta: {
-                  htmlID: "u_content_button_1",
-                  htmlClassNames: ""
-                }
-              }
-            },
-            {
-              id: "u_content_button_2", 
-              type: "button",
-              values: {
-                containerPadding: "10px",
-                buttonColors: {
-                  color: "#ffffff",
-                  backgroundColor: "#000000",
-                  hoverColor: "#ffffff",
-                  hoverBackgroundColor: "#374151"
-                },
-                size: {
-                  autoWidth: true,
-                  width: "150px"
-                },
-                text: "Cancel Booking",
-                href: "{{cancel_link}}",
-                _meta: {
-                  htmlID: "u_content_button_2",
-                  htmlClassNames: ""
-                }
+          contents: [{
+            id: "u_content_text_buttons",
+            type: "text",
+            values: {
+              containerPadding: "20px",
+              fontSize: "14px",
+              fontWeight: "normal",
+              textAlign: "center",
+              color: "#000000",
+              text: '<div style="text-align: center; margin: 20px 0;"><a href="{{modify_link}}" style="background: #000; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin-right: 10px;">Modify Booking</a> <a href="{{cancel_link}}" style="background: #000; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px;">Cancel Booking</a></div>',
+              _meta: {
+                htmlID: "u_content_text_buttons",
+                htmlClassNames: ""
               }
             }
-          ],
+          }],
           values: {
             backgroundColor: "",
             padding: "0px",
@@ -288,6 +258,7 @@ export const unlayerTemplateService = {
           values: {
             containerPadding: "20px",
             fontSize: "12px",
+            fontWeight: "normal",
             textAlign: "center",
             color: "#94a3b8",
             text: "<p>{{email_signature}}</p><p style=\"margin-top: 20px; font-size: 10px; color: #999;\">Powered by Grace</p>",
