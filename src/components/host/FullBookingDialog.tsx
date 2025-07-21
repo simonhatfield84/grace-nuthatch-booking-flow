@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -11,7 +10,6 @@ import { format } from 'date-fns';
 import { useTables } from '@/hooks/useTables';
 import { useServices } from '@/hooks/useServices';
 import { useToast } from '@/hooks/use-toast';
-import { bookingEmailService } from '@/services/bookingEmailService';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { EnhancedTimeSlotSelector } from "@/components/bookings/EnhancedTimeSlotSelector";
@@ -89,10 +87,14 @@ export const FullBookingDialog = ({
         original_table_id: tableId
       };
 
+      console.log('📋 Creating booking with data:', bookingData);
       const createdBooking = await onCreateBooking(bookingData);
+      console.log('✅ Booking created successfully:', createdBooking);
 
       // Send confirmation email if requested and email is provided
-      if (sendConfirmationEmail && formData.email && createdBooking) {
+      if (sendConfirmationEmail && formData.email && createdBooking?.id) {
+        console.log('📧 Attempting to send confirmation email for booking ID:', createdBooking.id);
+        
         try {
           // Get user's venue info
           const { data: profile } = await supabase
@@ -101,30 +103,54 @@ export const FullBookingDialog = ({
             .eq('id', user?.id)
             .single();
 
+          console.log('🏢 User profile and venue data:', profile);
+
           if (profile?.venue_id) {
             const venue = profile.venues as any;
-            await bookingEmailService.sendConfirmation(
-              createdBooking.id,
-              formData.email,
-              {
-                guest_name: formData.guest_name,
-                venue_name: venue.name || "Your Venue",
-                booking_date: format(selectedDate, 'EEEE, MMMM do, yyyy'),
-                booking_time: formData.booking_time,
-                party_size: formData.party_size.toString(),
-                booking_reference: createdBooking.booking_reference || 'N/A'
+            
+            // Call the edge function directly for more reliable email sending
+            console.log('📨 Calling send-email edge function...');
+            const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-email', {
+              body: {
+                booking_id: createdBooking.id,
+                guest_email: formData.email,
+                venue_id: profile.venue_id,
+                email_type: 'booking_confirmation',
               },
-              profile.venue_id
-            );
+            });
+
+            if (emailError) {
+              console.error('❌ Edge function error:', emailError);
+              throw emailError;
+            }
+
+            console.log('✅ Email sent successfully:', emailResult);
+            
+            toast({
+              title: "Success",
+              description: "Booking created and confirmation email sent!",
+            });
+          } else {
+            console.warn('⚠️ No venue found for user');
+            toast({
+              title: "Booking Created",
+              description: "Booking created successfully, but confirmation email could not be sent (venue not found).",
+              variant: "destructive"
+            });
           }
         } catch (emailError) {
-          console.error('Failed to send confirmation email:', emailError);
+          console.error('❌ Failed to send confirmation email:', emailError);
           toast({
             title: "Booking Created",
             description: "Booking created successfully, but confirmation email could not be sent.",
             variant: "destructive"
           });
         }
+      } else {
+        toast({
+          title: "Success",
+          description: "Booking created successfully!",
+        });
       }
 
       // Reset form
@@ -141,7 +167,12 @@ export const FullBookingDialog = ({
 
       onOpenChange(false);
     } catch (error) {
-      console.error('Failed to create booking:', error);
+      console.error('❌ Failed to create booking:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create booking. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
