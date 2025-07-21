@@ -13,11 +13,21 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  console.log('🔔 Webhook received:', {
+    method: req.method,
+    url: req.url,
+    headers: Object.fromEntries(req.headers.entries())
+  });
+
   try {
     const body = await req.text()
     const signature = req.headers.get('stripe-signature')
 
+    console.log('📝 Webhook body length:', body.length);
+    console.log('🔑 Stripe signature present:', !!signature);
+
     if (!signature) {
+      console.error('❌ No signature found in request');
       return new Response('No signature', { status: 400, headers: corsHeaders })
     }
 
@@ -26,15 +36,23 @@ serve(async (req) => {
       apiVersion: '2023-10-16'
     })
 
-    // We'll use a default webhook secret for now
-    // In production, each venue would have their own webhook endpoint
-    const webhookSecret = 'whsec_default'
+    // Get webhook secret from environment
+    const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
+    console.log('🔐 Webhook secret configured:', !!webhookSecret);
+
+    if (!webhookSecret) {
+      console.error('❌ STRIPE_WEBHOOK_SECRET not configured');
+      return new Response('Webhook secret not configured', { status: 500, headers: corsHeaders });
+    }
 
     let event
     try {
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
+      console.log('✅ Webhook signature verified successfully');
+      console.log('📋 Event type:', event.type);
+      console.log('🆔 Event ID:', event.id);
     } catch (err) {
-      console.error('Webhook signature verification failed:', err.message)
+      console.error('❌ Webhook signature verification failed:', err.message)
       return new Response(`Webhook Error: ${err.message}`, { status: 400, headers: corsHeaders })
     }
 
@@ -44,24 +62,78 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    console.log('Webhook event type:', event.type)
+    console.log('📊 Processing webhook event:', event.type);
 
     switch (event.type) {
       case 'payment_intent.succeeded':
         const paymentIntent = event.data.object
         const bookingId = paymentIntent.metadata.booking_id
 
+        console.log('💰 Payment succeeded for booking:', bookingId);
+        console.log('💳 Payment Intent ID:', paymentIntent.id);
+
         if (bookingId) {
           // Update payment status
-          await supabaseClient
+          const { error: paymentUpdateError } = await supabaseClient
             .from('booking_payments')
             .update({
               status: 'succeeded',
               payment_method_type: paymentIntent.payment_method_types?.[0] || null,
+              processed_at: new Date().toISOString(),
             })
             .eq('stripe_payment_intent_id', paymentIntent.id)
 
-          console.log(`Payment succeeded for booking ${bookingId}`)
+          if (paymentUpdateError) {
+            console.error('❌ Error updating payment status:', paymentUpdateError);
+          } else {
+            console.log('✅ Payment status updated to succeeded');
+          }
+
+          // Update booking status to confirmed
+          const { error: bookingUpdateError } = await supabaseClient
+            .from('bookings')
+            .update({
+              status: 'confirmed',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', bookingId)
+
+          if (bookingUpdateError) {
+            console.error('❌ Error updating booking status:', bookingUpdateError);
+          } else {
+            console.log('✅ Booking status updated to confirmed');
+          }
+
+          // Get booking details for email
+          const { data: booking, error: bookingError } = await supabaseClient
+            .from('bookings')
+            .select('email, venue_id')
+            .eq('id', bookingId)
+            .single();
+
+          if (booking?.email && !bookingError) {
+            console.log('📧 Sending confirmation email to:', booking.email);
+            try {
+              const { error: emailError } = await supabaseClient.functions.invoke('send-email', {
+                body: {
+                  booking_id: bookingId,
+                  guest_email: booking.email,
+                  venue_id: booking.venue_id,
+                  email_type: 'booking_confirmation'
+                }
+              });
+
+              if (emailError) {
+                console.error('❌ Error sending confirmation email:', emailError);
+              } else {
+                console.log('✅ Confirmation email sent successfully');
+              }
+            } catch (emailErr) {
+              console.error('❌ Exception sending confirmation email:', emailErr);
+            }
+          } else {
+            console.log('ℹ️ No email found for booking, skipping email send');
+          }
         }
         break
 
@@ -69,31 +141,42 @@ serve(async (req) => {
         const failedPayment = event.data.object
         const failedBookingId = failedPayment.metadata.booking_id
 
+        console.log('❌ Payment failed for booking:', failedBookingId);
+        console.log('💳 Payment Intent ID:', failedPayment.id);
+
         if (failedBookingId) {
           // Update payment status
-          await supabaseClient
+          const { error: paymentUpdateError } = await supabaseClient
             .from('booking_payments')
             .update({
               status: 'failed',
               failure_reason: failedPayment.last_payment_error?.message || 'Payment failed',
+              processed_at: new Date().toISOString(),
             })
             .eq('stripe_payment_intent_id', failedPayment.id)
 
-          console.log(`Payment failed for booking ${failedBookingId}`)
+          if (paymentUpdateError) {
+            console.error('❌ Error updating failed payment status:', paymentUpdateError);
+          } else {
+            console.log('✅ Payment status updated to failed');
+          }
+
+          console.log('❌ Payment failed for booking:', failedBookingId);
         }
         break
 
       default:
-        console.log(`Unhandled event type: ${event.type}`)
+        console.log(`📋 Unhandled event type: ${event.type}`);
     }
 
+    console.log('✅ Webhook processed successfully');
     return new Response(JSON.stringify({ received: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
 
   } catch (error) {
-    console.error('Webhook error:', error)
+    console.error('💥 Webhook error:', error)
     return new Response(
       JSON.stringify({ error: error.message }),
       {
