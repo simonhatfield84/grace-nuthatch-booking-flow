@@ -6,6 +6,7 @@ import { StripeSettings } from "@/components/settings/StripeSettings";
 import { DefaultTermsSettings } from "@/components/settings/DefaultTermsSettings";
 import { TagManagement } from "@/components/settings/TagManagement";
 import { EmailSettingsPanel } from "@/components/settings/EmailSettingsPanel";
+import { EmailTemplatesList } from "@/components/settings/EmailTemplateEditor";
 import { Settings as SettingsIcon, Clock, CreditCard, FileText, Tags, Mail } from "lucide-react";
 
 const Settings = () => {
@@ -57,7 +58,10 @@ const Settings = () => {
         </TabsContent>
 
         <TabsContent value="email">
-          <EmailSettingsPanel />
+          <div className="space-y-8">
+            <EmailSettingsPanel />
+            <EmailTemplatesList />
+          </div>
         </TabsContent>
       </Tabs>
     </div>
