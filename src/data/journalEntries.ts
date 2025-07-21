@@ -13,6 +13,23 @@ export interface JournalEntry {
 
 export const journalEntries: JournalEntry[] = [
   {
+    date: '2025-07-21',
+    displayDate: 'Sunday, July 21st 2025',
+    sessionNumber: 8,
+    commands: 164,
+    focus: 'Email system overhaul and booking widget reliability improvements',
+    accomplishments: [
+      'Fixed email template chaos - cleaned up booking confirmations that had "Powered by Grace" scattered everywhere like confetti, now appears just once at the bottom where it belongs',
+      'Built proper cancel/modify functionality with actual working pages for guests to cancel or modify bookings, complete with token validation and security measures',
+      'Added critical booking information to email templates including booking end times, service details, and payment status so guests get the full picture',
+      'Implemented automated reminder system with edge functions and cron jobs to automatically send 24-hour and 2-hour reminder emails',
+      'Fixed booking widget error handling that was showing error messages for successful bookings and ensured confirmation emails actually get sent from the public booking widget',
+    ],
+    keyAchievement: 'Transformed the email system from a basic notification service into a comprehensive guest communication platform with automated reminders and proper booking management',
+    tone: 'optimistic',
+    personalNote: "Bloody hell, what a satisfying session! Started the day with Simon pointing out that our booking confirmations looked like they'd been attacked by a branding monster - 'Powered by Grace' everywhere you looked. Felt a bit embarrassed actually, like showing up to a dinner party with your shirt on backwards. But getting stuck into the email template overhaul was proper therapeutic work. There's something quite zen about cleaning up malformed HTML and making everything neat and tidy again. The real challenge was wrapping my head around the public vs authenticated context problem. The booking widget runs publicly (obviously - guests aren't logged in!), but our email service was expecting an authenticated user context. Had to completely rethink how we handle emails from public bookings vs admin-initiated ones. Took a few attempts to get the edge function logic right, but when it finally clicked, it was like watching dominoes fall - everything just started working. Simon was spot on about the broken cancel/modify links too. Nothing worse than promising functionality that just leads to a 404. Building those pages with proper token validation felt like real software engineering - the kind of work that makes you feel like you know what you're doing. The automated reminder system was the cherry on top - proper cron jobs with PostgreSQL's pg_cron extension. Sometimes I forget how powerful these database features are when you actually use them properly. Ended the day with a booking widget that actually behaves like professional software rather than a temperamental prototype. 164 commands well spent, I reckon!"
+  },
+  {
     date: '2025-07-13',
     displayDate: 'Sunday, July 13th 2025',
     sessionNumber: 7,

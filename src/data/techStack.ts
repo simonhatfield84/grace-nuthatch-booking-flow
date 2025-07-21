@@ -21,7 +21,8 @@ export const techStack = {
     'Edge Functions (Custom Logic)',
     'Real-time Subscriptions',
     'Resend (Email Service)',
-    'Stripe (Payment Processing)'
+    'Stripe (Payment Processing)',
+    'pg_cron (Automated Scheduling)'
   ],
   features: {
     'Authentication & Authorization': [
@@ -34,7 +35,8 @@ export const techStack = {
       'Real-time availability',
       'Table allocation',
       'Service management',
-      'Payment integration'
+      'Payment integration',
+      'Public booking widget'
     ],
     'Data Management': [
       'Guest database',
@@ -42,13 +44,20 @@ export const techStack = {
       'Analytics dashboard',
       'Real-time monitoring'
     ],
+    'Email & Communications': [
+      'Branded email templates',
+      'Automated reminder system',
+      'Booking confirmations',
+      'Cancel/modify functionality',
+      'Multi-template support'
+    ],
     'Security & Infrastructure': [
       'Input validation with Zod',
       'Advanced rate limiting',
       'Webhook signature verification',
       'Real-time security monitoring',
       'GitHub integration',
-      'Email service integration'
+      'SQL injection prevention'
     ]
   }
 };
