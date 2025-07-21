@@ -9,8 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Edit, Eye, Save, X, Clock, Palette } from "lucide-react";
 import { useEmailTemplates, EmailTemplate, EmailTemplateUpdate } from "@/hooks/useEmailTemplates";
 import { emailTemplateService } from "@/services/emailTemplateService";
-import { GrapeJSEmailBuilder } from "./GrapeJSEmailBuilder";
-import { UnlayerEmailBuilder } from "./UnlayerEmailBuilder";
+import { FullScreenEmailBuilder } from "./FullScreenEmailBuilder";
 
 interface EmailTemplateEditorProps {
   template?: EmailTemplate;
@@ -22,7 +21,6 @@ export function EmailTemplateEditor({ template, onSave, onCancel }: EmailTemplat
   const { updateTemplate } = useEmailTemplates();
   const [isLoading, setIsLoading] = useState(false);
   const [showBuilder, setShowBuilder] = useState(false);
-  const [useUnlayerBuilder, setUseUnlayerBuilder] = useState(true); // Feature flag
   const [formData, setFormData] = useState({
     subject: template?.subject || '',
     html_content: template?.html_content || '',
@@ -62,31 +60,6 @@ export function EmailTemplateEditor({ template, onSave, onCancel }: EmailTemplat
   };
 
   const availableVariables = emailTemplateService.getAvailableVariables();
-
-  if (showBuilder) {
-    return (
-      <div className="fixed inset-0 z-50">
-        {useUnlayerBuilder ? (
-          <UnlayerEmailBuilder
-            initialHtml={formData.html_content}
-            initialDesign={formData.design_json}
-            onSave={handleBuilderSave}
-            onCancel={() => setShowBuilder(false)}
-            availableVariables={availableVariables}
-            fullScreen={true}
-          />
-        ) : (
-          <GrapeJSEmailBuilder
-            initialHtml={formData.html_content}
-            initialDesign={formData.design_json}
-            onSave={handleBuilderSave}
-            onCancel={() => setShowBuilder(false)}
-            availableVariables={availableVariables}
-          />
-        )}
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -149,6 +122,16 @@ export function EmailTemplateEditor({ template, onSave, onCancel }: EmailTemplat
           </Button>
         </DialogClose>
       </div>
+
+      {/* Full Screen Email Builder */}
+      <FullScreenEmailBuilder
+        isOpen={showBuilder}
+        initialHtml={formData.html_content}
+        initialDesign={formData.design_json}
+        onSave={handleBuilderSave}
+        onCancel={() => setShowBuilder(false)}
+        availableVariables={availableVariables}
+      />
     </div>
   );
 }
