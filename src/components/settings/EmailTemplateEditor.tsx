@@ -177,18 +177,18 @@ export function EmailTemplateEditor({ template, onSave, onCancel }: EmailTemplat
 }
 
 export function EmailTemplatesList() {
-  const { templates, isLoading, deleteTemplate, createDefaultTemplates, toggleTemplateActive } = useEmailTemplates();
+  const { templates, isLoading, createDefaultTemplates, toggleTemplateActive } = useEmailTemplates();
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
-  const handleDelete = async (templateId: string) => {
-    if (confirm('Are you sure you want to delete this template?')) {
-      await deleteTemplate(templateId);
-    }
-  };
-
-  const venueTemplates = templates.filter(t => t.venue_id);
-  const platformTemplates = templates.filter(t => !t.venue_id);
+  const predefinedTemplates = [
+    { key: 'booking_confirmation', name: 'Booking Confirmation', description: 'Sent immediately after a booking is confirmed' },
+    { key: 'booking_reminder_24h', name: '24-Hour Reminder', description: 'Sent 24 hours before the booking' },
+    { key: 'booking_reminder_2h', name: '2-Hour Reminder', description: 'Sent 2 hours before the booking' },
+    { key: 'booking_cancelled', name: 'Booking Cancelled', description: 'Sent when a booking is cancelled' },
+    { key: 'booking_modified', name: 'Booking Modified', description: 'Sent when a booking is modified' },
+    { key: 'booking_no_show', name: 'No-Show Follow-up', description: 'Sent when a booking is marked as no-show' },
+    { key: 'walk_in_confirmation', name: 'Walk-in Confirmation', description: 'Sent when a walk-in visit is recorded' },
+  ];
 
   if (isLoading) {
     return <div>Loading templates...</div>;
@@ -200,178 +200,119 @@ export function EmailTemplatesList() {
         <div>
           <h3 className="text-lg font-medium">Email Templates</h3>
           <p className="text-sm text-muted-foreground">
-            Manage your venue's email templates for bookings and communications
+            Manage automated email communications for your venue
           </p>
         </div>
-        <div className="flex gap-2">
+        {templates.length === 0 && (
           <Button onClick={createDefaultTemplates} variant="outline">
             Create Default Templates
           </Button>
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                New Template
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Create New Email Template</DialogTitle>
-                <DialogDescription>
-                  Create a new email template for your venue
-                </DialogDescription>
-              </DialogHeader>
-              <EmailTemplateEditor
-                onSave={() => setIsCreateDialogOpen(false)}
-                onCancel={() => setIsCreateDialogOpen(false)}
-              />
-            </DialogContent>
-          </Dialog>
-        </div>
+        )}
       </div>
 
-      {venueTemplates.length > 0 && (
-        <div>
-          <h4 className="font-medium mb-3">Venue Templates</h4>
-          <div className="grid gap-4">
-            {venueTemplates.map((template) => (
-              <Card key={template.id}>
-                <CardHeader className="pb-2">
-                  <div className="flex justify-between items-start">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <CardTitle className="text-base">{template.template_key}</CardTitle>
+      <div className="grid gap-4">
+        {predefinedTemplates.map((predefined) => {
+          const existingTemplate = templates.find(t => t.template_key === predefined.key);
+          
+          return (
+            <Card key={predefined.key}>
+              <CardHeader className="pb-2">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <CardTitle className="text-base">{predefined.name}</CardTitle>
+                      {existingTemplate ? (
                         <div className="flex items-center gap-2">
                           <Switch
-                            checked={template.is_active}
-                            onCheckedChange={(checked) => toggleTemplateActive(template.id, checked)}
+                            checked={existingTemplate.is_active}
+                            onCheckedChange={(checked) => toggleTemplateActive(existingTemplate.id, checked)}
                             className="scale-75"
                           />
-                          <span className={`text-xs px-2 py-1 rounded ${template.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                            {template.is_active ? 'Active' : 'Inactive'}
+                          <span className={`text-xs px-2 py-1 rounded ${existingTemplate.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                            {existingTemplate.is_active ? 'Active' : 'Inactive'}
                           </span>
-                          {template.auto_send && (
+                          {existingTemplate.auto_send && (
                             <Badge variant="outline" className="text-xs">
                               <Clock className="h-3 w-3 mr-1" />
                               Auto-send
                             </Badge>
                           )}
                         </div>
-                      </div>
-                      <CardDescription className="text-sm mb-2">
-                        {template.subject}
-                      </CardDescription>
-                      {template.description && (
-                        <p className="text-xs text-muted-foreground">
-                          <strong>When sent:</strong> {template.description}
-                        </p>
+                      ) : (
+                        <Badge variant="secondary">Not Created</Badge>
                       )}
                     </div>
-                    <div className="flex gap-2">
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" size="sm">
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-2xl">
-                          <DialogHeader>
-                            <DialogTitle>Preview Template</DialogTitle>
-                          </DialogHeader>
-                          <div className="border rounded-lg p-4 bg-white">
-                            <div className="mb-4 p-2 bg-muted rounded text-sm">
-                              <strong>Subject:</strong> {emailTemplateService.previewTemplate(template.subject)}
+                    <CardDescription className="text-sm mb-2">
+                      {existingTemplate ? existingTemplate.subject : 'Template not yet created'}
+                    </CardDescription>
+                    <p className="text-xs text-muted-foreground">
+                      <strong>When sent:</strong> {predefined.description}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    {existingTemplate ? (
+                      <>
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-2xl">
+                            <DialogHeader>
+                              <DialogTitle>Preview Template</DialogTitle>
+                            </DialogHeader>
+                            <div className="border rounded-lg p-4 bg-white">
+                              <div className="mb-4 p-2 bg-muted rounded text-sm">
+                                <strong>Subject:</strong> {emailTemplateService.previewTemplate(existingTemplate.subject)}
+                              </div>
+                              <div 
+                                dangerouslySetInnerHTML={{ 
+                                  __html: emailTemplateService.previewTemplate(existingTemplate.html_content) 
+                                }}
+                                className="prose max-w-none"
+                              />
                             </div>
-                            <div 
-                              dangerouslySetInnerHTML={{ 
-                                __html: emailTemplateService.previewTemplate(template.html_content) 
-                              }}
-                              className="prose max-w-none"
+                          </DialogContent>
+                        </Dialog>
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm">
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                            <DialogHeader>
+                              <DialogTitle>Edit Email Template</DialogTitle>
+                              <DialogDescription>
+                                Edit the {predefined.name} email template
+                              </DialogDescription>
+                            </DialogHeader>
+                            <EmailTemplateEditor
+                              template={existingTemplate}
+                              onSave={() => {}}
+                              onCancel={() => {}}
                             />
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" size="sm">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-                          <DialogHeader>
-                            <DialogTitle>Edit Email Template</DialogTitle>
-                            <DialogDescription>
-                              Edit the email template for {template.template_key}
-                            </DialogDescription>
-                          </DialogHeader>
-                          <EmailTemplateEditor
-                            template={template}
-                            onSave={() => {}}
-                            onCancel={() => {}}
-                          />
-                        </DialogContent>
-                      </Dialog>
+                          </DialogContent>
+                        </Dialog>
+                      </>
+                    ) : (
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        onClick={() => handleDelete(template.id)}
+                        onClick={createDefaultTemplates}
+                        disabled={isLoading}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        Create Templates
                       </Button>
-                    </div>
+                    )}
                   </div>
-                </CardHeader>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {platformTemplates.length > 0 && (
-        <div>
-          <h4 className="font-medium mb-3">Platform Templates</h4>
-          <div className="grid gap-4">
-            {platformTemplates.map((template) => (
-              <Card key={template.id} className="opacity-75">
-                <CardHeader className="pb-2">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-base">{template.template_key}</CardTitle>
-                      <CardDescription className="text-sm">
-                        {template.subject}
-                      </CardDescription>
-                      <Badge variant="secondary" className="w-fit mt-2">Platform Template</Badge>
-                    </div>
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm">
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-2xl">
-                        <DialogHeader>
-                          <DialogTitle>Preview Platform Template</DialogTitle>
-                        </DialogHeader>
-                        <div className="border rounded-lg p-4 bg-white">
-                          <div className="mb-4 p-2 bg-muted rounded text-sm">
-                            <strong>Subject:</strong> {emailTemplateService.previewTemplate(template.subject)}
-                          </div>
-                          <div 
-                            dangerouslySetInnerHTML={{ 
-                              __html: emailTemplateService.previewTemplate(template.html_content) 
-                            }}
-                            className="prose max-w-none"
-                          />
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                  </div>
-                </CardHeader>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
+                </div>
+              </CardHeader>
+            </Card>
+          );
+        })}
+      </div>
 
       {templates.length === 0 && (
         <Card>

@@ -465,6 +465,7 @@ export type Database = {
           template_type: string
           text_content: string | null
           updated_at: string
+          venue_id: string | null
         }
         Insert: {
           auto_send?: boolean
@@ -478,6 +479,7 @@ export type Database = {
           template_type?: string
           text_content?: string | null
           updated_at?: string
+          venue_id?: string | null
         }
         Update: {
           auto_send?: boolean
@@ -491,8 +493,17 @@ export type Database = {
           template_type?: string
           text_content?: string | null
           updated_at?: string
+          venue_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "email_templates_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       email_verification_codes: {
         Row: {
