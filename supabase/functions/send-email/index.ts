@@ -191,33 +191,50 @@ async function handleBookingEmail(supabase: any, request: SendEmailRequest): Pro
     let modifyLink = '';
     
     try {
+      // Use the database function for consistent token generation
+      const { data: cancelTokenResult, error: cancelTokenError } = await supabase
+        .rpc('generate_booking_token');
+        
+      if (cancelTokenError) throw cancelTokenError;
+
       const { data: cancelTokenData, error: cancelError } = await supabase
         .from('booking_tokens')
         .insert({
           booking_id: booking_id,
           token_type: 'cancel',
-          token: generateToken(),
+          token: cancelTokenResult,
         })
         .select('token')
         .single();
 
       if (!cancelError && cancelTokenData) {
-        const baseUrl = req.headers.get('origin') || 'https://grace-os.co.uk';
+        // Use consistent base URL - prioritize referer header, then origin, then default
+        const baseUrl = req.headers.get('referer')?.split('/')[0] + '//' + req.headers.get('referer')?.split('/')[2] || 
+                       req.headers.get('origin') || 
+                       'https://wxyotttvyexxzeaewyga.supabase.co';
         cancelLink = `${baseUrl}/cancel-booking?token=${cancelTokenData.token}`;
       }
+
+      const { data: modifyTokenResult, error: modifyTokenError } = await supabase
+        .rpc('generate_booking_token');
+        
+      if (modifyTokenError) throw modifyTokenError;
 
       const { data: modifyTokenData, error: modifyError } = await supabase
         .from('booking_tokens')
         .insert({
           booking_id: booking_id,
           token_type: 'modify',
-          token: generateToken(),
+          token: modifyTokenResult,
         })
         .select('token')
         .single();
 
       if (!modifyError && modifyTokenData) {
-        const baseUrl = req.headers.get('origin') || 'https://grace-os.co.uk';
+        // Use consistent base URL - prioritize referer header, then origin, then default
+        const baseUrl = req.headers.get('referer')?.split('/')[0] + '//' + req.headers.get('referer')?.split('/')[2] || 
+                       req.headers.get('origin') || 
+                       'https://wxyotttvyexxzeaewyga.supabase.co';
         modifyLink = `${baseUrl}/modify-booking?token=${modifyTokenData.token}`;
       }
     } catch (error) {
@@ -394,14 +411,6 @@ function replaceVariables(content: string, variables: TemplateVariables): string
   return processedContent;
 }
 
-function generateToken(): string {
-  // Generate a random 32-character token
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let result = '';
-  for (let i = 0; i < 32; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
-}
+// Remove custom generateToken function - using database function instead
 
 serve(handler);

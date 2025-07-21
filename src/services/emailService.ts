@@ -48,142 +48,55 @@ export const emailService = {
         }
       });
 
-      // Generate booking tokens for cancel/modify links if booking ID is provided
-      let cancelLink = '';
-      let modifyLink = '';
-      
+      // Use the edge function for all booking emails to ensure consistency
       if (bookingData.booking_id) {
-        try {
-          const tokens = await emailTemplateService.generateBookingTokens(bookingData.booking_id);
-          const baseUrl = window.location.origin;
-          cancelLink = `${baseUrl}/cancel-booking?token=${tokens.cancelToken}`;
-          modifyLink = `${baseUrl}/modify-booking?token=${tokens.modifyToken}`;
-        } catch (error) {
-          console.warn('Failed to generate booking tokens:', error);
-        }
+        const { data, error } = await supabase.functions.invoke('send-email', {
+          body: {
+            booking_id: bookingData.booking_id,
+            guest_email: guestEmail,
+            venue_id: profile.venue_id,
+            email_type: 'booking_confirmation',
+          },
+        });
+
+        if (error) throw error;
+        return true;
       }
 
-      // Get additional booking details if booking_id is provided
-      let service = 'Dinner';
-      let bookingEndTime = '';
-      let paymentStatus = '';
-      let paymentAmount = '';
-
-      if (bookingData.booking_id) {
-        try {
-          // Get booking details
-          const { data: booking } = await supabase
-            .from('bookings')
-            .select('service, end_time, booking_time, duration_minutes')
-            .eq('id', bookingData.booking_id)
-            .single();
-
-          if (booking) {
-            service = booking.service || 'Dinner';
-            
-            // Calculate end time
-            if (booking.end_time) {
-              bookingEndTime = booking.end_time;
-            } else if (booking.duration_minutes) {
-              const [hours, minutes] = booking.booking_time.split(':').map(Number);
-              const startTime = new Date();
-              startTime.setHours(hours, minutes, 0, 0);
-              const endTime = new Date(startTime.getTime() + booking.duration_minutes * 60000);
-              bookingEndTime = endTime.toTimeString().slice(0, 5);
-            }
-          }
-
-          // Get payment information
-          const { data: payment } = await supabase
-            .from('booking_payments')
-            .select('status, amount_cents')
-            .eq('booking_id', bookingData.booking_id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
-
-          if (payment) {
-            paymentStatus = payment.status === 'succeeded' ? 'Paid' : 
-                          payment.status === 'pending' ? 'Pending' : 
-                          payment.status === 'failed' ? 'Failed' : '';
-            if (payment.amount_cents) {
-              paymentAmount = `$${(payment.amount_cents / 100).toFixed(2)}`;
-            }
-          }
-        } catch (error) {
-          console.warn('Failed to fetch additional booking details:', error);
-        }
-      }
-
-      // Prepare template variables
-      const templateVariables: TemplateVariables = {
-        guest_name: bookingData.guest_name,
-        venue_name: bookingData.venue_name,
-        booking_date: bookingData.booking_date,
-        booking_time: bookingData.booking_time,
-        booking_end_time: bookingEndTime,
-        service: service,
-        party_size: bookingData.party_size,
-        booking_reference: bookingData.booking_reference,
-        payment_status: paymentStatus,
-        payment_amount: paymentAmount,
-        email_signature: emailSettings.email_signature || 'Best regards,\nYour Venue Team',
-        cancel_link: cancelLink,
-        modify_link: modifyLink,
-      };
-
-      // Try to use database template first, fallback to hardcoded
-      const processedTemplate = await emailTemplateService.processTemplate(
-        'booking_confirmation',
-        profile.venue_id,
-        templateVariables
-      );
-
-      let subject: string;
-      let html: string;
-
-      if (processedTemplate) {
-        subject = processedTemplate.subject;
-        html = processedTemplate.html;
-      } else {
-        // Fallback to hardcoded template
-        subject = `Booking Confirmation - ${bookingData.venue_name}`;
-        html = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <div style="text-align: center; margin-bottom: 30px;">
-              <h1 style="color: #ea580c; font-size: 32px; margin: 0;">grace</h1>
-              <p style="color: #64748b; margin: 5px 0;">Booking Confirmation</p>
-            </div>
-            
-            <div style="background: #f8fafc; padding: 30px; border-radius: 8px;">
-              <h2 style="color: #1e293b; margin-top: 0;">Your booking is confirmed!</h2>
-              <p>Dear ${bookingData.guest_name},</p>
-              <p>Thank you for your booking at ${bookingData.venue_name}.</p>
-              
-              <div style="background: white; padding: 20px; border-radius: 5px; margin: 20px 0;">
-                <h3 style="margin-top: 0; color: #ea580c;">Booking Details</h3>
-                <p><strong>Reference:</strong> ${bookingData.booking_reference}</p>
-                <p><strong>Date:</strong> ${bookingData.booking_date}</p>
-                <p><strong>Time:</strong> ${bookingData.booking_time}</p>
-                <p><strong>Party Size:</strong> ${bookingData.party_size}</p>
-                <p><strong>Venue:</strong> ${bookingData.venue_name}</p>
-              </div>
-              
-              <p>We look forward to seeing you!</p>
-            </div>
-            
-            <div style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 30px;">
-              <p>${emailSettings.email_signature || 'Best regards,\nYour Venue Team'}</p>
-            </div>
-          </div>
-        `;
-      }
-
+      // Fallback for bookings without ID - use legacy email sending
       const { data, error } = await supabase.functions.invoke('send-email', {
         body: {
           to: guestEmail,
-          subject,
-          html,
+          subject: `Booking Confirmation - ${bookingData.venue_name}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <div style="text-align: center; margin-bottom: 30px;">
+                <h1 style="color: #ea580c; font-size: 32px; margin: 0;">grace</h1>
+                <p style="color: #64748b; margin: 5px 0;">Booking Confirmation</p>
+              </div>
+              
+              <div style="background: #f8fafc; padding: 30px; border-radius: 8px;">
+                <h2 style="color: #1e293b; margin-top: 0;">Your booking is confirmed!</h2>
+                <p>Dear ${bookingData.guest_name},</p>
+                <p>Thank you for your booking at ${bookingData.venue_name}.</p>
+                
+                <div style="background: white; padding: 20px; border-radius: 5px; margin: 20px 0;">
+                  <h3 style="margin-top: 0; color: #ea580c;">Booking Details</h3>
+                  <p><strong>Reference:</strong> ${bookingData.booking_reference}</p>
+                  <p><strong>Date:</strong> ${bookingData.booking_date}</p>
+                  <p><strong>Time:</strong> ${bookingData.booking_time}</p>
+                  <p><strong>Party Size:</strong> ${bookingData.party_size}</p>
+                  <p><strong>Venue:</strong> ${bookingData.venue_name}</p>
+                </div>
+                
+                <p>We look forward to seeing you!</p>
+              </div>
+              
+              <div style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 30px;">
+                <p>${emailSettings.email_signature || 'Best regards,\nYour Venue Team'}</p>
+              </div>
+            </div>
+          `,
           from_email: emailSettings.from_email || 'noreply@grace-os.co.uk',
           from_name: emailSettings.from_name || bookingData.venue_name,
         },

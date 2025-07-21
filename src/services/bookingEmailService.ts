@@ -48,49 +48,13 @@ export const bookingEmailService = {
     venueId: string
   ): Promise<boolean> {
     try {
-      // Get venue settings
-      const { data: venueSettings } = await supabase
-        .from('venue_settings')
-        .select('setting_key, setting_value')
-        .eq('venue_id', venueId)
-        .in('setting_key', ['from_email', 'from_name', 'email_signature']);
-
-      const emailSettings: Record<string, string> = {};
-      venueSettings?.forEach(setting => {
-        try {
-          const parsedValue = typeof setting.setting_value === 'string' 
-            ? JSON.parse(setting.setting_value) 
-            : setting.setting_value;
-          emailSettings[setting.setting_key] = String(parsedValue || '');
-        } catch {
-          emailSettings[setting.setting_key] = String(setting.setting_value || '');
-        }
-      });
-
-      // Use cancellation template
-      const templateVariables = {
-        guest_name: bookingData.guest_name,
-        venue_name: bookingData.venue_name,
-        booking_date: bookingData.booking_date,
-        booking_time: bookingData.booking_time,
-        party_size: bookingData.party_size,
-        booking_reference: bookingData.booking_reference,
-        email_signature: emailSettings.email_signature || 'Best regards,\nThe Nuthatch Team',
-      };
-
-      const processedTemplate = await emailTemplateService.processTemplate(
-        'booking_cancelled',
-        venueId,
-        templateVariables
-      );
-
+      // Use the edge function for consistent email sending
       const { data, error } = await supabase.functions.invoke('send-email', {
         body: {
-          to: guestEmail,
-          subject: processedTemplate?.subject || `Booking Cancelled - ${bookingData.venue_name}`,
-          html: processedTemplate?.html || this.getDefaultCancellationTemplate(bookingData, emailSettings),
-          from_email: emailSettings.from_email || 'noreply@grace-os.co.uk',
-          from_name: emailSettings.from_name || bookingData.venue_name,
+          booking_id: bookingId,
+          guest_email: guestEmail,
+          venue_id: venueId,
+          email_type: 'booking_cancelled',
         },
       });
 
@@ -119,54 +83,13 @@ export const bookingEmailService = {
     venueId: string
   ): Promise<boolean> {
     try {
-      // Get venue settings
-      const { data: venueSettings } = await supabase
-        .from('venue_settings')
-        .select('setting_key, setting_value')
-        .eq('venue_id', venueId)
-        .in('setting_key', ['from_email', 'from_name', 'email_signature']);
-
-      const emailSettings: Record<string, string> = {};
-      venueSettings?.forEach(setting => {
-        try {
-          const parsedValue = typeof setting.setting_value === 'string' 
-            ? JSON.parse(setting.setting_value) 
-            : setting.setting_value;
-          emailSettings[setting.setting_key] = String(parsedValue || '');
-        } catch {
-          emailSettings[setting.setting_key] = String(setting.setting_value || '');
-        }
-      });
-
-      // Generate new tokens for the modified booking
-      const tokens = await emailTemplateService.generateBookingTokens(bookingId);
-      const baseUrl = window.location.origin;
-
-      const templateVariables = {
-        guest_name: bookingData.guest_name,
-        venue_name: bookingData.venue_name,
-        booking_date: bookingData.booking_date,
-        booking_time: bookingData.booking_time,
-        party_size: bookingData.party_size,
-        booking_reference: bookingData.booking_reference,
-        email_signature: emailSettings.email_signature || 'Best regards,\nThe Nuthatch Team',
-        cancel_link: `${baseUrl}/cancel-booking?token=${tokens.cancelToken}`,
-        modify_link: `${baseUrl}/modify-booking?token=${tokens.modifyToken}`,
-      };
-
-      const processedTemplate = await emailTemplateService.processTemplate(
-        'booking_modified',
-        venueId,
-        templateVariables
-      );
-
+      // Use the edge function for consistent email sending
       const { data, error } = await supabase.functions.invoke('send-email', {
         body: {
-          to: guestEmail,
-          subject: processedTemplate?.subject || `Booking Modified - ${bookingData.venue_name}`,
-          html: processedTemplate?.html || this.getDefaultModificationTemplate(bookingData, emailSettings, templateVariables),
-          from_email: emailSettings.from_email || 'noreply@grace-os.co.uk',
-          from_name: emailSettings.from_name || bookingData.venue_name,
+          booking_id: bookingId,
+          guest_email: guestEmail,
+          venue_id: venueId,
+          email_type: 'booking_modified',
         },
       });
 
@@ -195,48 +118,13 @@ export const bookingEmailService = {
     venueId: string
   ): Promise<boolean> {
     try {
-      // Get venue settings
-      const { data: venueSettings } = await supabase
-        .from('venue_settings')
-        .select('setting_key, setting_value')
-        .eq('venue_id', venueId)
-        .in('setting_key', ['from_email', 'from_name', 'email_signature']);
-
-      const emailSettings: Record<string, string> = {};
-      venueSettings?.forEach(setting => {
-        try {
-          const parsedValue = typeof setting.setting_value === 'string' 
-            ? JSON.parse(setting.setting_value) 
-            : setting.setting_value;
-          emailSettings[setting.setting_key] = String(parsedValue || '');
-        } catch {
-          emailSettings[setting.setting_key] = String(setting.setting_value || '');
-        }
-      });
-
-      const templateVariables = {
-        guest_name: bookingData.guest_name,
-        venue_name: bookingData.venue_name,
-        booking_date: bookingData.booking_date,
-        booking_time: bookingData.booking_time,
-        party_size: bookingData.party_size,
-        booking_reference: bookingData.booking_reference,
-        email_signature: emailSettings.email_signature || 'Best regards,\nThe Nuthatch Team',
-      };
-
-      const processedTemplate = await emailTemplateService.processTemplate(
-        'booking_no_show',
-        venueId,
-        templateVariables
-      );
-
+      // Use the edge function for consistent email sending
       const { data, error } = await supabase.functions.invoke('send-email', {
         body: {
-          to: guestEmail,
-          subject: processedTemplate?.subject || `We missed you - ${bookingData.venue_name}`,
-          html: processedTemplate?.html || this.getDefaultNoShowTemplate(bookingData, emailSettings),
-          from_email: emailSettings.from_email || 'noreply@grace-os.co.uk',
-          from_name: emailSettings.from_name || bookingData.venue_name,
+          booking_id: bookingId,
+          guest_email: guestEmail,
+          venue_id: venueId,
+          email_type: 'booking_no_show',
         },
       });
 
@@ -265,48 +153,13 @@ export const bookingEmailService = {
     venueId: string
   ): Promise<boolean> {
     try {
-      // Get venue settings
-      const { data: venueSettings } = await supabase
-        .from('venue_settings')
-        .select('setting_key, setting_value')
-        .eq('venue_id', venueId)
-        .in('setting_key', ['from_email', 'from_name', 'email_signature']);
-
-      const emailSettings: Record<string, string> = {};
-      venueSettings?.forEach(setting => {
-        try {
-          const parsedValue = typeof setting.setting_value === 'string' 
-            ? JSON.parse(setting.setting_value) 
-            : setting.setting_value;
-          emailSettings[setting.setting_key] = String(parsedValue || '');
-        } catch {
-          emailSettings[setting.setting_key] = String(setting.setting_value || '');
-        }
-      });
-
-      const templateVariables = {
-        guest_name: bookingData.guest_name,
-        venue_name: bookingData.venue_name,
-        booking_date: bookingData.booking_date,
-        booking_time: bookingData.booking_time,
-        party_size: bookingData.party_size,
-        booking_reference: bookingData.booking_reference,
-        email_signature: emailSettings.email_signature || 'Best regards,\nThe Nuthatch Team',
-      };
-
-      const processedTemplate = await emailTemplateService.processTemplate(
-        'walk_in_confirmation',
-        venueId,
-        templateVariables
-      );
-
+      // Use the edge function for consistent email sending
       const { data, error } = await supabase.functions.invoke('send-email', {
         body: {
-          to: guestEmail,
-          subject: processedTemplate?.subject || `Thanks for visiting - ${bookingData.venue_name}`,
-          html: processedTemplate?.html || this.getDefaultWalkInTemplate(bookingData, emailSettings),
-          from_email: emailSettings.from_email || 'noreply@grace-os.co.uk',
-          from_name: emailSettings.from_name || bookingData.venue_name,
+          booking_id: bookingId,
+          guest_email: guestEmail,
+          venue_id: venueId,
+          email_type: 'walk_in_confirmation',
         },
       });
 
