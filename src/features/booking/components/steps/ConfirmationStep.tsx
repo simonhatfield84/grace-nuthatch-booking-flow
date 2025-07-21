@@ -28,206 +28,76 @@ interface ConfirmationStepProps {
 
 export function ConfirmationStep({ bookingData, venue, onBookingId }: ConfirmationStepProps) {
   const { toast } = useToast();
-  const [isCreatingBooking, setIsCreatingBooking] = useState(false);
   const [bookingReference, setBookingReference] = useState<string | null>(null);
-  const [hasProcessed, setHasProcessed] = useState(false);
-  const [emailSent, setEmailSent] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
-
-  const sendPublicBookingConfirmation = async (bookingId: number, guestEmail: string) => {
-    try {
-      console.log('📧 Sending public booking confirmation email for booking:', bookingId);
-      
-      const { data, error } = await supabase.functions.invoke('send-email', {
-        body: {
-          booking_id: bookingId,
-          guest_email: guestEmail,
-          venue_id: venue.id,
-          email_type: 'booking_confirmation'
-        }
-      });
-
-      if (error) {
-        console.error('❌ Email sending failed:', error);
-        return false;
-      }
-
-      console.log('✅ Public booking confirmation email sent successfully');
-      return true;
-    } catch (error) {
-      console.error('❌ Error sending public booking confirmation:', error);
-      return false;
-    }
-  };
-
-  const checkPaymentStatus = async (bookingId: number) => {
-    try {
-      const { data: payment, error } = await supabase
-        .from('booking_payments')
-        .select('status')
-        .eq('booking_id', bookingId)
-        .single();
-
-      if (error && error.code !== 'PGRST116') {
-        console.error('Error checking payment status:', error);
-        return null;
-      }
-
-      return payment?.status || null;
-    } catch (error) {
-      console.error('Error checking payment status:', error);
-      return null;
-    }
-  };
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const processBooking = async () => {
-      // Prevent multiple executions
-      if (hasProcessed) return;
-      setHasProcessed(true);
+    const loadBookingDetails = async () => {
+      setIsLoading(true);
+      
+      try {
+        if (!bookingData.bookingId) {
+          console.error('No booking ID provided to ConfirmationStep');
+          setIsLoading(false);
+          return;
+        }
 
-      console.log('🔄 Processing booking confirmation step');
-
-      // If booking already exists, just display the confirmation
-      if (bookingData.bookingId) {
-        console.log('✅ Displaying confirmation for existing booking:', bookingData.bookingId);
-        setIsCreatingBooking(true);
+        console.log('Loading booking details for ID:', bookingData.bookingId);
         
-        try {
-          // Get the booking details
-          const { data: existingBooking, error: fetchError } = await supabase
-            .from('bookings')
-            .select('*')
-            .eq('id', bookingData.bookingId)
+        // Get the booking details
+        const { data: booking, error: fetchError } = await supabase
+          .from('bookings')
+          .select('*')
+          .eq('id', bookingData.bookingId)
+          .single();
+
+        if (fetchError) {
+          console.error('Error fetching booking:', fetchError);
+          throw fetchError;
+        }
+
+        console.log('Booking loaded:', booking);
+        setBookingReference(booking.booking_reference);
+        onBookingId(booking.id);
+
+        // Check payment status if payment was required
+        if (bookingData.paymentRequired) {
+          const { data: payment } = await supabase
+            .from('booking_payments')
+            .select('status')
+            .eq('booking_id', bookingData.bookingId)
+            .order('created_at', { ascending: false })
+            .limit(1)
             .single();
 
-          if (fetchError) {
-            console.error('❌ Error fetching existing booking:', fetchError);
-            throw fetchError;
+          if (payment) {
+            setPaymentStatus(payment.status);
+            console.log('Payment status:', payment.status);
           }
-
-          console.log('📋 Booking found with status:', existingBooking.status);
-          setBookingReference(existingBooking.booking_reference);
-          onBookingId(existingBooking.id);
-
-          // Check payment status if payment was required
-          if (bookingData.paymentRequired) {
-            const paymentStatusResult = await checkPaymentStatus(bookingData.bookingId);
-            setPaymentStatus(paymentStatusResult);
-            console.log('💰 Payment status:', paymentStatusResult);
-          }
-
-          // Note: Email sending is now handled in GuestDetailsStep after payment success
-          setEmailSent(true); // Assume email was sent during payment process
-
-          toast({
-            title: "Booking Confirmed!",
-            description: existingBooking.status === 'confirmed' ? 
-              "Your table is reserved and ready!" : 
-              "Your booking has been created.",
-          });
-
-        } catch (error) {
-          console.error('❌ Error loading booking details:', error);
-          toast({
-            title: "Booking Error",
-            description: "There was an issue loading your booking details.",
-            variant: "destructive",
-          });
-        } finally {
-          setIsCreatingBooking(false);
         }
-        return;
-      }
 
-      // If no booking ID and no payment required, create booking normally
-      if (!bookingData.paymentRequired) {
-        console.log('🆕 Creating new booking without payment');
-        setIsCreatingBooking(true);
-        
-        try {
-          const { TableAllocationService } = await import("@/services/tableAllocation");
-          
-          const allocationResult = await TableAllocationService.allocateTable(
-            bookingData.partySize,
-            format(bookingData.date, 'yyyy-MM-dd'),
-            bookingData.time,
-            120, // duration minutes
-            venue.id
-          );
+        toast({
+          title: "Booking Confirmed!",
+          description: booking.status === 'confirmed' ? 
+            "Your table is reserved and ready!" : 
+            "Your booking has been created.",
+        });
 
-          if (!allocationResult.tableIds || allocationResult.tableIds.length === 0) {
-            throw new Error('No tables available for your requested time. Please try a different time slot.');
-          }
-
-          const bookingPayload = {
-            venue_id: venue.id,
-            guest_name: bookingData.guestDetails.name,
-            email: bookingData.guestDetails.email || null,
-            phone: bookingData.guestDetails.phone,
-            party_size: bookingData.partySize,
-            booking_date: format(bookingData.date, 'yyyy-MM-dd'),
-            booking_time: bookingData.time,
-            service: bookingData.service?.title || 'Dinner',
-            notes: bookingData.guestDetails.notes || null,
-            status: 'confirmed',
-            table_id: allocationResult.tableIds[0],
-            is_unallocated: false,
-          };
-
-          console.log('📝 Creating booking with payload:', bookingPayload);
-
-          const { data, error } = await supabase
-            .from('bookings')
-            .insert([bookingPayload])
-            .select()
-            .single();
-
-          if (error) {
-            console.error('❌ Error creating booking:', error);
-            throw error;
-          }
-
-          console.log('✅ Booking created successfully:', data.id);
-          onBookingId(data.id);
-          setBookingReference(data.booking_reference);
-
-          // Send booking confirmation email if guest has email
-          if (bookingData.guestDetails.email) {
-            console.log('📧 Sending confirmation email to:', bookingData.guestDetails.email);
-            const emailSuccess = await sendPublicBookingConfirmation(
-              data.id,
-              bookingData.guestDetails.email
-            );
-            setEmailSent(emailSuccess);
-          }
-
-          toast({
-            title: "Booking Confirmed!",
-            description: "Your table has been reserved successfully.",
-          });
-
-        } catch (error) {
-          console.error('❌ Error creating booking:', error);
-          
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-          const isTableAvailabilityError = errorMessage.includes('No tables available');
-          
-          toast({
-            title: isTableAvailabilityError ? "No Tables Available" : "Booking Error",
-            description: isTableAvailabilityError 
-              ? "Unfortunately, no tables are available for your selected time. Please try a different time slot."
-              : "There was an issue creating your booking. Please contact us directly.",
-            variant: "destructive",
-          });
-        } finally {
-          setIsCreatingBooking(false);
-        }
+      } catch (error) {
+        console.error('Error loading booking details:', error);
+        toast({
+          title: "Booking Error",
+          description: "There was an issue loading your booking details.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    processBooking();
-  }, []); // Empty dependency array to run only once
+    loadBookingDetails();
+  }, [bookingData.bookingId, bookingData.paymentRequired, toast, onBookingId]);
 
   const generateCalendarEvent = () => {
     const startDate = new Date(bookingData.date);
@@ -260,15 +130,15 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
     URL.revokeObjectURL(url);
   };
 
-  if (isCreatingBooking) {
+  if (isLoading) {
     return (
       <div className="text-center py-12">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-nuthatch-green mx-auto mb-4"></div>
         <h2 className="text-xl font-nuthatch-heading text-nuthatch-dark mb-2">
-          Confirming Your Booking
+          Loading Your Booking
         </h2>
         <p className="text-nuthatch-muted">
-          Please wait while we secure your reservation...
+          Please wait while we load your booking details...
         </p>
       </div>
     );
@@ -312,10 +182,7 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
           <div className="flex items-center space-x-2">
             <Mail className="h-5 w-5 text-nuthatch-green" />
             <span className="text-nuthatch-dark">
-              {emailSent 
-                ? `Confirmation email sent to ${bookingData.guestDetails.email}`
-                : `Confirmation email could not be sent to ${bookingData.guestDetails.email}`
-              }
+              Confirmation email sent to {bookingData.guestDetails.email}
             </span>
           </div>
         </Card>
@@ -383,7 +250,7 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
               }`}>
                 {paymentStatus === 'succeeded' ? 'Paid' : 
                  paymentStatus === 'failed' ? 'Failed' : 
-                 paymentStatus || 'Processing'}
+                 paymentStatus || 'Confirmed'}
               </span>
             </div>
           </div>
@@ -456,7 +323,7 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
       <Card className="p-4 bg-nuthatch-light border-nuthatch-border">
         <h4 className="font-medium text-nuthatch-dark mb-2">Important Information</h4>
         <ul className="text-sm text-nuthatch-muted space-y-1">
-          <li>• {emailSent ? 'A confirmation email has been sent to you' : 'Please save these booking details for your records'}</li>
+          <li>• {bookingData.guestDetails.email ? 'A confirmation email has been sent to you' : 'Please save these booking details for your records'}</li>
           <li>• A reminder will be sent 24 hours before your booking</li>
           <li>• Please arrive on time for your reservation</li>
           <li>• Contact us directly if you need to make changes</li>

@@ -157,7 +157,7 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
         booking_time: time,
         service: service?.title || 'Dinner',
         notes: formData.notes || null,
-        status: 'pending_payment', // Set as pending payment
+        status: paymentAmount > 0 ? 'pending_payment' : 'confirmed',
         table_id: allocationResult.tableIds[0],
         is_unallocated: false,
       };
@@ -178,8 +178,27 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
         console.log('Payment required, creating payment intent...');
         await createPaymentIntent(data.id, paymentAmount);
       } else {
-        // No payment required, proceed to confirmation
-        toast.success("Booking created successfully!");
+        // No payment required, send confirmation email and proceed
+        console.log('No payment required, confirming booking...');
+        
+        // Send confirmation email if email is provided
+        if (formData.email) {
+          try {
+            await supabase.functions.invoke('send-email', {
+              body: {
+                booking_id: data.id,
+                guest_email: formData.email,
+                venue_id: venue.id,
+                email_type: 'booking_confirmation'
+              }
+            });
+            console.log('Confirmation email sent successfully');
+          } catch (emailError) {
+            console.error('Failed to send confirmation email:', emailError);
+          }
+        }
+
+        toast.success("Booking confirmed successfully!");
         onChange(formData, false, 0, data.id);
       }
 
@@ -217,7 +236,7 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
       console.log('✅ Payment intent created successfully:', data);
       setClientSecret(data.client_secret);
       setShowPaymentForm(true);
-      toast.success("Payment form is ready. Please complete your payment below.");
+      toast.success("Please complete your payment below to confirm your booking.");
 
     } catch (err) {
       console.error('Payment setup error:', err);
@@ -231,7 +250,10 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
     setIsProcessingPayment(true);
     
     try {
-      // Verify payment status first
+      // Wait a moment for webhook to process
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Verify payment status
       console.log('Checking payment status for booking:', bookingId);
       const { data: payment, error: paymentError } = await supabase
         .from('booking_payments')
@@ -277,12 +299,10 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
             console.log('Confirmation email sent successfully');
           } catch (emailError) {
             console.error('Failed to send confirmation email:', emailError);
-            // Don't fail the whole process for email issues
           }
         }
 
         toast.success('Payment completed and booking confirmed!');
-        setShowPaymentForm(false);
         onChange(formData, true, paymentCalculation?.amount || 0, bookingId!);
       } else {
         console.error('Payment not confirmed. Status:', paymentStatus);
@@ -291,8 +311,6 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
     } catch (error) {
       console.error('Error in payment success handling:', error);
       toast.error('Payment completed but there was an issue confirming your booking. Please contact the venue.');
-      // Still proceed to confirmation but with error state
-      onChange(formData, true, paymentCalculation?.amount || 0, bookingId!);
     } finally {
       setIsProcessingPayment(false);
     }
@@ -316,10 +334,10 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
       return 'Confirming Payment...';
     }
     if (isCreatingBooking) {
-      return showPaymentForm ? 'Processing Payment...' : 'Creating Booking...';
+      return 'Creating Booking...';
     }
     if (showPaymentForm) {
-      return 'Complete Payment Above';
+      return 'Complete Payment Below';
     }
     if (paymentCalculation?.shouldCharge) {
       return 'Continue to Payment';
@@ -333,8 +351,11 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
            !formData.termsAccepted || 
            isCreatingBooking || 
            isProcessingPayment ||
-           (showPaymentForm && !clientSecret);
+           showPaymentForm;
   };
+
+  // Don't show the main submit button if payment form is visible and processing
+  const shouldShowSubmitButton = !showPaymentForm || (!clientSecret && !isProcessingPayment);
 
   return (
     <div className="space-y-6">
@@ -491,26 +512,28 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
         )}
       </div>
 
-      {/* Submit Button - Always show but change text based on state */}
-      <Button
-        onClick={handleSubmit}
-        className="w-full bg-nuthatch-green hover:bg-nuthatch-dark text-nuthatch-white"
-        disabled={isButtonDisabled()}
-      >
-        {isProcessingPayment || isCreatingBooking ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            {getButtonText()}
-          </>
-        ) : paymentCalculation?.shouldCharge ? (
-          <>
-            <CreditCard className="mr-2 h-4 w-4" />
-            {getButtonText()}
-          </>
-        ) : (
-          getButtonText()
-        )}
-      </Button>
+      {/* Submit Button - Only show when not in payment form mode */}
+      {shouldShowSubmitButton && (
+        <Button
+          onClick={handleSubmit}
+          className="w-full bg-nuthatch-green hover:bg-nuthatch-dark text-nuthatch-white"
+          disabled={isButtonDisabled()}
+        >
+          {isProcessingPayment || isCreatingBooking ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {getButtonText()}
+            </>
+          ) : paymentCalculation?.shouldCharge ? (
+            <>
+              <CreditCard className="mr-2 h-4 w-4" />
+              {getButtonText()}
+            </>
+          ) : (
+            getButtonText()
+          )}
+        </Button>
+      )}
 
       {/* Payment Section */}
       {showPaymentForm && clientSecret && (
@@ -520,7 +543,7 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
               Secure Payment
             </h3>
             <p className="text-nuthatch-muted">
-              Complete your booking with a secure payment. Use the payment form below or the button above when ready.
+              Complete your booking with a secure payment below.
             </p>
           </div>
 
