@@ -63,14 +63,70 @@ export const emailService = {
         }
       }
 
+      // Get additional booking details if booking_id is provided
+      let service = 'Dinner';
+      let bookingEndTime = '';
+      let paymentStatus = '';
+      let paymentAmount = '';
+
+      if (bookingData.booking_id) {
+        try {
+          // Get booking details
+          const { data: booking } = await supabase
+            .from('bookings')
+            .select('service, end_time, booking_time, duration_minutes')
+            .eq('id', bookingData.booking_id)
+            .single();
+
+          if (booking) {
+            service = booking.service || 'Dinner';
+            
+            // Calculate end time
+            if (booking.end_time) {
+              bookingEndTime = booking.end_time;
+            } else if (booking.duration_minutes) {
+              const [hours, minutes] = booking.booking_time.split(':').map(Number);
+              const startTime = new Date();
+              startTime.setHours(hours, minutes, 0, 0);
+              const endTime = new Date(startTime.getTime() + booking.duration_minutes * 60000);
+              bookingEndTime = endTime.toTimeString().slice(0, 5);
+            }
+          }
+
+          // Get payment information
+          const { data: payment } = await supabase
+            .from('booking_payments')
+            .select('status, amount_cents')
+            .eq('booking_id', bookingData.booking_id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          if (payment) {
+            paymentStatus = payment.status === 'succeeded' ? 'Paid' : 
+                          payment.status === 'pending' ? 'Pending' : 
+                          payment.status === 'failed' ? 'Failed' : '';
+            if (payment.amount_cents) {
+              paymentAmount = `$${(payment.amount_cents / 100).toFixed(2)}`;
+            }
+          }
+        } catch (error) {
+          console.warn('Failed to fetch additional booking details:', error);
+        }
+      }
+
       // Prepare template variables
       const templateVariables: TemplateVariables = {
         guest_name: bookingData.guest_name,
         venue_name: bookingData.venue_name,
         booking_date: bookingData.booking_date,
         booking_time: bookingData.booking_time,
+        booking_end_time: bookingEndTime,
+        service: service,
         party_size: bookingData.party_size,
         booking_reference: bookingData.booking_reference,
+        payment_status: paymentStatus,
+        payment_amount: paymentAmount,
         email_signature: emailSettings.email_signature || 'Best regards,\nYour Venue Team',
         cancel_link: cancelLink,
         modify_link: modifyLink,
@@ -201,14 +257,70 @@ export const emailService = {
         }
       }
 
+      // Get additional booking details if booking_id is provided
+      let service = 'Dinner';
+      let bookingEndTime = '';
+      let paymentStatus = '';
+      let paymentAmount = '';
+
+      if (bookingData.booking_id) {
+        try {
+          // Get booking details
+          const { data: booking } = await supabase
+            .from('bookings')
+            .select('service, end_time, booking_time, duration_minutes')
+            .eq('id', bookingData.booking_id)
+            .single();
+
+          if (booking) {
+            service = booking.service || 'Dinner';
+            
+            // Calculate end time
+            if (booking.end_time) {
+              bookingEndTime = booking.end_time;
+            } else if (booking.duration_minutes) {
+              const [hours, minutes] = booking.booking_time.split(':').map(Number);
+              const startTime = new Date();
+              startTime.setHours(hours, minutes, 0, 0);
+              const endTime = new Date(startTime.getTime() + booking.duration_minutes * 60000);
+              bookingEndTime = endTime.toTimeString().slice(0, 5);
+            }
+          }
+
+          // Get payment information
+          const { data: payment } = await supabase
+            .from('booking_payments')
+            .select('status, amount_cents')
+            .eq('booking_id', bookingData.booking_id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
+
+          if (payment) {
+            paymentStatus = payment.status === 'succeeded' ? 'Paid' : 
+                          payment.status === 'pending' ? 'Pending' : 
+                          payment.status === 'failed' ? 'Failed' : '';
+            if (payment.amount_cents) {
+              paymentAmount = `$${(payment.amount_cents / 100).toFixed(2)}`;
+            }
+          }
+        } catch (error) {
+          console.warn('Failed to fetch additional booking details:', error);
+        }
+      }
+
       // Prepare template variables
       const templateVariables: TemplateVariables = {
         guest_name: bookingData.guest_name,
         venue_name: bookingData.venue_name,
         booking_date: bookingData.booking_date,
         booking_time: bookingData.booking_time,
+        booking_end_time: bookingEndTime,
+        service: service,
         party_size: bookingData.party_size,
         booking_reference: bookingData.booking_reference,
+        payment_status: paymentStatus,
+        payment_amount: paymentAmount,
         email_signature: emailSettings.email_signature || 'Best regards,\nYour Venue Team',
         cancel_link: cancelLink,
         modify_link: modifyLink,

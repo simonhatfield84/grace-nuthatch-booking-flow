@@ -877,6 +877,33 @@ export type Database = {
           },
         ]
       }
+      reminder_log: {
+        Row: {
+          booking_id: number
+          created_at: string
+          id: string
+          reminder_type: string
+          sent_at: string
+          venue_id: string
+        }
+        Insert: {
+          booking_id: number
+          created_at?: string
+          id?: string
+          reminder_type: string
+          sent_at?: string
+          venue_id: string
+        }
+        Update: {
+          booking_id?: number
+          created_at?: string
+          id?: string
+          reminder_type?: string
+          sent_at?: string
+          venue_id?: string
+        }
+        Relationships: []
+      }
       sections: {
         Row: {
           color: string | null

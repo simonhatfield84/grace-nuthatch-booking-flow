@@ -6,12 +6,16 @@ export interface TemplateVariables {
   venue_name: string;
   booking_date: string;
   booking_time: string;
+  booking_end_time?: string;
+  service?: string;
   party_size: string;
   booking_reference: string;
   email_signature: string;
+  payment_status?: string;
+  payment_amount?: string;
   cancel_link?: string;
   modify_link?: string;
-  [key: string]: string;
+  [key: string]: string | undefined;
 }
 
 export const emailTemplateService = {
@@ -139,9 +143,13 @@ export const emailTemplateService = {
       guest_name: "Guest's full name",
       venue_name: "Name of the venue",
       booking_date: "Date of the booking",
-      booking_time: "Time of the booking",
+      booking_time: "Start time of the booking",
+      booking_end_time: "End time of the booking",
+      service: "Service/experience being booked",
       party_size: "Number of guests",
       booking_reference: "Unique booking reference",
+      payment_status: "Payment status (e.g., 'Paid', 'Pending')",
+      payment_amount: "Payment amount (e.g., '$50.00')",
       email_signature: "Venue's email signature",
       cancel_link: "Link to cancel the booking",
       modify_link: "Link to modify the booking",
@@ -176,8 +184,12 @@ export const emailTemplateService = {
       venue_name: "The Nuthatch",
       booking_date: "Friday, December 25th, 2024",
       booking_time: "7:00 PM",
+      booking_end_time: "9:00 PM",
+      service: "Dinner",
       party_size: "4 guests",
       booking_reference: "BK-2024-123456",
+      payment_status: "Paid",
+      payment_amount: "$25.00",
       email_signature: "Best regards,\nThe Nuthatch Team",
       cancel_link: "#cancel",
       modify_link: "#modify",

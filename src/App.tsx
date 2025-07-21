@@ -26,6 +26,8 @@ import PlatformVenues from "@/pages/PlatformVenues";
 import PlatformSecurity from "@/pages/PlatformSecurity";
 import PlatformSubscriptions from "@/pages/PlatformSubscriptions";
 import PlatformSupport from "@/pages/PlatformSupport";
+import CancelBooking from "@/pages/CancelBooking";
+import ModifyBooking from "@/pages/ModifyBooking";
 import { PlatformAdminLayout } from "@/components/layouts/PlatformAdminLayout";
 import { AdminLayout } from "@/components/layouts/AdminLayout";
 import { ThemeHandler } from "@/components/ThemeHandler";
@@ -53,6 +55,8 @@ function App() {
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/setup" element={<Setup />} />
                 <Route path="/booking/nuthatch" element={<BookingWidgetPage />} />
+                <Route path="/cancel-booking" element={<CancelBooking />} />
+                <Route path="/modify-booking" element={<ModifyBooking />} />
                 
                 {/* Protected venue routes with AdminLayout */}
                 <Route path="/dashboard" element={
