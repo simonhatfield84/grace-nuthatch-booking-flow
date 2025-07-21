@@ -215,6 +215,7 @@ export const FullScreenEmailBuilder: React.FC<FullScreenEmailBuilderProps> = ({
             ref={emailEditorRef}
             onReady={onReady}
             options={editorOptions}
+            projectId={276923}
             style={{
               height: 'calc(100vh - 120px)',
               width: '100%'
