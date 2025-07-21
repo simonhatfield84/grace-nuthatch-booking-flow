@@ -26,13 +26,25 @@ export function GrapeJSEmailBuilder({
 
   useEffect(() => {
     const initializeEditor = async () => {
+      console.log('Starting GrapeJS initialization...');
       try {
+        if (!editorRef.current) {
+          console.error('Editor container not found');
+          return;
+        }
+
+        console.log('Loading GrapeJS modules...');
         // Dynamic import to avoid SSR issues
         const grapesjs = await import('grapesjs');
         const grapesjsNewsletter = await import('grapesjs-preset-newsletter');
+        
+        console.log('GrapeJS modules loaded successfully');
 
-        if (!editorRef.current) return;
+        // Import CSS for GrapeJS
+        await import('grapesjs/dist/css/grapes.min.css');
+        console.log('GrapeJS CSS loaded');
 
+        console.log('Initializing GrapeJS editor...');
         const grapesEditor = grapesjs.default.init({
           container: editorRef.current,
           height: '600px',
@@ -249,12 +261,20 @@ export function GrapeJSEmailBuilder({
           setPreviewHtml(grapesEditor.getHtml());
         });
 
+        console.log('GrapeJS editor initialized successfully');
         setEditor(grapesEditor);
         setPreviewHtml(grapesEditor.getHtml());
         setIsLoading(false);
       } catch (error) {
         console.error('Error initializing GrapeJS:', error);
+        console.error('Error details:', {
+          message: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : undefined,
+          error
+        });
         setIsLoading(false);
+        // Set a fallback state to show error to user
+        setPreviewHtml('<p>Error loading email builder. Please try refreshing the page.</p>');
       }
     };
 
@@ -262,7 +282,12 @@ export function GrapeJSEmailBuilder({
 
     return () => {
       if (editor) {
-        editor.destroy();
+        try {
+          console.log('Destroying GrapeJS editor...');
+          editor.destroy();
+        } catch (error) {
+          console.error('Error destroying editor:', error);
+        }
       }
     };
   }, []);
@@ -323,6 +348,38 @@ export function GrapeJSEmailBuilder({
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
           <p>Loading email builder...</p>
+          <p className="text-sm text-muted-foreground mt-2">
+            This may take a few moments...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state if there's no editor but we're not loading
+  if (!editor && !isLoading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center space-y-4">
+          <div className="text-red-500 text-lg">⚠️</div>
+          <div>
+            <p className="font-medium">Failed to load email builder</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              There was an issue loading the visual editor. Please check the console for details.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => window.location.reload()} 
+              variant="outline"
+              size="sm"
+            >
+              Refresh Page
+            </Button>
+            <Button onClick={onCancel} variant="outline" size="sm">
+              Go Back
+            </Button>
+          </div>
         </div>
       </div>
     );

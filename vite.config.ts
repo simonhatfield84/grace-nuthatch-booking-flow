@@ -19,4 +19,12 @@ export default defineConfig(({ mode }) => ({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  optimizeDeps: {
+    include: ['grapesjs', 'grapesjs-preset-newsletter']
+  },
+  build: {
+    commonjsOptions: {
+      include: [/grapesjs/, /node_modules/]
+    }
+  }
 }));
