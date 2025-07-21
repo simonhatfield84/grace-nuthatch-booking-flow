@@ -11,6 +11,9 @@ export interface EmailTemplate {
   html_content: string;
   text_content?: string;
   venue_id?: string;
+  description?: string;
+  is_active: boolean;
+  auto_send: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -21,12 +24,18 @@ export interface EmailTemplateCreate {
   subject: string;
   html_content: string;
   text_content?: string;
+  description?: string;
+  is_active?: boolean;
+  auto_send?: boolean;
 }
 
 export interface EmailTemplateUpdate {
   subject?: string;
   html_content?: string;
   text_content?: string;
+  description?: string;
+  is_active?: boolean;
+  auto_send?: boolean;
 }
 
 export const useEmailTemplates = () => {
@@ -178,94 +187,12 @@ export const useEmailTemplates = () => {
 
       if (!profile?.venue_id) throw new Error('Venue not found');
 
-      const { data: venue } = await supabase
-        .from('venues')
-        .select('name')
-        .eq('id', profile.venue_id)
-        .single();
+      // Call the database function to create default templates
+      const { error } = await supabase.rpc('create_default_email_templates', {
+        p_venue_id: profile.venue_id
+      });
 
-      const venueName = venue?.name || 'Your Venue';
-
-      const defaultTemplates = [
-        {
-          template_key: 'booking_confirmation',
-          template_type: 'venue',
-          subject: `Booking Confirmation - ${venueName}`,
-          html_content: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <div style="text-align: center; margin-bottom: 30px;">
-                <h1 style="color: #ea580c; font-size: 32px; margin: 0;">grace</h1>
-                <p style="color: #64748b; margin: 5px 0;">Booking Confirmation</p>
-              </div>
-              
-              <div style="background: #f8fafc; padding: 30px; border-radius: 8px;">
-                <h2 style="color: #1e293b; margin-top: 0;">Your booking is confirmed!</h2>
-                <p>Dear {{guest_name}},</p>
-                <p>Thank you for your booking at {{venue_name}}.</p>
-                
-                <div style="background: white; padding: 20px; border-radius: 5px; margin: 20px 0;">
-                  <h3 style="margin-top: 0; color: #ea580c;">Booking Details</h3>
-                  <p><strong>Reference:</strong> {{booking_reference}}</p>
-                  <p><strong>Date:</strong> {{booking_date}}</p>
-                  <p><strong>Time:</strong> {{booking_time}}</p>
-                  <p><strong>Party Size:</strong> {{party_size}}</p>
-                  <p><strong>Venue:</strong> {{venue_name}}</p>
-                </div>
-                
-                <p>We look forward to seeing you!</p>
-              </div>
-              
-              <div style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 30px;">
-                <p>{{email_signature}}</p>
-              </div>
-            </div>
-          `,
-          venue_id: profile.venue_id,
-        },
-        {
-          template_key: 'booking_reminder',
-          template_type: 'venue',
-          subject: `Booking Reminder - ${venueName}`,
-          html_content: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <div style="text-align: center; margin-bottom: 30px;">
-                <h1 style="color: #ea580c; font-size: 32px; margin: 0;">grace</h1>
-                <p style="color: #64748b; margin: 5px 0;">Booking Reminder</p>
-              </div>
-              
-              <div style="background: #f8fafc; padding: 30px; border-radius: 8px;">
-                <h2 style="color: #1e293b; margin-top: 0;">Don't forget your booking!</h2>
-                <p>Dear {{guest_name}},</p>
-                <p>This is a friendly reminder about your upcoming booking at {{venue_name}}.</p>
-                
-                <div style="background: white; padding: 20px; border-radius: 5px; margin: 20px 0;">
-                  <h3 style="margin-top: 0; color: #ea580c;">Booking Details</h3>
-                  <p><strong>Reference:</strong> {{booking_reference}}</p>
-                  <p><strong>Date:</strong> {{booking_date}}</p>
-                  <p><strong>Time:</strong> {{booking_time}}</p>
-                  <p><strong>Party Size:</strong> {{party_size}}</p>
-                  <p><strong>Venue:</strong> {{venue_name}}</p>
-                </div>
-                
-                <p>We look forward to seeing you!</p>
-              </div>
-              
-              <div style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 30px;">
-                <p>{{email_signature}}</p>
-              </div>
-            </div>
-          `,
-          venue_id: profile.venue_id,
-        }
-      ];
-
-      for (const template of defaultTemplates) {
-        // Check if template already exists
-        const existing = templates.find(t => t.template_key === template.template_key && t.venue_id === profile.venue_id);
-        if (!existing) {
-          await supabase.from('email_templates').insert(template);
-        }
-      }
+      if (error) throw error;
 
       // Reload templates
       await loadTemplates();
@@ -284,6 +211,14 @@ export const useEmailTemplates = () => {
     }
   };
 
+  const toggleTemplateActive = async (id: string, isActive: boolean) => {
+    try {
+      await updateTemplate(id, { is_active: isActive });
+    } catch (error) {
+      console.error('Error toggling template status:', error);
+    }
+  };
+
   useEffect(() => {
     if (user) {
       loadTemplates();
@@ -299,5 +234,6 @@ export const useEmailTemplates = () => {
     deleteTemplate,
     getTemplate,
     createDefaultTemplates,
+    toggleTemplateActive,
   };
 };

@@ -280,6 +280,44 @@ export type Database = {
           },
         ]
       }
+      booking_tokens: {
+        Row: {
+          booking_id: number
+          created_at: string
+          expires_at: string
+          id: string
+          token: string
+          token_type: string
+          used_at: string | null
+        }
+        Insert: {
+          booking_id: number
+          created_at?: string
+          expires_at?: string
+          id?: string
+          token: string
+          token_type: string
+          used_at?: string | null
+        }
+        Update: {
+          booking_id?: number
+          created_at?: string
+          expires_at?: string
+          id?: string
+          token?: string
+          token_type?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_tokens_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_windows: {
         Row: {
           blackout_periods: Json | null
@@ -416,9 +454,12 @@ export type Database = {
       }
       email_templates: {
         Row: {
+          auto_send: boolean
           created_at: string
+          description: string | null
           html_content: string
           id: string
+          is_active: boolean
           subject: string
           template_key: string
           template_type: string
@@ -426,9 +467,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auto_send?: boolean
           created_at?: string
+          description?: string | null
           html_content: string
           id?: string
+          is_active?: boolean
           subject: string
           template_key: string
           template_type?: string
@@ -436,9 +480,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auto_send?: boolean
           created_at?: string
+          description?: string | null
           html_content?: string
           id?: string
+          is_active?: boolean
           subject?: string
           template_key?: string
           template_type?: string
@@ -1410,6 +1457,10 @@ export type Database = {
           bulk_booking_count: number
         }[]
       }
+      create_default_email_templates: {
+        Args: { p_venue_id: string }
+        Returns: undefined
+      }
       create_verification_code: {
         Args: { user_email: string }
         Returns: string
@@ -1436,6 +1487,10 @@ export type Database = {
         }[]
       }
       generate_booking_reference: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      generate_booking_token: {
         Args: Record<PropertyKey, never>
         Returns: string
       }

@@ -7,7 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Eye, Plus, Trash2, Save, X } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Edit, Eye, Plus, Trash2, Save, X, Power, Clock } from "lucide-react";
 import { useEmailTemplates, EmailTemplate, EmailTemplateCreate, EmailTemplateUpdate } from "@/hooks/useEmailTemplates";
 import { emailTemplateService } from "@/services/emailTemplateService";
 
@@ -176,7 +177,7 @@ export function EmailTemplateEditor({ template, onSave, onCancel }: EmailTemplat
 }
 
 export function EmailTemplatesList() {
-  const { templates, isLoading, deleteTemplate, createDefaultTemplates } = useEmailTemplates();
+  const { templates, isLoading, deleteTemplate, createDefaultTemplates, toggleTemplateActive } = useEmailTemplates();
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
@@ -237,11 +238,34 @@ export function EmailTemplatesList() {
               <Card key={template.id}>
                 <CardHeader className="pb-2">
                   <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-base">{template.template_key}</CardTitle>
-                      <CardDescription className="text-sm">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <CardTitle className="text-base">{template.template_key}</CardTitle>
+                        <div className="flex items-center gap-2">
+                          <Switch
+                            checked={template.is_active}
+                            onCheckedChange={(checked) => toggleTemplateActive(template.id, checked)}
+                            className="scale-75"
+                          />
+                          <span className={`text-xs px-2 py-1 rounded ${template.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                            {template.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                          {template.auto_send && (
+                            <Badge variant="outline" className="text-xs">
+                              <Clock className="h-3 w-3 mr-1" />
+                              Auto-send
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      <CardDescription className="text-sm mb-2">
                         {template.subject}
                       </CardDescription>
+                      {template.description && (
+                        <p className="text-xs text-muted-foreground">
+                          <strong>When sent:</strong> {template.description}
+                        </p>
+                      )}
                     </div>
                     <div className="flex gap-2">
                       <Dialog>

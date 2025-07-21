@@ -8,6 +8,8 @@ export interface TemplateVariables {
   party_size: string;
   booking_reference: string;
   email_signature: string;
+  cancel_link?: string;
+  modify_link?: string;
   [key: string]: string;
 }
 
@@ -37,6 +39,7 @@ export const emailTemplateService = {
         .from('email_templates')
         .select('*')
         .eq('template_key', templateKey)
+        .eq('is_active', true) // Only get active templates
         .or(`venue_id.eq.${venueId},venue_id.is.null`)
         .order('venue_id', { ascending: false }) // Prioritize venue-specific over platform
         .limit(1)
@@ -48,6 +51,56 @@ export const emailTemplateService = {
       console.error('Error getting template:', error);
       return null;
     }
+  },
+
+  /**
+   * Generate secure booking tokens for cancel/modify links
+   */
+  async generateBookingTokens(bookingId: number): Promise<{ cancelToken: string; modifyToken: string }> {
+    try {
+      // Generate cancel token
+      const { data: cancelData, error: cancelError } = await supabase
+        .from('booking_tokens')
+        .insert({
+          booking_id: bookingId,
+          token_type: 'cancel',
+          token: await this.generateToken(),
+        })
+        .select('token')
+        .single();
+
+      if (cancelError) throw cancelError;
+
+      // Generate modify token
+      const { data: modifyData, error: modifyError } = await supabase
+        .from('booking_tokens')
+        .insert({
+          booking_id: bookingId,
+          token_type: 'modify',
+          token: await this.generateToken(),
+        })
+        .select('token')
+        .single();
+
+      if (modifyError) throw modifyError;
+
+      return {
+        cancelToken: cancelData.token,
+        modifyToken: modifyData.token,
+      };
+    } catch (error) {
+      console.error('Error generating booking tokens:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Generate a secure token
+   */
+  async generateToken(): Promise<string> {
+    const { data, error } = await supabase.rpc('generate_booking_token');
+    if (error) throw error;
+    return data;
   },
 
   /**
@@ -89,6 +142,8 @@ export const emailTemplateService = {
       party_size: "Number of guests",
       booking_reference: "Unique booking reference",
       email_signature: "Venue's email signature",
+      cancel_link: "Link to cancel the booking",
+      modify_link: "Link to modify the booking",
     };
   },
 
@@ -123,6 +178,8 @@ export const emailTemplateService = {
       party_size: "4 guests",
       booking_reference: "BK-2024-123456",
       email_signature: "Best regards,\nThe Nuthatch Team",
+      cancel_link: "#cancel",
+      modify_link: "#modify",
     };
 
     return this.replaceVariables(content, sampleData);

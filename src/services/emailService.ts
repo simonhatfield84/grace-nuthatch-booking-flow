@@ -12,6 +12,7 @@ export const emailService = {
       booking_time: string;
       party_size: string;
       booking_reference: string;
+      booking_id?: number;
     },
     venue_slug: string
   ) {
@@ -47,6 +48,21 @@ export const emailService = {
         }
       });
 
+      // Generate booking tokens for cancel/modify links if booking ID is provided
+      let cancelLink = '';
+      let modifyLink = '';
+      
+      if (bookingData.booking_id) {
+        try {
+          const tokens = await emailTemplateService.generateBookingTokens(bookingData.booking_id);
+          const baseUrl = window.location.origin;
+          cancelLink = `${baseUrl}/cancel-booking?token=${tokens.cancelToken}`;
+          modifyLink = `${baseUrl}/modify-booking?token=${tokens.modifyToken}`;
+        } catch (error) {
+          console.warn('Failed to generate booking tokens:', error);
+        }
+      }
+
       // Prepare template variables
       const templateVariables: TemplateVariables = {
         guest_name: bookingData.guest_name,
@@ -56,6 +72,8 @@ export const emailService = {
         party_size: bookingData.party_size,
         booking_reference: bookingData.booking_reference,
         email_signature: emailSettings.email_signature || 'Best regards,\nYour Venue Team',
+        cancel_link: cancelLink,
+        modify_link: modifyLink,
       };
 
       // Try to use database template first, fallback to hardcoded
@@ -132,6 +150,7 @@ export const emailService = {
       booking_time: string;
       party_size: string;
       booking_reference: string;
+      booking_id?: number;
     },
     venue_slug: string
   ) {
@@ -167,6 +186,21 @@ export const emailService = {
         }
       });
 
+      // Generate booking tokens for cancel/modify links if booking ID is provided
+      let cancelLink = '';
+      let modifyLink = '';
+      
+      if (bookingData.booking_id) {
+        try {
+          const tokens = await emailTemplateService.generateBookingTokens(bookingData.booking_id);
+          const baseUrl = window.location.origin;
+          cancelLink = `${baseUrl}/cancel-booking?token=${tokens.cancelToken}`;
+          modifyLink = `${baseUrl}/modify-booking?token=${tokens.modifyToken}`;
+        } catch (error) {
+          console.warn('Failed to generate booking tokens:', error);
+        }
+      }
+
       // Prepare template variables
       const templateVariables: TemplateVariables = {
         guest_name: bookingData.guest_name,
@@ -176,14 +210,24 @@ export const emailService = {
         party_size: bookingData.party_size,
         booking_reference: bookingData.booking_reference,
         email_signature: emailSettings.email_signature || 'Best regards,\nYour Venue Team',
+        cancel_link: cancelLink,
+        modify_link: modifyLink,
       };
 
-      // Try to use database template first, fallback to hardcoded
-      const processedTemplate = await emailTemplateService.processTemplate(
-        'booking_reminder',
+      // Try to use database template first (try 24h reminder, then 2h reminder, then fallback)
+      let processedTemplate = await emailTemplateService.processTemplate(
+        'booking_reminder_24h',
         profile.venue_id,
         templateVariables
       );
+
+      if (!processedTemplate) {
+        processedTemplate = await emailTemplateService.processTemplate(
+          'booking_reminder_2h',
+          profile.venue_id,
+          templateVariables
+        );
+      }
 
       let subject: string;
       let html: string;
