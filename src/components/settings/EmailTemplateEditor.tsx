@@ -51,11 +51,18 @@ export function EmailTemplateEditor({ template, onSave, onCancel }: EmailTemplat
   };
 
   const handleBuilderSave = (html: string, design: any) => {
+    console.log('Builder save - HTML:', html);
+    console.log('Builder save - Design:', design);
+    
     setFormData({
       ...formData,
       html_content: html,
       design_json: design
     });
+    setShowBuilder(false);
+  };
+
+  const handleBuilderCancel = () => {
     setShowBuilder(false);
   };
 
@@ -80,6 +87,7 @@ export function EmailTemplateEditor({ template, onSave, onCancel }: EmailTemplat
             variant="outline"
             onClick={() => setShowBuilder(true)}
             className="flex items-center gap-2"
+            disabled={isLoading}
           >
             <Palette className="h-4 w-4" />
             Open Visual Builder
@@ -129,7 +137,7 @@ export function EmailTemplateEditor({ template, onSave, onCancel }: EmailTemplat
         initialHtml={formData.html_content}
         initialDesign={formData.design_json}
         onSave={handleBuilderSave}
-        onCancel={() => setShowBuilder(false)}
+        onCancel={handleBuilderCancel}
         availableVariables={availableVariables}
       />
     </div>
