@@ -457,6 +457,7 @@ export type Database = {
           auto_send: boolean
           created_at: string
           description: string | null
+          design_json: Json | null
           html_content: string
           id: string
           is_active: boolean
@@ -471,6 +472,7 @@ export type Database = {
           auto_send?: boolean
           created_at?: string
           description?: string | null
+          design_json?: Json | null
           html_content: string
           id?: string
           is_active?: boolean
@@ -485,6 +487,7 @@ export type Database = {
           auto_send?: boolean
           created_at?: string
           description?: string | null
+          design_json?: Json | null
           html_content?: string
           id?: string
           is_active?: boolean

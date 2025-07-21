@@ -62,11 +62,19 @@ export const FullScreenEmailBuilder: React.FC<FullScreenEmailBuilderProps> = ({
     console.log('Unlayer editor is ready');
     setEditorReady(true);
     
-    if (emailEditorRef.current && initialDesign) {
-      // Only load if we have a proper design JSON
-      emailEditorRef.current.editor?.loadDesign(initialDesign);
-    }
-  }, [initialDesign, initialHtml]);
+    // Load design after a brief delay to ensure editor is fully ready
+    setTimeout(() => {
+      if (emailEditorRef.current?.editor && initialDesign) {
+        try {
+          emailEditorRef.current.editor.loadDesign(initialDesign);
+        } catch (error) {
+          console.warn('Failed to load initial design:', error);
+        }
+      }
+      // For HTML-only templates, we'll let the user start with a blank canvas
+      // and they can copy/paste their existing content if needed
+    }, 100);
+  }, [initialDesign]);
 
   const handleSave = useCallback(() => {
     if (!emailEditorRef.current) {
