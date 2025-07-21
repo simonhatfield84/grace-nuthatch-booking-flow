@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -16,7 +17,6 @@ import {
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { useEmailService } from "@/hooks/useEmailService";
 
 interface ConfirmationStepProps {
   bookingData: any;
@@ -26,10 +26,36 @@ interface ConfirmationStepProps {
 
 export function ConfirmationStep({ bookingData, venue, onBookingId }: ConfirmationStepProps) {
   const { toast } = useToast();
-  const { sendBookingConfirmation } = useEmailService();
   const [isCreatingBooking, setIsCreatingBooking] = useState(false);
   const [bookingReference, setBookingReference] = useState<string | null>(null);
   const [hasProcessed, setHasProcessed] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+
+  const sendPublicBookingConfirmation = async (bookingId: number, guestEmail: string) => {
+    try {
+      console.log('📧 Sending public booking confirmation email for booking:', bookingId);
+      
+      const { data, error } = await supabase.functions.invoke('send-email', {
+        body: {
+          booking_id: bookingId,
+          guest_email: guestEmail,
+          venue_id: venue.id,
+          email_type: 'booking_confirmation'
+        }
+      });
+
+      if (error) {
+        console.error('❌ Email sending failed:', error);
+        return false;
+      }
+
+      console.log('✅ Public booking confirmation email sent successfully');
+      return true;
+    } catch (error) {
+      console.error('❌ Error sending public booking confirmation:', error);
+      return false;
+    }
+  };
 
   useEffect(() => {
     const processBooking = async () => {
@@ -37,9 +63,13 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
       if (hasProcessed) return;
       setHasProcessed(true);
 
+      console.log('🔄 Processing booking confirmation step');
+
       // If booking already exists and we came from payment, update status to confirmed
       if (bookingData.bookingId) {
+        console.log('💳 Processing payment completion for booking:', bookingData.bookingId);
         setIsCreatingBooking(true);
+        
         try {
           // First check if booking already exists and get its current status
           const { data: existingBooking, error: fetchError } = await supabase
@@ -48,7 +78,12 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
             .eq('id', bookingData.bookingId)
             .single();
 
-          if (fetchError) throw fetchError;
+          if (fetchError) {
+            console.error('❌ Error fetching existing booking:', fetchError);
+            throw fetchError;
+          }
+
+          console.log('📋 Existing booking found:', existingBooking.status);
 
           // If already confirmed, just set the reference and continue
           if (existingBooking.status === 'confirmed') {
@@ -57,26 +92,16 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
             
             // Send booking confirmation email if guest has email
             if (bookingData.guestDetails.email) {
-              try {
-                await sendBookingConfirmation(
-                  bookingData.guestDetails.email,
-                  {
-                    guest_name: existingBooking.guest_name,
-                    venue_name: venue.name,
-                    booking_date: format(new Date(existingBooking.booking_date), 'EEEE, MMMM do, yyyy'),
-                    booking_time: existingBooking.booking_time,
-                    party_size: existingBooking.party_size.toString(),
-                    booking_reference: existingBooking.booking_reference
-                  },
-                  venue.slug
-                );
-              } catch (emailError) {
-                console.error('Failed to send confirmation email:', emailError);
-                // Don't fail the booking process if email fails
-              }
+              console.log('📧 Sending confirmation email to:', bookingData.guestDetails.email);
+              const emailSuccess = await sendPublicBookingConfirmation(
+                existingBooking.id,
+                bookingData.guestDetails.email
+              );
+              setEmailSent(emailSuccess);
             }
           } else {
             // Update status to confirmed
+            console.log('🔄 Updating booking status to confirmed');
             const { data, error } = await supabase
               .from('bookings')
               .update({ status: 'confirmed' })
@@ -84,30 +109,22 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
               .select()
               .single();
 
-            if (error) throw error;
+            if (error) {
+              console.error('❌ Error updating booking status:', error);
+              throw error;
+            }
 
             setBookingReference(data.booking_reference);
             onBookingId(data.id);
 
             // Send booking confirmation email if guest has email
             if (bookingData.guestDetails.email) {
-              try {
-                await sendBookingConfirmation(
-                  bookingData.guestDetails.email,
-                  {
-                    guest_name: data.guest_name,
-                    venue_name: venue.name,
-                    booking_date: format(new Date(data.booking_date), 'EEEE, MMMM do, yyyy'),
-                    booking_time: data.booking_time,
-                    party_size: data.party_size.toString(),
-                    booking_reference: data.booking_reference
-                  },
-                  venue.slug
-                );
-              } catch (emailError) {
-                console.error('Failed to send confirmation email:', emailError);
-                // Don't fail the booking process if email fails
-              }
+              console.log('📧 Sending confirmation email to:', bookingData.guestDetails.email);
+              const emailSuccess = await sendPublicBookingConfirmation(
+                data.id,
+                bookingData.guestDetails.email
+              );
+              setEmailSent(emailSuccess);
             }
 
             toast({
@@ -117,10 +134,10 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
           }
 
         } catch (error) {
-          console.error('Error updating booking status:', error);
+          console.error('❌ Error processing payment completion:', error);
           toast({
-            title: "Booking Error",
-            description: "There was an issue confirming your booking. Please contact us directly.",
+            title: "Booking Created",
+            description: "Your booking was created but there was an issue with payment processing. Please contact the venue.",
             variant: "destructive",
           });
         } finally {
@@ -131,7 +148,9 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
 
       // If no booking ID and no payment required, create booking normally
       if (!bookingData.paymentRequired) {
+        console.log('🆕 Creating new booking without payment');
         setIsCreatingBooking(true);
+        
         try {
           const { TableAllocationService } = await import("@/services/tableAllocation");
           
@@ -162,36 +181,31 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
             is_unallocated: false,
           };
 
+          console.log('📝 Creating booking with payload:', bookingPayload);
+
           const { data, error } = await supabase
             .from('bookings')
             .insert([bookingPayload])
             .select()
             .single();
 
-          if (error) throw error;
+          if (error) {
+            console.error('❌ Error creating booking:', error);
+            throw error;
+          }
 
+          console.log('✅ Booking created successfully:', data.id);
           onBookingId(data.id);
           setBookingReference(data.booking_reference);
 
           // Send booking confirmation email if guest has email
           if (bookingData.guestDetails.email) {
-            try {
-              await sendBookingConfirmation(
-                bookingData.guestDetails.email,
-                {
-                  guest_name: data.guest_name,
-                  venue_name: venue.name,
-                  booking_date: format(new Date(data.booking_date), 'EEEE, MMMM do, yyyy'),
-                  booking_time: data.booking_time,
-                  party_size: data.party_size.toString(),
-                  booking_reference: data.booking_reference
-                },
-                venue.slug
-              );
-            } catch (emailError) {
-              console.error('Failed to send confirmation email:', emailError);
-              // Don't fail the booking process if email fails
-            }
+            console.log('📧 Sending confirmation email to:', bookingData.guestDetails.email);
+            const emailSuccess = await sendPublicBookingConfirmation(
+              data.id,
+              bookingData.guestDetails.email
+            );
+            setEmailSent(emailSuccess);
           }
 
           toast({
@@ -200,7 +214,7 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
           });
 
         } catch (error) {
-          console.error('Error creating booking:', error);
+          console.error('❌ Error creating booking:', error);
           
           const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
           const isTableAvailabilityError = errorMessage.includes('No tables available');
@@ -236,9 +250,9 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
       'BEGIN:VEVENT',
       `DTSTART:${startDate.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}`,
       `DTEND:${endDate.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')}`,
-      `SUMMARY:Dinner at The Nuthatch`,
+      `SUMMARY:Dinner at ${venue.name}`,
       `DESCRIPTION:Booking for ${bookingData.partySize} people\\nService: ${bookingData.service?.title || 'Dinner'}`,
-      `LOCATION:The Nuthatch, [Venue Address]`,
+      `LOCATION:${venue.name}`,
       'END:VEVENT',
       'END:VCALENDAR'
     ].join('\r\n');
@@ -247,7 +261,7 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'nuthatch-booking.ics';
+    link.download = `${venue.slug}-booking.ics`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -277,7 +291,7 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
           Booking Confirmed!
         </h2>
         <p className="text-nuthatch-muted">
-          Your table at The Nuthatch has been reserved
+          Your table at {venue.name} has been reserved
         </p>
         {bookingReference && (
           <p className="text-sm text-nuthatch-green font-medium mt-2">
@@ -285,6 +299,21 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
           </p>
         )}
       </div>
+
+      {/* Email Status */}
+      {bookingData.guestDetails.email && (
+        <Card className="p-4 border-nuthatch-border">
+          <div className="flex items-center space-x-2">
+            <Mail className="h-5 w-5 text-nuthatch-green" />
+            <span className="text-nuthatch-dark">
+              {emailSent 
+                ? `Confirmation email sent to ${bookingData.guestDetails.email}`
+                : `Confirmation email could not be sent to ${bookingData.guestDetails.email}`
+              }
+            </span>
+          </div>
+        </Card>
+      )}
 
       {/* Booking Details */}
       <Card className="p-6 border-nuthatch-border">
@@ -396,11 +425,11 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
             onClick={() => window.location.reload()}
           >
             <Edit className="h-4 w-4 mr-2" />
-            Modify Reservation
+            Make Another Booking
           </Button>
 
           <Button
-            onClick={() => window.open('https://the-nuthatch.com', '_blank')}
+            onClick={() => window.open(`https://${venue.slug}.com`, '_blank')}
             className="bg-nuthatch-green hover:bg-nuthatch-dark text-nuthatch-white"
           >
             <ExternalLink className="h-4 w-4 mr-2" />
@@ -413,8 +442,8 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
       <Card className="p-4 bg-nuthatch-light border-nuthatch-border">
         <h4 className="font-medium text-nuthatch-dark mb-2">Important Information</h4>
         <ul className="text-sm text-nuthatch-muted space-y-1">
-          <li>• You will receive a confirmation email shortly (if email provided)</li>
-          <li>• A reminder will be sent 36 hours before your booking</li>
+          <li>• {emailSent ? 'A confirmation email has been sent to you' : 'Please save these booking details for your records'}</li>
+          <li>• A reminder will be sent 24 hours before your booking</li>
           <li>• Please arrive on time for your reservation</li>
           <li>• Contact us directly if you need to make changes</li>
         </ul>
