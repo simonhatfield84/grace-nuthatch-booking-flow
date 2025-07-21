@@ -4,13 +4,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Bold, Italic, List, ListOrdered } from "lucide-react";
+import DOMPurify from 'dompurify';
 
 interface TermsEditorProps {
   value: string;
   onChange: (value: string) => void;
+  maxLength?: number;
 }
 
-export const TermsEditor = ({ value, onChange }: TermsEditorProps) => {
+export const TermsEditor = ({ value, onChange, maxLength = 50000 }: TermsEditorProps) => {
   const [selectedText, setSelectedText] = useState('');
 
   const insertFormatting = (before: string, after: string = '') => {
@@ -22,7 +24,21 @@ export const TermsEditor = ({ value, onChange }: TermsEditorProps) => {
     const selectedText = value.substring(start, end);
     
     const newText = value.substring(0, start) + before + selectedText + after + value.substring(end);
-    onChange(newText);
+    
+    // Security: Validate length and content
+    if (newText.length > maxLength) {
+      return; // Prevent exceeding max length
+    }
+    
+    // Additional XSS protection - sanitize content
+    const sanitizedText = DOMPurify.sanitize(newText, {
+      ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'ol', 'ul', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
+      ALLOWED_ATTR: ['class'],
+      FORBID_TAGS: ['script', 'object', 'embed', 'form', 'input', 'textarea', 'select', 'iframe'],
+      FORBID_ATTR: ['onload', 'onerror', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'onchange', 'onsubmit', 'javascript:']
+    });
+    
+    onChange(sanitizedText);
 
     // Reset cursor position
     setTimeout(() => {
@@ -75,14 +91,22 @@ export const TermsEditor = ({ value, onChange }: TermsEditorProps) => {
         <Textarea
           id="terms-textarea"
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => {
+            const newValue = e.target.value;
+            // Security: Prevent exceeding max length
+            if (newValue.length <= maxLength) {
+              onChange(newValue);
+            }
+          }}
           placeholder="Enter your service terms and conditions here. You can use **bold**, _italic_, and lists."
           className="min-h-[120px] border-0 focus-visible:ring-0"
+          maxLength={maxLength}
         />
       </div>
-      <p className="text-xs text-muted-foreground">
-        Use **bold** for bold text, _italic_ for italic text, and - for bullet points.
-      </p>
+      <div className="flex justify-between text-xs text-muted-foreground">
+        <span>Use **bold** for bold text, _italic_ for italic text, and - for bullet points.</span>
+        <span className={value.length > maxLength * 0.9 ? "text-warning" : ""}>{value.length}/{maxLength} characters</span>
+      </div>
     </div>
   );
 };

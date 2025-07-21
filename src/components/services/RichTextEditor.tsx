@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Bold, Italic, List, ListOrdered, Link, Quote } from "lucide-react";
+import DOMPurify from 'dompurify';
 
 interface RichTextEditorProps {
   value: string;
@@ -11,6 +12,7 @@ interface RichTextEditorProps {
   label: string;
   placeholder?: string;
   minHeight?: string;
+  maxLength?: number;
 }
 
 export const RichTextEditor = ({ 
@@ -18,7 +20,8 @@ export const RichTextEditor = ({
   onChange, 
   label, 
   placeholder = "Enter text here...",
-  minHeight = "min-h-[100px]"
+  minHeight = "min-h-[100px]",
+  maxLength = 10000
 }: RichTextEditorProps) => {
   const insertFormatting = (before: string, after: string = '') => {
     const textarea = document.getElementById(`rich-text-${label.replace(/\s+/g, '-').toLowerCase()}`) as HTMLTextAreaElement;
@@ -29,7 +32,21 @@ export const RichTextEditor = ({
     const selectedText = value.substring(start, end);
     
     const newText = value.substring(0, start) + before + selectedText + after + value.substring(end);
-    onChange(newText);
+    
+    // Security: Validate length and content
+    if (newText.length > maxLength) {
+      return; // Prevent exceeding max length
+    }
+    
+    // Additional XSS protection - sanitize content
+    const sanitizedText = DOMPurify.sanitize(newText, {
+      ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'ol', 'ul', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
+      ALLOWED_ATTR: ['class'],
+      FORBID_TAGS: ['script', 'object', 'embed', 'form', 'input', 'textarea', 'select', 'iframe'],
+      FORBID_ATTR: ['onload', 'onerror', 'onclick', 'onmouseover', 'onfocus', 'onblur', 'onchange', 'onsubmit', 'javascript:']
+    });
+    
+    onChange(sanitizedText);
 
     // Reset cursor position
     setTimeout(() => {
@@ -92,14 +109,22 @@ export const RichTextEditor = ({
         <Textarea
           id={`rich-text-${label.replace(/\s+/g, '-').toLowerCase()}`}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={(e) => {
+            const newValue = e.target.value;
+            // Security: Prevent exceeding max length
+            if (newValue.length <= maxLength) {
+              onChange(newValue);
+            }
+          }}
           placeholder={placeholder}
           className={`border-0 focus-visible:ring-0 ${minHeight}`}
+          maxLength={maxLength}
         />
       </div>
-      <p className="text-xs text-muted-foreground">
-        Use **bold**, _italic_, [links](url), {'>'}quotes, and - for bullet points.
-      </p>
+      <div className="flex justify-between text-xs text-muted-foreground">
+        <span>Use **bold**, _italic_, [links](url), {'>'}quotes, and - for bullet points.</span>
+        <span className={value.length > maxLength * 0.9 ? "text-warning" : ""}>{value.length}/{maxLength} characters</span>
+      </div>
     </div>
   );
 };

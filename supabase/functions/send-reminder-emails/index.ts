@@ -12,6 +12,13 @@ const resend = new Resend(resendApiKey);
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "X-XSS-Protection": "1; mode=block",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Content-Security-Policy": "default-src 'self'; script-src 'none'; object-src 'none';",
+  "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
 };
 
 interface ReminderRequest {
@@ -243,11 +250,17 @@ const handler = async (req: Request): Promise<Response> => {
 
   } catch (error: any) {
     console.error("Error in send-reminder-emails function:", error);
+    
+    // Sanitize error message to prevent information disclosure
+    const sanitizedError = error.message?.includes('database') 
+      ? 'Internal server error' 
+      : error.message || 'Unknown error occurred';
+    
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message,
-        reminder_type: (await req.json())?.reminder_type || 'unknown'
+        error: sanitizedError,
+        reminder_type: 'unknown' // Don't rely on potentially malformed request data
       }),
       {
         status: 500,
