@@ -153,9 +153,10 @@ export function EmailTemplateEditor({ template, onSave, onCancel }: EmailTemplat
 }
 
 export function EmailTemplatesList() {
-  const { templates, isLoading, createDefaultTemplates, toggleTemplateActive, loadTemplates } = useEmailTemplates();
+  const { templates, isLoading, createDefaultTemplates, toggleTemplateActive, loadTemplates, updateTemplate } = useEmailTemplates();
   const [hasInitialized, setHasInitialized] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
 
   const predefinedTemplates = [
     { key: 'booking_confirmation', name: 'Booking Confirmation', description: 'Sent immediately after a booking is confirmed' },
@@ -180,6 +181,34 @@ export function EmailTemplatesList() {
     await createDefaultTemplates();
     setIsRefreshing(false);
   };
+
+  const handleDirectEdit = (template: EmailTemplate) => {
+    setEditingTemplate(template);
+  };
+
+  const handleSaveFromBuilder = async (html: string, design: any, subject?: string) => {
+    if (!editingTemplate) return;
+    
+    try {
+      const updates: EmailTemplateUpdate = {
+        html_content: html,
+        design_json: design,
+        ...(subject && { subject })
+      };
+      
+      await updateTemplate(editingTemplate.id, updates);
+      setEditingTemplate(null);
+      loadTemplates();
+    } catch (error) {
+      console.error('Error saving template:', error);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingTemplate(null);
+  };
+
+  const availableVariables = emailTemplateService.getAvailableVariables();
 
   if (isLoading) {
     return <div>Loading templates...</div>;
@@ -276,28 +305,13 @@ export function EmailTemplatesList() {
                             </div>
                           </DialogContent>
                         </Dialog>
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button variant="outline" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-6xl max-h-[95vh] overflow-hidden">
-                            <DialogHeader>
-                              <DialogTitle>Edit Email Template</DialogTitle>
-                              <DialogDescription>
-                                Edit the {predefined.name} email template using the visual builder
-                              </DialogDescription>
-                            </DialogHeader>
-                            <EmailTemplateEditor
-                              template={existingTemplate}
-                              onSave={() => {
-                                loadTemplates();
-                              }}
-                              onCancel={() => {}}
-                            />
-                          </DialogContent>
-                        </Dialog>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleDirectEdit(existingTemplate)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
                       </>
                     ) : (
                       <Button 
@@ -316,6 +330,19 @@ export function EmailTemplatesList() {
           );
         })}
       </div>
+
+      {/* Direct Full Screen Email Builder */}
+      {editingTemplate && (
+        <FullScreenEmailBuilder
+          isOpen={true}
+          initialHtml={editingTemplate.html_content}
+          initialDesign={editingTemplate.design_json}
+          initialSubject={editingTemplate.subject}
+          onSave={handleSaveFromBuilder}
+          onCancel={handleCancelEdit}
+          availableVariables={availableVariables}
+        />
+      )}
     </div>
   );
 }

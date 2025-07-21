@@ -3,6 +3,8 @@ import React, { useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import EmailEditor, { EditorRef, EmailEditorProps } from 'react-email-editor';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { X, Eye, Save } from 'lucide-react';
 
@@ -10,8 +12,9 @@ interface FullScreenEmailBuilderProps {
   isOpen: boolean;
   initialHtml?: string;
   initialDesign?: any;
+  initialSubject?: string;
   availableVariables?: { [key: string]: string };
-  onSave?: (html: string, design: any) => void;
+  onSave?: (html: string, design: any, subject?: string) => void;
   onCancel?: () => void;
 }
 
@@ -48,6 +51,7 @@ export const FullScreenEmailBuilder: React.FC<FullScreenEmailBuilderProps> = ({
   isOpen,
   initialHtml = '',
   initialDesign = null,
+  initialSubject = '',
   availableVariables = {},
   onSave,
   onCancel,
@@ -58,6 +62,7 @@ export const FullScreenEmailBuilder: React.FC<FullScreenEmailBuilderProps> = ({
   const [previewHtml, setPreviewHtml] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(false);
   const [editorReady, setEditorReady] = React.useState(false);
+  const [subject, setSubject] = React.useState(initialSubject);
 
   const onReady = useCallback(() => {
     console.log('Unlayer editor is ready');
@@ -88,11 +93,11 @@ export const FullScreenEmailBuilder: React.FC<FullScreenEmailBuilderProps> = ({
       console.log('Exported HTML:', html);
       
       if (onSave) {
-        onSave(html, design);
+        onSave(html, design, subject);
       }
       setIsLoading(false);
     });
-  }, [onSave]);
+  }, [onSave, subject]);
 
   const handlePreview = useCallback(() => {
     if (!emailEditorRef.current) {
@@ -128,6 +133,11 @@ export const FullScreenEmailBuilder: React.FC<FullScreenEmailBuilderProps> = ({
       return () => document.removeEventListener('keydown', handleEscape);
     }
   }, [isOpen, onCancel]);
+
+  // Update subject when initialSubject changes
+  useEffect(() => {
+    setSubject(initialSubject);
+  }, [initialSubject]);
 
   const editorOptions: EmailEditorProps['options'] = {
     appearance: {
@@ -170,17 +180,29 @@ export const FullScreenEmailBuilder: React.FC<FullScreenEmailBuilderProps> = ({
   return createPortal(
     <div 
       ref={modalRef}
-      className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center"
+      className="fixed inset-0 z-[200] bg-black/50 flex items-center justify-center"
       onClick={handleBackdropClick}
     >
       <div 
         className="bg-background w-full h-full flex flex-col"
         onClick={(e) => e.stopPropagation()} // Prevent clicks inside from bubbling to backdrop
       >
-        {/* Header */}
+        {/* Header with Subject Field */}
         <div className="flex-shrink-0 border-b bg-background">
           <div className="flex items-center justify-between p-4">
-            <h2 className="text-xl font-semibold">Email Template Builder</h2>
+            <div className="flex items-center gap-4 flex-1">
+              <h2 className="text-xl font-semibold">Email Template Builder</h2>
+              <div className="flex items-center gap-2 flex-1 max-w-md">
+                <Label htmlFor="subject" className="text-sm font-medium whitespace-nowrap">Subject:</Label>
+                <Input
+                  id="subject"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  placeholder="Email subject line..."
+                  className="flex-1"
+                />
+              </div>
+            </div>
             <div className="flex gap-2">
               <Button 
                 variant="outline" 
@@ -215,16 +237,21 @@ export const FullScreenEmailBuilder: React.FC<FullScreenEmailBuilderProps> = ({
               </div>
             </div>
           )}
-          <EmailEditor
-            ref={emailEditorRef}
-            onReady={onReady}
-            options={editorOptions}
-            projectId={276923}
-            style={{
-              height: 'calc(100vh - 120px)',
-              width: '100%'
-            }}
-          />
+          <div 
+            className="w-full h-full"
+            onClick={(e) => e.stopPropagation()} // Prevent editor clicks from bubbling
+          >
+            <EmailEditor
+              ref={emailEditorRef}
+              onReady={onReady}
+              options={editorOptions}
+              projectId={276923}
+              style={{
+                height: 'calc(100vh - 180px)',
+                width: '100%'
+              }}
+            />
+          </div>
         </div>
 
         {/* Available Variables Info */}
