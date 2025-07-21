@@ -62,39 +62,9 @@ export const FullScreenEmailBuilder: React.FC<FullScreenEmailBuilderProps> = ({
     console.log('Unlayer editor is ready');
     setEditorReady(true);
     
-    if (emailEditorRef.current) {
-      // If we have a design JSON, load it
-      if (initialDesign) {
-        emailEditorRef.current.editor?.loadDesign(initialDesign);
-      } else if (initialHtml && initialHtml.trim()) {
-        // If we only have HTML, try to load it or create a basic design with HTML
-        try {
-          // Create a basic design structure with the HTML content
-          const basicDesign = {
-            body: {
-              rows: [
-                {
-                  columns: [
-                    {
-                      contents: [
-                        {
-                          type: 'html',
-                          values: {
-                            html: initialHtml
-                          }
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
-          };
-          emailEditorRef.current.editor?.loadDesign(basicDesign);
-        } catch (error) {
-          console.error('Error loading HTML into editor:', error);
-        }
-      }
+    if (emailEditorRef.current && initialDesign) {
+      // Only load if we have a proper design JSON
+      emailEditorRef.current.editor?.loadDesign(initialDesign);
     }
   }, [initialDesign, initialHtml]);
 
