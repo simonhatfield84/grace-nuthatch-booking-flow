@@ -88,17 +88,13 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
 
       console.log('🔄 Processing booking confirmation step');
 
-      // If booking already exists and we came from payment, update status to confirmed
+      // If booking already exists, just display the confirmation
       if (bookingData.bookingId) {
-        console.log('💳 Processing payment completion for booking:', bookingData.bookingId);
+        console.log('✅ Displaying confirmation for existing booking:', bookingData.bookingId);
         setIsCreatingBooking(true);
         
         try {
-          // Check payment status first
-          const paymentStatusResult = await checkPaymentStatus(bookingData.bookingId);
-          setPaymentStatus(paymentStatusResult);
-          
-          // First check if booking already exists and get its current status
+          // Get the booking details
           const { data: existingBooking, error: fetchError } = await supabase
             .from('bookings')
             .select('*')
@@ -110,79 +106,32 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
             throw fetchError;
           }
 
-          console.log('📋 Existing booking found:', existingBooking.status);
-          console.log('💰 Payment status:', paymentStatusResult);
+          console.log('📋 Booking found with status:', existingBooking.status);
+          setBookingReference(existingBooking.booking_reference);
+          onBookingId(existingBooking.id);
 
-          // If already confirmed, just set the reference and continue
-          if (existingBooking.status === 'confirmed') {
-            setBookingReference(existingBooking.booking_reference);
-            onBookingId(existingBooking.id);
-            
-            // Send booking confirmation email if guest has email and hasn't been sent
-            if (bookingData.guestDetails.email) {
-              console.log('📧 Sending confirmation email to:', bookingData.guestDetails.email);
-              const emailSuccess = await sendPublicBookingConfirmation(
-                existingBooking.id,
-                bookingData.guestDetails.email
-              );
-              setEmailSent(emailSuccess);
-            }
-          } else if (paymentStatusResult === 'succeeded' || !bookingData.paymentRequired) {
-            // Update status to confirmed if payment succeeded or no payment required
-            console.log('🔄 Updating booking status to confirmed');
-            const { data, error } = await supabase
-              .from('bookings')
-              .update({ status: 'confirmed' })
-              .eq('id', bookingData.bookingId)
-              .select()
-              .single();
-
-            if (error) {
-              console.error('❌ Error updating booking status:', error);
-              throw error;
-            }
-
-            setBookingReference(data.booking_reference);
-            onBookingId(data.id);
-
-            // Send booking confirmation email if guest has email
-            if (bookingData.guestDetails.email) {
-              console.log('📧 Sending confirmation email to:', bookingData.guestDetails.email);
-              const emailSuccess = await sendPublicBookingConfirmation(
-                data.id,
-                bookingData.guestDetails.email
-              );
-              setEmailSent(emailSuccess);
-            }
-
-            toast({
-              title: "Booking Confirmed!",
-              description: "Your payment has been processed and your table is reserved.",
-            });
-          } else {
-            // Payment is still pending or failed
-            setBookingReference(existingBooking.booking_reference);
-            onBookingId(existingBooking.id);
-            
-            if (paymentStatusResult === 'failed') {
-              toast({
-                title: "Payment Failed",
-                description: "Your booking was created but payment failed. Please contact the venue.",
-                variant: "destructive",
-              });
-            } else {
-              toast({
-                title: "Payment Processing",
-                description: "Your booking was created. Payment may still be processing.",
-              });
-            }
+          // Check payment status if payment was required
+          if (bookingData.paymentRequired) {
+            const paymentStatusResult = await checkPaymentStatus(bookingData.bookingId);
+            setPaymentStatus(paymentStatusResult);
+            console.log('💰 Payment status:', paymentStatusResult);
           }
 
-        } catch (error) {
-          console.error('❌ Error processing payment completion:', error);
+          // Note: Email sending is now handled in GuestDetailsStep after payment success
+          setEmailSent(true); // Assume email was sent during payment process
+
           toast({
-            title: "Booking Created",
-            description: "Your booking was created but there was an issue with payment processing. Please contact the venue.",
+            title: "Booking Confirmed!",
+            description: existingBooking.status === 'confirmed' ? 
+              "Your table is reserved and ready!" : 
+              "Your booking has been created.",
+          });
+
+        } catch (error) {
+          console.error('❌ Error loading booking details:', error);
+          toast({
+            title: "Booking Error",
+            description: "There was an issue loading your booking details.",
             variant: "destructive",
           });
         } finally {

@@ -225,11 +225,76 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
     }
   };
 
-  const handlePaymentSuccess = () => {
-    console.log('Payment successful, proceeding to confirmation');
-    toast.success('Payment completed successfully!');
-    setShowPaymentForm(false);
-    onChange(formData, true, paymentCalculation?.amount || 0, bookingId!);
+  const handlePaymentSuccess = async () => {
+    console.log('Payment successful, verifying and updating booking status...');
+    setIsCreatingBooking(true);
+    
+    try {
+      // Verify payment status first
+      console.log('Checking payment status for booking:', bookingId);
+      const { data: payment, error: paymentError } = await supabase
+        .from('booking_payments')
+        .select('status')
+        .eq('booking_id', bookingId!)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (paymentError && paymentError.code !== 'PGRST116') {
+        console.error('Error checking payment status:', paymentError);
+        throw new Error('Failed to verify payment status');
+      }
+
+      const paymentStatus = payment?.status;
+      console.log('Payment status from database:', paymentStatus);
+
+      if (paymentStatus === 'succeeded') {
+        // Update booking status to confirmed
+        console.log('Payment confirmed, updating booking status to confirmed');
+        const { error: updateError } = await supabase
+          .from('bookings')
+          .update({ status: 'confirmed' })
+          .eq('id', bookingId!);
+
+        if (updateError) {
+          console.error('Error updating booking status:', updateError);
+          throw new Error('Failed to update booking status');
+        }
+
+        // Send confirmation email if email is provided
+        if (formData.email) {
+          console.log('Sending booking confirmation email');
+          try {
+            await supabase.functions.invoke('send-email', {
+              body: {
+                booking_id: bookingId!,
+                guest_email: formData.email,
+                venue_id: venue.id,
+                email_type: 'booking_confirmation'
+              }
+            });
+            console.log('Confirmation email sent successfully');
+          } catch (emailError) {
+            console.error('Failed to send confirmation email:', emailError);
+            // Don't fail the whole process for email issues
+          }
+        }
+
+        toast.success('Payment completed and booking confirmed!');
+        setShowPaymentForm(false);
+        onChange(formData, true, paymentCalculation?.amount || 0, bookingId!);
+      } else {
+        console.error('Payment not confirmed. Status:', paymentStatus);
+        throw new Error('Payment was not successfully confirmed');
+      }
+    } catch (error) {
+      console.error('Error in payment success handling:', error);
+      toast.error('Payment completed but there was an issue confirming your booking. Please contact the venue.');
+      // Still proceed to confirmation but with error state
+      onChange(formData, true, paymentCalculation?.amount || 0, bookingId!);
+    } finally {
+      setIsCreatingBooking(false);
+    }
   };
 
   const handlePaymentError = (errorMessage: string) => {
@@ -408,7 +473,7 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
           {isCreatingBooking ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Creating Booking...
+              {showPaymentForm ? 'Processing Payment...' : 'Creating Booking...'}
             </>
           ) : paymentCalculation?.shouldCharge ? (
             <>
@@ -446,7 +511,7 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
           </Card>
 
           <StripeProvider venueId={venue?.id} usePublicMode={true}>
-            <div className="space-y-4">
+            <div className={`space-y-4 ${isCreatingBooking ? 'opacity-50 pointer-events-none' : ''}`}>
               <AppleGooglePayButton
                 clientSecret={clientSecret}
                 amount={paymentCalculation?.amount || 0}
@@ -464,6 +529,17 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
               />
             </div>
           </StripeProvider>
+
+          {isCreatingBooking && (
+            <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+                <span className="text-blue-800 text-sm font-medium">
+                  Verifying payment and confirming your booking...
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
