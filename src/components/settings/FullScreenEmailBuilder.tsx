@@ -53,6 +53,7 @@ export const FullScreenEmailBuilder: React.FC<FullScreenEmailBuilderProps> = ({
   onCancel,
 }) => {
   const emailEditorRef = useRef<EditorRef>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
   const [showPreview, setShowPreview] = React.useState(false);
   const [previewHtml, setPreviewHtml] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(false);
@@ -71,8 +72,6 @@ export const FullScreenEmailBuilder: React.FC<FullScreenEmailBuilderProps> = ({
           console.warn('Failed to load initial design:', error);
         }
       }
-      // For HTML-only templates, we'll let the user start with a blank canvas
-      // and they can copy/paste their existing content if needed
     }, 100);
   }, [initialDesign]);
 
@@ -108,17 +107,13 @@ export const FullScreenEmailBuilder: React.FC<FullScreenEmailBuilderProps> = ({
     });
   }, []);
 
-  // Handle click outside to close - only on the backdrop
+  // Improved backdrop click handler - only close when clicking the actual backdrop
   const handleBackdropClick = useCallback((e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
+    // Only close if clicking directly on the backdrop element (modalRef.current)
+    if (e.target === modalRef.current) {
       onCancel?.();
     }
   }, [onCancel]);
-
-  // Prevent all events from propagating up from the editor container
-  const handleContainerClick = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-  }, []);
 
   // Handle escape key
   useEffect(() => {
@@ -174,12 +169,13 @@ export const FullScreenEmailBuilder: React.FC<FullScreenEmailBuilderProps> = ({
 
   return createPortal(
     <div 
+      ref={modalRef}
       className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center"
       onClick={handleBackdropClick}
     >
       <div 
         className="bg-background w-full h-full flex flex-col"
-        onClick={handleContainerClick}
+        onClick={(e) => e.stopPropagation()} // Prevent clicks inside from bubbling to backdrop
       >
         {/* Header */}
         <div className="flex-shrink-0 border-b bg-background">

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Edit, Eye, Save, X, Clock, Palette } from "lucide-react";
+import { Edit, Eye, Save, X, Clock, Palette, RefreshCw } from "lucide-react";
 import { useEmailTemplates, EmailTemplate, EmailTemplateUpdate } from "@/hooks/useEmailTemplates";
 import { emailTemplateService } from "@/services/emailTemplateService";
 import { FullScreenEmailBuilder } from "./FullScreenEmailBuilder";
@@ -98,12 +99,19 @@ export function EmailTemplateEditor({ template, onSave, onCancel }: EmailTemplat
           <div className="mb-4 p-2 bg-muted rounded text-sm">
             <strong>Subject:</strong> {emailTemplateService.previewTemplate(formData.subject)}
           </div>
-          <div 
-            dangerouslySetInnerHTML={{ 
-              __html: emailTemplateService.previewTemplate(formData.html_content) 
-            }}
-            className="prose max-w-none"
-          />
+          {formData.html_content ? (
+            <div 
+              dangerouslySetInnerHTML={{ 
+                __html: emailTemplateService.previewTemplate(formData.html_content) 
+              }}
+              className="prose max-w-none"
+            />
+          ) : (
+            <div className="text-center text-muted-foreground py-8">
+              <Palette className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>No content yet. Click "Open Visual Builder" to create your email template.</p>
+            </div>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-4 mt-4">
@@ -147,6 +155,7 @@ export function EmailTemplateEditor({ template, onSave, onCancel }: EmailTemplat
 export function EmailTemplatesList() {
   const { templates, isLoading, createDefaultTemplates, toggleTemplateActive, loadTemplates } = useEmailTemplates();
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const predefinedTemplates = [
     { key: 'booking_confirmation', name: 'Booking Confirmation', description: 'Sent immediately after a booking is confirmed' },
@@ -166,6 +175,12 @@ export function EmailTemplatesList() {
     }
   }, [isLoading, templates.length, hasInitialized, createDefaultTemplates]);
 
+  const handleRefreshTemplates = async () => {
+    setIsRefreshing(true);
+    await createDefaultTemplates();
+    setIsRefreshing(false);
+  };
+
   if (isLoading) {
     return <div>Loading templates...</div>;
   }
@@ -176,12 +191,18 @@ export function EmailTemplatesList() {
         <div>
           <h3 className="text-lg font-medium">Email Templates</h3>
           <p className="text-sm text-muted-foreground">
-            Manage automated email communications for your venue
+            Manage automated email communications for your venue. All templates use the visual builder.
           </p>
         </div>
-        <Button onClick={loadTemplates} variant="outline">
-          Refresh Templates
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={handleRefreshTemplates} variant="outline" disabled={isRefreshing}>
+            <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Creating...' : 'Create New Templates'}
+          </Button>
+          <Button onClick={loadTemplates} variant="outline">
+            Refresh
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4">
@@ -209,6 +230,12 @@ export function EmailTemplatesList() {
                             <Badge variant="outline" className="text-xs">
                               <Clock className="h-3 w-3 mr-1" />
                               Auto-send
+                            </Badge>
+                          )}
+                          {existingTemplate.design_json && (
+                            <Badge variant="secondary" className="text-xs">
+                              <Palette className="h-3 w-3 mr-1" />
+                              Visual Builder Ready
                             </Badge>
                           )}
                         </div>
@@ -259,7 +286,7 @@ export function EmailTemplatesList() {
                             <DialogHeader>
                               <DialogTitle>Edit Email Template</DialogTitle>
                               <DialogDescription>
-                                Edit the {predefined.name} email template
+                                Edit the {predefined.name} email template using the visual builder
                               </DialogDescription>
                             </DialogHeader>
                             <EmailTemplateEditor
