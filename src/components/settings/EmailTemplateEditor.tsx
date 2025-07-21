@@ -1,17 +1,15 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Edit, Eye, Save, X, Clock } from "lucide-react";
+import { Edit, Eye, Save, X, Clock, Palette } from "lucide-react";
 import { useEmailTemplates, EmailTemplate, EmailTemplateUpdate } from "@/hooks/useEmailTemplates";
 import { emailTemplateService } from "@/services/emailTemplateService";
+import { GrapeJSEmailBuilder } from "./GrapeJSEmailBuilder";
 
 interface EmailTemplateEditorProps {
   template?: EmailTemplate;
@@ -22,10 +20,12 @@ interface EmailTemplateEditorProps {
 export function EmailTemplateEditor({ template, onSave, onCancel }: EmailTemplateEditorProps) {
   const { updateTemplate } = useEmailTemplates();
   const [isLoading, setIsLoading] = useState(false);
+  const [showBuilder, setShowBuilder] = useState(false);
   const [formData, setFormData] = useState({
     subject: template?.subject || '',
     html_content: template?.html_content || '',
     text_content: template?.text_content || '',
+    design_json: template?.design_json || null,
   });
 
   const handleSave = async () => {
@@ -38,6 +38,7 @@ export function EmailTemplateEditor({ template, onSave, onCancel }: EmailTemplat
         subject: formData.subject,
         html_content: formData.html_content,
         text_content: formData.text_content || undefined,
+        design_json: formData.design_json,
       };
       await updateTemplate(template.id, updates);
       
@@ -49,8 +50,28 @@ export function EmailTemplateEditor({ template, onSave, onCancel }: EmailTemplat
     }
   };
 
-  const previewHtml = emailTemplateService.previewTemplate(formData.html_content);
+  const handleBuilderSave = (html: string, design: any) => {
+    setFormData({
+      ...formData,
+      html_content: html,
+      design_json: design
+    });
+    setShowBuilder(false);
+  };
+
   const availableVariables = emailTemplateService.getAvailableVariables();
+
+  if (showBuilder) {
+    return (
+      <GrapeJSEmailBuilder
+        initialHtml={formData.html_content}
+        initialDesign={formData.design_json}
+        onSave={handleBuilderSave}
+        onCancel={() => setShowBuilder(false)}
+        availableVariables={availableVariables}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -64,68 +85,42 @@ export function EmailTemplateEditor({ template, onSave, onCancel }: EmailTemplat
         />
       </div>
 
-      <Tabs defaultValue="edit" className="w-full">
-        <TabsList>
-          <TabsTrigger value="edit">Edit HTML</TabsTrigger>
-          <TabsTrigger value="preview">Preview</TabsTrigger>
-          <TabsTrigger value="variables">Variables</TabsTrigger>
-        </TabsList>
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <Label>Email Content</Label>
+          <Button
+            variant="outline"
+            onClick={() => setShowBuilder(true)}
+            className="flex items-center gap-2"
+          >
+            <Palette className="h-4 w-4" />
+            Open Visual Builder
+          </Button>
+        </div>
 
-        <TabsContent value="edit" className="space-y-4">
-          <div>
-            <Label htmlFor="html_content">HTML Content</Label>
-            <Textarea
-              id="html_content"
-              value={formData.html_content}
-              onChange={(e) => setFormData({ ...formData, html_content: e.target.value })}
-              placeholder="Enter your HTML email template..."
-              rows={15}
-              className="font-mono text-sm"
-            />
+        <div className="border rounded-lg p-4 bg-white min-h-96">
+          <div className="mb-4 p-2 bg-muted rounded text-sm">
+            <strong>Subject:</strong> {emailTemplateService.previewTemplate(formData.subject)}
           </div>
+          <div 
+            dangerouslySetInnerHTML={{ 
+              __html: emailTemplateService.previewTemplate(formData.html_content) 
+            }}
+            className="prose max-w-none"
+          />
+        </div>
 
-          <div>
-            <Label htmlFor="text_content">Plain Text Content (Optional)</Label>
-            <Textarea
-              id="text_content"
-              value={formData.text_content}
-              onChange={(e) => setFormData({ ...formData, text_content: e.target.value })}
-              placeholder="Enter plain text version..."
-              rows={8}
-            />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="preview">
-          <div className="border rounded-lg p-4 bg-white">
-            <div className="mb-4 p-2 bg-muted rounded text-sm">
-              <strong>Subject:</strong> {emailTemplateService.previewTemplate(formData.subject)}
+        <div className="grid grid-cols-2 gap-4 mt-4">
+          {Object.entries(availableVariables).map(([key, description]) => (
+            <div key={key} className="flex flex-col space-y-2">
+              <Badge variant="outline" className="w-fit">
+                {`{{${key}}}`}
+              </Badge>
+              <p className="text-xs text-muted-foreground">{description}</p>
             </div>
-            <div 
-              dangerouslySetInnerHTML={{ __html: previewHtml }}
-              className="prose max-w-none"
-            />
-          </div>
-        </TabsContent>
-
-        <TabsContent value="variables">
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Available variables you can use in your templates:
-            </p>
-            <div className="grid grid-cols-2 gap-4">
-              {Object.entries(availableVariables).map(([key, description]) => (
-                <div key={key} className="flex flex-col space-y-2">
-                  <Badge variant="outline" className="w-fit">
-                    {`{{${key}}}`}
-                  </Badge>
-                  <p className="text-xs text-muted-foreground">{description}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
+          ))}
+        </div>
+      </div>
 
       <div className="flex gap-2 pt-4">
         <Button onClick={handleSave} disabled={isLoading}>
@@ -254,7 +249,7 @@ export function EmailTemplatesList() {
                               <Edit className="h-4 w-4" />
                             </Button>
                           </DialogTrigger>
-                          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                          <DialogContent className="max-w-6xl max-h-[95vh] overflow-hidden">
                             <DialogHeader>
                               <DialogTitle>Edit Email Template</DialogTitle>
                               <DialogDescription>

@@ -1,10 +1,12 @@
+
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertTriangle, Clock, MapPin, Users, Phone, Mail } from "lucide-react";
+import { AlertTriangle, Clock, MapPin, Users, Phone, Mail, Edit } from "lucide-react";
+import { BookingModificationForm } from "@/components/booking/BookingModificationForm";
 
 export default function ModifyBooking() {
   const [searchParams] = useSearchParams();
@@ -15,6 +17,7 @@ export default function ModifyBooking() {
   const [venue, setVenue] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showModifyForm, setShowModifyForm] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -81,6 +84,18 @@ export default function ModifyBooking() {
     }
   };
 
+  const handleModificationSuccess = async () => {
+    // Mark token as used
+    await supabase
+      .from('booking_tokens')
+      .update({ used_at: new Date().toISOString() })
+      .eq('token', token);
+    
+    // Reload booking data
+    await loadBooking();
+    setShowModifyForm(false);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -92,13 +107,33 @@ export default function ModifyBooking() {
     );
   }
 
+  if (showModifyForm && booking && venue) {
+    return (
+      <div className="min-h-screen bg-background py-8 px-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold mb-2">Modify Your Booking</h1>
+            <p className="text-muted-foreground">Update your booking details</p>
+          </div>
+          
+          <BookingModificationForm
+            booking={booking}
+            venue={venue}
+            onSuccess={handleModificationSuccess}
+            onCancel={() => setShowModifyForm(false)}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background py-8 px-4">
       <div className="max-w-2xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold mb-2">Modify Booking</h1>
           <p className="text-muted-foreground">
-            Contact the venue to make changes to your booking
+            Review your booking details and make changes
           </p>
         </div>
 
@@ -175,16 +210,26 @@ export default function ModifyBooking() {
                 </div>
               )}
 
-              <Alert>
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  To modify your booking, please contact the venue directly using the information below.
-                  Have your booking reference ready: <strong>{booking.booking_reference}</strong>
-                </AlertDescription>
-              </Alert>
+              <div className="flex flex-col sm:flex-row gap-3 pt-4">
+                <Button
+                  onClick={() => setShowModifyForm(true)}
+                  className="flex-1"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Modify Booking
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  onClick={() => navigate('/')}
+                  className="flex-1"
+                >
+                  Back to Home
+                </Button>
+              </div>
 
               <div className="bg-muted p-4 rounded-lg">
-                <h4 className="font-medium mb-3">Contact {venue.name}</h4>
+                <h4 className="font-medium mb-3">Need Help?</h4>
                 <div className="space-y-3">
                   {venue.phone && (
                     <div className="flex items-center gap-3">
@@ -216,38 +261,6 @@ export default function ModifyBooking() {
                     </div>
                   )}
                 </div>
-              </div>
-
-              <div className="flex flex-col sm:flex-row gap-3 pt-4">
-                {venue.phone && (
-                  <Button
-                    onClick={() => window.open(`tel:${venue.phone}`, '_self')}
-                    className="flex-1"
-                  >
-                    <Phone className="h-4 w-4 mr-2" />
-                    Call Now
-                  </Button>
-                )}
-                
-                {venue.email && (
-                  <Button
-                    variant="outline"
-                    onClick={() => window.open(`mailto:${venue.email}?subject=Booking Modification Request - ${booking.booking_reference}`, '_self')}
-                    className="flex-1"
-                  >
-                    <Mail className="h-4 w-4 mr-2" />
-                    Send Email
-                  </Button>
-                )}
-              </div>
-
-              <div className="text-center pt-4 border-t">
-                <Button
-                  variant="ghost"
-                  onClick={() => navigate('/')}
-                >
-                  Back to Home
-                </Button>
               </div>
             </CardContent>
           </Card>

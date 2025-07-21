@@ -14,6 +14,7 @@ export interface EmailTemplate {
   description?: string;
   is_active: boolean;
   auto_send: boolean;
+  design_json?: any;
   created_at: string;
   updated_at: string;
 }
@@ -27,6 +28,7 @@ export interface EmailTemplateCreate {
   description?: string;
   is_active?: boolean;
   auto_send?: boolean;
+  design_json?: any;
 }
 
 export interface EmailTemplateUpdate {
@@ -36,6 +38,7 @@ export interface EmailTemplateUpdate {
   description?: string;
   is_active?: boolean;
   auto_send?: boolean;
+  design_json?: any;
 }
 
 export const useEmailTemplates = () => {
