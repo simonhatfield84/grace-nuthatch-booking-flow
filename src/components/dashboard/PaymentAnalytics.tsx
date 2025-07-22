@@ -11,8 +11,8 @@ interface PaymentAnalyticsData {
   confirmed_bookings: number;
   failed_bookings: number;
   expired_bookings: number;
+  pending_bookings: number;
   conversion_rate: number;
-  avg_completion_time: number;
   total_revenue_cents: number;
 }
 
@@ -33,6 +33,7 @@ export const PaymentAnalytics = () => {
       const confirmedBookings = bookings.filter(b => b.status === 'confirmed').length;
       const failedBookings = bookings.filter(b => b.status === 'payment_failed').length;
       const expiredBookings = bookings.filter(b => b.status === 'expired').length;
+      const pendingBookings = bookings.filter(b => b.status === 'pending_payment').length;
       const conversionRate = totalBookings > 0 ? (confirmedBookings / totalBookings) * 100 : 0;
 
       return {
@@ -40,6 +41,7 @@ export const PaymentAnalytics = () => {
         confirmed_bookings: confirmedBookings,
         failed_bookings: failedBookings,
         expired_bookings: expiredBookings,
+        pending_bookings: pendingBookings,
         conversion_rate: conversionRate,
         total_revenue_cents: 0 // Would need to calculate from payment records
       } as PaymentAnalyticsData;
@@ -53,9 +55,24 @@ export const PaymentAnalytics = () => {
       const { data, error } = await supabase
         .from("bookings")
         .select("*")
-        .in("status", ["payment_failed", "expired"])
+        .in("status", ["payment_failed", "expired", "pending_payment"])
         .order("created_at", { ascending: false })
         .limit(10);
+
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch payment analytics events
+  const { data: analyticsEvents } = useQuery({
+    queryKey: ["payment-analytics-events"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("payment_analytics")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(5);
 
       if (error) throw error;
       return data;
@@ -82,7 +99,7 @@ export const PaymentAnalytics = () => {
   return (
     <div className="space-y-6">
       {/* Key Metrics */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
@@ -104,7 +121,7 @@ export const PaymentAnalytics = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Confirmed Bookings</CardTitle>
+            <CardTitle className="text-sm font-medium">Confirmed</CardTitle>
             <CheckCircle className="h-4 w-4 text-success" />
           </CardHeader>
           <CardContent>
@@ -113,6 +130,21 @@ export const PaymentAnalytics = () => {
             </div>
             <p className="text-xs text-muted-foreground">
               Successfully paid
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Pending Payment</CardTitle>
+            <Clock className="h-4 w-4 text-warning" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-warning">
+              {analytics?.pending_bookings || 0}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Awaiting payment
             </p>
           </CardContent>
         </Card>
@@ -134,8 +166,8 @@ export const PaymentAnalytics = () => {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Expired Bookings</CardTitle>
-            <Clock className="h-4 w-4 text-warning" />
+            <CardTitle className="text-sm font-medium">Expired</CardTitle>
+            <AlertTriangle className="h-4 w-4 text-warning" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-warning">
@@ -153,7 +185,7 @@ export const PaymentAnalytics = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-warning" />
-            Recent Failed Bookings
+            Recent Booking Issues
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -175,9 +207,17 @@ export const PaymentAnalytics = () => {
                   </div>
                   <div className="flex flex-col items-end gap-1">
                     <Badge
-                      variant={booking.status === 'payment_failed' ? 'destructive' : 'secondary'}
+                      variant={
+                        booking.status === 'payment_failed' 
+                          ? 'destructive' 
+                          : booking.status === 'pending_payment'
+                          ? 'default'
+                          : 'secondary'
+                      }
                     >
-                      {booking.status === 'payment_failed' ? 'Payment Failed' : 'Expired'}
+                      {booking.status === 'payment_failed' && 'Payment Failed'}
+                      {booking.status === 'expired' && 'Expired'}
+                      {booking.status === 'pending_payment' && 'Pending Payment'}
                     </Badge>
                     <div className="text-xs text-muted-foreground">
                       {formatDistanceToNow(new Date(booking.created_at), { addSuffix: true })}
@@ -188,11 +228,38 @@ export const PaymentAnalytics = () => {
             </div>
           ) : (
             <p className="text-muted-foreground text-center py-4">
-              No failed bookings in the last 30 days
+              No booking issues in the last 30 days
             </p>
           )}
         </CardContent>
       </Card>
+
+      {/* Payment Analytics Events */}
+      {analyticsEvents && analyticsEvents.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Payment Events</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {analyticsEvents.map((event) => (
+                <div
+                  key={event.id}
+                  className="flex items-center justify-between p-2 border rounded text-sm"
+                >
+                  <div>
+                    <span className="font-medium">Booking {event.booking_id}</span>
+                    <span className="ml-2 text-muted-foreground">{event.event_type}</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {formatDistanceToNow(new Date(event.created_at), { addSuffix: true })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

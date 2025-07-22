@@ -21,6 +21,7 @@ serve(async (req) => {
 
     // Validate required fields
     if (!paymentData.bookingId || !paymentData.amount) {
+      console.error('❌ Missing required fields:', { bookingId: paymentData.bookingId, amount: paymentData.amount })
       throw new Error('Missing required fields: bookingId and amount')
     }
 
@@ -29,7 +30,7 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Get basic booking details without the problematic service JOIN
+    // Get booking details with venue information
     const { data: booking, error: bookingError } = await supabaseClient
       .from('bookings')
       .select(`
@@ -41,7 +42,7 @@ serve(async (req) => {
 
     if (bookingError) {
       console.error('❌ Failed to fetch booking:', bookingError)
-      throw bookingError;
+      throw new Error(`Booking not found: ${bookingError.message}`)
     }
 
     if (!booking) {
@@ -54,79 +55,30 @@ serve(async (req) => {
       service_name: booking.service,
       party_size: booking.party_size,
       venue_id: booking.venue_id
-    });
-
-    // Securely lookup service by title/name if service is specified in booking
-    let serviceInfo = null;
-    let calculatedAmount = paymentData.amount; // Use request amount as fallback
-
-    if (booking.service && booking.service !== 'Dinner') {
-      console.log('🔍 Looking up service information for:', booking.service);
-      
-      const { data: service, error: serviceError } = await supabaseClient
-        .from('services')
-        .select(`
-          id,
-          title,
-          requires_payment,
-          charge_type,
-          charge_amount_per_guest,
-          minimum_guests_for_charge
-        `)
-        .eq('venue_id', booking.venue_id)
-        .eq('title', booking.service)
-        .maybeSingle();
-
-      if (service && !serviceError) {
-        serviceInfo = service;
-        console.log('✅ Service found:', {
-          service_id: service.id,
-          title: service.title,
-          requires_payment: service.requires_payment,
-          charge_type: service.charge_type
-        });
-
-        // Calculate amount based on service settings
-        if (service.requires_payment && service.charge_type === 'per_guest') {
-          const chargePerGuest = service.charge_amount_per_guest || 0;
-          const minGuests = service.minimum_guests_for_charge || 1;
-          const chargingPartySize = Math.max(booking.party_size, minGuests);
-          calculatedAmount = chargePerGuest * chargingPartySize;
-          
-          console.log('💰 Service-based calculation:', {
-            charge_per_guest: chargePerGuest,
-            party_size: booking.party_size,
-            min_guests: minGuests,
-            charging_party_size: chargingPartySize,
-            calculated_amount: calculatedAmount
-          });
-        }
-      } else {
-        console.log('⚠️ Service not found, using request amount as fallback');
-      }
-    }
-
-    console.log('💰 Final payment calculation:', {
-      booking_id: paymentData.bookingId,
-      service_title: serviceInfo?.title || booking.service,
-      party_size: booking.party_size,
-      calculated_amount_pence: calculatedAmount,
-      requested_amount_pence: paymentData.amount
-    });
-
-    // Use the calculated amount (either from service or request)
-    const finalAmount = calculatedAmount;
+    })
 
     // Get venue's Stripe settings with enhanced validation
-    const { data: stripeSettings } = await supabaseClient
+    const { data: stripeSettings, error: stripeError } = await supabaseClient
       .from('venue_stripe_settings')
       .select('*')
       .eq('venue_id', booking.venue_id)
       .eq('is_active', true)
       .single()
 
-    if (!stripeSettings?.stripe_account_id) {
-      throw new Error('Venue Stripe integration not configured')
+    console.log('🔍 Stripe settings query result:', { 
+      stripeSettings, 
+      stripeError,
+      venue_id: booking.venue_id 
+    })
+
+    if (stripeError || !stripeSettings) {
+      console.error('❌ No Stripe settings found:', stripeError)
+      throw new Error('Payment system not configured for this venue. Please contact the venue to enable online payments.')
+    }
+
+    if (!stripeSettings.stripe_account_id) {
+      console.error('❌ Missing stripe_account_id in settings:', stripeSettings)
+      throw new Error('Venue payment account not configured. Please contact the venue.')
     }
 
     // Determine if we're in test mode
@@ -143,8 +95,70 @@ serve(async (req) => {
     })
 
     if (!stripeSecretKey) {
+      console.error('❌ Stripe secret key not configured')
       throw new Error(`Stripe ${isTestMode ? 'test' : 'live'} secret key not configured`)
     }
+
+    // Lookup service information for amount calculation
+    let serviceInfo = null
+    let calculatedAmount = paymentData.amount // Use request amount as fallback
+
+    if (booking.service && booking.service !== 'Dinner') {
+      console.log('🔍 Looking up service information for:', booking.service)
+      
+      const { data: service, error: serviceError } = await supabaseClient
+        .from('services')
+        .select(`
+          id,
+          title,
+          requires_payment,
+          charge_type,
+          charge_amount_per_guest,
+          minimum_guests_for_charge
+        `)
+        .eq('venue_id', booking.venue_id)
+        .eq('title', booking.service)
+        .maybeSingle()
+
+      if (service && !serviceError) {
+        serviceInfo = service
+        console.log('✅ Service found:', {
+          service_id: service.id,
+          title: service.title,
+          requires_payment: service.requires_payment,
+          charge_type: service.charge_type
+        })
+
+        // Calculate amount based on service settings
+        if (service.requires_payment && service.charge_type === 'per_guest') {
+          const chargePerGuest = service.charge_amount_per_guest || 0
+          const minGuests = service.minimum_guests_for_charge || 1
+          const chargingPartySize = Math.max(booking.party_size, minGuests)
+          calculatedAmount = chargePerGuest * chargingPartySize
+          
+          console.log('💰 Service-based calculation:', {
+            charge_per_guest: chargePerGuest,
+            party_size: booking.party_size,
+            min_guests: minGuests,
+            charging_party_size: chargingPartySize,
+            calculated_amount: calculatedAmount
+          })
+        }
+      } else {
+        console.log('⚠️ Service not found, using request amount as fallback')
+      }
+    }
+
+    console.log('💰 Final payment calculation:', {
+      booking_id: paymentData.bookingId,
+      service_title: serviceInfo?.title || booking.service,
+      party_size: booking.party_size,
+      calculated_amount_pence: calculatedAmount,
+      requested_amount_pence: paymentData.amount
+    })
+
+    // Use the calculated amount
+    const finalAmount = calculatedAmount
 
     const stripe = new Stripe(stripeSecretKey, {
       apiVersion: '2023-10-16',
@@ -179,7 +193,6 @@ serve(async (req) => {
         booking_date: booking.booking_date,
         booking_time: booking.booking_time,
         service_name: serviceInfo?.title || booking.service,
-        threat_level: threatLevel,
         test_mode: isTestMode.toString(),
       },
       automatic_payment_methods: {
