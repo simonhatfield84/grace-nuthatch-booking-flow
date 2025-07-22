@@ -29,7 +29,7 @@ export const DashboardCharts = () => {
   );
 };
 
-export const ServicePopularityChart = ({ data }: { data?: any[] }) => {
+export const ServicePopularityChart = ({ data }: { data?: Record<string, number> }) => {
   return (
     <Card>
       <CardHeader>
@@ -44,7 +44,7 @@ export const ServicePopularityChart = ({ data }: { data?: any[] }) => {
   );
 };
 
-export const StatusBreakdownChart = ({ data }: { data?: any[] }) => {
+export const StatusBreakdownChart = ({ data }: { data?: Record<string, number> }) => {
   return (
     <Card>
       <CardHeader>
