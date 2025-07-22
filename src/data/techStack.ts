@@ -10,7 +10,9 @@ export const techStack = {
     'React Hook Form (Forms)',
     'Recharts (Data Visualization)',
     'Lucide React (Icons)',
-    'Zod (Schema Validation)'
+    'Zod (Schema Validation)',
+    'Unlayer Email Builder',
+    'React Email Editor'
   ],
   backend: [
     'Supabase (Backend-as-a-Service)',
@@ -45,6 +47,7 @@ export const techStack = {
       'Real-time monitoring'
     ],
     'Email & Communications': [
+      'Visual drag-and-drop email editor',
       'Branded email templates',
       'Automated reminder system',
       'Booking confirmations',
