@@ -206,12 +206,17 @@ serve(async (req) => {
       throw new Error('Stripe payments not configured for this venue')
     }
 
-    // Use appropriate Stripe key based on test mode setting
-    const stripeKeyName = stripeSettings.test_mode ? 'STRIPE_TEST_SECRET_KEY' : 'STRIPE_LIVE_SECRET_KEY';
+    // FIXED: Use correct Stripe key names based on test mode setting
+    const stripeKeyName = stripeSettings.test_mode ? 'STRIPE_TEST_SECRET_KEY' : 'STRIPE_SECRET_KEY';
     const stripeKey = Deno.env.get(stripeKeyName);
     
+    console.log('🔑 Using Stripe key for mode:', stripeSettings.test_mode ? 'TEST' : 'LIVE');
+    console.log('🔑 Key name:', stripeKeyName);
+    console.log('🔑 Key configured:', !!stripeKey);
+    
     if (!stripeKey) {
-      console.error(`❌ ${stripeKeyName} not configured`);
+      const errorMsg = `${stripeKeyName} not configured`;
+      console.error(`❌ ${errorMsg}`);
       await logSecurityEvent(supabaseClient, 'data_access', {
         error: 'stripe_key_missing',
         key_type: stripeKeyName,
@@ -268,9 +273,18 @@ serve(async (req) => {
         booking_date: booking.booking_date,
         booking_time: booking.booking_time,
         threat_level: threatLevel,
+        test_mode: stripeSettings.test_mode.toString(),
       },
       description: paymentData.description || `Payment for booking ${booking.booking_reference || paymentData.bookingId}`,
     })
+
+    console.log('💳 Payment Intent created:', {
+      id: paymentIntent.id,
+      amount: paymentIntent.amount,
+      currency: paymentIntent.currency,
+      test_mode: stripeSettings.test_mode,
+      booking_id: paymentData.bookingId
+    });
 
     // Store or update payment record
     const paymentRecord = {
@@ -306,6 +320,7 @@ serve(async (req) => {
       booking_id: paymentData.bookingId,
       amount: paymentData.amount,
       threat_level: threatLevel,
+      test_mode: stripeSettings.test_mode,
       success: true
     }, req, booking.venue_id);
 
@@ -315,6 +330,7 @@ serve(async (req) => {
       JSON.stringify({
         client_secret: paymentIntent.client_secret,
         payment_intent_id: paymentIntent.id,
+        test_mode: stripeSettings.test_mode,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

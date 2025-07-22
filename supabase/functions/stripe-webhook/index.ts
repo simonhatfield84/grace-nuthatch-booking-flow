@@ -91,6 +91,22 @@ serve(async (req) => {
 
     console.log('📊 Processing webhook event:', event.type);
 
+    // Store webhook event for debugging
+    try {
+      await supabaseClient
+        .from('webhook_events')
+        .insert({
+          stripe_event_id: event.id,
+          event_type: event.type,
+          test_mode: isTestMode,
+          processed_at: new Date().toISOString(),
+          event_data: event.data
+        });
+      console.log('📝 Webhook event logged for debugging');
+    } catch (logError) {
+      console.error('⚠️ Failed to log webhook event (non-critical):', logError);
+    }
+
     switch (event.type) {
       case 'payment_intent.succeeded':
         const paymentIntent = event.data.object
@@ -99,6 +115,7 @@ serve(async (req) => {
         console.log('💰 Payment succeeded for booking:', bookingId);
         console.log('💳 Payment Intent ID:', paymentIntent.id);
         console.log('🧪 Test mode:', isTestMode);
+        console.log('💵 Amount:', paymentIntent.amount, paymentIntent.currency);
 
         if (bookingId) {
           // Update payment status
@@ -172,6 +189,7 @@ serve(async (req) => {
         console.log('❌ Payment failed for booking:', failedBookingId);
         console.log('💳 Payment Intent ID:', failedPayment.id);
         console.log('🧪 Test mode:', isTestMode);
+        console.log('💸 Failed amount:', failedPayment.amount, failedPayment.currency);
 
         if (failedBookingId) {
           // Update payment status
@@ -199,7 +217,12 @@ serve(async (req) => {
     }
 
     console.log('✅ Webhook processed successfully');
-    return new Response(JSON.stringify({ received: true }), {
+    return new Response(JSON.stringify({ 
+      received: true, 
+      event_id: event.id, 
+      event_type: event.type,
+      test_mode: isTestMode 
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     })
