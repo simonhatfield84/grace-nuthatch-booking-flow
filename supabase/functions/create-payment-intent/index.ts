@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import Stripe from 'https://esm.sh/stripe@14.21.0'
@@ -172,20 +171,12 @@ serve(async (req) => {
       throw error;
     }
 
-    // Get and validate booking details with service information
+    // Get basic booking details without the problematic service JOIN
     const { data: booking, error: bookingError } = await supabaseClient
       .from('bookings')
       .select(`
         *, 
-        venues(*),
-        services:service (
-          id,
-          title,
-          requires_payment,
-          charge_type,
-          charge_amount_per_guest,
-          minimum_guests_for_charge
-        )
+        venues(*)
       `)
       .eq('id', paymentData.bookingId)
       .single()
@@ -200,26 +191,73 @@ serve(async (req) => {
       throw new Error('Booking not found')
     }
 
-    // Calculate the CURRENT payment amount based on service settings
-    let calculatedAmount = 0;
-    if (booking.services?.requires_payment && booking.services?.charge_type === 'per_guest') {
-      const chargePerGuest = booking.services.charge_amount_per_guest || 0;
-      const minGuests = booking.services.minimum_guests_for_charge || 1;
-      const chargingPartySize = Math.max(booking.party_size, minGuests);
-      calculatedAmount = chargePerGuest * chargingPartySize;
+    console.log('📝 Booking found:', {
+      booking_id: paymentData.bookingId,
+      service_name: booking.service,
+      party_size: booking.party_size,
+      venue_id: booking.venue_id
+    });
+
+    // Securely lookup service by title/name if service is specified in booking
+    let serviceInfo = null;
+    let calculatedAmount = paymentData.amount; // Use request amount as fallback
+
+    if (booking.service && booking.service !== 'Dinner') {
+      console.log('🔍 Looking up service information for:', booking.service);
+      
+      const { data: service, error: serviceError } = await supabaseClient
+        .from('services')
+        .select(`
+          id,
+          title,
+          requires_payment,
+          charge_type,
+          charge_amount_per_guest,
+          minimum_guests_for_charge
+        `)
+        .eq('venue_id', booking.venue_id)
+        .eq('title', booking.service)
+        .maybeSingle();
+
+      if (service && !serviceError) {
+        serviceInfo = service;
+        console.log('✅ Service found:', {
+          service_id: service.id,
+          title: service.title,
+          requires_payment: service.requires_payment,
+          charge_type: service.charge_type
+        });
+
+        // Calculate amount based on service settings
+        if (service.requires_payment && service.charge_type === 'per_guest') {
+          const chargePerGuest = service.charge_amount_per_guest || 0;
+          const minGuests = service.minimum_guests_for_charge || 1;
+          const chargingPartySize = Math.max(booking.party_size, minGuests);
+          calculatedAmount = chargePerGuest * chargingPartySize;
+          
+          console.log('💰 Service-based calculation:', {
+            charge_per_guest: chargePerGuest,
+            party_size: booking.party_size,
+            min_guests: minGuests,
+            charging_party_size: chargingPartySize,
+            calculated_amount: calculatedAmount
+          });
+        }
+      } else {
+        console.log('⚠️ Service not found, using request amount as fallback');
+      }
     }
 
-    console.log('💰 Payment calculation:', {
+    console.log('💰 Final payment calculation:', {
       booking_id: paymentData.bookingId,
-      service_title: booking.services?.title,
-      charge_per_guest: booking.services?.charge_amount_per_guest,
+      service_title: serviceInfo?.title || booking.service,
       party_size: booking.party_size,
       calculated_amount_pence: calculatedAmount,
       requested_amount_pence: paymentData.amount
     });
 
-    // Use the calculated amount instead of the requested amount for consistency
-    const finalAmount = calculatedAmount > 0 ? calculatedAmount : paymentData.amount;
+    // Use the calculated amount (either from service or request)
+    const finalAmount = calculatedAmount;
 
     // Get venue's Stripe settings with enhanced validation
     const { data: stripeSettings } = await supabaseClient
@@ -316,6 +354,7 @@ serve(async (req) => {
         party_size: booking.party_size.toString(),
         booking_date: booking.booking_date,
         booking_time: booking.booking_time,
+        service_name: serviceInfo?.title || booking.service,
         threat_level: threatLevel,
         test_mode: isTestMode.toString(),
       },
