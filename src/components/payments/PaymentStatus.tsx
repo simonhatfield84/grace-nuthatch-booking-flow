@@ -28,24 +28,25 @@ export const PaymentStatus = ({ bookingId }: PaymentStatusProps) => {
   const { data: accurateAmount } = useQuery({
     queryKey: ['booking-accurate-payment', bookingId],
     queryFn: async () => {
+      // First get the booking details
       const { data: booking } = await supabase
         .from('bookings')
-        .select(`
-          party_size,
-          service,
-          services:service (
-            requires_payment,
-            charge_type,
-            charge_amount_per_guest,
-            minimum_guests_for_charge
-          )
-        `)
+        .select('party_size, service')
         .eq('id', bookingId)
         .single();
 
-      if (booking?.services?.requires_payment && booking.services.charge_type === 'per_guest') {
-        const chargePerGuest = booking.services.charge_amount_per_guest || 0;
-        const minGuests = booking.services.minimum_guests_for_charge || 1;
+      if (!booking?.service) return null;
+
+      // Then get the service details by matching the service title
+      const { data: serviceData } = await supabase
+        .from('services')
+        .select('requires_payment, charge_type, charge_amount_per_guest, minimum_guests_for_charge')
+        .eq('title', booking.service)
+        .single();
+
+      if (serviceData?.requires_payment && serviceData.charge_type === 'per_guest') {
+        const chargePerGuest = serviceData.charge_amount_per_guest || 0;
+        const minGuests = serviceData.minimum_guests_for_charge || 1;
         const chargingPartySize = Math.max(booking.party_size, minGuests);
         return chargePerGuest * chargingPartySize;
       }

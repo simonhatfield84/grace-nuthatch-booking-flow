@@ -42,22 +42,22 @@ async function getAccuratePaymentAmount(bookingId: number): Promise<{ amount: st
     // Fallback: calculate based on current service pricing
     const { data: booking } = await supabase
       .from('bookings')
-      .select(`
-        party_size,
-        service,
-        services:service (
-          requires_payment,
-          charge_type,
-          charge_amount_per_guest,
-          minimum_guests_for_charge
-        )
-      `)
+      .select('party_size, service')
       .eq('id', bookingId)
       .single();
 
-    if (booking?.services?.requires_payment && booking.services.charge_type === 'per_guest') {
-      const chargePerGuest = booking.services.charge_amount_per_guest || 0;
-      const minGuests = booking.services.minimum_guests_for_charge || 1;
+    if (!booking?.service) return null;
+
+    // Get service details by matching the service title
+    const { data: serviceData } = await supabase
+      .from('services')
+      .select('requires_payment, charge_type, charge_amount_per_guest, minimum_guests_for_charge')
+      .eq('title', booking.service)
+      .single();
+
+    if (serviceData?.requires_payment && serviceData.charge_type === 'per_guest') {
+      const chargePerGuest = serviceData.charge_amount_per_guest || 0;
+      const minGuests = serviceData.minimum_guests_for_charge || 1;
       const chargingPartySize = Math.max(booking.party_size, minGuests);
       const totalAmount = chargePerGuest * chargingPartySize;
       
@@ -272,22 +272,13 @@ export const emailService = {
             }
           }
 
-          // Get payment information
-          const { data: payment } = await supabase
-            .from('booking_payments')
-            .select('status, amount_cents')
-            .eq('booking_id', bookingData.booking_id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
-
-          if (payment) {
-            paymentStatus = payment.status === 'succeeded' ? 'Paid' : 
-                          payment.status === 'pending' ? 'Pending' : 
-                          payment.status === 'failed' ? 'Failed' : '';
-            if (payment.amount_cents) {
-              paymentAmount = `$${(payment.amount_cents / 100).toFixed(2)}`;
-            }
+          // Get payment information using the helper function
+          const paymentInfo = await getAccuratePaymentAmount(bookingData.booking_id);
+          if (paymentInfo) {
+            paymentAmount = paymentInfo.amount;
+            paymentStatus = paymentInfo.status === 'succeeded' ? 'Paid' : 
+                          paymentInfo.status === 'pending' ? 'Pending' : 
+                          paymentInfo.status === 'failed' ? 'Failed' : '';
           }
         } catch (error) {
           console.warn('Failed to fetch additional booking details:', error);
