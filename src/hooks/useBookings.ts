@@ -107,7 +107,7 @@ export const useBookings = (date?: string) => {
       }
 
       // For walk-ins, assign table immediately if original_table_id is provided
-      const tableId = newBooking.status === 'seated' && newBooking.original_table_id 
+      const tableId = newBooking.service === 'Walk-in' && newBooking.original_table_id 
         ? newBooking.original_table_id 
         : null;
 
@@ -133,6 +133,44 @@ export const useBookings = (date?: string) => {
 
       console.log('✅ Booking created:', booking);
 
+      // Handle guest creation/update for walk-ins with contact details
+      if (newBooking.service === 'Walk-in' && (newBooking.phone || newBooking.email) && newBooking.guest_name && newBooking.guest_name !== 'WALK-IN') {
+        try {
+          const { data: existingGuest } = await supabase
+            .from('guests')
+            .select('id')
+            .eq('venue_id', userVenue)
+            .or(`email.eq.${newBooking.email},phone.eq.${newBooking.phone}`)
+            .single();
+
+          if (existingGuest) {
+            // Update existing guest
+            await supabase
+              .from('guests')
+              .update({
+                name: newBooking.guest_name,
+                phone: newBooking.phone || null,
+                email: newBooking.email || null,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', existingGuest.id);
+          } else {
+            // Create new guest
+            await supabase
+              .from('guests')
+              .insert({
+                name: newBooking.guest_name,
+                phone: newBooking.phone || null,
+                email: newBooking.email || null,
+                venue_id: userVenue
+              });
+          }
+        } catch (guestError) {
+          console.warn('⚠️ Guest creation/update failed:', guestError);
+          // Don't throw - booking was created successfully
+        }
+      }
+
       // Log audit entry for booking creation
       await supabase
         .from('booking_audit')
@@ -140,12 +178,12 @@ export const useBookings = (date?: string) => {
           booking_id: booking.id,
           change_type: 'created',
           changed_by: user?.email || 'system',
-          notes: `Booking created for ${newBooking.guest_name}`,
+          notes: `${newBooking.service === 'Walk-in' ? 'Walk-in' : 'Booking'} created for ${newBooking.guest_name}`,
           venue_id: userVenue
         }]);
 
-      // If not a walk-in, try to allocate it to a table
-      if (newBooking.status !== 'seated' && !tableId) {
+      // For regular bookings (not walk-ins), try to allocate to a table
+      if (newBooking.service !== 'Walk-in' && !tableId) {
         try {
           await TableAllocationService.allocateBookingToTables(
             booking.id,

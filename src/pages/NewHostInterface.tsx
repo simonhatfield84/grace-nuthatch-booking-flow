@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { NewTimeGrid } from "@/components/host/NewTimeGrid";
 import { BookingListView } from "@/components/host/BookingListView";
-import { WalkInDialog } from "@/features/host/components/walkin/WalkInDialog";
+import { SimpleWalkInDialog } from "@/components/host/SimpleWalkInDialog";
 import { BookingDetailsPanel } from "@/components/host/BookingDetailsPanel";
 import { CollapsibleCalendar } from "@/components/host/CollapsibleCalendar";
 import { BlockDialog } from "@/components/host/BlockDialog";
@@ -329,12 +329,16 @@ const NewHostInterface = () => {
         )}
       </div>
 
-      <WalkInDialog
+      <SimpleWalkInDialog
         open={walkInDialogOpen}
         onOpenChange={setWalkInDialogOpen}
         selectedDate={format(selectedDate, 'yyyy-MM-dd')}
         selectedTime={selectedTime}
-        preselectedTableId={selectedTable?.id}
+        tableId={selectedTable?.id || 0}
+        bookings={bookings}
+        onComplete={() => {
+          // Optional: refresh data or perform other actions
+        }}
       />
       
       <BlockDialog
