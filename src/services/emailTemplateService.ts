@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 export interface TemplateVariables {
   guest_name: string;
+  first_name: string;
+  last_name: string;
   venue_name: string;
   booking_date: string;
   booking_time: string;
@@ -141,15 +143,17 @@ export const emailTemplateService = {
   getAvailableVariables(): { [key: string]: string } {
     return {
       guest_name: "Guest's full name",
+      first_name: "Guest's first name",
+      last_name: "Guest's last name",
       venue_name: "Name of the venue",
-      booking_date: "Date of the booking",
-      booking_time: "Start time of the booking",
-      booking_end_time: "End time of the booking",
+      booking_date: "Date of the booking (formatted)",
+      booking_time: "Start time of the booking (12-hour format)",
+      booking_end_time: "End time of the booking (12-hour format)",
       service: "Service/experience being booked",
-      party_size: "Number of guests",
+      party_size: "Number of guests (formatted with 'guest' or 'guests')",
       booking_reference: "Unique booking reference",
       payment_status: "Payment status (e.g., 'Paid', 'Pending')",
-      payment_amount: "Payment amount (e.g., '$50.00')",
+      payment_amount: "Payment amount with currency symbol (e.g., '£25.00')",
       email_signature: "Venue's email signature",
       cancel_link: "Link to cancel the booking",
       modify_link: "Link to modify the booking",
@@ -181,6 +185,8 @@ export const emailTemplateService = {
   previewTemplate(content: string): string {
     const sampleData: TemplateVariables = {
       guest_name: "John Smith",
+      first_name: "John",
+      last_name: "Smith",
       venue_name: "The Nuthatch",
       booking_date: "Friday, December 25th, 2024",
       booking_time: "7:00 PM",
@@ -189,7 +195,7 @@ export const emailTemplateService = {
       party_size: "4 guests",
       booking_reference: "BK-2024-123456",
       payment_status: "Paid",
-      payment_amount: "$25.00",
+      payment_amount: "£25.00",
       email_signature: "Best regards,\nThe Nuthatch Team",
       cancel_link: "#cancel",
       modify_link: "#modify",

@@ -28,6 +28,8 @@ interface SendEmailRequest {
 
 interface TemplateVariables {
   guest_name: string;
+  first_name: string;
+  last_name: string;
   venue_name: string;
   booking_date: string;
   booking_time: string;
@@ -41,6 +43,61 @@ interface TemplateVariables {
   cancel_link?: string;
   modify_link?: string;
   [key: string]: string | undefined;
+}
+
+// Utility function to format time from 24-hour to 12-hour format
+function formatTime(timeString: string): string {
+  if (!timeString) return '';
+  
+  // Remove seconds if present (e.g., "21:00:00" -> "21:00")
+  const timeParts = timeString.split(':');
+  const hours = parseInt(timeParts[0]);
+  const minutes = timeParts[1] || '00';
+  
+  if (hours === 0) {
+    return `12:${minutes} AM`;
+  } else if (hours < 12) {
+    return `${hours}:${minutes} AM`;
+  } else if (hours === 12) {
+    return `12:${minutes} PM`;
+  } else {
+    return `${hours - 12}:${minutes} PM`;
+  }
+}
+
+// Utility function to split full name into first and last name
+function splitName(fullName: string): { firstName: string; lastName: string } {
+  if (!fullName) return { firstName: '', lastName: '' };
+  
+  const nameParts = fullName.trim().split(/\s+/);
+  
+  if (nameParts.length === 1) {
+    return { firstName: nameParts[0], lastName: '' };
+  } else if (nameParts.length === 2) {
+    return { firstName: nameParts[0], lastName: nameParts[1] };
+  } else {
+    // More than 2 parts - first word is first name, rest is last name
+    return { 
+      firstName: nameParts[0], 
+      lastName: nameParts.slice(1).join(' ') 
+    };
+  }
+}
+
+// Utility function to format currency amount
+function formatCurrency(amountCents: number, currencyCode: string = 'GBP'): string {
+  const amount = amountCents / 100;
+  
+  if (currencyCode === 'GBP') {
+    return `£${amount.toFixed(2)}`;
+  } else if (currencyCode === 'USD') {
+    return `$${amount.toFixed(2)}`;
+  } else if (currencyCode === 'EUR') {
+    return `€${amount.toFixed(2)}`;
+  } else {
+    // Default to GBP for UK venues
+    return `£${amount.toFixed(2)}`;
+  }
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -72,7 +129,7 @@ const handler = async (req: Request): Promise<Response> => {
         email_type: requestBody.email_type
       });
 
-      return await handleBookingEmail(supabase, requestBody);
+      return await handleBookingEmail(supabase, requestBody, req);
     }
 
     // Handle direct email requests (legacy)
@@ -127,7 +184,7 @@ const handler = async (req: Request): Promise<Response> => {
   }
 };
 
-async function handleBookingEmail(supabase: any, request: SendEmailRequest): Promise<Response> {
+async function handleBookingEmail(supabase: any, request: SendEmailRequest, req: Request): Promise<Response> {
   try {
     const { booking_id, guest_email, venue_id, email_type = 'booking_confirmation' } = request;
 
@@ -170,7 +227,7 @@ async function handleBookingEmail(supabase: any, request: SendEmailRequest): Pro
       .from('venue_settings')
       .select('setting_key, setting_value')
       .eq('venue_id', venue_id)
-      .in('setting_key', ['from_email', 'from_name', 'email_signature']);
+      .in('setting_key', ['from_email', 'from_name', 'email_signature', 'currency']);
 
     const emailSettings: Record<string, string> = {};
     venueSettings?.forEach(setting => {
@@ -265,13 +322,13 @@ async function handleBookingEmail(supabase: any, request: SendEmailRequest): Pro
     // Calculate end time
     let bookingEndTime = '';
     if (booking.end_time) {
-      bookingEndTime = booking.end_time;
+      bookingEndTime = formatTime(booking.end_time);
     } else if (booking.duration_minutes) {
       const [hours, minutes] = booking.booking_time.split(':').map(Number);
       const startTime = new Date();
       startTime.setHours(hours, minutes, 0, 0);
       const endTime = new Date(startTime.getTime() + booking.duration_minutes * 60000);
-      bookingEndTime = endTime.toTimeString().slice(0, 5);
+      bookingEndTime = formatTime(endTime.toTimeString().slice(0, 5));
     }
 
     // Get payment information
@@ -292,16 +349,22 @@ async function handleBookingEmail(supabase: any, request: SendEmailRequest): Pro
                       payment.status === 'pending' ? 'Pending' : 
                       payment.status === 'failed' ? 'Failed' : '';
         if (payment.amount_cents) {
-          paymentAmount = `$${(payment.amount_cents / 100).toFixed(2)}`;
+          const currency = emailSettings.currency || 'GBP';
+          paymentAmount = formatCurrency(payment.amount_cents, currency);
         }
       }
     } catch (error) {
       console.warn('⚠️ Failed to fetch payment details:', error);
     }
 
+    // Split guest name into first and last name
+    const { firstName, lastName } = splitName(booking.guest_name);
+
     // Prepare template variables
     const templateVariables: TemplateVariables = {
       guest_name: booking.guest_name,
+      first_name: firstName,
+      last_name: lastName,
       venue_name: venue.name,
       booking_date: new Date(booking.booking_date).toLocaleDateString('en-US', {
         weekday: 'long',
@@ -309,7 +372,7 @@ async function handleBookingEmail(supabase: any, request: SendEmailRequest): Pro
         month: 'long',
         day: 'numeric'
       }),
-      booking_time: booking.booking_time,
+      booking_time: formatTime(booking.booking_time),
       booking_end_time: bookingEndTime,
       service: booking.service || 'Dinner',
       party_size: `${booking.party_size} ${booking.party_size === 1 ? 'guest' : 'guests'}`,
@@ -352,7 +415,7 @@ async function handleBookingEmail(supabase: any, request: SendEmailRequest): Pro
           
           <div style="background: #f8f9fa; padding: 30px; border-radius: 8px;">
             <h2 style="color: #000; margin-top: 0;">Your booking is confirmed!</h2>
-            <p>Dear ${templateVariables.guest_name},</p>
+            <p>Dear ${templateVariables.first_name},</p>
             <p>Thank you for your booking at ${templateVariables.venue_name}.</p>
             
             <div style="background: white; padding: 20px; border-radius: 5px; margin: 20px 0; border: 1px solid #ddd;">
@@ -431,7 +494,5 @@ function replaceVariables(content: string, variables: TemplateVariables): string
   
   return processedContent;
 }
-
-// Remove custom generateToken function - using database function instead
 
 serve(handler);
