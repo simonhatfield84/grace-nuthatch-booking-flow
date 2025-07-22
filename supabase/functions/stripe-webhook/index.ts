@@ -74,7 +74,8 @@ serve(async (req) => {
 
     let event
     try {
-      event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
+      // Use the async version for Deno compatibility
+      event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret)
       console.log('✅ Webhook signature verified successfully');
       console.log('📋 Event type:', event.type);
       console.log('🆔 Event ID:', event.id);
