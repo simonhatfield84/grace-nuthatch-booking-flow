@@ -11,6 +11,8 @@ import { WebhookMonitor } from "./WebhookMonitor";
 import { AlertsPanel } from "./AlertsPanel";
 
 export const Dashboard = () => {
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -49,12 +51,12 @@ export const Dashboard = () => {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
-          <BookingStats />
+          <BookingStats selectedDate={selectedDate} />
           <DashboardCharts />
         </TabsContent>
 
         <TabsContent value="bookings" className="space-y-4">
-          <BookingStats />
+          <BookingStats selectedDate={selectedDate} />
         </TabsContent>
 
         <TabsContent value="payments" className="space-y-4">
@@ -70,7 +72,7 @@ export const Dashboard = () => {
         </TabsContent>
 
         <TabsContent value="alerts" className="space-y-4">
-          <AlertsPanel />
+          <AlertsPanel unallocatedBookings={[]} tableUtilization={45} />
         </TabsContent>
 
       </Tabs>

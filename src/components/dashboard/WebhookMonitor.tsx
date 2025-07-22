@@ -19,18 +19,28 @@ interface WebhookEvent {
 export const WebhookMonitor = () => {
   const [testingWebhook, setTestingWebhook] = useState(false);
 
-  // Fetch recent webhook events
+  // For now, use booking_audit as a proxy for webhook events
+  // Once payment_analytics table is available in types, we can switch to that
   const { data: webhookEvents, isLoading, refetch } = useQuery({
     queryKey: ["webhook-events"],
     queryFn: async () => {
+      // Use booking_audit to simulate webhook events for now
       const { data, error } = await supabase
-        .from("payment_analytics")
+        .from("booking_audit")
         .select("*")
-        .order("created_at", { ascending: false })
+        .in("change_type", ["payment_completed", "payment_failed", "payment_expired", "payment_initiated"])
+        .order("changed_at", { ascending: false })
         .limit(10);
 
       if (error) throw error;
-      return data as WebhookEvent[];
+      
+      // Transform booking_audit data to match WebhookEvent interface
+      return (data || []).map(audit => ({
+        id: audit.id,
+        event_type: audit.change_type,
+        event_data: { booking_id: audit.booking_id },
+        created_at: audit.changed_at
+      })) as WebhookEvent[];
     },
   });
 
