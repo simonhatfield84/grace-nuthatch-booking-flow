@@ -1,3 +1,4 @@
+
 // Client-side security utilities (no Supabase server imports)
 export interface RateLimitConfig {
   windowMs: number;
@@ -237,17 +238,33 @@ export class SessionSecurity {
   }
 }
 
-// Browser fingerprinting detection
+// Browser fingerprinting detection with proper TypeScript types
 export class FingerprintDetector {
   static detectAutomation(): boolean {
+    // Define extended window interface for automation detection
+    interface ExtendedWindow extends Window {
+      chrome?: {
+        runtime?: {
+          onConnect?: any;
+        };
+      };
+      callPhantom?: any;
+      _phantom?: any;
+      Buffer?: any;
+      spawn?: any;
+      emit?: any;
+    }
+
+    const extWindow = window as ExtendedWindow;
+
     // Check for common automation indicators
     const indicators = [
       () => navigator.webdriver,
-      () => window.chrome && window.chrome.runtime && window.chrome.runtime.onConnect,
-      () => window.callPhantom || window._phantom,
-      () => window.Buffer,
-      () => window.spawn,
-      () => window.emit
+      () => extWindow.chrome?.runtime?.onConnect,
+      () => extWindow.callPhantom || extWindow._phantom,
+      () => extWindow.Buffer,
+      () => extWindow.spawn,
+      () => extWindow.emit
     ];
 
     return indicators.some(check => {
