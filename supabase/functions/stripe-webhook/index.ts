@@ -31,19 +31,46 @@ serve(async (req) => {
       return new Response('No signature', { status: 400, headers: corsHeaders })
     }
 
-    // Initialize Stripe
-    const stripe = new Stripe(Deno.env.get('Stripe Secret Key') ?? '', {
-      apiVersion: '2023-10-16'
-    })
+    // Parse the event first to determine if it's test or live
+    let eventData;
+    try {
+      eventData = JSON.parse(body);
+    } catch (parseError) {
+      console.error('❌ Failed to parse webhook body:', parseError);
+      return new Response('Invalid JSON', { status: 400, headers: corsHeaders });
+    }
 
-    // Get webhook secret from environment
-    const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
+    // Determine if this is a test event (test events have livemode: false)
+    const isTestMode = eventData.livemode === false;
+    console.log('🧪 Event mode detected:', isTestMode ? 'TEST' : 'LIVE');
+
+    // Get the appropriate secrets
+    const stripeSecretKey = isTestMode ? 
+      Deno.env.get('STRIPE_TEST_SECRET_KEY') : 
+      Deno.env.get('STRIPE_SECRET_KEY');
+    
+    const webhookSecret = isTestMode ? 
+      Deno.env.get('STRIPE_TEST_WEBHOOK_SECRET') : 
+      Deno.env.get('STRIPE_WEBHOOK_SECRET');
+
+    console.log('🔐 Using secrets for:', isTestMode ? 'TEST' : 'LIVE');
+    console.log('🔑 Stripe secret key configured:', !!stripeSecretKey);
     console.log('🔐 Webhook secret configured:', !!webhookSecret);
 
+    if (!stripeSecretKey) {
+      console.error(`❌ ${isTestMode ? 'STRIPE_TEST_SECRET_KEY' : 'STRIPE_SECRET_KEY'} not configured`);
+      return new Response('Stripe secret key not configured', { status: 500, headers: corsHeaders });
+    }
+
     if (!webhookSecret) {
-      console.error('❌ STRIPE_WEBHOOK_SECRET not configured');
+      console.error(`❌ ${isTestMode ? 'STRIPE_TEST_WEBHOOK_SECRET' : 'STRIPE_WEBHOOK_SECRET'} not configured`);
       return new Response('Webhook secret not configured', { status: 500, headers: corsHeaders });
     }
+
+    // Initialize Stripe with the appropriate key
+    const stripe = new Stripe(stripeSecretKey, {
+      apiVersion: '2023-10-16'
+    })
 
     let event
     try {
@@ -71,6 +98,7 @@ serve(async (req) => {
 
         console.log('💰 Payment succeeded for booking:', bookingId);
         console.log('💳 Payment Intent ID:', paymentIntent.id);
+        console.log('🧪 Test mode:', isTestMode);
 
         if (bookingId) {
           // Update payment status
@@ -143,6 +171,7 @@ serve(async (req) => {
 
         console.log('❌ Payment failed for booking:', failedBookingId);
         console.log('💳 Payment Intent ID:', failedPayment.id);
+        console.log('🧪 Test mode:', isTestMode);
 
         if (failedBookingId) {
           // Update payment status
