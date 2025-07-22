@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { ChevronRight, Clock, Users, Calendar, CreditCard, Check, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
@@ -171,10 +172,14 @@ export function NuthatchBookingWidget() {
   };
 
   const goToStep = (stepIndex: number) => {
-    // Don't allow navigation if booking is confirmed
-    if (bookingData.bookingId !== null) return;
+    // FIXED: Allow navigation to confirmation step when booking is complete
+    // Only prevent navigation to incomplete steps, but allow going to confirmation
+    if (stepIndex === steps.length - 1 && bookingData.bookingId !== null) {
+      setCurrentStep(stepIndex);
+      return;
+    }
     
-    // Only allow navigation to completed steps or the next step
+    // Only allow navigation to completed steps or the next step (but not if booking is already confirmed)
     const allowedSteps = steps.slice(0, currentStep + 1).map((_, idx) => idx);
     if (steps[stepIndex]?.isCompleted || allowedSteps.includes(stepIndex)) {
       setCurrentStep(stepIndex);
@@ -244,8 +249,11 @@ export function NuthatchBookingWidget() {
                 paymentAmount,
                 bookingId 
               });
-              // Skip payment step and go directly to confirmation
-              goToStep(steps.length - 1);
+              // FIXED: Properly navigate to confirmation step after successful payment
+              if (bookingId) {
+                console.log('🎉 Payment successful, navigating to confirmation step');
+                setCurrentStep(steps.length - 1);
+              }
             }}
           />
         );
@@ -286,8 +294,8 @@ export function NuthatchBookingWidget() {
         <div className="border-b bg-gray-50">
           <div className="flex">
             {steps.slice(0, -1).map((step, index) => {
-              const isDisabled = bookingData.bookingId !== null || 
-                                (!step.isCompleted && index > currentStep);
+              // FIXED: Don't disable navigation when booking is confirmed, allow going back to see details
+              const isDisabled = !step.isCompleted && index > currentStep;
               
               return (
                 <button

@@ -119,13 +119,13 @@ serve(async (req) => {
         console.log('💵 Amount:', paymentIntent.amount, paymentIntent.currency);
 
         if (bookingId) {
-          // Update payment status
+          // Update payment status - FIXED: Removed non-existent processed_at field
           const { error: paymentUpdateError } = await supabaseClient
             .from('booking_payments')
             .update({
               status: 'succeeded',
               payment_method_type: paymentIntent.payment_method_types?.[0] || null,
-              processed_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
             })
             .eq('stripe_payment_intent_id', paymentIntent.id)
 
@@ -193,13 +193,13 @@ serve(async (req) => {
         console.log('💸 Failed amount:', failedPayment.amount, failedPayment.currency);
 
         if (failedBookingId) {
-          // Update payment status
+          // Update payment status - FIXED: Removed non-existent processed_at field
           const { error: paymentUpdateError } = await supabaseClient
             .from('booking_payments')
             .update({
               status: 'failed',
               failure_reason: failedPayment.last_payment_error?.message || 'Payment failed',
-              processed_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
             })
             .eq('stripe_payment_intent_id', failedPayment.id)
 
