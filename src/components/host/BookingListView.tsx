@@ -25,10 +25,11 @@ interface BookingWithPayment {
   payment_status?: string;
   payment_amount?: number;
   requires_payment?: boolean;
+  accurate_payment_amount?: number;
 }
 
 export const BookingListView = ({ bookings, tables, onBookingClick }: BookingListViewProps) => {
-  // Fetch payment data for bookings
+  // Fetch payment data for bookings with service information for accurate calculation
   const { data: paymentData = [] } = useQuery({
     queryKey: ['booking-payments', bookings.map(b => b.id)],
     queryFn: async () => {
@@ -45,16 +46,60 @@ export const BookingListView = ({ bookings, tables, onBookingClick }: BookingLis
     enabled: bookings.length > 0
   });
 
-  // Enhance bookings with payment data
+  // Fetch service information for accurate payment calculation
+  const { data: serviceData = [] } = useQuery({
+    queryKey: ['booking-services', bookings.map(b => b.service)],
+    queryFn: async () => {
+      if (bookings.length === 0) return [];
+      
+      const serviceNames = [...new Set(bookings.map(b => b.service).filter(Boolean))];
+      if (serviceNames.length === 0) return [];
+      
+      const { data, error } = await supabase
+        .from('services')
+        .select('title, requires_payment, charge_type, charge_amount_per_guest, minimum_guests_for_charge')
+        .in('title', serviceNames);
+      
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: bookings.length > 0
+  });
+
+  // Enhanced function to get accurate payment amount
+  const getAccuratePaymentAmount = (booking: any): number | null => {
+    // First check if there's a payment record
+    const payment = paymentData.find(p => p.booking_id === booking.id);
+    if (payment?.amount_cents) {
+      return payment.amount_cents;
+    }
+
+    // Fallback: calculate based on current service pricing
+    const service = serviceData.find(s => s.title === booking.service);
+    if (service?.requires_payment && service.charge_type === 'per_guest') {
+      const chargePerGuest = service.charge_amount_per_guest || 0;
+      const minGuests = service.minimum_guests_for_charge || 1;
+      const chargingPartySize = Math.max(booking.party_size, minGuests);
+      return chargePerGuest * chargingPartySize;
+    }
+
+    return null;
+  };
+
+  // Enhance bookings with payment data and accurate amounts
   const bookingsWithPayments: BookingWithPayment[] = bookings.map(booking => {
     const payment = paymentData.find(p => p.booking_id === booking.id);
+    const accurateAmount = getAccuratePaymentAmount(booking);
+    
     return {
       ...booking,
       payment_status: payment?.status,
       payment_amount: payment?.amount_cents,
-      requires_payment: !!payment
+      accurate_payment_amount: accurateAmount,
+      requires_payment: !!payment || !!accurateAmount
     };
   });
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'confirmed': return 'bg-[#C2D8E9] text-[#111315] border-[#C2D8E9]/30';
@@ -142,6 +187,7 @@ export const BookingListView = ({ bookings, tables, onBookingClick }: BookingLis
         <div className="space-y-2">
           {bookings.map((booking) => {
             const table = tables.find(t => t.id === booking.table_id);
+            const displayAmount = booking.accurate_payment_amount || booking.payment_amount;
             
             return (
               <div
@@ -204,12 +250,17 @@ export const BookingListView = ({ bookings, tables, onBookingClick }: BookingLis
                       )}
                     </div>
 
-                    {/* Payment Amount Display */}
-                    {booking.payment_amount && (
+                    {/* Payment Amount Display - Use accurate amount */}
+                    {displayAmount && (
                       <div className="mt-1 text-xs font-inter">
                         <span className={`${getPaymentStatusColor(booking.payment_status)}`}>
-                          £{(booking.payment_amount / 100).toFixed(2)} 
+                          £{(displayAmount / 100).toFixed(2)} 
                           {booking.payment_status && ` (${booking.payment_status})`}
+                          {booking.accurate_payment_amount && booking.accurate_payment_amount !== booking.payment_amount && (
+                            <span className="text-blue-600 ml-1" title="Amount recalculated based on current pricing">
+                              *
+                            </span>
+                          )}
                         </span>
                       </div>
                     )}

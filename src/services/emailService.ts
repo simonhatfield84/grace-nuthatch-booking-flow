@@ -20,6 +20,60 @@ function splitName(fullName: string): { firstName: string; lastName: string } {
   }
 }
 
+// Helper function to get accurate payment amount
+async function getAccuratePaymentAmount(bookingId: number): Promise<{ amount: string; status: string } | null> {
+  try {
+    // First try to get the actual payment from booking_payments
+    const { data: payment } = await supabase
+      .from('booking_payments')
+      .select('amount_cents, status')
+      .eq('booking_id', bookingId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (payment && payment.amount_cents) {
+      return {
+        amount: `£${(payment.amount_cents / 100).toFixed(2)}`,
+        status: payment.status
+      };
+    }
+
+    // Fallback: calculate based on current service pricing
+    const { data: booking } = await supabase
+      .from('bookings')
+      .select(`
+        party_size,
+        service,
+        services:service (
+          requires_payment,
+          charge_type,
+          charge_amount_per_guest,
+          minimum_guests_for_charge
+        )
+      `)
+      .eq('id', bookingId)
+      .single();
+
+    if (booking?.services?.requires_payment && booking.services.charge_type === 'per_guest') {
+      const chargePerGuest = booking.services.charge_amount_per_guest || 0;
+      const minGuests = booking.services.minimum_guests_for_charge || 1;
+      const chargingPartySize = Math.max(booking.party_size, minGuests);
+      const totalAmount = chargePerGuest * chargingPartySize;
+      
+      return {
+        amount: `£${(totalAmount / 100).toFixed(2)}`,
+        status: 'calculated'
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Failed to get accurate payment amount:', error);
+    return null;
+  }
+}
+
 export const emailService = {
   async sendBookingConfirmation(
     guestEmail: string,

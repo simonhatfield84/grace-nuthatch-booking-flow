@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle, XCircle, Clock, CreditCard } from "lucide-react";
+import { CheckCircle, XCircle, Clock, CreditCard, AlertTriangle } from "lucide-react";
 
 interface PaymentStatusProps {
   bookingId: number;
@@ -24,6 +24,37 @@ export const PaymentStatus = ({ bookingId }: PaymentStatusProps) => {
     }
   });
 
+  // Get accurate payment amount by calculating from service
+  const { data: accurateAmount } = useQuery({
+    queryKey: ['booking-accurate-payment', bookingId],
+    queryFn: async () => {
+      const { data: booking } = await supabase
+        .from('bookings')
+        .select(`
+          party_size,
+          service,
+          services:service (
+            requires_payment,
+            charge_type,
+            charge_amount_per_guest,
+            minimum_guests_for_charge
+          )
+        `)
+        .eq('id', bookingId)
+        .single();
+
+      if (booking?.services?.requires_payment && booking.services.charge_type === 'per_guest') {
+        const chargePerGuest = booking.services.charge_amount_per_guest || 0;
+        const minGuests = booking.services.minimum_guests_for_charge || 1;
+        const chargingPartySize = Math.max(booking.party_size, minGuests);
+        return chargePerGuest * chargingPartySize;
+      }
+
+      return null;
+    },
+    enabled: !!bookingId
+  });
+
   if (isLoading) {
     return (
       <div className="flex items-center gap-2">
@@ -33,7 +64,7 @@ export const PaymentStatus = ({ bookingId }: PaymentStatusProps) => {
     );
   }
 
-  if (!payment) {
+  if (!payment && !accurateAmount) {
     return (
       <Badge variant="secondary" className="flex items-center gap-1">
         <CreditCard className="h-3 w-3" />
@@ -43,7 +74,7 @@ export const PaymentStatus = ({ bookingId }: PaymentStatusProps) => {
   }
 
   const getStatusIcon = () => {
-    switch (payment.status) {
+    switch (payment?.status) {
       case 'succeeded':
         return <CheckCircle className="h-3 w-3" />;
       case 'failed':
@@ -55,7 +86,7 @@ export const PaymentStatus = ({ bookingId }: PaymentStatusProps) => {
   };
 
   const getStatusVariant = () => {
-    switch (payment.status) {
+    switch (payment?.status) {
       case 'succeeded':
         return 'default';
       case 'failed':
@@ -67,7 +98,7 @@ export const PaymentStatus = ({ bookingId }: PaymentStatusProps) => {
   };
 
   const getStatusText = () => {
-    switch (payment.status) {
+    switch (payment?.status) {
       case 'succeeded':
         return 'Payment Successful';
       case 'failed':
@@ -77,9 +108,13 @@ export const PaymentStatus = ({ bookingId }: PaymentStatusProps) => {
       case 'cancelled':
         return 'Payment Cancelled';
       default:
-        return 'Unknown Status';
+        return 'Payment Required';
     }
   };
+
+  // Use accurate amount if available, otherwise fall back to payment amount
+  const displayAmount = accurateAmount || payment?.amount_cents;
+  const isAmountCorrected = accurateAmount && payment?.amount_cents && accurateAmount !== payment.amount_cents;
 
   return (
     <div className="space-y-2">
@@ -88,15 +123,25 @@ export const PaymentStatus = ({ bookingId }: PaymentStatusProps) => {
         {getStatusText()}
       </Badge>
       
-      <div className="text-sm text-muted-foreground">
-        <p>Amount: £{(payment.amount_cents / 100).toFixed(2)}</p>
-        {payment.payment_method_type && (
-          <p>Method: {payment.payment_method_type}</p>
-        )}
-        {payment.failure_reason && (
-          <p className="text-destructive">Reason: {payment.failure_reason}</p>
-        )}
-      </div>
+      {displayAmount && (
+        <div className="text-sm text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <p>Amount: £{(displayAmount / 100).toFixed(2)}</p>
+            {isAmountCorrected && (
+              <div className="flex items-center gap-1 text-blue-600" title="Amount corrected based on current service pricing">
+                <AlertTriangle className="h-3 w-3" />
+                <span className="text-xs">Corrected</span>
+              </div>
+            )}
+          </div>
+          {payment?.payment_method_type && (
+            <p>Method: {payment.payment_method_type}</p>
+          )}
+          {payment?.failure_reason && (
+            <p className="text-destructive">Reason: {payment.failure_reason}</p>
+          )}
+        </div>
+      )}
     </div>
   );
 };

@@ -172,10 +172,21 @@ serve(async (req) => {
       throw error;
     }
 
-    // Get and validate booking details
+    // Get and validate booking details with service information
     const { data: booking, error: bookingError } = await supabaseClient
       .from('bookings')
-      .select('*, venues(*)')
+      .select(`
+        *, 
+        venues(*),
+        services:service (
+          id,
+          title,
+          requires_payment,
+          charge_type,
+          charge_amount_per_guest,
+          minimum_guests_for_charge
+        )
+      `)
       .eq('id', paymentData.bookingId)
       .single()
 
@@ -188,6 +199,27 @@ serve(async (req) => {
       }, req);
       throw new Error('Booking not found')
     }
+
+    // Calculate the CURRENT payment amount based on service settings
+    let calculatedAmount = 0;
+    if (booking.services?.requires_payment && booking.services?.charge_type === 'per_guest') {
+      const chargePerGuest = booking.services.charge_amount_per_guest || 0;
+      const minGuests = booking.services.minimum_guests_for_charge || 1;
+      const chargingPartySize = Math.max(booking.party_size, minGuests);
+      calculatedAmount = chargePerGuest * chargingPartySize;
+    }
+
+    console.log('💰 Payment calculation:', {
+      booking_id: paymentData.bookingId,
+      service_title: booking.services?.title,
+      charge_per_guest: booking.services?.charge_amount_per_guest,
+      party_size: booking.party_size,
+      calculated_amount_pence: calculatedAmount,
+      requested_amount_pence: paymentData.amount
+    });
+
+    // Use the calculated amount instead of the requested amount for consistency
+    const finalAmount = calculatedAmount > 0 ? calculatedAmount : paymentData.amount;
 
     // Get venue's Stripe settings with enhanced validation
     const { data: stripeSettings } = await supabaseClient
@@ -232,11 +264,11 @@ serve(async (req) => {
     }
 
     // Validate payment amount against expected amount
-    if (paymentData.amount < 100 || paymentData.amount > 50000) { // £1 to £500
-      console.error('❌ Invalid payment amount:', paymentData.amount);
+    if (finalAmount < 100 || finalAmount > 50000) { // £1 to £500
+      console.error('❌ Invalid payment amount:', finalAmount);
       await logSecurityEvent(supabaseClient, 'data_access', {
         error: 'invalid_payment_amount',
-        amount: paymentData.amount,
+        amount: finalAmount,
         booking_id: paymentData.bookingId,
         threat_level: threatLevel
       }, req, booking.venue_id);
@@ -264,7 +296,7 @@ serve(async (req) => {
     })
 
     console.log('💳 Creating payment intent with Stripe...', {
-      amount: paymentData.amount,
+      amount: finalAmount,
       currency: paymentData.currency,
       test_mode: isTestMode,
       booking_id: paymentData.bookingId
@@ -272,7 +304,7 @@ serve(async (req) => {
 
     // Create payment intent with enhanced metadata
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(paymentData.amount), // Amount already in pence
+      amount: Math.round(finalAmount), // Use calculated amount
       currency: paymentData.currency,
       automatic_payment_methods: {
         enabled: true,
@@ -299,11 +331,11 @@ serve(async (req) => {
       client_secret_present: !!paymentIntent.client_secret
     });
 
-    // Store or update payment record
+    // Store or update payment record with the ACTUAL amount charged
     const paymentRecord = {
       booking_id: paymentData.bookingId,
       stripe_payment_intent_id: paymentIntent.id,
-      amount_cents: Math.round(paymentData.amount), // Amount already in pence
+      amount_cents: Math.round(finalAmount), // Store the actual calculated amount
       status: 'pending',
     };
 
@@ -316,7 +348,7 @@ serve(async (req) => {
       if (updateError) {
         console.error('Failed to update payment record:', updateError);
       } else {
-        console.log('✅ Payment record updated');
+        console.log('✅ Payment record updated with correct amount:', finalAmount);
       }
     } else {
       const { error: insertError } = await supabaseClient
@@ -326,7 +358,7 @@ serve(async (req) => {
       if (insertError) {
         console.error('Failed to store payment record:', insertError);
       } else {
-        console.log('✅ Payment record created');
+        console.log('✅ Payment record created with correct amount:', finalAmount);
       }
     }
 
@@ -335,7 +367,7 @@ serve(async (req) => {
       action: 'payment_intent_created',
       payment_intent_id: paymentIntent.id,
       booking_id: paymentData.bookingId,
-      amount: paymentData.amount,
+      amount: finalAmount,
       threat_level: threatLevel,
       test_mode: isTestMode,
       success: true
