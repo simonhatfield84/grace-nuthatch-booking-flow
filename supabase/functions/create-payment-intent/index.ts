@@ -206,13 +206,17 @@ serve(async (req) => {
       throw new Error('Stripe payments not configured for this venue')
     }
 
-    // FIXED: Use correct Stripe key names based on test mode setting
-    const stripeKeyName = stripeSettings.test_mode ? 'STRIPE_TEST_SECRET_KEY' : 'STRIPE_SECRET_KEY';
+    // ENHANCED: Better key selection with detailed logging
+    const isTestMode = stripeSettings.test_mode;
+    const stripeKeyName = isTestMode ? 'STRIPE_TEST_SECRET_KEY' : 'STRIPE_SECRET_KEY';
     const stripeKey = Deno.env.get(stripeKeyName);
     
-    console.log('🔑 Using Stripe key for mode:', stripeSettings.test_mode ? 'TEST' : 'LIVE');
-    console.log('🔑 Key name:', stripeKeyName);
-    console.log('🔑 Key configured:', !!stripeKey);
+    console.log('🔑 Payment mode configuration:', {
+      isTestMode,
+      keyName: stripeKeyName,
+      keyConfigured: !!stripeKey,
+      keyPrefix: stripeKey ? stripeKey.substring(0, 8) + '...' : 'not found'
+    });
     
     if (!stripeKey) {
       const errorMsg = `${stripeKeyName} not configured`;
@@ -221,9 +225,10 @@ serve(async (req) => {
         error: 'stripe_key_missing',
         key_type: stripeKeyName,
         venue_id: booking.venue_id,
+        test_mode: isTestMode,
         threat_level: threatLevel
       }, req, booking.venue_id);
-      throw new Error(`Stripe ${stripeSettings.test_mode ? 'test' : 'live'} key not configured`)
+      throw new Error(`Stripe ${isTestMode ? 'test' : 'live'} key not configured`)
     }
 
     // Validate payment amount against expected amount
@@ -258,6 +263,13 @@ serve(async (req) => {
       apiVersion: '2023-10-16',
     })
 
+    console.log('💳 Creating payment intent with Stripe...', {
+      amount: paymentData.amount,
+      currency: paymentData.currency,
+      test_mode: isTestMode,
+      booking_id: paymentData.bookingId
+    });
+
     // Create payment intent with enhanced metadata
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(paymentData.amount), // Amount already in pence
@@ -273,17 +285,18 @@ serve(async (req) => {
         booking_date: booking.booking_date,
         booking_time: booking.booking_time,
         threat_level: threatLevel,
-        test_mode: stripeSettings.test_mode.toString(),
+        test_mode: isTestMode.toString(),
       },
       description: paymentData.description || `Payment for booking ${booking.booking_reference || paymentData.bookingId}`,
     })
 
-    console.log('💳 Payment Intent created:', {
+    console.log('💳 Payment Intent created successfully:', {
       id: paymentIntent.id,
       amount: paymentIntent.amount,
       currency: paymentIntent.currency,
-      test_mode: stripeSettings.test_mode,
-      booking_id: paymentData.bookingId
+      test_mode: isTestMode,
+      booking_id: paymentData.bookingId,
+      client_secret_present: !!paymentIntent.client_secret
     });
 
     // Store or update payment record
@@ -302,6 +315,8 @@ serve(async (req) => {
       
       if (updateError) {
         console.error('Failed to update payment record:', updateError);
+      } else {
+        console.log('✅ Payment record updated');
       }
     } else {
       const { error: insertError } = await supabaseClient
@@ -310,6 +325,8 @@ serve(async (req) => {
       
       if (insertError) {
         console.error('Failed to store payment record:', insertError);
+      } else {
+        console.log('✅ Payment record created');
       }
     }
 
@@ -320,17 +337,17 @@ serve(async (req) => {
       booking_id: paymentData.bookingId,
       amount: paymentData.amount,
       threat_level: threatLevel,
-      test_mode: stripeSettings.test_mode,
+      test_mode: isTestMode,
       success: true
     }, req, booking.venue_id);
 
-    console.log('✅ Payment intent created successfully:', paymentIntent.id);
+    console.log('✅ Payment intent process completed successfully');
 
     return new Response(
       JSON.stringify({
         client_secret: paymentIntent.client_secret,
         payment_intent_id: paymentIntent.id,
-        test_mode: stripeSettings.test_mode,
+        test_mode: isTestMode,
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
