@@ -28,3 +28,33 @@ export const DashboardCharts = () => {
     </div>
   );
 };
+
+export const ServicePopularityChart = ({ data }: { data?: any[] }) => {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Service Popularity</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="h-[300px] flex items-center justify-center">
+          <p className="text-muted-foreground">Service popularity chart will be implemented here</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+export const StatusBreakdownChart = ({ data }: { data?: any[] }) => {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Booking Status</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="h-[300px] flex items-center justify-center">
+          <p className="text-muted-foreground">Status breakdown chart will be implemented here</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
