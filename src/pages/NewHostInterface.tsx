@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { NewTimeGrid } from "@/components/host/NewTimeGrid";
 import { BookingListView } from "@/components/host/BookingListView";
-import { EnhancedWalkInDialog } from "@/components/host/EnhancedWalkInDialog";
+import { WalkInDialog } from "@/features/host/components/walkin/WalkInDialog";
 import { BookingDetailsPanel } from "@/components/host/BookingDetailsPanel";
 import { CollapsibleCalendar } from "@/components/host/CollapsibleCalendar";
 import { BlockDialog } from "@/components/host/BlockDialog";
@@ -93,89 +93,6 @@ const NewHostInterface = () => {
       setSelectedTable(table);
       setSelectedTime(time);
       setWalkInDialogOpen(true);
-    }
-  };
-
-  const handleCreateWalkIn = async (walkInData: {
-    tableId: number;
-    time: string;
-    partySize: number;
-    guestName?: string;
-    duration: number;
-    phone?: string;
-    email?: string;
-    notes?: string;
-    guestId?: string;
-  }) => {
-    try {
-      // Handle guest creation/update if guest details are provided
-      let finalGuestId = walkInData.guestId;
-      
-      if ((walkInData.phone || walkInData.email) && walkInData.guestName) {
-        // Get user's venue ID
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('venue_id')
-          .eq('id', user?.id)
-          .single();
-
-        if (profile?.venue_id) {
-          if (walkInData.guestId) {
-            // Update existing guest
-            await supabase
-              .from('guests')
-              .update({
-                name: walkInData.guestName,
-                phone: walkInData.phone || null,
-                email: walkInData.email || null,
-                notes: walkInData.notes || null,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', walkInData.guestId);
-          } else {
-            // Create new guest
-            const { data: newGuest } = await supabase
-              .from('guests')
-              .insert({
-                name: walkInData.guestName,
-                phone: walkInData.phone || null,
-                email: walkInData.email || null,
-                notes: walkInData.notes || null,
-                venue_id: profile.venue_id
-              })
-              .select('id')
-              .single();
-            
-            finalGuestId = newGuest?.id;
-          }
-        }
-      }
-
-      await createBooking({
-        guest_name: walkInData.guestName || 'WALK-IN',
-        party_size: walkInData.partySize,
-        booking_date: format(selectedDate, 'yyyy-MM-dd'),
-        booking_time: walkInData.time,
-        status: 'seated',
-        phone: walkInData.phone || null,
-        email: walkInData.email || null,
-        notes: walkInData.notes || 'Walk-in customer',
-        service: 'Walk-In',
-        original_table_id: walkInData.tableId,
-        duration_minutes: walkInData.duration
-      });
-
-      toast({
-        title: "Walk-in seated",
-        description: `${walkInData.partySize} guests seated at table ${selectedTable?.label}${finalGuestId ? ' and guest profile updated' : ''}`,
-      });
-    } catch (error) {
-      console.error('❌ Walk-in creation error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create walk-in",
-        variant: "destructive"
-      });
     }
   };
 
@@ -412,14 +329,12 @@ const NewHostInterface = () => {
         )}
       </div>
 
-      <EnhancedWalkInDialog
+      <WalkInDialog
         open={walkInDialogOpen}
         onOpenChange={setWalkInDialogOpen}
-        table={selectedTable}
-        time={selectedTime}
-        onCreateWalkIn={handleCreateWalkIn}
-        defaultDuration={120}
-        selectedDate={selectedDate}
+        selectedDate={format(selectedDate, 'yyyy-MM-dd')}
+        selectedTime={selectedTime}
+        preselectedTableId={selectedTable?.id}
       />
       
       <BlockDialog

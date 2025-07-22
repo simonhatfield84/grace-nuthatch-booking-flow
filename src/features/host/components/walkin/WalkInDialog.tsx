@@ -13,6 +13,7 @@ interface WalkInDialogProps {
   selectedDate: string;
   selectedTime?: string;
   preselectedTableId?: number;
+  onComplete?: () => void;
 }
 
 export function WalkInDialog({
@@ -20,7 +21,8 @@ export function WalkInDialog({
   onOpenChange,
   selectedDate,
   selectedTime,
-  preselectedTableId
+  preselectedTableId,
+  onComplete
 }: WalkInDialogProps) {
   const {
     currentStep,
@@ -37,7 +39,11 @@ export function WalkInDialog({
   } = useWalkInFlow({
     selectedDate,
     selectedTime,
-    preselectedTableId
+    preselectedTableId,
+    onComplete: () => {
+      onComplete?.();
+      onOpenChange(false);
+    }
   });
 
   const handleClose = () => {
