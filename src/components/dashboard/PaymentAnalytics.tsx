@@ -64,21 +64,6 @@ export const PaymentAnalytics = () => {
     },
   });
 
-  // Fetch payment analytics events
-  const { data: analyticsEvents } = useQuery({
-    queryKey: ["payment-analytics-events"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("payment_analytics")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(5);
-
-      if (error) throw error;
-      return data;
-    },
-  });
-
   if (isLoading) {
     return (
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -233,33 +218,6 @@ export const PaymentAnalytics = () => {
           )}
         </CardContent>
       </Card>
-
-      {/* Payment Analytics Events */}
-      {analyticsEvents && analyticsEvents.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Payment Events</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {analyticsEvents.map((event) => (
-                <div
-                  key={event.id}
-                  className="flex items-center justify-between p-2 border rounded text-sm"
-                >
-                  <div>
-                    <span className="font-medium">Booking {event.booking_id}</span>
-                    <span className="ml-2 text-muted-foreground">{event.event_type}</span>
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {formatDistanceToNow(new Date(event.created_at), { addSuffix: true })}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 };
