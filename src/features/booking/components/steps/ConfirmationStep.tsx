@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -59,7 +58,7 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
 
         console.log('Booking loaded:', booking);
         setBookingReference(booking.booking_reference);
-        onBookingId(booking.id);
+        // REMOVED: onBookingId(booking.id) - this was causing the infinite loop
 
         // Check payment status if payment was required
         if (bookingData.paymentRequired) {
@@ -97,7 +96,7 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
     };
 
     loadBookingDetails();
-  }, [bookingData.bookingId, bookingData.paymentRequired, toast, onBookingId]);
+  }, [bookingData.bookingId, bookingData.paymentRequired, toast]); // Removed onBookingId from dependencies
 
   const generateCalendarEvent = () => {
     const startDate = new Date(bookingData.date);
