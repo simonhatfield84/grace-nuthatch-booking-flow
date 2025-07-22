@@ -44,12 +44,12 @@ export const WebhookMonitor = () => {
     },
   });
 
-  // Test webhook endpoint
+  // Test webhook endpoint - use the correct Supabase URL
   const testWebhookEndpoint = async () => {
     setTestingWebhook(true);
     try {
-      // Test the webhook endpoint with a simple OPTIONS request
-      const webhookUrl = `${window.location.origin.replace('lovable.app', 'lovable.dev')}/functions/v1/stripe-webhook`;
+      // Test the correct Supabase webhook endpoint
+      const webhookUrl = 'https://wxyotttvyexxzeaewyga.supabase.co/functions/v1/stripe-webhook-secure';
       
       const response = await fetch(webhookUrl, {
         method: 'OPTIONS',
@@ -89,7 +89,8 @@ export const WebhookMonitor = () => {
     }
   };
 
-  const webhookUrl = `${window.location.origin.replace('lovable.app', 'lovable.dev')}/functions/v1/stripe-webhook`;
+  // Use the correct Supabase webhook URL
+  const webhookUrl = 'https://wxyotttvyexxzeaewyga.supabase.co/functions/v1/stripe-webhook-secure';
 
   return (
     <div className="space-y-4">
@@ -137,8 +138,9 @@ export const WebhookMonitor = () => {
           <Alert>
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              <strong>Important:</strong> Make sure your Stripe webhook is configured to point to the production URL 
-              (grace-os.co.uk) and not the preview environment. This is the main cause of payment processing issues.
+              <strong>Important:</strong> Configure your Stripe webhook to point to this exact URL. 
+              This is the direct Supabase edge function endpoint that handles webhook events securely, 
+              regardless of which domain users access your app from (grace-os.co.uk or preview environments).
             </AlertDescription>
           </Alert>
 
