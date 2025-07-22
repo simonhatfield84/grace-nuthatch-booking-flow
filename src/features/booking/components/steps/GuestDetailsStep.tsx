@@ -246,71 +246,80 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
   };
 
   const handlePaymentSuccess = async () => {
-    console.log('Payment successful, verifying and updating booking status...');
+    console.log('💳 Payment successful, processing confirmation...');
     setIsProcessingPayment(true);
     
     try {
-      // Wait a moment for webhook to process
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Wait a bit longer for webhook to process
+      console.log('⏱️ Waiting for webhook processing...');
+      await new Promise(resolve => setTimeout(resolve, 3000));
 
-      // Verify payment status
-      console.log('Checking payment status for booking:', bookingId);
-      const { data: payment, error: paymentError } = await supabase
+      // Check payment status with more robust query
+      console.log('🔍 Checking payment status for booking:', bookingId);
+      
+      // First, check if the booking payment record exists and is successful
+      const { data: paymentData, error: paymentError } = await supabase
         .from('booking_payments')
-        .select('status')
+        .select('*')
         .eq('booking_id', bookingId!)
         .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+        .limit(1);
 
-      if (paymentError && paymentError.code !== 'PGRST116') {
+      if (paymentError) {
         console.error('Error checking payment status:', paymentError);
         throw new Error('Failed to verify payment status');
       }
 
-      const paymentStatus = payment?.status;
-      console.log('Payment status from database:', paymentStatus);
+      console.log('📊 Payment data from database:', paymentData);
 
-      if (paymentStatus === 'succeeded') {
-        // Update booking status to confirmed
-        console.log('Payment confirmed, updating booking status to confirmed');
-        const { error: updateError } = await supabase
+      const latestPayment = paymentData?.[0];
+      
+      if (latestPayment?.status === 'succeeded') {
+        console.log('✅ Payment confirmed in database');
+        
+        // Verify booking status was updated
+        const { data: bookingData, error: bookingError } = await supabase
           .from('bookings')
-          .update({ status: 'confirmed' })
-          .eq('id', bookingId!);
-
-        if (updateError) {
-          console.error('Error updating booking status:', updateError);
-          throw new Error('Failed to update booking status');
-        }
-
-        // Send confirmation email if email is provided
-        if (formData.email) {
-          console.log('Sending booking confirmation email');
-          try {
-            await supabase.functions.invoke('send-email', {
-              body: {
-                booking_id: bookingId!,
-                guest_email: formData.email,
-                venue_id: venue.id,
-                email_type: 'booking_confirmation'
-              }
-            });
-            console.log('Confirmation email sent successfully');
-          } catch (emailError) {
-            console.error('Failed to send confirmation email:', emailError);
-          }
+          .select('status')
+          .eq('id', bookingId!)
+          .single();
+          
+        if (bookingError) {
+          console.error('Error checking booking status:', bookingError);
+        } else {
+          console.log('📋 Current booking status:', bookingData?.status);
         }
 
         toast.success('Payment completed and booking confirmed!');
         onChange(formData, true, paymentCalculation?.amount || 0, bookingId!);
       } else {
-        console.error('Payment not confirmed. Status:', paymentStatus);
-        throw new Error('Payment was not successfully confirmed');
+        console.log('⚠️ Payment not yet confirmed, current status:', latestPayment?.status);
+        
+        // Wait a bit more and try once more
+        console.log('🔄 Retrying payment verification...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        const { data: retryPaymentData } = await supabase
+          .from('booking_payments')
+          .select('status')
+          .eq('booking_id', bookingId!)
+          .order('created_at', { ascending: false })
+          .limit(1);
+          
+        const retryPayment = retryPaymentData?.[0];
+        
+        if (retryPayment?.status === 'succeeded') {
+          console.log('✅ Payment confirmed on retry');
+          toast.success('Payment completed and booking confirmed!');
+          onChange(formData, true, paymentCalculation?.amount || 0, bookingId!);
+        } else {
+          console.error('❌ Payment still not confirmed after retry. Status:', retryPayment?.status);
+          throw new Error('Payment processing is taking longer than expected. Please check your email for confirmation or contact the venue.');
+        }
       }
     } catch (error) {
       console.error('Error in payment success handling:', error);
-      toast.error('Payment completed but there was an issue confirming your booking. Please contact the venue.');
+      toast.error(error instanceof Error ? error.message : 'Payment completed but there was an issue confirming your booking. Please contact the venue.');
     } finally {
       setIsProcessingPayment(false);
     }
