@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -56,15 +55,35 @@ export function SimpleWalkInDialog({
   // Calculate smart duration when dialog opens
   useEffect(() => {
     if (open) {
+      console.log('🚀 Dialog opened, calculating walk-in duration with:', {
+        selectedTime,
+        tableId,
+        bookingsCount: bookings.length,
+        selectedDate
+      });
+
+      // Filter bookings for today only
+      const todaysBookings = bookings.filter(booking => 
+        booking.booking_date === selectedDate
+      );
+
+      console.log('📅 Today\'s bookings filtered:', {
+        totalBookings: bookings.length,
+        todaysBookings: todaysBookings.length,
+        selectedDate
+      });
+
       const smartDuration = calculateWalkInDuration({
         clickedTime: selectedTime,
         tableId,
-        bookings,
+        bookings: todaysBookings, // Pass only today's bookings
         defaultDuration: 90 // TODO: Get from venue settings
       });
+      
+      console.log('⏱️ Smart duration calculated:', smartDuration);
       setDuration(smartDuration);
     }
-  }, [open, selectedTime, tableId, bookings]);
+  }, [open, selectedTime, tableId, bookings, selectedDate]);
 
   // Search guests as user types
   useEffect(() => {
@@ -113,7 +132,15 @@ export function SimpleWalkInDialog({
     setIsCreating(true);
     
     try {
-      // Create the walk-in booking
+      console.log('🪑 Creating walk-in with seated status:', {
+        guest_name: guestName || 'WALK-IN',
+        party_size: partySize,
+        booking_time: selectedTime,
+        tableId,
+        duration
+      });
+
+      // Create the walk-in booking with 'seated' status
       await createBooking({
         guest_name: guestName || 'WALK-IN',
         email: guestEmail || null,
@@ -122,7 +149,7 @@ export function SimpleWalkInDialog({
         booking_date: selectedDate,
         booking_time: selectedTime,
         service: 'Walk-in',
-        status: 'confirmed',
+        status: 'seated', // Walk-ins are immediately seated
         original_table_id: tableId,
         duration_minutes: duration,
         notes: 'Walk-in guest'
@@ -144,7 +171,7 @@ export function SimpleWalkInDialog({
       onComplete?.();
       onOpenChange(false);
     } catch (error) {
-      console.error('Error creating walk-in:', error);
+      console.error('❌ Error creating walk-in:', error);
       toast({
         title: "Error",
         description: "Failed to seat walk-in",
@@ -193,9 +220,11 @@ export function SimpleWalkInDialog({
             </Select>
           </div>
 
-          {/* Duration Info */}
+          {/* Duration Info with better feedback */}
           <div className="text-sm text-muted-foreground bg-muted p-2 rounded">
-            Duration: {duration} minutes {duration < 90 && "(squeezed due to next booking)"}
+            Duration: {duration} minutes 
+            {duration < 90 && <span className="text-orange-600 font-medium"> (squeezed due to next booking)</span>}
+            {duration === 90 && <span className="text-green-600"> (standard duration)</span>}
           </div>
 
           {/* Guest Search */}

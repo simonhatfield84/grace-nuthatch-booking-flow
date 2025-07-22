@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -131,7 +130,13 @@ export const useBookings = (date?: string) => {
         throw error;
       }
 
-      console.log('✅ Booking created:', booking);
+      console.log('✅ Booking created:', {
+        id: booking.id,
+        guest_name: booking.guest_name,
+        status: booking.status,
+        duration_minutes: booking.duration_minutes,
+        table_id: booking.table_id
+      });
 
       // Handle guest creation/update for walk-ins with contact details
       if (newBooking.service === 'Walk-in' && (newBooking.phone || newBooking.email) && newBooking.guest_name && newBooking.guest_name !== 'WALK-IN') {
@@ -178,7 +183,7 @@ export const useBookings = (date?: string) => {
           booking_id: booking.id,
           change_type: 'created',
           changed_by: user?.email || 'system',
-          notes: `${newBooking.service === 'Walk-in' ? 'Walk-in' : 'Booking'} created for ${newBooking.guest_name}`,
+          notes: `${newBooking.service === 'Walk-in' ? 'Walk-in' : 'Booking'} created for ${newBooking.guest_name} - Status: ${newBooking.status}`,
           venue_id: userVenue
         }]);
 
