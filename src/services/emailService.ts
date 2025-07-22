@@ -1,6 +1,24 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { emailTemplateService, TemplateVariables } from "./emailTemplateService";
+
+// Utility function to split full name into first and last name
+function splitName(fullName: string): { firstName: string; lastName: string } {
+  if (!fullName) return { firstName: '', lastName: '' };
+  
+  const nameParts = fullName.trim().split(/\s+/);
+  
+  if (nameParts.length === 1) {
+    return { firstName: nameParts[0], lastName: '' };
+  } else if (nameParts.length === 2) {
+    return { firstName: nameParts[0], lastName: nameParts[1] };
+  } else {
+    // More than 2 parts - first word is first name, rest is last name
+    return { 
+      firstName: nameParts[0], 
+      lastName: nameParts.slice(1).join(' ') 
+    };
+  }
+}
 
 export const emailService = {
   async sendBookingConfirmation(
@@ -222,9 +240,14 @@ export const emailService = {
         }
       }
 
+      // Split guest name into first and last name
+      const { firstName, lastName } = splitName(bookingData.guest_name);
+
       // Prepare template variables
       const templateVariables: TemplateVariables = {
         guest_name: bookingData.guest_name,
+        first_name: firstName,
+        last_name: lastName,
         venue_name: bookingData.venue_name,
         booking_date: bookingData.booking_date,
         booking_time: bookingData.booking_time,
