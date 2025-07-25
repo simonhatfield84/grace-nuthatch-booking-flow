@@ -9,7 +9,7 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  console.log('🔒 Enhanced payment intent creation request received')
+  console.log('🔒 Direct Stripe payment intent creation request received')
   
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -57,7 +57,7 @@ serve(async (req) => {
       venue_id: booking.venue_id
     })
 
-    // Get venue's Stripe settings with enhanced validation
+    // Get venue's Stripe settings
     const { data: stripeSettings, error: stripeError } = await supabaseClient
       .from('venue_stripe_settings')
       .select('*')
@@ -74,11 +74,6 @@ serve(async (req) => {
     if (stripeError || !stripeSettings) {
       console.error('❌ No Stripe settings found:', stripeError)
       throw new Error('Payment system not configured for this venue. Please contact the venue to enable online payments.')
-    }
-
-    if (!stripeSettings.stripe_account_id) {
-      console.error('❌ Missing stripe_account_id in settings:', stripeSettings)
-      throw new Error('Venue payment account not configured. Please contact the venue.')
     }
 
     // Determine if we're in test mode
@@ -166,25 +161,18 @@ serve(async (req) => {
 
     // Determine currency from venue settings or default to GBP
     const currency = paymentData.currency || 'gbp'
-    
-    // Calculate application fee (Grace Platform takes 3%)
-    const applicationFeeAmount = Math.round(finalAmount * 0.03)
 
-    console.log('💳 Creating payment intent with Stripe...', { 
+    console.log('💳 Creating direct payment intent with Stripe...', { 
       amount: finalAmount, 
       currency, 
       test_mode: isTestMode,
       booking_id: paymentData.bookingId 
     })
 
-    // Create payment intent with proper metadata
+    // Create payment intent for direct payments (no Stripe Connect)
     const paymentIntent = await stripe.paymentIntents.create({
       amount: finalAmount,
       currency: currency,
-      application_fee_amount: applicationFeeAmount,
-      transfer_data: {
-        destination: stripeSettings.stripe_account_id,
-      },
       metadata: {
         booking_id: paymentData.bookingId.toString(),
         venue_id: booking.venue_id,
