@@ -149,10 +149,7 @@ export function NuthatchBookingWidget() {
       case 'confirmation':
         return bookingData.bookingId ? (
           <ConfirmationStep
-            bookingData={{
-              ...bookingData,
-              bookingId: bookingData.bookingId
-            }}
+            bookingData={bookingData}
           />
         ) : null;
       default:
