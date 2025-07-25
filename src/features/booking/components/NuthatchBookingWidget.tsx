@@ -36,6 +36,9 @@ export function NuthatchBookingWidget() {
     paymentRequired: false,
   });
 
+  // Hard-coded venue ID for Nuthatch
+  const venueId = 'nuthatch-venue-id';
+
   const updateBookingData = (updates: Partial<BookingData>) => {
     setBookingData(prev => ({ ...prev, ...updates }));
   };
@@ -92,8 +95,8 @@ export function NuthatchBookingWidget() {
       case 'party':
         return (
           <PartyStep
-            partySize={bookingData.partySize}
-            onPartySelect={handlePartySelection}
+            initialSize={bookingData.partySize}
+            onContinue={handlePartySelection}
           />
         );
       case 'date':
@@ -102,6 +105,7 @@ export function NuthatchBookingWidget() {
             selectedDate={bookingData.date}
             onDateSelect={handleDateSelection}
             partySize={bookingData.partySize}
+            venueId={venueId}
           />
         );
       case 'time':
@@ -111,6 +115,7 @@ export function NuthatchBookingWidget() {
             selectedTime={bookingData.time}
             onTimeSelect={handleTimeSelection}
             partySize={bookingData.partySize}
+            venueId={venueId}
           />
         );
       case 'service':
@@ -120,6 +125,7 @@ export function NuthatchBookingWidget() {
             onServiceSelect={handleServiceSelection}
             partySize={bookingData.partySize}
             selectedDate={bookingData.date}
+            venueId={venueId}
           />
         );
       case 'details':
