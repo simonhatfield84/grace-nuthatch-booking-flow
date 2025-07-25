@@ -147,11 +147,14 @@ export function NuthatchBookingWidget() {
           />
         ) : null;
       case 'confirmation':
-        return (
+        return bookingData.bookingId ? (
           <ConfirmationStep
-            bookingData={bookingData}
+            bookingData={{
+              ...bookingData,
+              bookingId: bookingData.bookingId
+            }}
           />
-        );
+        ) : null;
       default:
         return null;
     }
