@@ -137,15 +137,15 @@ export function NuthatchBookingWidget() {
           />
         );
       case 'payment':
-        return (
+        return bookingData.bookingId ? (
           <PaymentStep
             amount={bookingData.paymentAmount}
             paymentRequired={bookingData.paymentRequired}
             onSuccess={handlePaymentSuccess}
-            bookingId={bookingData.bookingId!}
+            bookingId={bookingData.bookingId}
             description={`Payment for ${bookingData.service?.title} - ${bookingData.partySize} guests`}
           />
-        );
+        ) : null;
       case 'confirmation':
         return (
           <ConfirmationStep
