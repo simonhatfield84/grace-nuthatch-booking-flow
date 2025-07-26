@@ -6,7 +6,20 @@ import { DateTimeStep } from "./DateTimeStep";
 import { DetailsStep } from "./DetailsStep";
 import { ConfirmationStep } from "./ConfirmationStep";
 import { PaymentStep } from "./PaymentStep";
-import type { BookingData } from "@/types/booking";
+
+interface BookingData {
+  selectedDate: Date | null;
+  selectedTime: string | null;
+  partySize: number;
+  tableId: string | null;
+  guestName: string;
+  guestEmail: string;
+  guestPhone: string;
+  specialRequests: string;
+  bookingId: number | null;
+  paymentAmount: number;
+  paymentRequired: boolean;
+}
 
 interface NuthatchBookingWidgetProps {
   onBookingComplete?: (bookingId: number) => void;
@@ -92,22 +105,22 @@ export function NuthatchBookingWidget({ onBookingComplete }: NuthatchBookingWidg
 
       {/* Progress indicator */}
       <div className="flex items-center justify-between mb-6">
-        <div className={`flex items-center space-x-2 ${currentStep === 'datetime' ? 'text-primary' : currentStep !== 'datetime' ? 'text-green-600' : 'text-muted-foreground'}`}>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep === 'datetime' ? 'bg-primary text-primary-foreground' : currentStep !== 'datetime' ? 'bg-green-600 text-white' : 'bg-muted'}`}>
+        <div className={`flex items-center space-x-2 ${currentStep === 'datetime' ? 'text-primary' : (currentStep !== 'datetime' ? 'text-green-600' : 'text-muted-foreground')}`}>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep === 'datetime' ? 'bg-primary text-primary-foreground' : (currentStep !== 'datetime' ? 'bg-green-600 text-white' : 'bg-muted')}`}>
             1
           </div>
           <span className="font-medium">Date & Time</span>
         </div>
         
-        <div className={`flex items-center space-x-2 ${currentStep === 'details' ? 'text-primary' : ['confirmation', 'payment'].includes(currentStep) ? 'text-green-600' : 'text-muted-foreground'}`}>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep === 'details' ? 'bg-primary text-primary-foreground' : ['confirmation', 'payment'].includes(currentStep) ? 'bg-green-600 text-white' : 'bg-muted'}`}>
+        <div className={`flex items-center space-x-2 ${currentStep === 'details' ? 'text-primary' : (['confirmation', 'payment'].includes(currentStep) ? 'text-green-600' : 'text-muted-foreground')}`}>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep === 'details' ? 'bg-primary text-primary-foreground' : (['confirmation', 'payment'].includes(currentStep) ? 'bg-green-600 text-white' : 'bg-muted')}`}>
             2
           </div>
           <span className="font-medium">Your Details</span>
         </div>
         
-        <div className={`flex items-center space-x-2 ${currentStep === 'confirmation' ? 'text-primary' : currentStep === 'payment' ? 'text-green-600' : 'text-muted-foreground'}`}>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep === 'confirmation' ? 'bg-primary text-primary-foreground' : currentStep === 'payment' ? 'bg-green-600 text-white' : 'bg-muted'}`}>
+        <div className={`flex items-center space-x-2 ${currentStep === 'confirmation' ? 'text-primary' : (currentStep === 'payment' ? 'text-green-600' : 'text-muted-foreground')}`}>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep === 'confirmation' ? 'bg-primary text-primary-foreground' : (currentStep === 'payment' ? 'bg-green-600 text-white' : 'bg-muted')}`}>
             3
           </div>
           <span className="font-medium">Confirmation</span>
