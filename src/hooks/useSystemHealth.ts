@@ -2,126 +2,86 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
-interface HealthStatus {
+interface ServiceHealth {
   status: 'healthy' | 'degraded' | 'unhealthy';
   responseTime: number;
   lastCheck: string;
-  details?: string;
 }
 
-interface SystemHealth {
-  database: HealthStatus;
-  auth: HealthStatus;
-  email: HealthStatus;
-  payments: HealthStatus;
-  overall: HealthStatus;
+interface SystemHealthData {
+  database: ServiceHealth;
+  auth: ServiceHealth;
+  email: ServiceHealth;
+  payments: ServiceHealth;
 }
 
 export const useSystemHealth = () => {
   return useQuery({
     queryKey: ['system-health'],
-    queryFn: async (): Promise<SystemHealth> => {
+    queryFn: async (): Promise<SystemHealthData> => {
       const startTime = Date.now();
       
       // Test database connectivity
-      const dbStart = Date.now();
-      let dbStatus: HealthStatus;
+      let databaseHealth: ServiceHealth;
       try {
-        const { error } = await supabase.from('platform_metrics').select('id').limit(1);
+        const dbStart = Date.now();
+        const { error } = await supabase.from('venues').select('id').limit(1);
         const dbTime = Date.now() - dbStart;
         
-        if (error) {
-          dbStatus = {
-            status: 'unhealthy',
-            responseTime: dbTime,
-            lastCheck: new Date().toLocaleTimeString(),
-            details: error.message
-          };
-        } else {
-          dbStatus = {
-            status: dbTime < 1000 ? 'healthy' : dbTime < 3000 ? 'degraded' : 'unhealthy',
-            responseTime: dbTime,
-            lastCheck: new Date().toLocaleTimeString()
-          };
-        }
+        databaseHealth = {
+          status: error ? 'unhealthy' : (dbTime > 1000 ? 'degraded' : 'healthy'),
+          responseTime: dbTime,
+          lastCheck: new Date().toISOString()
+        };
       } catch (err) {
-        dbStatus = {
+        databaseHealth = {
           status: 'unhealthy',
-          responseTime: Date.now() - dbStart,
-          lastCheck: new Date().toLocaleTimeString(),
-          details: 'Connection failed'
+          responseTime: Date.now() - startTime,
+          lastCheck: new Date().toISOString()
         };
       }
 
-      // Test authentication service
-      const authStart = Date.now();
-      let authStatus: HealthStatus;
+      // Test auth service
+      let authHealth: ServiceHealth;
       try {
-        const { error } = await supabase.auth.getSession();
+        const authStart = Date.now();
+        const { data: { session } } = await supabase.auth.getSession();
         const authTime = Date.now() - authStart;
         
-        if (error) {
-          authStatus = {
-            status: 'degraded',
-            responseTime: authTime,
-            lastCheck: new Date().toLocaleTimeString(),
-            details: error.message
-          };
-        } else {
-          authStatus = {
-            status: authTime < 500 ? 'healthy' : authTime < 2000 ? 'degraded' : 'unhealthy',
-            responseTime: authTime,
-            lastCheck: new Date().toLocaleTimeString()
-          };
-        }
+        authHealth = {
+          status: authTime > 1000 ? 'degraded' : 'healthy',
+          responseTime: authTime,
+          lastCheck: new Date().toISOString()
+        };
       } catch (err) {
-        authStatus = {
+        authHealth = {
           status: 'unhealthy',
-          responseTime: Date.now() - authStart,
-          lastCheck: new Date().toLocaleTimeString(),
-          details: 'Auth service unavailable'
+          responseTime: Date.now() - startTime,
+          lastCheck: new Date().toISOString()
         };
       }
 
-      // Test email service (mock for now - would integrate with actual health endpoint)
-      const emailStart = Date.now();
-      const emailTime = Date.now() - emailStart;
-      const emailStatus: HealthStatus = {
-        status: 'healthy', // Would be determined by actual health check
-        responseTime: emailTime,
-        lastCheck: new Date().toLocaleTimeString()
+      // Email service health (mock for now)
+      const emailHealth: ServiceHealth = {
+        status: 'healthy',
+        responseTime: 50,
+        lastCheck: new Date().toISOString()
       };
 
-      // Test payment service (mock for now - would integrate with Stripe health)
-      const paymentStart = Date.now();
-      const paymentTime = Date.now() - paymentStart;
-      const paymentStatus: HealthStatus = {
-        status: 'healthy', // Would be determined by actual health check
-        responseTime: paymentTime,
-        lastCheck: new Date().toLocaleTimeString()
-      };
-
-      // Calculate overall health
-      const allStatuses = [dbStatus, authStatus, emailStatus, paymentStatus];
-      const hasUnhealthy = allStatuses.some(s => s.status === 'unhealthy');
-      const hasDegraded = allStatuses.some(s => s.status === 'degraded');
-      
-      const overallStatus: HealthStatus = {
-        status: hasUnhealthy ? 'unhealthy' : hasDegraded ? 'degraded' : 'healthy',
-        responseTime: Date.now() - startTime,
-        lastCheck: new Date().toLocaleTimeString()
+      // Payment service health (mock for now)
+      const paymentsHealth: ServiceHealth = {
+        status: 'healthy',
+        responseTime: 75,
+        lastCheck: new Date().toISOString()
       };
 
       return {
-        database: dbStatus,
-        auth: authStatus,
-        email: emailStatus,
-        payments: paymentStatus,
-        overall: overallStatus
+        database: databaseHealth,
+        auth: authHealth,
+        email: emailHealth,
+        payments: paymentsHealth
       };
     },
-    refetchInterval: 30000, // Check every 30 seconds
-    retry: 1,
-    retryDelay: 5000
+    refetchInterval: 30000, // Refetch every 30 seconds
   });
 };
