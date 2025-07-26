@@ -1,29 +1,37 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useVenueId } from "@/hooks/useVenueId";
 
-export const useSecurityAlerts = () => {
-  const venueId = useVenueId();
+interface SecurityAlert {
+  user_id: string;
+  venue_id: string;
+  suspicious_activity: string;
+  event_count: number;
+  last_event: string;
+}
 
+export const useSecurityAlerts = (timeRange: '1h' | '24h' | '7d' | '30d' = '24h') => {
   return useQuery({
-    queryKey: ['security-alerts', venueId],
-    queryFn: async () => {
-      if (!venueId) return [];
+    queryKey: ['security-alerts', timeRange],
+    queryFn: async (): Promise<SecurityAlert[]> => {
+      console.log('🔍 Fetching security alerts for range:', timeRange);
 
-      // For now, return empty array since there's no specific security_alerts table
-      // This could be extended to query security_audit for alert-worthy events
-      const { data, error } = await supabase
-        .from('security_audit')
-        .select('*')
-        .eq('venue_id', venueId)
-        .in('event_type', ['unauthorized_role_change_attempt', 'self_elevation_attempt', 'owner_demotion_attempt_blocked'])
-        .order('created_at', { ascending: false })
-        .limit(10);
+      try {
+        // Call the detect_role_anomalies function to get suspicious activities
+        const { data, error } = await supabase.rpc('detect_role_anomalies');
 
-      if (error) throw error;
-      return data || [];
+        if (error) {
+          console.error('❌ Error fetching security alerts:', error);
+          throw new Error(error.message);
+        }
+
+        console.log('✅ Security alerts fetched:', data?.length || 0);
+        return data || [];
+      } catch (error) {
+        console.error('💥 Failed to fetch security alerts:', error);
+        throw error;
+      }
     },
-    enabled: !!venueId,
+    refetchInterval: 30000, // Refetch every 30 seconds for real-time monitoring
+    staleTime: 10000, // Consider data stale after 10 seconds
   });
 };

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,9 +8,10 @@ import { Activity, RefreshCw, Search, Filter, Calendar, User, MapPin } from "luc
 import { format } from "date-fns";
 
 export default function SecurityAuditPanel() {
+  const [timeRange, setTimeRange] = useState<'1h' | '24h' | '7d' | '30d'>('24h');
   const [searchTerm, setSearchTerm] = useState('');
   const [eventTypeFilter, setEventTypeFilter] = useState<string>('all');
-  const { data: auditLogs, isLoading, refetch } = useSecurityAudit();
+  const { data: auditLogs, isLoading, refetch } = useSecurityAudit(timeRange);
 
   // Filter logs based on search term and event type
   const filteredLogs = auditLogs?.filter(log => {
@@ -70,6 +70,20 @@ export default function SecurityAuditPanel() {
       <CardContent className="space-y-4">
         {/* Filters */}
         <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <select 
+              value={timeRange} 
+              onChange={(e) => setTimeRange(e.target.value as any)}
+              className="px-3 py-2 text-sm border rounded-md bg-background"
+            >
+              <option value="1h">Last Hour</option>
+              <option value="24h">Last 24 Hours</option>
+              <option value="7d">Last 7 Days</option>
+              <option value="30d">Last 30 Days</option>
+            </select>
+          </div>
+          
           <div className="flex items-center space-x-2 flex-1 max-w-md">
             <Search className="h-4 w-4 text-muted-foreground" />
             <Input
@@ -111,7 +125,7 @@ export default function SecurityAuditPanel() {
           <div className="text-center py-8 text-muted-foreground">
             {searchTerm || eventTypeFilter !== 'all' 
               ? 'No events match your search criteria.' 
-              : 'No security events found.'
+              : 'No security events found for the selected time range.'
             }
           </div>
         ) : (
