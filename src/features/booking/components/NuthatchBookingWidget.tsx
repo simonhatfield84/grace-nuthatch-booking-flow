@@ -106,7 +106,7 @@ export function NuthatchBookingWidget({ onBookingComplete }: NuthatchBookingWidg
       {/* Progress indicator */}
       <div className="flex items-center justify-between mb-6">
         <div className={`flex items-center space-x-2 ${currentStep === 'datetime' ? 'text-primary' : (currentStep !== 'datetime' ? 'text-green-600' : 'text-muted-foreground')}`}>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep === 'datetime' ? 'bg-primary text-primary-foreground' : (currentStep !== 'datetime' ? 'bg-green-600 text-white' : 'bg-muted')}`}>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep === 'datetime' ? 'bg-primary text-primary-foreground' : (['details', 'confirmation', 'payment'].includes(currentStep) ? 'bg-green-600 text-white' : 'bg-muted')}`}>
             1
           </div>
           <span className="font-medium">Date & Time</span>
