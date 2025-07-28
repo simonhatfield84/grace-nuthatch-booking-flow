@@ -7,8 +7,8 @@ import { DefaultTermsSettings } from "@/components/settings/DefaultTermsSettings
 import { TagManagement } from "@/components/settings/TagManagement";
 import { EmailSettingsPanel } from "@/components/settings/EmailSettingsPanel";
 import { EmailTemplatesList } from "@/components/settings/EmailTemplateEditor";
-import { SecurityAuditPanel } from "@/components/security/SecurityAuditPanel";
-import { SecurityAlertsPanel } from "@/components/security/SecurityAlertsPanel";
+import SecurityAuditPanel from "@/components/security/SecurityAuditPanel";
+import SecurityAlertsPanel from "@/components/security/SecurityAlertsPanel";
 import { Settings as SettingsIcon, Clock, CreditCard, FileText, Tags, Mail, Shield } from "lucide-react";
 
 const Settings = () => {

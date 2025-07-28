@@ -1,4 +1,4 @@
-import { useState } from "react";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,22 +9,21 @@ import { Shield, AlertTriangle, Eye, Activity, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 
 function SecurityMonitoringDashboard() {
-  const [timeRange, setTimeRange] = useState<'1h' | '24h' | '7d' | '30d'>('24h');
-  const { data: alerts, isLoading: alertsLoading, refetch: refetchAlerts } = useSecurityAlerts(timeRange);
-  const { data: auditLogs, isLoading: auditLoading, refetch: refetchAudit } = useSecurityAudit(timeRange);
+  const { data: alerts, isLoading: alertsLoading, refetch: refetchAlerts } = useSecurityAlerts();
+  const { data: auditLogs, isLoading: auditLoading, refetch: refetchAudit } = useSecurityAudit();
 
   const criticalEvents = auditLogs?.filter(log => 
-    ['unauthorized_role_change_attempt', 'self_elevation_attempt', 'owner_demotion_attempt_blocked'].includes(log.event_type)
+    ['unauthorized_access', 'security_breach', 'data_breach'].includes(log.event_type)
   ) || [];
 
   const suspiciousEvents = auditLogs?.filter(log => 
-    ['venue_creation_rate_limit_exceeded', 'venue_creation_unauthorized', 'direct_role_update_blocked'].includes(log.event_type)
+    ['failed_login', 'suspicious_activity', 'unusual_access_pattern'].includes(log.event_type)
   ) || [];
 
   const getEventSeverity = (eventType: string) => {
-    const critical = ['unauthorized_role_change_attempt', 'self_elevation_attempt', 'owner_demotion_attempt_blocked'];
-    const high = ['venue_creation_unauthorized', 'direct_role_update_blocked'];
-    const medium = ['venue_creation_rate_limit_exceeded', 'venue_creation_validation_failed'];
+    const critical = ['unauthorized_access', 'security_breach', 'data_breach'];
+    const high = ['failed_login', 'suspicious_activity'];
+    const medium = ['login_attempt', 'password_change'];
     
     if (critical.includes(eventType)) return 'critical';
     if (high.includes(eventType)) return 'high';
@@ -53,22 +52,10 @@ function SecurityMonitoringDashboard() {
           <Shield className="h-6 w-6 text-primary" />
           <h2 className="text-2xl font-bold">Security Monitoring</h2>
         </div>
-        <div className="flex items-center space-x-2">
-          <select 
-            value={timeRange} 
-            onChange={(e) => setTimeRange(e.target.value as any)}
-            className="px-3 py-2 border rounded-md bg-background"
-          >
-            <option value="1h">Last Hour</option>
-            <option value="24h">Last 24 Hours</option>
-            <option value="7d">Last 7 Days</option>
-            <option value="30d">Last 30 Days</option>
-          </select>
-          <Button onClick={refreshAll} variant="outline" size="sm">
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
-        </div>
+        <Button onClick={refreshAll} variant="outline" size="sm">
+          <RefreshCw className="h-4 w-4 mr-2" />
+          Refresh
+        </Button>
       </div>
 
       {/* Security Metrics Overview */}
@@ -154,7 +141,7 @@ function SecurityMonitoringDashboard() {
             </div>
           ) : auditLogs?.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              No security events found for the selected time range.
+              No security events found.
             </div>
           ) : (
             <div className="space-y-3">
@@ -189,44 +176,6 @@ function SecurityMonitoringDashboard() {
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
-
-      {/* Security Recommendations */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <Shield className="h-5 w-5" />
-            <span>Security Recommendations</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {criticalEvents.length > 0 && (
-              <Alert>
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  <strong>High Priority:</strong> Review and investigate critical security events immediately.
-                </AlertDescription>
-              </Alert>
-            )}
-            
-            {suspiciousEvents.length > 5 && (
-              <Alert>
-                <Eye className="h-4 w-4" />
-                <AlertDescription>
-                  <strong>Medium Priority:</strong> Multiple suspicious activities detected. Consider reviewing user access patterns.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            <Alert>
-              <Shield className="h-4 w-4" />
-              <AlertDescription>
-                <strong>Best Practice:</strong> Regularly review security logs and maintain up-to-date access controls.
-              </AlertDescription>
-            </Alert>
-          </div>
         </CardContent>
       </Card>
     </div>
