@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import PartyStep from './PartyStep';
-import DateStep from './DateStep';
-import TimeStep from './TimeStep';
-import ServiceStep from './ServiceStep';
-import GuestDetailsStep from './GuestDetailsStep';
-import PaymentStep from './PaymentStep';
-import ConfirmationStep from './ConfirmationStep';
+import { PartyStep } from './steps/PartyStep';
+import { DateStep } from './steps/DateStep';
+import { TimeStep } from './steps/TimeStep';
+import { ServiceStep } from './steps/ServiceStep';
+import { GuestDetailsStep } from './steps/GuestDetailsStep';
+import { PaymentStep } from './steps/PaymentStep';
+import { ConfirmationStep } from './steps/ConfirmationStep';
 
 interface BookingData {
   partySize: number;
@@ -91,25 +91,78 @@ export default function NuthatchBookingWidget() {
   const renderCurrentStep = () => {
     switch (currentStep) {
       case 'party':
-        return <PartyStep />;
+        return (
+          <PartyStep 
+            initialSize={bookingData.partySize}
+            onContinue={(partySize) => nextStep({ partySize })}
+          />
+        );
       case 'date':
-        return <DateStep />;
+        return (
+          <DateStep 
+            selectedDate={bookingData.date}
+            onDateSelect={(date) => nextStep({ date })}
+            partySize={bookingData.partySize}
+            venueId="nuthatch"
+          />
+        );
       case 'time':
-        return <TimeStep />;
+        return (
+          <TimeStep 
+            selectedTime={bookingData.time}
+            onTimeSelect={(time) => nextStep({ time })}
+            selectedDate={bookingData.date}
+            partySize={bookingData.partySize}
+            venueId="nuthatch"
+          />
+        );
       case 'service':
-        return <ServiceStep />;
+        return (
+          <ServiceStep 
+            selectedService={bookingData.service}
+            onServiceSelect={(service) => nextStep({ service })}
+            partySize={bookingData.partySize}
+            selectedDate={bookingData.date}
+            venueId="nuthatch"
+          />
+        );
       case 'guest-details':
-        return <GuestDetailsStep />;
+        return (
+          <GuestDetailsStep 
+            bookingData={bookingData}
+            onSubmit={(guestDetails, bookingId, paymentRequired, paymentAmount) => {
+              setBookingData({ 
+                ...bookingData, 
+                ...guestDetails,
+                bookingId: bookingId.toString(),
+                paymentRequired,
+                paymentAmount
+              });
+              nextStep();
+            }}
+            onBack={prevStep}
+          />
+        );
       case 'payment':
         return bookingData.bookingId ? (
-          <PaymentStep bookingId={Number(bookingData.bookingId)} />
+          <PaymentStep 
+            bookingId={parseInt(bookingData.bookingId)}
+            amount={bookingData.paymentAmount || 0}
+            paymentRequired={bookingData.paymentRequired || false}
+            onSuccess={() => nextStep()}
+          />
         ) : (
           <div>Error: No booking ID available</div>
         );
       case 'confirmation':
-        return <ConfirmationStep />;
+        return <ConfirmationStep bookingData={bookingData} />;
       default:
-        return <PartyStep />;
+        return (
+          <PartyStep 
+            initialSize={bookingData.partySize}
+            onContinue={(partySize) => nextStep({ partySize })}
+          />
+        );
     }
   };
 
