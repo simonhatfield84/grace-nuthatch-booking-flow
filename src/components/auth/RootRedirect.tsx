@@ -12,26 +12,6 @@ export default function RootRedirect() {
 
   console.log('🔄 RootRedirect - User:', user?.email, 'Loading:', authLoading);
 
-  // Check if user is a platform admin
-  const { data: isPlatformAdmin, isLoading: platformLoading } = useQuery({
-    queryKey: ['is-platform-admin', user?.id],
-    queryFn: async () => {
-      if (!user) return false;
-      
-      console.log('🔍 Checking platform admin status for:', user.email);
-      const { data, error } = await supabase
-        .from('platform_admins')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .single();
-      
-      console.log('👑 Platform admin check result:', { data, error });
-      return !error && data;
-    },
-    enabled: !!user,
-  });
-
   // Check if user has a venue profile
   const { data: hasVenueProfile, isLoading: profileLoading } = useQuery({
     queryKey: ['user-venue-profile', user?.id],
@@ -52,8 +32,8 @@ export default function RootRedirect() {
     enabled: !!user,
   });
 
-  if (authLoading || platformLoading || profileLoading) {
-    console.log('⏳ Loading states - Auth:', authLoading, 'Platform:', platformLoading, 'Profile:', profileLoading);
+  if (authLoading || profileLoading) {
+    console.log('⏳ Loading states - Auth:', authLoading, 'Profile:', profileLoading);
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -67,13 +47,7 @@ export default function RootRedirect() {
     return <HomePage />;
   }
 
-  // If platform admin, redirect to platform dashboard
-  if (isPlatformAdmin) {
-    console.log('👑 Platform admin detected, redirecting to platform dashboard');
-    return <Navigate to="/platform/dashboard" replace />;
-  }
-
-  // If venue admin, redirect to dashboard (FIXED: was /admin/dashboard)
+  // If venue user, redirect to dashboard
   if (hasVenueProfile) {
     console.log('🏢 Venue user detected, redirecting to dashboard');
     return <Navigate to="/dashboard" replace />;

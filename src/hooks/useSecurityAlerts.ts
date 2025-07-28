@@ -1,23 +1,31 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 interface SecurityAlert {
-  user_id: string;
-  venue_id: string;
-  suspicious_activity: string;
-  event_count: number;
-  last_event: string;
+  id: string;
+  alert_type: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  message: string;
+  details: any;
+  resolved: boolean;
+  created_at: string;
+  resolved_at?: string;
 }
 
-export const useSecurityAlerts = (timeRange: '1h' | '24h' | '7d' | '30d' = '24h') => {
+export const useSecurityAlerts = () => {
   return useQuery({
-    queryKey: ['security-alerts', timeRange],
+    queryKey: ['security-alerts'],
     queryFn: async (): Promise<SecurityAlert[]> => {
-      console.log('🔍 Fetching security alerts for range:', timeRange);
+      console.log('🚨 Fetching security alerts...');
 
       try {
-        // Call the detect_role_anomalies function to get suspicious activities
-        const { data, error } = await supabase.rpc('detect_role_anomalies');
+        const { data, error } = await supabase
+          .from('security_alerts')
+          .select('*')
+          .eq('resolved', false)
+          .order('created_at', { ascending: false })
+          .limit(50);
 
         if (error) {
           console.error('❌ Error fetching security alerts:', error);
@@ -25,13 +33,13 @@ export const useSecurityAlerts = (timeRange: '1h' | '24h' | '7d' | '30d' = '24h'
         }
 
         console.log('✅ Security alerts fetched:', data?.length || 0);
-        return data || [];
+        return (data || []) as SecurityAlert[];
       } catch (error) {
         console.error('💥 Failed to fetch security alerts:', error);
         throw error;
       }
     },
-    refetchInterval: 30000, // Refetch every 30 seconds for real-time monitoring
-    staleTime: 10000, // Consider data stale after 10 seconds
+    refetchInterval: 15000, // Refetch every 15 seconds for real-time alerts
+    staleTime: 5000, // Consider data stale after 5 seconds
   });
 };

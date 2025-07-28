@@ -1,3 +1,4 @@
+
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -12,32 +13,14 @@ interface SecurityAuditEvent {
   created_at: string;
 }
 
-export const useSecurityAudit = (timeRange: '1h' | '24h' | '7d' | '30d' = '24h') => {
+export const useSecurityAudit = () => {
   return useQuery({
-    queryKey: ['security-audit', timeRange],
+    queryKey: ['security-audit'],
     queryFn: async (): Promise<SecurityAuditEvent[]> => {
-      console.log('🔍 Fetching security audit logs for range:', timeRange);
+      console.log('🔍 Fetching security audit logs...');
 
-      // Calculate the start time based on the range
-      const now = new Date();
-      let startTime: Date;
-      
-      switch (timeRange) {
-        case '1h':
-          startTime = new Date(now.getTime() - 60 * 60 * 1000);
-          break;
-        case '24h':
-          startTime = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-          break;
-        case '7d':
-          startTime = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          break;
-        case '30d':
-          startTime = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-          break;
-        default:
-          startTime = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      }
+      // Get logs from the last 24 hours
+      const startTime = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
       try {
         const { data, error } = await supabase

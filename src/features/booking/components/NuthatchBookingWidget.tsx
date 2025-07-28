@@ -137,7 +137,7 @@ export function NuthatchBookingWidget() {
           />
         );
       case 'payment':
-        return (bookingData.bookingId !== null && typeof bookingData.bookingId === 'number') ? (
+        return (bookingData.bookingId !== null) ? (
           <PaymentStep
             amount={bookingData.paymentAmount}
             paymentRequired={bookingData.paymentRequired}
