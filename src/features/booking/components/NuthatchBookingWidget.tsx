@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { PartyStep } from './steps/PartyStep';
 import { DateStep } from './steps/DateStep';
@@ -15,6 +16,8 @@ interface BookingData {
   guestName: string;
   guestEmail: string;
   guestPhone: string;
+  paymentRequired?: boolean;
+  paymentAmount?: number;
   bookingId?: string;
 }
 
@@ -30,6 +33,8 @@ export default function NuthatchBookingWidget() {
     guestName: '',
     guestEmail: '',
     guestPhone: '',
+    paymentRequired: false,
+    paymentAmount: 0,
   });
 
   const nextStep = (data: Partial<BookingData> = {}) => {
