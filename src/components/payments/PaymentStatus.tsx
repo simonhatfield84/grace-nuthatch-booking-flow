@@ -2,6 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle, XCircle, Clock, CreditCard, AlertTriangle } from "lucide-react";
 
 interface PaymentStatusProps {
@@ -30,7 +31,7 @@ export const PaymentStatus = ({ bookingId }: PaymentStatusProps) => {
       // First get the booking details
       const { data: booking } = await supabase
         .from('bookings')
-        .select('party_size, service, venue_id')
+        .select('party_size, service')
         .eq('id', bookingId)
         .single();
 
@@ -40,7 +41,6 @@ export const PaymentStatus = ({ bookingId }: PaymentStatusProps) => {
       const { data: serviceData } = await supabase
         .from('services')
         .select('requires_payment, charge_type, charge_amount_per_guest, minimum_guests_for_charge')
-        .eq('venue_id', booking.venue_id)
         .eq('title', booking.service)
         .single();
 

@@ -1,231 +1,352 @@
 
-import React, { useState } from 'react';
-import { Calendar, Users, Clock, Utensils, User, CreditCard, CheckCircle } from 'lucide-react';
-import { NuthatchHeader } from './shared/NuthatchHeader';
-import { ProgressIndicator } from './shared/ProgressIndicator';
-import { StepNavigation } from './shared/StepNavigation';
-import { PartyStep } from './steps/PartyStep';
-import { DateStep } from './steps/DateStep';
-import { TimeStep } from './steps/TimeStep';
-import { ServiceStep } from './steps/ServiceStep';
-import { GuestDetailsStep } from './steps/GuestDetailsStep';
-import { PaymentStep } from './steps/PaymentStep';
-import { ConfirmationStep } from './steps/ConfirmationStep';
+import { useState, useEffect } from "react";
+import { ChevronRight, Clock, Users, Calendar, CreditCard, Check, ArrowLeft } from "lucide-react";
+import { format } from "date-fns";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { PartyDateStep } from "./steps/PartyDateStep";
+import { ServiceStep } from "./steps/ServiceStep";
+import { TimeStep } from "./steps/TimeStep";
+import { GuestDetailsStep } from "./steps/GuestDetailsStep";
+import { PaymentStep } from "./steps/PaymentStep";
+import { ConfirmationStep } from "./steps/ConfirmationStep";
+import { NuthatchHeader } from "./shared/NuthatchHeader";
+import { ProgressIndicator } from "./shared/ProgressIndicator";
 
-interface BookingData {
+export interface BookingData {
   partySize: number;
   date: Date | null;
+  service: any | null;
   time: string;
-  service: string;
-  guestName: string;
-  guestEmail: string;
-  guestPhone: string;
-  paymentRequired?: boolean;
-  paymentAmount?: number;
-  bookingId?: string;
+  guestDetails: {
+    name: string;
+    email: string;
+    phone: string;
+    notes?: string;
+    marketingOptIn: boolean;
+    termsAccepted: boolean;
+  } | null;
+  paymentRequired: boolean;
+  paymentAmount: number;
+  bookingId: number | null;
 }
 
-type BookingStep = 'party' | 'date' | 'time' | 'service' | 'guest-details' | 'payment' | 'confirmation';
+export interface BookingStep {
+  id: string;
+  name: string;
+  icon: any;
+  isValid: boolean;
+  isCompleted: boolean;
+}
 
-export default function NuthatchBookingWidget() {
-  const [currentStep, setCurrentStep] = useState<BookingStep>('party');
+export function NuthatchBookingWidget() {
+  const { toast } = useToast();
+  const [currentStep, setCurrentStep] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
+  const [venue, setVenue] = useState<any>(null);
+  
   const [bookingData, setBookingData] = useState<BookingData>({
-    partySize: 1,
+    partySize: 2,
     date: null,
+    service: null,
     time: '',
-    service: '',
-    guestName: '',
-    guestEmail: '',
-    guestPhone: '',
+    guestDetails: null,
     paymentRequired: false,
     paymentAmount: 0,
+    bookingId: null,
   });
 
-  const steps = [
-    { id: 'party', name: 'Party Size', icon: Users, isValid: bookingData.partySize > 0, isCompleted: currentStep !== 'party' && bookingData.partySize > 0 },
-    { id: 'date', name: 'Date', icon: Calendar, isValid: bookingData.date !== null, isCompleted: currentStep !== 'date' && bookingData.date !== null },
-    { id: 'time', name: 'Time', icon: Clock, isValid: bookingData.time !== '', isCompleted: currentStep !== 'time' && bookingData.time !== '' },
-    { id: 'service', name: 'Service', icon: Utensils, isValid: bookingData.service !== '', isCompleted: currentStep !== 'service' && bookingData.service !== '' },
-    { id: 'guest-details', name: 'Details', icon: User, isValid: bookingData.guestName !== '', isCompleted: currentStep !== 'guest-details' && bookingData.guestName !== '' },
-    { id: 'payment', name: 'Payment', icon: CreditCard, isValid: true, isCompleted: currentStep !== 'payment' && bookingData.bookingId !== undefined },
-    { id: 'confirmation', name: 'Confirmation', icon: CheckCircle, isValid: true, isCompleted: currentStep === 'confirmation' },
+  const getStepLabel = (stepId: string, step: BookingStep) => {
+    if (!step.isCompleted) return step.name;
+    
+    switch (stepId) {
+      case 'party-date':
+        if (bookingData.date) {
+          return `${bookingData.partySize} on ${format(bookingData.date, 'dd/MM')}`;
+        }
+        return step.name;
+      case 'service':
+        return bookingData.service?.title || step.name;
+      case 'time':
+        return bookingData.time || step.name;
+      default:
+        return step.name;
+    }
+  };
+
+  const steps: BookingStep[] = [
+    {
+      id: 'party-date',
+      name: 'Party & Date',
+      icon: Users,
+      isValid: bookingData.partySize >= 1 && bookingData.date !== null,
+      isCompleted: bookingData.partySize >= 1 && bookingData.date !== null,
+    },
+    {
+      id: 'service',
+      name: 'Service',
+      icon: Clock,
+      isValid: bookingData.service !== null,
+      isCompleted: bookingData.service !== null,
+    },
+    {
+      id: 'time',
+      name: 'Time',
+      icon: Clock,
+      isValid: bookingData.time !== '',
+      isCompleted: bookingData.time !== '',
+    },
+    {
+      id: 'details',
+      name: 'Details',
+      icon: Users,
+      isValid: bookingData.guestDetails?.name !== undefined && 
+               bookingData.guestDetails?.phone !== undefined &&
+               bookingData.guestDetails?.termsAccepted === true,
+      isCompleted: bookingData.guestDetails?.termsAccepted === true,
+    },
+    // Payment is now integrated into details step
+    {
+      id: 'confirmation',
+      name: 'Confirmation',
+      icon: Check,
+      isValid: bookingData.bookingId !== null,
+      isCompleted: bookingData.bookingId !== null,
+    },
   ];
 
-  const getCurrentStepIndex = () => steps.findIndex(step => step.id === currentStep);
+  // Load The Nuthatch venue data
+  useEffect(() => {
+    const loadVenue = async () => {
+      setIsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('venues')
+          .select('*')
+          .eq('slug', 'the-nuthatch')
+          .single();
 
-  const nextStep = (data: Partial<BookingData> = {}) => {
-    setBookingData({ ...bookingData, ...data });
-    switch (currentStep) {
-      case 'party':
-        setCurrentStep('date');
-        break;
-      case 'date':
-        setCurrentStep('time');
-        break;
-      case 'time':
-        setCurrentStep('service');
-        break;
-      case 'service':
-        setCurrentStep('guest-details');
-        break;
-      case 'guest-details':
-        setCurrentStep('payment');
-        break;
-      case 'payment':
-        setCurrentStep('confirmation');
-        break;
-      default:
-        setCurrentStep('party');
+        if (error) {
+          console.error('Error loading venue:', error);
+          toast({
+            title: "Error",
+            description: "Could not load venue information. Please try again.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        setVenue(data);
+      } catch (error) {
+        console.error('Error loading venue:', error);
+        toast({
+          title: "Error",
+          description: "Could not load venue information. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadVenue();
+  }, [toast]);
+
+  const updateBookingData = (data: Partial<BookingData>) => {
+    setBookingData(prev => ({ ...prev, ...data }));
+  };
+
+  const nextStep = () => {
+    if (currentStep < steps.length - 1) {
+      setCurrentStep(prev => prev + 1);
     }
   };
 
   const prevStep = () => {
-    switch (currentStep) {
-      case 'date':
-        setCurrentStep('party');
-        break;
-      case 'time':
-        setCurrentStep('date');
-        break;
-      case 'service':
-        setCurrentStep('time');
-        break;
-      case 'guest-details':
-        setCurrentStep('service');
-        break;
-      case 'payment':
-        setCurrentStep('guest-details');
-        break;
-      case 'confirmation':
-        setCurrentStep('payment');
-        break;
-      default:
-        setCurrentStep('party');
+    if (currentStep > 0) {
+      setCurrentStep(prev => prev - 1);
     }
   };
 
   const goToStep = (stepIndex: number) => {
-    const stepId = steps[stepIndex].id;
-    setCurrentStep(stepId as BookingStep);
+    // FIXED: Allow navigation to confirmation step when booking is complete
+    // Only prevent navigation to incomplete steps, but allow going to confirmation
+    if (stepIndex === steps.length - 1 && bookingData.bookingId !== null) {
+      setCurrentStep(stepIndex);
+      return;
+    }
+    
+    // Only allow navigation to completed steps or the next step (but not if booking is already confirmed)
+    const allowedSteps = steps.slice(0, currentStep + 1).map((_, idx) => idx);
+    if (steps[stepIndex]?.isCompleted || allowedSteps.includes(stepIndex)) {
+      setCurrentStep(stepIndex);
+    }
   };
 
-  const renderCurrentStep = () => {
-    switch (currentStep) {
-      case 'party':
+  const renderStep = () => {
+    const step = steps[currentStep];
+    
+    switch (step?.id) {
+      case 'party-date':
         return (
-          <PartyStep 
-            initialSize={bookingData.partySize}
-            onContinue={(partySize) => nextStep({ partySize })}
-          />
-        );
-      case 'date':
-        return (
-          <DateStep 
+          <PartyDateStep
+            initialPartySize={bookingData.partySize}
             selectedDate={bookingData.date}
-            onDateSelect={(date) => nextStep({ date })}
-            partySize={bookingData.partySize}
-            venueId="nuthatch"
-          />
-        );
-      case 'time':
-        return (
-          <TimeStep 
-            selectedTime={bookingData.time}
-            onTimeSelect={(time) => nextStep({ time })}
-            selectedDate={bookingData.date}
-            partySize={bookingData.partySize}
-            venueId="nuthatch"
+            venueId={venue?.id}
+            onContinue={(partySize, date) => {
+              updateBookingData({ partySize, date });
+              nextStep();
+            }}
           />
         );
       case 'service':
         return (
-          <ServiceStep 
-            selectedService={bookingData.service}
-            onServiceSelect={(service) => nextStep({ service })}
+          <ServiceStep
+            venueId={venue?.id}
             partySize={bookingData.partySize}
             selectedDate={bookingData.date}
-            venueId="nuthatch"
-          />
-        );
-      case 'guest-details':
-        return (
-          <GuestDetailsStep 
-            bookingData={bookingData}
-            onSubmit={(guestDetails, bookingId, paymentRequired, paymentAmount) => {
-              setBookingData({ 
-                ...bookingData, 
-                ...guestDetails,
-                bookingId: bookingId.toString(),
-                paymentRequired,
-                paymentAmount
+            selectedService={bookingData.service}
+            onServiceSelect={(service) => {
+              updateBookingData({ 
+                service,
+                paymentRequired: service?.requires_payment || false,
+                paymentAmount: service?.charge_amount_per_guest ? 
+                  service.charge_amount_per_guest * bookingData.partySize : 0
               });
               nextStep();
             }}
-            onBack={prevStep}
           />
         );
-      case 'payment':
-        return bookingData.bookingId ? (
-          <PaymentStep 
-            bookingId={parseInt(bookingData.bookingId)}
-            amount={bookingData.paymentAmount || 0}
-            paymentRequired={bookingData.paymentRequired || false}
-            onSuccess={() => nextStep()}
-          />
-        ) : (
-          <div className="text-center py-8">
-            <p className="text-nuthatch-muted">Error: No booking ID available</p>
-          </div>
-        );
-      case 'confirmation':
-        return <ConfirmationStep bookingData={bookingData} />;
-      default:
+      case 'time':
         return (
-          <PartyStep 
-            initialSize={bookingData.partySize}
-            onContinue={(partySize) => nextStep({ partySize })}
+          <TimeStep
+            venueId={venue?.id}
+            selectedDate={bookingData.date}
+            partySize={bookingData.partySize}
+            selectedTime={bookingData.time}
+            onTimeSelect={(time) => {
+              updateBookingData({ time });
+              nextStep();
+            }}
           />
         );
+      case 'details':
+        return (
+          <GuestDetailsStep
+            value={bookingData.guestDetails}
+            service={bookingData.service}
+            venue={venue}
+            partySize={bookingData.partySize}
+            date={bookingData.date!}
+            time={bookingData.time}
+            onChange={(guestDetails, paymentRequired, paymentAmount, bookingId) => {
+              updateBookingData({ 
+                guestDetails, 
+                paymentRequired, 
+                paymentAmount,
+                bookingId 
+              });
+              // FIXED: Properly navigate to confirmation step after successful payment
+              if (bookingId) {
+                console.log('🎉 Payment successful, navigating to confirmation step');
+                setCurrentStep(steps.length - 1);
+              }
+            }}
+          />
+        );
+      // Payment is now integrated into the details step
+      case 'confirmation':
+        return (
+          <ConfirmationStep
+            bookingData={bookingData}
+            venue={venue}
+            onBookingId={(bookingId) => updateBookingData({ bookingId })}
+          />
+        );
+      default:
+        return <div>Invalid step</div>;
     }
   };
 
-  return (
-    <div className="min-h-screen bg-nuthatch-light">
-      <NuthatchHeader />
-      
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-8">
-            <h1 className="font-nuthatch-heading text-3xl font-light text-nuthatch-dark mb-2">
-              Reserve Your Table
-            </h1>
-            <p className="text-nuthatch-muted">
-              Book your dining experience at The Nuthatch
-            </p>
-          </div>
-
-          <div className="bg-nuthatch-white rounded-lg shadow-sm border border-nuthatch-border p-6 mb-6">
-            <ProgressIndicator 
-              steps={steps}
-              currentStep={getCurrentStepIndex()}
-              onStepClick={goToStep}
-            />
-          </div>
-
-          <div className="bg-nuthatch-white rounded-lg shadow-sm border border-nuthatch-border p-6">
-            <StepNavigation
-              currentStep={getCurrentStepIndex()}
-              totalSteps={steps.length}
-              onBack={prevStep}
-              showBack={currentStep !== 'party' && currentStep !== 'confirmation'}
-            />
-            
-            <div className="mt-4">
-              {renderCurrentStep()}
-            </div>
-          </div>
+  if (isLoading || !venue) {
+    return (
+      <div className="min-h-screen bg-nuthatch-white flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-nuthatch-green mx-auto mb-4" />
+          <p className="text-nuthatch-dark font-nuthatch-body">Loading...</p>
         </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md bg-white shadow-lg rounded-lg overflow-hidden">
+        {/* Header - matching Guestplan style */}
+        <div className="bg-black text-white p-4 text-center">
+          <h1 className="text-xl font-medium">The Nuthatch</h1>
+        </div>
+
+        {/* Navigation tabs - simple like Guestplan */}
+        <div className="border-b bg-gray-50">
+          <div className="flex">
+            {steps.slice(0, -1).map((step, index) => {
+              // FIXED: Don't disable navigation when booking is confirmed, allow going back to see details
+              const isDisabled = !step.isCompleted && index > currentStep;
+              
+              return (
+                <button
+                  key={step.id}
+                  onClick={() => !isDisabled && goToStep(index)}
+                  disabled={isDisabled}
+                  className={`flex-1 px-2 py-2 text-xs font-medium border-r last:border-r-0 transition-colors ${
+                    currentStep === index 
+                      ? 'bg-white text-black' 
+                      : isDisabled
+                        ? 'bg-gray-50 text-gray-400 cursor-not-allowed'
+                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  {getStepLabel(step.id, step)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 min-h-[400px]">
+          {renderStep()}
+        </div>
+
+        {/* Navigation - minimal and clean */}
+        {currentStep > 0 && currentStep < steps.length - 1 && (
+          <div className="p-4 border-t bg-gray-50 flex justify-between">
+            <Button
+              variant="outline"
+              onClick={prevStep}
+              size="sm"
+            >
+              <ArrowLeft className="h-4 w-4 mr-1" />
+              Back
+            </Button>
+            
+            {steps[currentStep]?.isValid && (
+              <Button
+                onClick={nextStep}
+                size="sm"
+                className="bg-black hover:bg-gray-800 text-white"
+              >
+                Continue
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            )}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

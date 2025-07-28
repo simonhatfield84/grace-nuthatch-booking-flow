@@ -18,8 +18,17 @@ import Setup from "@/pages/Setup";
 import BookingWidgetPage from "@/pages/BookingWidget";
 import NewHostInterface from "@/pages/NewHostInterface";
 import NotFound from "@/pages/NotFound";
+import PlatformAuth from "@/pages/PlatformAuth";
+import PlatformDashboard from "@/pages/PlatformDashboard";
+import PlatformSettings from "@/pages/PlatformSettings";
+import PlatformUsers from "@/pages/PlatformUsers";
+import PlatformVenues from "@/pages/PlatformVenues";
+import PlatformSecurity from "@/pages/PlatformSecurity";
+import PlatformSubscriptions from "@/pages/PlatformSubscriptions";
+import PlatformSupport from "@/pages/PlatformSupport";
 import CancelBooking from "@/pages/CancelBooking";
 import ModifyBooking from "@/pages/ModifyBooking";
+import { PlatformAdminLayout } from "@/components/layouts/PlatformAdminLayout";
 import { AdminLayout } from "@/components/layouts/AdminLayout";
 import { ThemeHandler } from "@/components/ThemeHandler";
 
@@ -99,6 +108,22 @@ function App() {
                     </AdminLayout>
                   </ProtectedRoute>
                 } />
+                
+                {/* Platform Admin Routes */}
+                <Route path="/platform/auth" element={<PlatformAuth />} />
+                <Route path="/platform" element={
+                  <ProtectedRoute>
+                    <PlatformAdminLayout />
+                  </ProtectedRoute>
+                }>
+                  <Route path="dashboard" element={<PlatformDashboard />} />
+                  <Route path="settings" element={<PlatformSettings />} />
+                  <Route path="users" element={<PlatformUsers />} />
+                  <Route path="venues" element={<PlatformVenues />} />
+                  <Route path="security" element={<PlatformSecurity />} />
+                  <Route path="subscriptions" element={<PlatformSubscriptions />} />
+                  <Route path="support" element={<PlatformSupport />} />
+                </Route>
                 
                 <Route path="*" element={<NotFound />} />
               </Routes>

@@ -671,33 +671,6 @@ export type Database = {
           },
         ]
       }
-      payment_analytics: {
-        Row: {
-          booking_id: number
-          created_at: string
-          event_data: Json | null
-          event_type: string
-          id: string
-          venue_id: string
-        }
-        Insert: {
-          booking_id: number
-          created_at?: string
-          event_data?: Json | null
-          event_type: string
-          id?: string
-          venue_id: string
-        }
-        Update: {
-          booking_id?: number
-          created_at?: string
-          event_data?: Json | null
-          event_type?: string
-          id?: string
-          venue_id?: string
-        }
-        Relationships: []
-      }
       payment_transactions: {
         Row: {
           amount_cents: number
@@ -1542,10 +1515,6 @@ export type Database = {
           event_count: number
           last_event: string
         }[]
-      }
-      expire_pending_payments: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
       }
       find_duplicate_guests: {
         Args: { guest_email?: string; guest_phone?: string }

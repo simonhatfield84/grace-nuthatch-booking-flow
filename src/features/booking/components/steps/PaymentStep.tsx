@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Loader2, CreditCard, Lock, CheckCircle, AlertTriangle, RefreshCw } from "lucide-react";
+import { Loader2, CreditCard, Lock, CheckCircle, AlertTriangle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -23,7 +23,6 @@ export function PaymentStep({ amount, paymentRequired, onSuccess, bookingId, des
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentCompleted, setPaymentCompleted] = useState(false);
   const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
 
   // Create payment intent when component mounts
   useEffect(() => {
@@ -31,66 +30,47 @@ export function PaymentStep({ amount, paymentRequired, onSuccess, bookingId, des
       return;
     }
 
+    const createPaymentIntent = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        console.log('Creating payment intent for booking:', bookingId, 'amount:', amount);
+
+        const { data, error: paymentError } = await supabase.functions.invoke('create-payment-intent', {
+          body: {
+            bookingId: bookingId,
+            amount: amount,
+            currency: 'gbp',
+            description: description || 'Booking payment'
+          }
+        });
+
+        if (paymentError) {
+          console.error('Payment intent error:', paymentError);
+          throw new Error('Failed to initialize payment. Please try again.');
+        }
+
+        if (!data?.client_secret) {
+          console.error('No client secret returned:', data);
+          throw new Error('Payment system error. Please contact the venue.');
+        }
+
+        console.log('Payment intent created successfully:', data);
+        setClientSecret(data.client_secret);
+
+      } catch (err) {
+        console.error('Payment setup error:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Failed to initialize payment';
+        setError(errorMessage);
+        toast.error(errorMessage);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
     createPaymentIntent();
   }, [bookingId, amount, paymentRequired, description]);
-
-  const createPaymentIntent = async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      console.log('Creating payment intent for booking:', bookingId, 'amount:', amount);
-
-      const { data, error: paymentError } = await supabase.functions.invoke('create-payment-intent', {
-        body: {
-          bookingId: bookingId,
-          amount: amount,
-          currency: 'gbp',
-          description: description || 'Booking payment'
-        }
-      });
-
-      if (paymentError) {
-        console.error('Payment intent error:', paymentError);
-        
-        // Handle specific error types
-        if (paymentError.message?.includes('not configured')) {
-          throw new Error('Online payments are not available for this venue. Please contact the venue directly to complete your booking.');
-        } else if (paymentError.message?.includes('Booking not found')) {
-          throw new Error('Booking session expired. Please start a new booking.');
-        } else {
-          throw new Error('Failed to initialize payment. Please try again or contact the venue.');
-        }
-      }
-
-      if (!data?.clientSecret) {
-        console.error('No client secret returned:', data);
-        throw new Error('Payment system error. Please contact the venue.');
-      }
-
-      console.log('Payment intent created successfully:', data);
-      setClientSecret(data.clientSecret);
-      setRetryCount(0); // Reset retry count on success
-
-    } catch (err) {
-      console.error('Payment setup error:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to initialize payment';
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Retry payment intent creation
-  const retryPaymentIntent = () => {
-    if (retryCount < 3) {
-      setRetryCount(prev => prev + 1);
-      createPaymentIntent();
-    } else {
-      setError('Maximum retry attempts reached. Please refresh the page or contact the venue.');
-    }
-  };
 
   // Verify payment status after completion
   const verifyPaymentStatus = async () => {
@@ -291,21 +271,7 @@ export function PaymentStep({ amount, paymentRequired, onSuccess, bookingId, des
 
       {error && (
         <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription className="flex items-center justify-between">
-            <span>{error}</span>
-            {retryCount < 3 && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={retryPaymentIntent}
-                disabled={isLoading}
-              >
-                <RefreshCw className="h-4 w-4 mr-1" />
-                Retry
-              </Button>
-            )}
-          </AlertDescription>
+          <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
 
@@ -326,14 +292,13 @@ export function PaymentStep({ amount, paymentRequired, onSuccess, bookingId, des
         </StripeProvider>
       ) : (
         <div className="text-center py-8">
-          <p className="text-nuthatch-muted mb-4">Failed to initialize payment system</p>
+          <p className="text-nuthatch-muted">Failed to initialize payment system</p>
           <Button 
-            onClick={retryPaymentIntent} 
-            variant="outline"
-            disabled={retryCount >= 3}
+            onClick={() => window.location.reload()} 
+            variant="outline" 
+            className="mt-4"
           >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            {retryCount >= 3 ? 'Max retries reached' : 'Retry Payment Setup'}
+            Retry
           </Button>
         </div>
       )}

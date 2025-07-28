@@ -69,7 +69,6 @@ export class CoreBookingService {
       let query = supabase
         .from('services')
         .select('*')
-        .eq('venue_id', venueId)
         .eq('active', true)
         .eq('online_bookable', true)
         .order('title');
@@ -88,23 +87,6 @@ export class CoreBookingService {
     } catch (error) {
       console.error('Error fetching services:', error);
       return [];
-    }
-  }
-
-  // Clean up expired bookings
-  static async cleanupExpiredBookings() {
-    try {
-      const { error } = await supabase.rpc('expire_pending_payments');
-      
-      if (error) {
-        console.error('Error cleaning up expired bookings:', error);
-        throw error;
-      }
-      
-      console.log('✅ Expired bookings cleaned up successfully');
-    } catch (error) {
-      console.error('Error during cleanup:', error);
-      throw error;
     }
   }
 

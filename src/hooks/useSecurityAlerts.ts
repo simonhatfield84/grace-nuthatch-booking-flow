@@ -1,47 +1,37 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 interface SecurityAlert {
-  id: string;
-  alert_type: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  message: string;
-  details: any;
-  resolved: boolean;
-  created_at: string;
-  resolved_at?: string;
+  user_id: string;
+  venue_id: string;
+  suspicious_activity: string;
+  event_count: number;
+  last_event: string;
 }
 
-export const useSecurityAlerts = () => {
+export const useSecurityAlerts = (timeRange: '1h' | '24h' | '7d' | '30d' = '24h') => {
   return useQuery({
-    queryKey: ['security-alerts'],
+    queryKey: ['security-alerts', timeRange],
     queryFn: async (): Promise<SecurityAlert[]> => {
-      console.log('🚨 Fetching security alerts...');
+      console.log('🔍 Fetching security alerts for range:', timeRange);
 
       try {
-        // For now, return mock data since security_alerts table doesn't exist
-        // In a real implementation, this would query the actual security_alerts table
-        const mockAlerts: SecurityAlert[] = [
-          {
-            id: '1',
-            alert_type: 'suspicious_login',
-            severity: 'medium',
-            message: 'Multiple failed login attempts detected',
-            details: { ip_address: '192.168.1.100', attempts: 3 },
-            resolved: false,
-            created_at: new Date().toISOString()
-          }
-        ];
+        // Call the detect_role_anomalies function to get suspicious activities
+        const { data, error } = await supabase.rpc('detect_role_anomalies');
 
-        console.log('✅ Security alerts fetched:', mockAlerts.length);
-        return mockAlerts;
+        if (error) {
+          console.error('❌ Error fetching security alerts:', error);
+          throw new Error(error.message);
+        }
+
+        console.log('✅ Security alerts fetched:', data?.length || 0);
+        return data || [];
       } catch (error) {
         console.error('💥 Failed to fetch security alerts:', error);
         throw error;
       }
     },
-    refetchInterval: 15000,
-    staleTime: 5000,
+    refetchInterval: 30000, // Refetch every 30 seconds for real-time monitoring
+    staleTime: 10000, // Consider data stale after 10 seconds
   });
 };

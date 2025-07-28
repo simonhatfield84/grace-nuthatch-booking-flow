@@ -1,5 +1,5 @@
 
-import NuthatchBookingWidget from "@/features/booking/components/NuthatchBookingWidget";
+import { NuthatchBookingWidget } from "@/features/booking/components/NuthatchBookingWidget";
 
 const BookingWidgetPage = () => {
   // Hard-coded for The Nuthatch - no dynamic slug needed
