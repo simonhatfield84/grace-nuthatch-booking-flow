@@ -1,5 +1,9 @@
 
 import React, { useState } from 'react';
+import { Calendar, Users, Clock, Utensils, User, CreditCard, CheckCircle } from 'lucide-react';
+import { NuthatchHeader } from './shared/NuthatchHeader';
+import { ProgressIndicator } from './shared/ProgressIndicator';
+import { StepNavigation } from './shared/StepNavigation';
 import { PartyStep } from './steps/PartyStep';
 import { DateStep } from './steps/DateStep';
 import { TimeStep } from './steps/TimeStep';
@@ -36,6 +40,18 @@ export default function NuthatchBookingWidget() {
     paymentRequired: false,
     paymentAmount: 0,
   });
+
+  const steps = [
+    { id: 'party', name: 'Party Size', icon: Users, isValid: bookingData.partySize > 0, isCompleted: currentStep !== 'party' && bookingData.partySize > 0 },
+    { id: 'date', name: 'Date', icon: Calendar, isValid: bookingData.date !== null, isCompleted: currentStep !== 'date' && bookingData.date !== null },
+    { id: 'time', name: 'Time', icon: Clock, isValid: bookingData.time !== '', isCompleted: currentStep !== 'time' && bookingData.time !== '' },
+    { id: 'service', name: 'Service', icon: Utensils, isValid: bookingData.service !== '', isCompleted: currentStep !== 'service' && bookingData.service !== '' },
+    { id: 'guest-details', name: 'Details', icon: User, isValid: bookingData.guestName !== '', isCompleted: currentStep !== 'guest-details' && bookingData.guestName !== '' },
+    { id: 'payment', name: 'Payment', icon: CreditCard, isValid: true, isCompleted: currentStep !== 'payment' && bookingData.bookingId !== undefined },
+    { id: 'confirmation', name: 'Confirmation', icon: CheckCircle, isValid: true, isCompleted: currentStep === 'confirmation' },
+  ];
+
+  const getCurrentStepIndex = () => steps.findIndex(step => step.id === currentStep);
 
   const nextStep = (data: Partial<BookingData> = {}) => {
     setBookingData({ ...bookingData, ...data });
@@ -88,9 +104,9 @@ export default function NuthatchBookingWidget() {
     }
   };
 
-  const setBookingId = (bookingId: string) => {
-    setBookingData({ ...bookingData, bookingId: bookingId });
-    nextStep();
+  const goToStep = (stepIndex: number) => {
+    const stepId = steps[stepIndex].id;
+    setCurrentStep(stepId as BookingStep);
   };
 
   const renderCurrentStep = () => {
@@ -157,7 +173,9 @@ export default function NuthatchBookingWidget() {
             onSuccess={() => nextStep()}
           />
         ) : (
-          <div>Error: No booking ID available</div>
+          <div className="text-center py-8">
+            <p className="text-nuthatch-muted">Error: No booking ID available</p>
+          </div>
         );
       case 'confirmation':
         return <ConfirmationStep bookingData={bookingData} />;
@@ -172,9 +190,42 @@ export default function NuthatchBookingWidget() {
   };
 
   return (
-    <div>
-      <h2>Book a Table</h2>
-      {renderCurrentStep()}
+    <div className="min-h-screen bg-nuthatch-light">
+      <NuthatchHeader />
+      
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="text-center mb-8">
+            <h1 className="font-nuthatch-heading text-3xl font-light text-nuthatch-dark mb-2">
+              Reserve Your Table
+            </h1>
+            <p className="text-nuthatch-muted">
+              Book your dining experience at The Nuthatch
+            </p>
+          </div>
+
+          <div className="bg-nuthatch-white rounded-lg shadow-sm border border-nuthatch-border p-6 mb-6">
+            <ProgressIndicator 
+              steps={steps}
+              currentStep={getCurrentStepIndex()}
+              onStepClick={goToStep}
+            />
+          </div>
+
+          <div className="bg-nuthatch-white rounded-lg shadow-sm border border-nuthatch-border p-6">
+            <StepNavigation
+              currentStep={getCurrentStepIndex()}
+              totalSteps={steps.length}
+              onBack={prevStep}
+              showBack={currentStep !== 'party' && currentStep !== 'confirmation'}
+            />
+            
+            <div className="mt-4">
+              {renderCurrentStep()}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
