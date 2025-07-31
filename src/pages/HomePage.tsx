@@ -1,10 +1,10 @@
-
 import React from 'react';
 import { Helmet } from 'react-helmet-async';
 import Header from '@/components/homepage/Header';
 import HeroSection from '@/components/homepage/HeroSection';
-import AboutSection from '@/components/homepage/AboutSection';
 import VideoShowcaseSection from '@/components/homepage/VideoShowcaseSection';
+import HeroContentSection from '@/components/homepage/HeroContentSection';
+import AboutSection from '@/components/homepage/AboutSection';
 import DevelopmentJournal from '@/components/homepage/DevelopmentJournal';
 import ArchitectureSection from '@/components/homepage/ArchitectureSection';
 import StatsSection from '@/components/homepage/StatsSection';
@@ -89,8 +89,9 @@ const HomePage = () => {
         <Header />
         <main id="main-content">
           <HeroSection />
-          <AboutSection />
           <VideoShowcaseSection />
+          <HeroContentSection />
+          <AboutSection />
           <DevelopmentJournal />
           <ArchitectureSection />
           <StatsSection />
