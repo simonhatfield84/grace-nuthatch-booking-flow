@@ -1575,6 +1575,15 @@ export type Database = {
           bulk_booking_count: number
         }[]
       }
+      check_rate_limit_enhanced: {
+        Args: {
+          identifier: string
+          operation_type: string
+          max_attempts?: number
+          window_minutes?: number
+        }
+        Returns: boolean
+      }
       create_default_email_templates: {
         Args: { p_venue_id: string }
         Returns: undefined
@@ -1647,6 +1656,16 @@ export type Database = {
       is_super_admin: {
         Args: { _user_id: string }
         Returns: boolean
+      }
+      log_security_event: {
+        Args: {
+          p_event_type: string
+          p_event_details?: Json
+          p_user_id?: string
+          p_venue_id?: string
+          p_severity?: string
+        }
+        Returns: undefined
       }
       merge_guests: {
         Args: { primary_guest_id: string; duplicate_guest_id: string }

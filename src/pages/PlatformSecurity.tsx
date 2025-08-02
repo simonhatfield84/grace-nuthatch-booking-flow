@@ -1,6 +1,7 @@
 
 import SecurityMonitoringDashboard from "@/components/security/SecurityMonitoringDashboard";
 import SecurityAlertsPanel from "@/components/security/SecurityAlertsPanel";
+import { SecurityAlertsBanner } from "@/components/security/SecurityAlertsBanner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useSystemHealth } from "@/hooks/useSystemHealth";
@@ -41,14 +42,17 @@ export default function PlatformSecurity() {
         <div>
           <h1 className="text-3xl font-bold">Platform Security</h1>
           <p className="text-muted-foreground">
-            Monitor security events, system health, and platform-wide threats
+            Enhanced security monitoring with threat detection and audit trails
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Shield className="h-5 w-5 text-green-600" />
-          <span className="text-sm font-medium text-green-600">System Secured</span>
+          <span className="text-sm font-medium text-green-600">Enhanced Protection Active</span>
         </div>
       </div>
+
+      {/* Security Alerts Banner */}
+      <SecurityAlertsBanner />
 
       {/* System Health Overview */}
       <Card>
@@ -58,7 +62,7 @@ export default function PlatformSecurity() {
             System Health Status
           </CardTitle>
           <CardDescription>
-            Real-time health monitoring of critical platform services
+            Real-time health monitoring with enhanced security metrics
           </CardDescription>
         </CardHeader>
         <CardContent>

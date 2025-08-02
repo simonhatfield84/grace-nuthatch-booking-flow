@@ -12,12 +12,12 @@ interface UpdateUserRoleParams {
   targetVenueId: string;
 }
 
-export const useUserRoleManagement = () => {
+export const useSecuredUserRoleManagement = () => {
   const queryClient = useQueryClient();
 
   const updateUserRole = useMutation({
     mutationFn: async ({ targetUserId, newRole, targetVenueId }: UpdateUserRoleParams) => {
-      console.log('🔐 Updating user role with enhanced security:', { targetUserId, newRole, targetVenueId });
+      console.log('🔐 Attempting secured role update:', { targetUserId, newRole, targetVenueId });
 
       // Enhanced logging before the attempt
       await supabase.rpc('log_security_event', {
@@ -26,13 +26,13 @@ export const useUserRoleManagement = () => {
           target_user_id: targetUserId,
           requested_role: newRole,
           venue_id: targetVenueId,
-          initiated_at: new Date().toISOString(),
-          user_agent: navigator.userAgent
+          initiated_at: new Date().toISOString()
         },
         p_venue_id: targetVenueId,
         p_severity: 'MEDIUM'
       });
 
+      // Use the enhanced security function
       const { data, error } = await supabase.rpc('update_user_role', {
         target_user_id: targetUserId,
         new_role: newRole,
@@ -40,9 +40,9 @@ export const useUserRoleManagement = () => {
       });
 
       if (error) {
-        console.error('❌ Role update error:', error);
+        console.error('❌ Secured role update error:', error);
         
-        // Enhanced error logging
+        // Log the failure with enhanced details
         await supabase.rpc('log_security_event', {
           p_event_type: 'role_update_failed',
           p_event_details: {
@@ -50,8 +50,7 @@ export const useUserRoleManagement = () => {
             requested_role: newRole,
             venue_id: targetVenueId,
             error_message: error.message,
-            failed_at: new Date().toISOString(),
-            user_agent: navigator.userAgent
+            failed_at: new Date().toISOString()
           },
           p_venue_id: targetVenueId,
           p_severity: 'HIGH'
@@ -61,27 +60,41 @@ export const useUserRoleManagement = () => {
       }
 
       if (!data) {
-        throw new Error('Failed to update user role');
+        const errorMsg = 'Failed to update user role - no data returned';
+        
+        await supabase.rpc('log_security_event', {
+          p_event_type: 'role_update_failed',
+          p_event_details: {
+            target_user_id: targetUserId,
+            requested_role: newRole,
+            venue_id: targetVenueId,
+            error_message: errorMsg,
+            failed_at: new Date().toISOString()
+          },
+          p_venue_id: targetVenueId,
+          p_severity: 'HIGH'
+        });
+        
+        throw new Error(errorMsg);
       }
 
       return data;
     },
     onSuccess: (_, variables) => {
       toast.success(`User role updated to ${variables.newRole}`, {
-        description: 'Security audit log updated'
+        description: 'Role change has been logged for security audit'
       });
       
-      // Invalidate relevant queries including security data
+      // Invalidate relevant queries
       queryClient.invalidateQueries({ queryKey: ['profiles'] });
       queryClient.invalidateQueries({ queryKey: ['user-roles'] });
       queryClient.invalidateQueries({ queryKey: ['platform-users'] });
-      queryClient.invalidateQueries({ queryKey: ['security-alerts'] });
-      queryClient.invalidateQueries({ queryKey: ['role-anomalies'] });
+      queryClient.invalidateQueries({ queryKey: ['security-audit'] });
     },
-    onError: (error: Error) => {
-      console.error('💥 Role update failed:', error);
+    onError: (error: Error, variables) => {
+      console.error('💥 Secured role update failed:', error);
       
-      // Enhanced user-friendly error messages
+      // Enhanced error messaging based on common security errors
       let userMessage = `Failed to update role: ${error.message}`;
       
       if (error.message.includes('Only venue owners can grant owner privileges')) {
@@ -91,13 +104,13 @@ export const useUserRoleManagement = () => {
       } else if (error.message.includes('Users cannot modify their own roles')) {
         userMessage = 'You cannot modify your own role for security reasons.';
       } else if (error.message.includes('Cannot remove the last owner')) {
-        userMessage = 'Cannot remove the last owner from a venue.';
+        userMessage = 'Cannot remove the last owner from a venue. Please assign another owner first.';
       } else if (error.message.includes('Insufficient permissions')) {
         userMessage = 'You do not have permission to modify user roles.';
       }
       
       toast.error(userMessage, {
-        description: 'This security event has been logged'
+        description: 'This security violation has been logged'
       });
     },
   });
