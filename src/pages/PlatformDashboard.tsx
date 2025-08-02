@@ -3,8 +3,9 @@ import { usePlatformMetrics } from "@/hooks/usePlatformMetrics";
 import { usePlatformVenues } from "@/hooks/usePlatformVenues";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Building2, Users, Calendar, CheckCircle, Clock, AlertCircle, TrendingUp, Settings } from "lucide-react";
+import { Building2, Users, Calendar, CheckCircle, Clock, AlertCircle, TrendingUp, Settings, BarChart3 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { HomepageAnalyticsDashboard } from "@/components/homepage/HomepageAnalyticsDashboard";
 
 export default function PlatformDashboard() {
   const { data: metrics, isLoading, error } = usePlatformMetrics();
@@ -85,7 +86,7 @@ export default function PlatformDashboard() {
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Platform Dashboard</h1>
@@ -121,6 +122,22 @@ export default function PlatformDashboard() {
           </Card>
         ))}
       </div>
+
+      {/* Homepage Analytics Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            Homepage Analytics
+          </CardTitle>
+          <CardDescription>
+            Analytics data from your Grace homepage visits
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <HomepageAnalyticsDashboard />
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
