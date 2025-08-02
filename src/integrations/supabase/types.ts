@@ -627,6 +627,45 @@ export type Database = {
           },
         ]
       }
+      homepage_analytics: {
+        Row: {
+          created_at: string
+          event_data: Json | null
+          event_type: string
+          id: string
+          referrer: string | null
+          session_id: string
+          user_agent: string | null
+          viewport_height: number | null
+          viewport_width: number | null
+          visitor_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_data?: Json | null
+          event_type: string
+          id?: string
+          referrer?: string | null
+          session_id: string
+          user_agent?: string | null
+          viewport_height?: number | null
+          viewport_width?: number | null
+          visitor_id: string
+        }
+        Update: {
+          created_at?: string
+          event_data?: Json | null
+          event_type?: string
+          id?: string
+          referrer?: string | null
+          session_id?: string
+          user_agent?: string | null
+          viewport_height?: number | null
+          viewport_width?: number | null
+          visitor_id?: string
+        }
+        Relationships: []
+      }
       join_groups: {
         Row: {
           created_at: string
@@ -670,6 +709,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      payment_analytics: {
+        Row: {
+          booking_id: number
+          created_at: string
+          event_data: Json | null
+          event_type: string
+          id: string
+          venue_id: string
+        }
+        Insert: {
+          booking_id: number
+          created_at?: string
+          event_data?: Json | null
+          event_type: string
+          id?: string
+          venue_id: string
+        }
+        Update: {
+          booking_id?: number
+          created_at?: string
+          event_data?: Json | null
+          event_type?: string
+          id?: string
+          venue_id?: string
+        }
+        Relationships: []
       }
       payment_transactions: {
         Row: {
@@ -1480,7 +1546,18 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      homepage_analytics_summary: {
+        Row: {
+          avg_session_duration: number | null
+          bounces: number | null
+          date: string | null
+          page_views: number | null
+          sessions: number | null
+          unique_visitors: number | null
+          viewed_sections: Json | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       assign_automatic_tags: {
@@ -1515,6 +1592,10 @@ export type Database = {
           event_count: number
           last_event: string
         }[]
+      }
+      expire_pending_payments: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       find_duplicate_guests: {
         Args: { guest_email?: string; guest_phone?: string }

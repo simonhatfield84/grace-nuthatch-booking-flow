@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
 import Header from '@/components/homepage/Header';
 import HeroSection from '@/components/homepage/HeroSection';
@@ -10,8 +10,18 @@ import ArchitectureSection from '@/components/homepage/ArchitectureSection';
 import StatsSection from '@/components/homepage/StatsSection';
 import ContactSection from '@/components/homepage/ContactSection';
 import Footer from '@/components/homepage/Footer';
+import { SectionTracker } from '@/components/homepage/SectionTracker';
+import { BounceTracker } from '@/components/homepage/BounceTracker';
+import { useHomepageAnalytics } from '@/hooks/useHomepageAnalytics';
 
 const HomePage = () => {
+  const { trackPageView } = useHomepageAnalytics();
+
+  // Track page view when component mounts
+  useEffect(() => {
+    trackPageView();
+  }, [trackPageView]);
+
   // SEO structured data
   const structuredData = {
     "@context": "https://schema.org",
@@ -77,6 +87,8 @@ const HomePage = () => {
         <link rel="preconnect" href="https://img.youtube.com" />
       </Helmet>
       
+      <BounceTracker />
+      
       <div className="min-h-screen bg-gradient-to-br from-grace-background to-grace-light dark:from-gray-900 dark:to-gray-800">
         {/* Skip to content link for accessibility */}
         <a 
@@ -88,14 +100,37 @@ const HomePage = () => {
         
         <Header />
         <main id="main-content">
-          <HeroSection />
-          <VideoShowcaseSection />
-          <HeroContentSection />
-          <AboutSection />
-          <DevelopmentJournal />
-          <ArchitectureSection />
-          <StatsSection />
-          <ContactSection />
+          <SectionTracker sectionName="hero">
+            <HeroSection />
+          </SectionTracker>
+          
+          <SectionTracker sectionName="video_showcase">
+            <VideoShowcaseSection />
+          </SectionTracker>
+          
+          <SectionTracker sectionName="hero_content">
+            <HeroContentSection />
+          </SectionTracker>
+          
+          <SectionTracker sectionName="about">
+            <AboutSection />
+          </SectionTracker>
+          
+          <SectionTracker sectionName="development_journal">
+            <DevelopmentJournal />
+          </SectionTracker>
+          
+          <SectionTracker sectionName="architecture">
+            <ArchitectureSection />
+          </SectionTracker>
+          
+          <SectionTracker sectionName="stats">
+            <StatsSection />
+          </SectionTracker>
+          
+          <SectionTracker sectionName="contact">
+            <ContactSection />
+          </SectionTracker>
         </main>
         <Footer />
       </div>
