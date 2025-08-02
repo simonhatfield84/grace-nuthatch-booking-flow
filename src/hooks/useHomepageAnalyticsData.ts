@@ -53,8 +53,9 @@ export const useHomepageAnalyticsData = () => {
       // Process section data
       const sectionCounts: Record<string, number> = {};
       sectionData?.forEach(item => {
-        const sectionName = item.event_data?.section_name;
-        if (sectionName) {
+        const eventData = item.event_data as Record<string, any>;
+        const sectionName = eventData?.section_name;
+        if (sectionName && typeof sectionName === 'string') {
           sectionCounts[sectionName] = (sectionCounts[sectionName] || 0) + 1;
         }
       });
@@ -64,14 +65,26 @@ export const useHomepageAnalyticsData = () => {
         .sort((a, b) => b.views - a.views)
         .slice(0, 10);
 
-      // Calculate totals
-      const totalPageViews = summaryData?.reduce((sum, day) => sum + (day.page_views || 0), 0) || 0;
-      const totalUniqueVisitors = summaryData?.reduce((sum, day) => sum + (day.unique_visitors || 0), 0) || 0;
-      const totalSessions = summaryData?.reduce((sum, day) => sum + (day.sessions || 0), 0) || 0;
-      const totalBounces = summaryData?.reduce((sum, day) => sum + (day.bounces || 0), 0) || 0;
+      // Calculate totals and transform summary data
+      const transformedSummaryData: HomepageAnalyticsSummary[] = (summaryData || []).map(item => ({
+        date: item.date || '',
+        page_views: Number(item.page_views) || 0,
+        unique_visitors: Number(item.unique_visitors) || 0,
+        sessions: Number(item.sessions) || 0,
+        bounces: Number(item.bounces) || 0,
+        avg_session_duration: Number(item.avg_session_duration) || 0,
+        viewed_sections: Array.isArray(item.viewed_sections) 
+          ? (item.viewed_sections as string[]).filter(Boolean)
+          : []
+      }));
+
+      const totalPageViews = transformedSummaryData.reduce((sum, day) => sum + day.page_views, 0);
+      const totalUniqueVisitors = transformedSummaryData.reduce((sum, day) => sum + day.unique_visitors, 0);
+      const totalSessions = transformedSummaryData.reduce((sum, day) => sum + day.sessions, 0);
+      const totalBounces = transformedSummaryData.reduce((sum, day) => sum + day.bounces, 0);
       const avgBounceRate = totalSessions > 0 ? (totalBounces / totalSessions) * 100 : 0;
       
-      const validDurations = summaryData?.filter(day => day.avg_session_duration !== null) || [];
+      const validDurations = transformedSummaryData.filter(day => day.avg_session_duration > 0);
       const avgSessionDuration = validDurations.length > 0 
         ? validDurations.reduce((sum, day) => sum + day.avg_session_duration, 0) / validDurations.length 
         : 0;
@@ -83,7 +96,7 @@ export const useHomepageAnalyticsData = () => {
         avgBounceRate,
         avgSessionDuration,
         popularSections,
-        dailyData: summaryData || [],
+        dailyData: transformedSummaryData,
       };
     },
     refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes

@@ -26,7 +26,7 @@ const getSessionId = (): string => {
 const isDNTEnabled = (): boolean => {
   return navigator.doNotTrack === '1' || 
          (window as any).doNotTrack === '1' || 
-         navigator.msDoNotTrack === '1';
+         (navigator as any).msDoNotTrack === '1';
 };
 
 interface AnalyticsEvent {
