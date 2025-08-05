@@ -26,6 +26,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Booking } from "@/hooks/useBookings";
 import { useAuth } from "@/contexts/AuthContext";
 import { backfillBookingDurations } from "@/utils/backfillBookingDurations";
+import { Section } from "@/types/core";
 
 import { Users, Link, Ban } from "lucide-react";
 
@@ -360,7 +361,7 @@ const HostInterface = () => {
     return slots;
   };
 
-  const renderTableRow = (table: any, section: any) => {
+  const renderTableRow = (table: any, section: Section) => {
     const tableBookings = getBookingsForTable(table.id);
     const isDragOver = dragOverTable === table.id;
 

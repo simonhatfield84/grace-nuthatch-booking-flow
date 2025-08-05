@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { format, addMinutes } from "date-fns";
+import { Section } from "@/types/core";
 
 interface Table {
   id: number;
@@ -16,12 +17,6 @@ interface Table {
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
-}
-
-interface Section {
-  id: number;
-  name: string;
-  color: string;
 }
 
 interface OptimizedTimeGridProps {
@@ -150,10 +145,10 @@ export const OptimizedTimeGrid = ({ venueHours, tables, sections, children, onTa
               {/* Section Header */}
               <div 
                 className="bg-gray-100 dark:bg-gray-800 px-4 py-2 border-b border-gray-200 dark:border-gray-700 flex items-center sticky left-0 z-10"
-                style={{ borderLeftColor: section.color, borderLeftWidth: '4px' }}
+                style={{ borderLeftColor: section.color || '#3B82F6', borderLeftWidth: '4px' }}
               >
                 <div className="w-48 flex-shrink-0">
-                  <h3 className="font-semibold" style={{ color: section.color }}>
+                  <h3 className="font-semibold" style={{ color: section.color || '#3B82F6' }}>
                     {section.name} ({sectionTables.length})
                   </h3>
                 </div>
