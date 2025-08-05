@@ -18,7 +18,39 @@ serve(async (req) => {
 
     const { payment_intent_id, booking_id } = await req.json();
 
-    if (!payment_intent_id) {
+    let paymentIntentId = payment_intent_id;
+
+    // If no payment_intent_id provided but booking_id is available, fetch it from database
+    if (!paymentIntentId && booking_id) {
+      console.log('💾 No payment_intent_id provided, fetching from database for booking:', booking_id);
+      
+      const supabaseAdmin = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+        {
+          auth: {
+            autoRefreshToken: false,
+            persistSession: false
+          }
+        }
+      );
+
+      const { data: paymentRecord, error: fetchError } = await supabaseAdmin
+        .from('booking_payments')
+        .select('stripe_payment_intent_id')
+        .eq('booking_id', booking_id)
+        .single();
+
+      if (fetchError || !paymentRecord?.stripe_payment_intent_id) {
+        console.error('❌ Could not find payment intent for booking:', booking_id);
+        throw new Error('Payment record not found for this booking');
+      }
+
+      paymentIntentId = paymentRecord.stripe_payment_intent_id;
+      console.log('✅ Found payment intent from database:', paymentIntentId);
+    }
+
+    if (!paymentIntentId) {
       throw new Error('Payment Intent ID is required');
     }
 
@@ -31,10 +63,10 @@ serve(async (req) => {
       apiVersion: '2023-10-16'
     });
 
-    console.log('💳 Retrieving payment intent from Stripe:', payment_intent_id);
+    console.log('💳 Retrieving payment intent from Stripe:', paymentIntentId);
 
     // Get payment intent from Stripe
-    const paymentIntent = await stripe.paymentIntents.retrieve(payment_intent_id);
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
     
     console.log('📊 Payment Intent status:', paymentIntent.status);
 
@@ -55,7 +87,7 @@ serve(async (req) => {
       .insert({
         event_type: 'payment_status_verification',
         event_details: {
-          payment_intent_id,
+          payment_intent_id: paymentIntentId,
           booking_id,
           stripe_status: paymentIntent.status,
           amount: paymentIntent.amount,

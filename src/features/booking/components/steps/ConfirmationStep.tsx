@@ -114,6 +114,37 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
     setIsVerifying(true);
     
     try {
+      console.log('🔍 Verifying payment status for booking:', bookingData.bookingId);
+
+      // First, get the payment details to retrieve the stripe_payment_intent_id
+      const { data: paymentData, error: paymentError } = await supabase
+        .from('booking_payments')
+        .select('status, stripe_payment_intent_id')
+        .eq('booking_id', bookingData.bookingId)
+        .single();
+
+      if (paymentError) {
+        console.error('Error fetching payment data:', paymentError);
+        toast({
+          title: "Error",
+          description: "Could not find payment record for this booking",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!paymentData?.stripe_payment_intent_id) {
+        console.error('No payment intent ID found for booking');
+        toast({
+          title: "Error", 
+          description: "No payment intent found for this booking",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      console.log('💳 Found payment intent:', paymentData.stripe_payment_intent_id);
+
       // Check both booking and payment status
       const { data: booking } = await supabase
         .from('bookings')
@@ -125,40 +156,51 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
         setBookingStatus(booking.status);
       }
 
-      if (bookingData.paymentRequired) {
-        const { data: payment } = await supabase
-          .from('booking_payments')
-          .select('status')
-          .eq('booking_id', bookingData.bookingId)
-          .single();
+      // Update local payment status
+      setPaymentStatus(paymentData.status);
 
-        if (payment) {
-          setPaymentStatus(payment.status);
-        }
-
-        // If payment succeeded, try to verify with Stripe
-        if (payment?.status === 'pending') {
-          const { data: verifyData } = await supabase.functions.invoke('verify-payment-status', {
-            body: {
-              booking_id: bookingData.bookingId
-            }
-          });
-
-          if (verifyData?.payment_succeeded) {
-            toast({
-              title: "Success",
-              description: "Payment verified and booking confirmed!",
-            });
-            // Refresh the page to show updated status
-            setTimeout(() => window.location.reload(), 1000);
+      // If payment is still pending, verify with Stripe
+      if (paymentData.status === 'pending') {
+        console.log('💳 Payment pending, verifying with Stripe...');
+        
+        const { data: verifyData, error: verifyError } = await supabase.functions.invoke('verify-payment-status', {
+          body: {
+            payment_intent_id: paymentData.stripe_payment_intent_id,
+            booking_id: bookingData.bookingId
           }
+        });
+
+        if (verifyError) {
+          console.error('Stripe verification error:', verifyError);
+          toast({
+            title: "Error",
+            description: `Failed to verify payment with Stripe: ${verifyError.message}`,
+            variant: "destructive",
+          });
+          return;
         }
+
+        if (verifyData?.payment_succeeded) {
+          console.log('✅ Stripe confirms payment succeeded!');
+          toast({
+            title: "Success",
+            description: "Payment verified and booking confirmed!",
+          });
+          // Refresh the page to show updated status
+          setTimeout(() => window.location.reload(), 1000);
+        } else {
+          toast({
+            title: "Info",
+            description: "Payment is still processing with Stripe",
+          });
+        }
+      } else {
+        toast({
+          title: "Success",
+          description: "Status refreshed",
+        });
       }
 
-      toast({
-        title: "Success",
-        description: "Status refreshed",
-      });
     } catch (error) {
       console.error('Error verifying payment:', error);
       toast({
