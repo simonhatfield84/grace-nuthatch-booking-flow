@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,26 +42,50 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
   };
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    if (value === '') {
+    const value = e.target.value.replace(/[^0-9.]/g, ''); // Only allow numbers and decimal point
+    
+    // Validate decimal format
+    const decimalCount = (value.match(/\./g) || []).length;
+    if (decimalCount > 1) return; // Don't allow multiple decimal points
+    
+    // Don't allow more than 2 decimal places
+    const parts = value.split('.');
+    if (parts[1] && parts[1].length > 2) return;
+    
+    console.log('Amount input changed to:', value);
+    
+    if (value === '' || value === '.') {
       onFormDataChange({ charge_amount_per_guest: 0 });
     } else {
       const poundValue = parseFloat(value);
       if (!isNaN(poundValue)) {
-        onFormDataChange({ charge_amount_per_guest: Math.round(poundValue * 100) });
+        const penceValue = Math.round(poundValue * 100);
+        console.log('Converting £' + value + ' to ' + penceValue + ' pence');
+        onFormDataChange({ charge_amount_per_guest: penceValue });
       }
     }
   };
 
   const getDisplayAmount = () => {
-    if (formData.charge_amount_per_guest === 0 && !isEditing) {
+    if (formData.charge_amount_per_guest === 0) {
       return '';
     }
     return (formData.charge_amount_per_guest / 100).toFixed(2);
   };
 
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log('Form submitted with data:', formData);
+    console.log('Payment settings:', {
+      requires_payment: formData.requires_payment,
+      charge_type: formData.charge_type,
+      charge_amount_per_guest: formData.charge_amount_per_guest
+    });
+    onSubmit(e);
+  };
+
   return (
-    <form onSubmit={onSubmit} className="space-y-6">
+    <form onSubmit={handleFormSubmit} className="space-y-6">
       <Tabs defaultValue="basic" className="w-full">
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="basic">Basic</TabsTrigger>
@@ -76,7 +101,10 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
             <Input
               id="title"
               value={formData.title}
-              onChange={(e) => onFormDataChange({ title: e.target.value })}
+              onChange={(e) => {
+                console.log('Title changed to:', e.target.value);
+                onFormDataChange({ title: e.target.value });
+              }}
               required
             />
           </div>
@@ -86,7 +114,10 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
             <Textarea
               id="description"
               value={formData.description}
-              onChange={(e) => onFormDataChange({ description: e.target.value })}
+              onChange={(e) => {
+                console.log('Description changed to:', e.target.value);
+                onFormDataChange({ description: e.target.value });
+              }}
               rows={4}
             />
           </div>
@@ -173,10 +204,13 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
             </div>
             <Switch
               checked={formData.requires_payment}
-              onCheckedChange={(checked) => onFormDataChange({ 
-                requires_payment: checked,
-                charge_type: checked ? 'all_reservations' : 'none'
-              })}
+              onCheckedChange={(checked) => {
+                console.log('Payment required changed to:', checked);
+                onFormDataChange({ 
+                  requires_payment: checked,
+                  charge_type: checked ? 'all_reservations' : 'none'
+                });
+              }}
             />
           </div>
 
@@ -186,9 +220,10 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                 <Label>Payment Rule</Label>
                 <Select
                   value={formData.charge_type}
-                  onValueChange={(value: 'all_reservations' | 'large_groups' | 'venue_default') =>
-                    onFormDataChange({ charge_type: value })
-                  }
+                  onValueChange={(value: 'all_reservations' | 'large_groups' | 'venue_default') => {
+                    console.log('Charge type changed to:', value);
+                    onFormDataChange({ charge_type: value });
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -219,14 +254,12 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
               <div>
                 <Label htmlFor="charge_amount_per_guest">Charge Amount per Guest</Label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground z-10">
                     £
                   </span>
                   <Input
                     id="charge_amount_per_guest"
-                    type="number"
-                    min="0"
-                    step="0.01"
+                    type="text"
                     className="pl-8"
                     placeholder="29.95"
                     value={getDisplayAmount()}

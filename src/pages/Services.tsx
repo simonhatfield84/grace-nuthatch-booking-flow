@@ -38,30 +38,44 @@ export default function Services() {
   };
 
   const handleEditService = (service: any) => {
+    console.log('Editing service:', service);
     startEditing(service);
     setDialogOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Starting form submission...');
+    console.log('Form data before submission:', formData);
+    console.log('Is editing:', isEditing, 'Service ID:', editingServiceId);
+    
     setIsSubmitting(true);
     
     try {
+      let result;
       if (isEditing && editingServiceId) {
-        await updateService(editingServiceId, formData);
+        console.log('Updating service with ID:', editingServiceId);
+        result = await updateService(editingServiceId, formData);
+        console.log('Update result:', result);
       } else {
-        await createService(formData);
+        console.log('Creating new service');
+        result = await createService(formData);
+        console.log('Create result:', result);
       }
+      
+      console.log('Service operation successful, closing dialog');
       setDialogOpen(false);
       resetForm();
     } catch (error) {
-      // Error handling is done in the hooks
+      console.error('Error saving service:', error);
+      // Error handling is done in the hooks, but we can add more specific feedback here
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleCancel = () => {
+    console.log('Form cancelled');
     setDialogOpen(false);
     resetForm();
   };
