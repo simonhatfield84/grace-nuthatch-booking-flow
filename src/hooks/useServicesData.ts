@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,6 +47,8 @@ export interface ServiceFormData {
   charge_type: 'none' | 'venue_default' | 'all_reservations' | 'large_groups';
   minimum_guests_for_charge: number;
   charge_amount_per_guest: number;
+  refund_window_hours: number;
+  auto_refund_enabled: boolean;
 }
 
 const defaultFormData: ServiceFormData = {
@@ -68,6 +69,8 @@ const defaultFormData: ServiceFormData = {
   charge_type: 'none',
   minimum_guests_for_charge: 1,
   charge_amount_per_guest: 0,
+  refund_window_hours: 24,
+  auto_refund_enabled: false,
 };
 
 export const useServicesData = () => {
@@ -152,6 +155,8 @@ export const useServicesData = () => {
       charge_type: service.charge_type,
       minimum_guests_for_charge: service.minimum_guests_for_charge || 1,
       charge_amount_per_guest: service.charge_amount_per_guest,
+      refund_window_hours: service.refund_window_hours || 24,
+      auto_refund_enabled: service.auto_refund_enabled || false,
     });
     setEditingServiceId(service.id);
     setDialogOpen(true);
@@ -172,16 +177,15 @@ export const useServicesData = () => {
       const payload = {
         ...serviceData,
         venue_id: userVenue,
-        // Ensure charge_type is set correctly
         charge_type: serviceData.requires_payment ? serviceData.charge_type : 'none',
-        // Only set minimum_guests_for_charge if charge_type is large_groups
         minimum_guests_for_charge: serviceData.charge_type === 'large_groups' 
           ? serviceData.minimum_guests_for_charge 
           : null,
-        // Only set charge_amount if payment is required
         charge_amount_per_guest: serviceData.requires_payment 
           ? serviceData.charge_amount_per_guest 
           : 0,
+        refund_window_hours: serviceData.refund_window_hours,
+        auto_refund_enabled: serviceData.auto_refund_enabled,
       };
       
       const { data, error } = await supabase
@@ -215,16 +219,15 @@ export const useServicesData = () => {
     mutationFn: async ({ id, updates }: { id: string, updates: ServiceFormData }) => {
       const payload = {
         ...updates,
-        // Ensure charge_type is set correctly
         charge_type: updates.requires_payment ? updates.charge_type : 'none',
-        // Only set minimum_guests_for_charge if charge_type is large_groups
         minimum_guests_for_charge: updates.charge_type === 'large_groups' 
           ? updates.minimum_guests_for_charge 
           : null,
-        // Only set charge_amount if payment is required
         charge_amount_per_guest: updates.requires_payment 
           ? updates.charge_amount_per_guest 
           : 0,
+        refund_window_hours: updates.refund_window_hours,
+        auto_refund_enabled: updates.auto_refund_enabled,
         updated_at: new Date().toISOString()
       };
       

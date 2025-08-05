@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ServiceFormData } from '@/hooks/useServicesData';
 import { DurationRules, DurationRule } from './DurationRules';
 import { MediaUpload } from './MediaUpload';
+import { ServiceRefundSettings } from './ServiceRefundSettings';
 
 interface ServiceFormProps {
   formData: ServiceFormData;
@@ -43,10 +43,11 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
   return (
     <form onSubmit={onSubmit} className="space-y-6">
       <Tabs defaultValue="basic" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="basic">Basic</TabsTrigger>
           <TabsTrigger value="booking">Booking</TabsTrigger>
           <TabsTrigger value="payments">Payments</TabsTrigger>
+          <TabsTrigger value="refunds">Refunds</TabsTrigger>
           <TabsTrigger value="advanced">Advanced</TabsTrigger>
         </TabsList>
 
@@ -213,6 +214,15 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
               </div>
             </>
           )}
+        </TabsContent>
+
+        <TabsContent value="refunds" className="space-y-4">
+          <ServiceRefundSettings
+            refundWindowHours={formData.refund_window_hours || 24}
+            autoRefundEnabled={formData.auto_refund_enabled || false}
+            onRefundWindowChange={(hours) => onFormDataChange({ refund_window_hours: hours })}
+            onAutoRefundChange={(enabled) => onFormDataChange({ auto_refund_enabled: enabled })}
+          />
         </TabsContent>
 
         <TabsContent value="advanced" className="space-y-4">
