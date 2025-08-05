@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Edit, Eye, Save, X, Clock, Palette, RefreshCw } from "lucide-react";
 import { useEmailTemplates, EmailTemplate, EmailTemplateUpdate } from "@/hooks/useEmailTemplates";
-import { emailTemplateService } from "@/services/emailTemplateService";
+import { EmailTemplateService } from "@/services/emailTemplateService";
 import { FullScreenEmailBuilder } from "./FullScreenEmailBuilder";
 
 interface EmailTemplateEditorProps {
@@ -67,7 +66,7 @@ export function EmailTemplateEditor({ template, onSave, onCancel }: EmailTemplat
     setShowBuilder(false);
   };
 
-  const availableVariables = emailTemplateService.getAvailableVariables();
+  const availableVariables = EmailTemplateService.getAvailableVariables();
 
   return (
     <div className="space-y-6">
@@ -97,12 +96,12 @@ export function EmailTemplateEditor({ template, onSave, onCancel }: EmailTemplat
 
         <div className="border rounded-lg p-4 bg-white min-h-96">
           <div className="mb-4 p-2 bg-muted rounded text-sm">
-            <strong>Subject:</strong> {emailTemplateService.previewTemplate(formData.subject)}
+            <strong>Subject:</strong> {EmailTemplateService.previewTemplate(formData.subject)}
           </div>
           {formData.html_content ? (
             <div 
               dangerouslySetInnerHTML={{ 
-                __html: emailTemplateService.previewTemplate(formData.html_content) 
+                __html: EmailTemplateService.previewTemplate(formData.html_content) 
               }}
               className="prose max-w-none"
             />
@@ -160,6 +159,9 @@ export function EmailTemplatesList() {
 
   const predefinedTemplates = [
     { key: 'booking_confirmation', name: 'Booking Confirmation', description: 'Sent immediately after a booking is confirmed' },
+    { key: 'payment_request', name: 'Payment Request', description: 'Sent when payment is required for a staff-made booking' },
+    { key: 'payment_reminder_22h', name: 'Payment Reminder (22h)', description: 'Sent 22 hours after payment request as final reminder' },
+    { key: 'payment_expired_24h', name: 'Payment Expired (24h)', description: 'Sent when payment expires after 24 hours' },
     { key: 'booking_reminder_24h', name: '24-Hour Reminder', description: 'Sent 24 hours before the booking' },
     { key: 'booking_reminder_2h', name: '2-Hour Reminder', description: 'Sent 2 hours before the booking' },
     { key: 'booking_cancelled', name: 'Booking Cancelled', description: 'Sent when a booking is cancelled' },
@@ -208,7 +210,7 @@ export function EmailTemplatesList() {
     setEditingTemplate(null);
   };
 
-  const availableVariables = emailTemplateService.getAvailableVariables();
+  const availableVariables = EmailTemplateService.getAvailableVariables();
 
   if (isLoading) {
     return <div>Loading templates...</div>;
@@ -294,11 +296,11 @@ export function EmailTemplatesList() {
                             </DialogHeader>
                             <div className="border rounded-lg p-4 bg-white">
                               <div className="mb-4 p-2 bg-muted rounded text-sm">
-                                <strong>Subject:</strong> {emailTemplateService.previewTemplate(existingTemplate.subject)}
+                                <strong>Subject:</strong> {EmailTemplateService.previewTemplate(existingTemplate.subject)}
                               </div>
                               <div 
                                 dangerouslySetInnerHTML={{ 
-                                  __html: emailTemplateService.previewTemplate(existingTemplate.html_content) 
+                                  __html: EmailTemplateService.previewTemplate(existingTemplate.html_content) 
                                 }}
                                 className="prose max-w-none"
                               />

@@ -1,6 +1,5 @@
-
 import { emailService } from "./emailService";
-import { emailTemplateService } from "./emailTemplateService";
+import { EmailTemplateService } from "./emailTemplateService";
 import { supabase } from "@/integrations/supabase/client";
 
 /**

@@ -50,3 +50,26 @@ export interface BookingValidation {
   errors: string[];
   warnings: string[];
 }
+
+// Updated booking interface to match the one used in HostInterface
+export interface Booking {
+  id: number;
+  table_id: number | null;
+  guest_name: string;
+  party_size: number;
+  booking_date: string;
+  booking_time: string;
+  status: 'confirmed' | 'seated' | 'finished' | 'cancelled' | 'late' | 'pending_payment' | 'no_show' | 'incomplete';
+  is_unallocated: boolean;
+  original_table_id: number | null;
+  phone: string | null;
+  email: string | null;
+  notes: string | null;
+  service: string;
+  duration_minutes: number;
+  end_time: string;
+  booking_reference: string | null;
+  created_at: string;
+  updated_at: string;
+  venue_id: string;
+}
