@@ -20,6 +20,8 @@ const DEFAULT_FORM_DATA: ServiceFormData = {
   charge_type: 'none',
   minimum_guests_for_charge: 8,
   charge_amount_per_guest: 0,
+  refund_window_hours: 24,
+  auto_refund_enabled: false,
 };
 
 export const useServiceForm = () => {
@@ -51,6 +53,8 @@ export const useServiceForm = () => {
       charge_type: service.charge_type,
       minimum_guests_for_charge: service.minimum_guests_for_charge || 8,
       charge_amount_per_guest: service.charge_amount_per_guest || 0,
+      refund_window_hours: service.refund_window_hours || 24,
+      auto_refund_enabled: service.auto_refund_enabled || false,
     });
   };
 

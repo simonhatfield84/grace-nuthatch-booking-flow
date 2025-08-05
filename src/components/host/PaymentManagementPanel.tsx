@@ -26,7 +26,6 @@ interface PaymentManagementPanelProps {
 
 export const PaymentManagementPanel = ({ booking }: PaymentManagementPanelProps) => {
   const [paymentData, setPaymentData] = useState<any>(null);
-  const [paymentRequest, setPaymentRequest] = useState<any>(null);
   const [paymentRequestDialogOpen, setPaymentRequestDialogOpen] = useState(false);
   const [refundDialogOpen, setRefundDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -37,7 +36,7 @@ export const PaymentManagementPanel = ({ booking }: PaymentManagementPanelProps)
 
   const loadPaymentData = async () => {
     try {
-      // Load payment data
+      // Load payment data from existing booking_payments table
       const { data: payment } = await supabase
         .from('booking_payments')
         .select('*')
@@ -45,16 +44,6 @@ export const PaymentManagementPanel = ({ booking }: PaymentManagementPanelProps)
         .maybeSingle();
 
       setPaymentData(payment);
-
-      // Load payment request data
-      const { data: request } = await supabase
-        .from('payment_requests')
-        .select('*')
-        .eq('booking_id', booking.id)
-        .order('created_at', { ascending: false })
-        .maybeSingle();
-
-      setPaymentRequest(request);
     } catch (error) {
       console.error('Error loading payment data:', error);
     }
@@ -128,7 +117,7 @@ export const PaymentManagementPanel = ({ booking }: PaymentManagementPanelProps)
       <CardContent className="space-y-4">
         <PaymentPendingIndicator
           booking={booking}
-          paymentRequest={paymentRequest}
+          paymentRequest={null}
           onResendRequest={() => setPaymentRequestDialogOpen(true)}
           onSkipPayment={handleSkipPayment}
         />
@@ -150,15 +139,15 @@ export const PaymentManagementPanel = ({ booking }: PaymentManagementPanelProps)
               </div>
             </div>
 
-            {paymentData.refund_amount_cents > 0 && (
+            {(paymentData.refund_amount_cents || 0) > 0 && (
               <div className="bg-blue-50 p-3 rounded-lg">
                 <div className="flex items-center gap-2 mb-1">
                   <RefreshCw className="h-4 w-4 text-blue-600" />
                   <span className="font-medium text-blue-800">Refund Information</span>
                 </div>
                 <div className="text-sm text-blue-700">
-                  <p>Amount: {formatAmount(paymentData.refund_amount_cents)}</p>
-                  <p>Status: {paymentData.refund_status}</p>
+                  <p>Amount: {formatAmount(paymentData.refund_amount_cents || 0)}</p>
+                  <p>Status: {paymentData.refund_status || 'none'}</p>
                   {paymentData.refund_reason && (
                     <p>Reason: {paymentData.refund_reason}</p>
                   )}
@@ -190,7 +179,7 @@ export const PaymentManagementPanel = ({ booking }: PaymentManagementPanelProps)
             </Button>
           )}
 
-          {paymentData?.status === 'succeeded' && paymentData.refund_status === 'none' && (
+          {paymentData?.status === 'succeeded' && (paymentData.refund_status === 'none' || !paymentData.refund_status) && (
             <Button
               size="sm"
               variant="outline"

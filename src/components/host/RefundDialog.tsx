@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,7 +44,7 @@ export const RefundDialog = ({
   const [isLoading, setIsLoading] = useState(false);
   const [serviceSettings, setServiceSettings] = useState<any>(null);
 
-  useState(() => {
+  useEffect(() => {
     if (open) {
       loadServiceSettings();
     }
@@ -54,11 +54,15 @@ export const RefundDialog = ({
     try {
       const { data: service } = await supabase
         .from('services')
-        .select('refund_window_hours, auto_refund_enabled')
+        .select('title') // Only select existing columns
         .eq('title', booking.service)
         .single();
       
-      setServiceSettings(service);
+      // Set default values since refund columns don't exist yet
+      setServiceSettings({
+        refund_window_hours: 24,
+        auto_refund_enabled: false
+      });
     } catch (error) {
       console.error('Error loading service settings:', error);
     }
@@ -70,7 +74,7 @@ export const RefundDialog = ({
     const bookingDateTime = new Date(`${booking.booking_date}T${booking.booking_time}`);
     const hoursUntilBooking = differenceInHours(bookingDateTime, new Date());
     
-    return hoursUntilBooking >= serviceSettings.refund_window_hours;
+    return hoursUntilBooking >= (serviceSettings.refund_window_hours || 24);
   };
 
   const handleProcessRefund = async () => {

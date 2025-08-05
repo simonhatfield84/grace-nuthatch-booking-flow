@@ -33,7 +33,7 @@ export interface Booking {
   party_size: number;
   booking_date: string;
   booking_time: string;
-  status: 'confirmed' | 'seated' | 'finished' | 'cancelled' | 'late';
+  status: 'confirmed' | 'seated' | 'finished' | 'cancelled' | 'late' | 'pending_payment';
   is_unallocated: boolean;
   original_table_id?: number;
   phone?: string;
@@ -56,7 +56,7 @@ export interface Service {
   max_guests: number;
   requires_deposit: boolean;
   deposit_per_guest: number;
-  charge_type: 'none' | 'per_person' | 'flat_rate';
+  charge_type: 'none' | 'per_person' | 'flat_rate' | 'all_reservations' | 'large_groups';
   charge_amount_per_guest: number;
   minimum_guests_for_charge?: number;
   requires_payment: boolean;
@@ -67,6 +67,8 @@ export interface Service {
   venue_id: string;
   image_url?: string;
   terms_and_conditions?: string;
+  refund_window_hours?: number;
+  auto_refund_enabled?: boolean;
 }
 
 export interface Guest {
@@ -92,4 +94,33 @@ export interface BookingWindow {
   start_date?: string;
   end_date?: string;
   blackout_periods?: any[];
+}
+
+export interface PaymentRequest {
+  id: string;
+  booking_id: number;
+  venue_id: string;
+  payment_link: string;
+  amount_cents: number;
+  status: 'sent' | 'paid' | 'expired';
+  expires_at: string;
+  reminder_sent_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PaymentReport {
+  id: string;
+  booking_id: number;
+  venue_id: string;
+  amount_cents: number;
+  status: string;
+  refund_amount_cents: number;
+  refund_status: string;
+  payment_date: string;
+  refunded_at?: string;
+  booking_date: string;
+  guest_name: string;
+  party_size: number;
+  service_name?: string;
 }

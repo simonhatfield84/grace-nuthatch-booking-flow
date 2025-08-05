@@ -79,20 +79,30 @@ export const calculateEnhancedPaymentAmount = async (
       };
     }
 
-    // Get service payment settings with refund configuration
-    const { data: serviceSettings } = await supabase
+    // Get service payment settings - only select existing columns
+    const { data: serviceSettings, error: serviceError } = await supabase
       .from('services')
       .select(`
         requires_payment, 
         charge_type, 
         minimum_guests_for_charge, 
         charge_amount_per_guest, 
-        title,
-        refund_window_hours,
-        auto_refund_enabled
+        title
       `)
       .eq('id', serviceId)
       .single();
+
+    if (serviceError) {
+      console.error('Error fetching service settings:', serviceError);
+      return {
+        shouldCharge: false,
+        amount: 0,
+        description: 'Service not found',
+        chargeType: 'none',
+        refundWindowHours: 24,
+        autoRefundEnabled: false
+      };
+    }
 
     console.log('🍽️ Service settings:', serviceSettings);
 
@@ -160,8 +170,8 @@ export const calculateEnhancedPaymentAmount = async (
       amount,
       description: description || 'No payment required',
       chargeType,
-      refundWindowHours: serviceSettings?.refund_window_hours || 24,
-      autoRefundEnabled: serviceSettings?.auto_refund_enabled || false
+      refundWindowHours: 24, // Default fallback
+      autoRefundEnabled: false // Default fallback
     };
 
     console.log('✅ Enhanced payment calculation result:', result);
