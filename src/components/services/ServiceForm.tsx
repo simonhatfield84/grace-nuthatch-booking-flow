@@ -7,10 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown, CreditCard, RefreshCw } from "lucide-react";
 import { ServiceFormData } from '@/hooks/useServicesData';
 import { DurationRules, DurationRule } from './DurationRules';
 import { MediaUpload } from './MediaUpload';
-import { ServiceRefundSettings } from './ServiceRefundSettings';
 
 interface ServiceFormProps {
   formData: ServiceFormData;
@@ -41,29 +42,18 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
     onFormDataChange({ image_url: '' });
   };
 
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/[^0-9.]/g, ''); // Only allow numbers and decimal point
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
     
-    // Validate decimal format
-    const decimalCount = (value.match(/\./g) || []).length;
-    if (decimalCount > 1) return; // Don't allow multiple decimal points
-    
-    // Don't allow more than 2 decimal places
-    const parts = value.split('.');
-    if (parts[1] && parts[1].length > 2) return;
-    
-    console.log('Amount input changed to:', value);
-    
-    if (value === '' || value === '.') {
-      onFormDataChange({ charge_amount_per_guest: 0 });
-    } else {
-      const poundValue = parseFloat(value);
-      if (!isNaN(poundValue)) {
-        const penceValue = Math.round(poundValue * 100);
-        console.log('Converting £' + value + ' to ' + penceValue + ' pence');
-        onFormDataChange({ charge_amount_per_guest: penceValue });
-      }
+    // Convert pound amount to pence before submission if there's a value
+    const amountInput = (e.target as HTMLFormElement).querySelector('#charge_amount_per_guest') as HTMLInputElement;
+    if (amountInput && amountInput.value) {
+      const poundValue = parseFloat(amountInput.value) || 0;
+      const penceValue = Math.round(poundValue * 100);
+      onFormDataChange({ charge_amount_per_guest: penceValue });
     }
+    
+    onSubmit(e);
   };
 
   const getDisplayAmount = () => {
@@ -73,25 +63,13 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
     return (formData.charge_amount_per_guest / 100).toFixed(2);
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log('Form submitted with data:', formData);
-    console.log('Payment settings:', {
-      requires_payment: formData.requires_payment,
-      charge_type: formData.charge_type,
-      charge_amount_per_guest: formData.charge_amount_per_guest
-    });
-    onSubmit(e);
-  };
-
   return (
     <form onSubmit={handleFormSubmit} className="space-y-6">
       <Tabs defaultValue="basic" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="basic">Basic</TabsTrigger>
           <TabsTrigger value="booking">Booking</TabsTrigger>
-          <TabsTrigger value="payments">Payments</TabsTrigger>
-          <TabsTrigger value="refunds">Refunds</TabsTrigger>
+          <TabsTrigger value="payments">Payments & Refunds</TabsTrigger>
           <TabsTrigger value="advanced">Advanced</TabsTrigger>
         </TabsList>
 
@@ -101,10 +79,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
             <Input
               id="title"
               value={formData.title}
-              onChange={(e) => {
-                console.log('Title changed to:', e.target.value);
-                onFormDataChange({ title: e.target.value });
-              }}
+              onChange={(e) => onFormDataChange({ title: e.target.value })}
               required
             />
           </div>
@@ -114,10 +89,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
             <Textarea
               id="description"
               value={formData.description}
-              onChange={(e) => {
-                console.log('Description changed to:', e.target.value);
-                onFormDataChange({ description: e.target.value });
-              }}
+              onChange={(e) => onFormDataChange({ description: e.target.value })}
               rows={4}
             />
           </div>
@@ -196,91 +168,133 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
           </div>
         </TabsContent>
 
-        <TabsContent value="payments" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>Require Payment</Label>
-              <p className="text-sm text-muted-foreground">Charge customers when they book</p>
+        <TabsContent value="payments" className="space-y-6">
+          {/* Payment Settings Section */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 mb-4">
+              <CreditCard className="h-5 w-5" />
+              <h3 className="text-lg font-semibold">Payment Settings</h3>
             </div>
-            <Switch
-              checked={formData.requires_payment}
-              onCheckedChange={(checked) => {
-                console.log('Payment required changed to:', checked);
-                onFormDataChange({ 
-                  requires_payment: checked,
-                  charge_type: checked ? 'all_reservations' : 'none'
-                });
-              }}
-            />
+
+            <div className="flex items-center justify-between">
+              <div>
+                <Label>Require Payment</Label>
+                <p className="text-sm text-muted-foreground">Charge customers when they book</p>
+              </div>
+              <Switch
+                checked={formData.requires_payment}
+                onCheckedChange={(checked) => {
+                  onFormDataChange({ 
+                    requires_payment: checked,
+                    charge_type: checked ? 'all_reservations' : 'none'
+                  });
+                }}
+              />
+            </div>
+
+            {formData.requires_payment && (
+              <div className="space-y-4 pl-4 border-l-2 border-muted">
+                <div>
+                  <Label>Payment Rule</Label>
+                  <Select
+                    value={formData.charge_type}
+                    onValueChange={(value: 'all_reservations' | 'large_groups' | 'venue_default') => {
+                      onFormDataChange({ charge_type: value });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all_reservations">All reservations</SelectItem>
+                      <SelectItem value="large_groups">Large groups only</SelectItem>
+                      <SelectItem value="venue_default">Use venue default</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {formData.charge_type === 'large_groups' && (
+                  <div>
+                    <Label htmlFor="minimum_guests_for_charge">Minimum Guests for Charge</Label>
+                    <Input
+                      id="minimum_guests_for_charge"
+                      type="number"
+                      min="1"
+                      value={formData.minimum_guests_for_charge}
+                      onChange={(e) =>
+                        onFormDataChange({ minimum_guests_for_charge: parseInt(e.target.value) || 8 })
+                      }
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <Label htmlFor="charge_amount_per_guest">Charge Amount per Guest</Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground z-10">
+                      £
+                    </span>
+                    <Input
+                      id="charge_amount_per_guest"
+                      type="text"
+                      className="pl-8"
+                      placeholder="29.95"
+                      defaultValue={getDisplayAmount()}
+                    />
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Enter the amount in pounds (e.g., 29.95 for £29.95)
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
+          {/* Refund Policy Section - Only show when payments are enabled */}
           {formData.requires_payment && (
-            <>
-              <div>
-                <Label>Payment Rule</Label>
-                <Select
-                  value={formData.charge_type}
-                  onValueChange={(value: 'all_reservations' | 'large_groups' | 'venue_default') => {
-                    console.log('Charge type changed to:', value);
-                    onFormDataChange({ charge_type: value });
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all_reservations">All reservations</SelectItem>
-                    <SelectItem value="large_groups">Large groups only</SelectItem>
-                    <SelectItem value="venue_default">Use venue default</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {formData.charge_type === 'large_groups' && (
-                <div>
-                  <Label htmlFor="minimum_guests_for_charge">Minimum Guests for Charge</Label>
+            <Collapsible>
+              <CollapsibleTrigger className="flex items-center justify-between w-full py-2 hover:bg-muted/50 rounded px-2 -mx-2">
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="h-5 w-5" />
+                  <h3 className="text-lg font-semibold">Refund Policy</h3>
+                </div>
+                <ChevronDown className="h-4 w-4" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="refund_window_hours">Refund Window (Hours before booking)</Label>
                   <Input
-                    id="minimum_guests_for_charge"
+                    id="refund_window_hours"
                     type="number"
-                    min="1"
-                    value={formData.minimum_guests_for_charge}
-                    onChange={(e) =>
-                      onFormDataChange({ minimum_guests_for_charge: parseInt(e.target.value) || 8 })
-                    }
+                    min="0"
+                    max="168"
+                    value={formData.refund_window_hours || 24}
+                    onChange={(e) => onFormDataChange({ refund_window_hours: parseInt(e.target.value) || 24 })}
                   />
+                  <p className="text-sm text-muted-foreground">
+                    Guests can request refunds up to this many hours before their booking
+                  </p>
                 </div>
-              )}
 
-              <div>
-                <Label htmlFor="charge_amount_per_guest">Charge Amount per Guest</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground z-10">
-                    £
-                  </span>
-                  <Input
-                    id="charge_amount_per_guest"
-                    type="text"
-                    className="pl-8"
-                    placeholder="29.95"
-                    value={getDisplayAmount()}
-                    onChange={handleAmountChange}
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>Enable Automatic Refunds</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Automatically process refunds for eligible cancellations
+                    </p>
+                  </div>
+                  <Switch
+                    checked={formData.auto_refund_enabled || false}
+                    onCheckedChange={(checked) => onFormDataChange({ auto_refund_enabled: checked })}
                   />
                 </div>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Enter the amount in pounds (e.g., 29.95 for £29.95)
-                </p>
-              </div>
-            </>
+
+                <div className="bg-muted/50 p-3 rounded-md text-sm text-muted-foreground">
+                  <p><strong>Note:</strong> Make sure your Stripe account is configured to handle refunds. Refund fees may apply depending on your Stripe plan.</p>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           )}
-        </TabsContent>
-
-        <TabsContent value="refunds" className="space-y-4">
-          <ServiceRefundSettings
-            refundWindowHours={formData.refund_window_hours || 24}
-            autoRefundEnabled={formData.auto_refund_enabled || false}
-            onRefundWindowChange={(hours) => onFormDataChange({ refund_window_hours: hours })}
-            onAutoRefundChange={(enabled) => onFormDataChange({ auto_refund_enabled: enabled })}
-          />
         </TabsContent>
 
         <TabsContent value="advanced" className="space-y-4">

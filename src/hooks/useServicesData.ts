@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Service as CoreService } from '@/types/core';
@@ -62,8 +61,8 @@ export const useServicesData = () => {
           : service.duration_rules && typeof service.duration_rules === 'string'
             ? JSON.parse(service.duration_rules) 
             : [],
-        refund_window_hours: (service as any).refund_window_hours || 24,
-        auto_refund_enabled: (service as any).auto_refund_enabled || false,
+        refund_window_hours: service.refund_window_hours || 24,
+        auto_refund_enabled: service.auto_refund_enabled || false,
       })) as Service[];
       
       setServices(transformedServices);
@@ -151,7 +150,6 @@ export const useServicesData = () => {
 
       if (error) throw error;
       
-      // Add default values for missing refund columns
       return {
         ...data,
         duration_rules: Array.isArray(data.duration_rules) 
@@ -159,8 +157,8 @@ export const useServicesData = () => {
           : data.duration_rules && typeof data.duration_rules === 'string'
             ? JSON.parse(data.duration_rules) 
             : [],
-        refund_window_hours: (data as any).refund_window_hours || 24,
-        auto_refund_enabled: (data as any).auto_refund_enabled || false,
+        refund_window_hours: data.refund_window_hours || 24,
+        auto_refund_enabled: data.auto_refund_enabled || false,
       } as Service;
     } catch (err) {
       console.error('Error fetching service:', err);

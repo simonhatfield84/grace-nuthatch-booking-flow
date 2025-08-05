@@ -1109,6 +1109,7 @@ export type Database = {
       services: {
         Row: {
           active: boolean
+          auto_refund_enabled: boolean | null
           cancellation_window_hours: number
           charge_amount_per_guest: number | null
           charge_type: string | null
@@ -1124,6 +1125,7 @@ export type Database = {
           min_guests: number
           minimum_guests_for_charge: number | null
           online_bookable: boolean
+          refund_window_hours: number | null
           requires_deposit: boolean
           requires_payment: boolean
           secret_slug: string | null
@@ -1135,6 +1137,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          auto_refund_enabled?: boolean | null
           cancellation_window_hours?: number
           charge_amount_per_guest?: number | null
           charge_type?: string | null
@@ -1150,6 +1153,7 @@ export type Database = {
           min_guests?: number
           minimum_guests_for_charge?: number | null
           online_bookable?: boolean
+          refund_window_hours?: number | null
           requires_deposit?: boolean
           requires_payment?: boolean
           secret_slug?: string | null
@@ -1161,6 +1165,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          auto_refund_enabled?: boolean | null
           cancellation_window_hours?: number
           charge_amount_per_guest?: number | null
           charge_type?: string | null
@@ -1176,6 +1181,7 @@ export type Database = {
           min_guests?: number
           minimum_guests_for_charge?: number | null
           online_bookable?: boolean
+          refund_window_hours?: number | null
           requires_deposit?: boolean
           requires_payment?: boolean
           secret_slug?: string | null
