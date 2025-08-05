@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -5,11 +6,11 @@ import { useBookingForm } from '../../contexts/BookingFormContext';
 import { useServicesData } from '@/hooks/useServicesData';
 import { Loader2 } from 'lucide-react';
 
-interface ServiceSelectionStepProps {
+interface ServiceStepProps {
   onNext: () => void;
 }
 
-export const ServiceSelectionStep: React.FC<ServiceSelectionStepProps> = ({ onNext }) => {
+export const ServiceStep: React.FC<ServiceStepProps> = ({ onNext }) => {
   const { formData, updateFormData } = useBookingForm();
   const { services, isServicesLoading, servicesError } = useServicesData();
   const [selectedService, setSelectedService] = useState<any>(null);

@@ -92,16 +92,13 @@ function BookingWidgetContent({ venueSlug }: BookingWidgetProps) {
       case 3:
         return (
           <ServiceStep
-            selectedService={bookingData.service}
-            onServiceSelect={handleServiceSelection}
-            partySize={bookingData.partySize}
-            selectedDate={bookingData.date}
-            venueId={venue.id}
+            onNext={handleServiceSelection}
           />
         );
       case 4:
         return (
           <GuestDetailsStep
+            onNext={handleGuestDetails}
             value={bookingData.guestDetails ? {
               name: bookingData.guestDetails.name,
               email: bookingData.guestDetails.email,
@@ -122,7 +119,6 @@ function BookingWidgetContent({ venueSlug }: BookingWidgetProps) {
             partySize={bookingData.partySize}
             date={bookingData.date}
             time={bookingData.time}
-            onChange={handleGuestDetails}
           />
         );
       case 5:

@@ -14,13 +14,9 @@ export interface Service {
   duration_rules: any[];
   online_bookable: boolean;
   active: boolean;
-  requires_payment: boolean;
   deposit_per_guest: number;
   lead_time_hours: number;
   cancellation_window_hours: number;
-  charge_type: 'none' | 'venue_default' | 'all_reservations' | 'large_groups';
-  charge_amount_per_guest: number;
-  minimum_guests_for_charge: number | null;
   terms_and_conditions: string | null;
   image_url: string | null;
   is_secret: boolean;
@@ -43,10 +39,6 @@ export interface ServiceFormData {
   image_url: string;
   duration_rules: any[];
   terms_and_conditions: string;
-  requires_payment: boolean;
-  charge_type: 'none' | 'venue_default' | 'all_reservations' | 'large_groups';
-  minimum_guests_for_charge: number;
-  charge_amount_per_guest: number;
 }
 
 export const useServicesData = () => {
@@ -101,16 +93,6 @@ export const useServicesData = () => {
       const payload = {
         ...serviceData,
         venue_id: userVenue,
-        // Ensure charge_type is set correctly
-        charge_type: serviceData.requires_payment ? serviceData.charge_type : 'none',
-        // Only set minimum_guests_for_charge if charge_type is large_groups
-        minimum_guests_for_charge: serviceData.charge_type === 'large_groups' 
-          ? serviceData.minimum_guests_for_charge 
-          : null,
-        // Only set charge_amount if payment is required
-        charge_amount_per_guest: serviceData.requires_payment 
-          ? serviceData.charge_amount_per_guest 
-          : 0,
       };
       
       const { data, error } = await supabase
@@ -143,16 +125,6 @@ export const useServicesData = () => {
     mutationFn: async ({ id, updates }: { id: string, updates: ServiceFormData }) => {
       const payload = {
         ...updates,
-        // Ensure charge_type is set correctly
-        charge_type: updates.requires_payment ? updates.charge_type : 'none',
-        // Only set minimum_guests_for_charge if charge_type is large_groups
-        minimum_guests_for_charge: updates.charge_type === 'large_groups' 
-          ? updates.minimum_guests_for_charge 
-          : null,
-        // Only set charge_amount if payment is required
-        charge_amount_per_guest: updates.requires_payment 
-          ? updates.charge_amount_per_guest 
-          : 0,
         updated_at: new Date().toISOString()
       };
       

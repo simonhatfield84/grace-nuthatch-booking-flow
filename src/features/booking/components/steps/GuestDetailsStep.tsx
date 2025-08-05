@@ -11,23 +11,51 @@ import { useBookingSubmission } from "../../hooks/useBookingSubmission";
 
 interface GuestDetailsStepProps {
   onNext: (bookingId?: number) => void;
+  value?: {
+    name: string;
+    email: string;
+    phone: string;
+    notes: string;
+    marketingOptIn: boolean;
+    termsAccepted: boolean;
+  };
+  service?: any;
+  venue?: any;
+  partySize?: number;
+  date?: Date;
+  time?: string;
+  onChange?: (details: any, bookingId?: number) => void;
 }
 
-export function GuestDetailsStep({ onNext }: GuestDetailsStepProps) {
+export function GuestDetailsStep({ 
+  onNext, 
+  value,
+  service,
+  venue,
+  partySize,
+  date,
+  time,
+  onChange 
+}: GuestDetailsStepProps) {
   const { formData, updateFormData } = useBookingForm();
   const { submitBooking, isSubmitting } = useBookingSubmission();
   
   const [guestDetails, setGuestDetails] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    specialRequests: '',
-    marketingOptIn: false,
-    termsAccepted: false,
+    name: value?.name || '',
+    email: value?.email || '',
+    phone: value?.phone || '',
+    specialRequests: value?.notes || '',
+    marketingOptIn: value?.marketingOptIn || false,
+    termsAccepted: value?.termsAccepted || false,
   });
 
   const handleInputChange = (field: string, value: string | boolean) => {
-    setGuestDetails(prev => ({ ...prev, [field]: value }));
+    const newDetails = { ...guestDetails, [field]: value };
+    setGuestDetails(newDetails);
+    
+    if (onChange) {
+      onChange(newDetails);
+    }
   };
 
   const handleSubmit = async () => {
@@ -41,10 +69,14 @@ export function GuestDetailsStep({ onNext }: GuestDetailsStepProps) {
       time: formData.time,
       partySize: formData.partySize,
       serviceTitle: formData.serviceTitle || 'General Dining',
-      guestDetails,
+      guestDetails: {
+        ...guestDetails,
+        marketingOptIn: guestDetails.marketingOptIn,
+        termsAccepted: guestDetails.termsAccepted
+      },
     };
 
-    const result = await submitBooking(bookingData, 'venue-id'); // This should come from context
+    const result = await submitBooking(bookingData, venue?.id || 'venue-id');
     
     if (result.success && result.bookingId) {
       onNext(result.bookingId);

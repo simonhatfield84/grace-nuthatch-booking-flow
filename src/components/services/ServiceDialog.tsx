@@ -6,7 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ServiceForm } from './ServiceForm';
+import ServiceForm from './ServiceForm';
 
 interface ServiceDialogProps {
   open: boolean;
