@@ -1,5 +1,5 @@
 
-import emailService from "@/services/emailService";
+import { emailService } from "@/services/emailService";
 import { useToast } from "@/hooks/use-toast";
 
 export const useEmailService = () => {

@@ -3,7 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, ChevronDown, ChevronUp, Edit, Trash2 } from "lucide-react";
-import { Section } from "@/types/core";
+
+interface Section {
+  id: number;
+  name: string;
+  description?: string;
+  color?: string;
+}
 
 interface SectionHeaderProps {
   section: Section;

@@ -195,6 +195,50 @@ export type Database = {
           },
         ]
       }
+      booking_payments: {
+        Row: {
+          amount_cents: number
+          booking_id: number
+          created_at: string | null
+          failure_reason: string | null
+          id: string
+          payment_method_type: string | null
+          status: string | null
+          stripe_payment_intent_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount_cents: number
+          booking_id: number
+          created_at?: string | null
+          failure_reason?: string | null
+          id?: string
+          payment_method_type?: string | null
+          status?: string | null
+          stripe_payment_intent_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          booking_id?: number
+          created_at?: string | null
+          failure_reason?: string | null
+          id?: string
+          payment_method_type?: string | null
+          status?: string | null
+          stripe_payment_intent_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_payments_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: true
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_priorities: {
         Row: {
           created_at: string
@@ -666,6 +710,93 @@ export type Database = {
           },
         ]
       }
+      payment_analytics: {
+        Row: {
+          booking_id: number
+          created_at: string
+          event_data: Json | null
+          event_type: string
+          id: string
+          venue_id: string
+        }
+        Insert: {
+          booking_id: number
+          created_at?: string
+          event_data?: Json | null
+          event_type: string
+          id?: string
+          venue_id: string
+        }
+        Update: {
+          booking_id?: number
+          created_at?: string
+          event_data?: Json | null
+          event_type?: string
+          id?: string
+          venue_id?: string
+        }
+        Relationships: []
+      }
+      payment_transactions: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          currency: string
+          failure_reason: string | null
+          id: string
+          payment_method: string | null
+          processed_at: string | null
+          status: string
+          stripe_invoice_id: string | null
+          stripe_payment_intent_id: string | null
+          subscription_id: string | null
+          venue_id: string | null
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          currency?: string
+          failure_reason?: string | null
+          id?: string
+          payment_method?: string | null
+          processed_at?: string | null
+          status: string
+          stripe_invoice_id?: string | null
+          stripe_payment_intent_id?: string | null
+          subscription_id?: string | null
+          venue_id?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          currency?: string
+          failure_reason?: string | null
+          id?: string
+          payment_method?: string | null
+          processed_at?: string | null
+          status?: string
+          stripe_invoice_id?: string | null
+          stripe_payment_intent_id?: string | null
+          subscription_id?: string | null
+          venue_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_transactions_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "venue_subscriptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       platform_admins: {
         Row: {
           created_at: string
@@ -957,6 +1088,8 @@ export type Database = {
         Row: {
           active: boolean
           cancellation_window_hours: number
+          charge_amount_per_guest: number | null
+          charge_type: string | null
           created_at: string
           deposit_per_guest: number
           description: string | null
@@ -967,8 +1100,10 @@ export type Database = {
           lead_time_hours: number
           max_guests: number
           min_guests: number
+          minimum_guests_for_charge: number | null
           online_bookable: boolean
           requires_deposit: boolean
+          requires_payment: boolean | null
           secret_slug: string | null
           tag_ids: string[] | null
           terms_and_conditions: string | null
@@ -979,6 +1114,8 @@ export type Database = {
         Insert: {
           active?: boolean
           cancellation_window_hours?: number
+          charge_amount_per_guest?: number | null
+          charge_type?: string | null
           created_at?: string
           deposit_per_guest?: number
           description?: string | null
@@ -989,8 +1126,10 @@ export type Database = {
           lead_time_hours?: number
           max_guests?: number
           min_guests?: number
+          minimum_guests_for_charge?: number | null
           online_bookable?: boolean
           requires_deposit?: boolean
+          requires_payment?: boolean | null
           secret_slug?: string | null
           tag_ids?: string[] | null
           terms_and_conditions?: string | null
@@ -1001,6 +1140,8 @@ export type Database = {
         Update: {
           active?: boolean
           cancellation_window_hours?: number
+          charge_amount_per_guest?: number | null
+          charge_type?: string | null
           created_at?: string
           deposit_per_guest?: number
           description?: string | null
@@ -1011,8 +1152,10 @@ export type Database = {
           lead_time_hours?: number
           max_guests?: number
           min_guests?: number
+          minimum_guests_for_charge?: number | null
           online_bookable?: boolean
           requires_deposit?: boolean
+          requires_payment?: boolean | null
           secret_slug?: string | null
           tag_ids?: string[] | null
           terms_and_conditions?: string | null
@@ -1249,6 +1392,59 @@ export type Database = {
           },
         ]
       }
+      venue_stripe_settings: {
+        Row: {
+          charge_amount_per_guest: number | null
+          charge_type: string | null
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          minimum_guests_for_charge: number | null
+          stripe_account_id: string | null
+          test_mode: boolean | null
+          updated_at: string | null
+          venue_id: string
+          webhook_endpoint_secret: string | null
+          webhook_secret: string | null
+        }
+        Insert: {
+          charge_amount_per_guest?: number | null
+          charge_type?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          minimum_guests_for_charge?: number | null
+          stripe_account_id?: string | null
+          test_mode?: boolean | null
+          updated_at?: string | null
+          venue_id: string
+          webhook_endpoint_secret?: string | null
+          webhook_secret?: string | null
+        }
+        Update: {
+          charge_amount_per_guest?: number | null
+          charge_type?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          minimum_guests_for_charge?: number | null
+          stripe_account_id?: string | null
+          test_mode?: boolean | null
+          updated_at?: string | null
+          venue_id?: string
+          webhook_endpoint_secret?: string | null
+          webhook_secret?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_stripe_settings_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: true
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       venue_subscriptions: {
         Row: {
           created_at: string
@@ -1405,6 +1601,10 @@ export type Database = {
           event_count: number
           last_event: string
         }[]
+      }
+      expire_pending_payments: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       find_duplicate_guests: {
         Args: { guest_email?: string; guest_phone?: string }

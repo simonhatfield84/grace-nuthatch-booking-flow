@@ -26,6 +26,8 @@ const initialState: BookingState = {
     time: '',
     service: null,
     guestDetails: null,
+    paymentRequired: false,
+    paymentAmount: 0,
     bookingId: null,
   },
   isLoading: false,

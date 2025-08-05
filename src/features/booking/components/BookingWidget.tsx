@@ -1,3 +1,4 @@
+
 import { BookingProvider } from '../contexts/BookingContext';
 import { useBookingFlow } from '../hooks/useBookingFlow';
 import { PartyStep } from './steps/PartyStep';
@@ -91,13 +92,16 @@ function BookingWidgetContent({ venueSlug }: BookingWidgetProps) {
       case 3:
         return (
           <ServiceStep
-            onNext={handleServiceSelection}
+            selectedService={bookingData.service}
+            onServiceSelect={handleServiceSelection}
+            partySize={bookingData.partySize}
+            selectedDate={bookingData.date}
+            venueId={venue.id}
           />
         );
       case 4:
         return (
           <GuestDetailsStep
-            onNext={handleGuestDetails}
             value={bookingData.guestDetails ? {
               name: bookingData.guestDetails.name,
               email: bookingData.guestDetails.email,
@@ -105,12 +109,20 @@ function BookingWidgetContent({ venueSlug }: BookingWidgetProps) {
               notes: bookingData.guestDetails.notes || '',
               marketingOptIn: bookingData.guestDetails.marketingOptIn,
               termsAccepted: bookingData.guestDetails.termsAccepted
-            } : undefined}
+            } : {
+              name: '',
+              email: '',
+              phone: '',
+              notes: '',
+              marketingOptIn: false,
+              termsAccepted: false
+            }}
             service={bookingData.service}
             venue={venue}
             partySize={bookingData.partySize}
             date={bookingData.date}
             time={bookingData.time}
+            onChange={handleGuestDetails}
           />
         );
       case 5:

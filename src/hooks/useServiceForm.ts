@@ -16,6 +16,10 @@ const DEFAULT_FORM_DATA: ServiceFormData = {
   image_url: '',
   duration_rules: [],
   terms_and_conditions: '',
+  requires_payment: false,
+  charge_type: 'none',
+  minimum_guests_for_charge: 8,
+  charge_amount_per_guest: 0,
 };
 
 export const useServiceForm = () => {
@@ -43,6 +47,10 @@ export const useServiceForm = () => {
       image_url: service.image_url || '',
       duration_rules: service.duration_rules || [],
       terms_and_conditions: service.terms_and_conditions || '',
+      requires_payment: service.requires_payment,
+      charge_type: service.charge_type,
+      minimum_guests_for_charge: service.minimum_guests_for_charge || 8,
+      charge_amount_per_guest: service.charge_amount_per_guest || 0,
     });
   };
 

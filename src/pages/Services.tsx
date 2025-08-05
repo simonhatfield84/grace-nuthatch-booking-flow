@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -89,6 +90,10 @@ const Services = () => {
       image_url: service.image_url || '',
       duration_rules: service.duration_rules || [],
       terms_and_conditions: service.terms_and_conditions || '',
+      requires_payment: service.requires_payment,
+      charge_type: service.charge_type === 'none' ? 'none' : service.charge_type,
+      minimum_guests_for_charge: service.minimum_guests_for_charge || 8,
+      charge_amount_per_guest: service.charge_amount_per_guest || 0,
     });
     setShowDialog(true);
   };
@@ -158,12 +163,12 @@ const Services = () => {
       <ServiceDialog
         open={showDialog}
         onOpenChange={setShowDialog}
-        service={isEditing && editingServiceId ? services.find(s => s.id === editingServiceId) : undefined}
-        onSuccess={() => {
-          setShowDialog(false);
-          resetForm();
-        }}
+        formData={formData}
+        onFormDataChange={updateFormData}
+        onSubmit={handleSubmit}
         onCancel={handleCancel}
+        isSubmitting={createServiceMutation.isPending || updateServiceMutation.isPending}
+        isEditing={isEditing}
       />
 
       <BookingWindowManager

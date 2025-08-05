@@ -6,7 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useSections } from "@/hooks/useSections";
-import { Section } from "@/types/core";
+
+interface Section {
+  id: number;
+  name: string;
+  description?: string;
+  color?: string;
+}
 
 interface SectionDialogProps {
   isOpen: boolean;
@@ -21,12 +27,11 @@ export const SectionDialog = ({
   editingSection,
   onSectionSaved 
 }: SectionDialogProps) => {
-  const { createSection, updateSection, sections } = useSections();
+  const { createSection, updateSection } = useSections();
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    color: "#3B82F6",
-    sort_order: 0
+    color: "#3B82F6"
   });
 
   useEffect(() => {
@@ -34,22 +39,16 @@ export const SectionDialog = ({
       setFormData({
         name: editingSection.name,
         description: editingSection.description || "",
-        color: editingSection.color || "#3B82F6",
-        sort_order: editingSection.sort_order
+        color: editingSection.color || "#3B82F6"
       });
     } else {
-      // Calculate next sort order for new sections
-      const maxSortOrder = sections.reduce((max, section) => 
-        Math.max(max, section.sort_order || 0), 0
-      );
       setFormData({
         name: "",
         description: "",
-        color: "#3B82F6",
-        sort_order: maxSortOrder + 1
+        color: "#3B82F6"
       });
     }
-  }, [editingSection, isOpen, sections]);
+  }, [editingSection, isOpen]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

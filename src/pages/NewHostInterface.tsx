@@ -404,6 +404,7 @@ const NewHostInterface = () => {
           <div className="col-span-4 space-y-4">
             <BookingDetailsPanel
               booking={selectedBooking}
+              onClose={() => setSelectedBooking(null)}
               onStatusChange={handleStatusChange}
               onBookingUpdate={handleBookingUpdate}
             />
