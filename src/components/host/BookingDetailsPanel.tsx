@@ -5,16 +5,26 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Calendar, Clock, Users, MapPin, Phone, Mail, MessageSquare, Edit2 } from "lucide-react";
+import { Calendar, Clock, Users, MapPin, Phone, Mail, MessageSquare, Edit2, X } from "lucide-react";
 import { format } from "date-fns";
 
 interface BookingDetailsPanelProps {
   booking: any;
   table?: any;
   onEdit?: () => void;
+  onClose?: () => void;
+  onStatusChange?: (booking: any, newStatus: string) => Promise<void>;
+  onBookingUpdate?: () => void;
 }
 
-export const BookingDetailsPanel = ({ booking, table, onEdit }: BookingDetailsPanelProps) => {
+export const BookingDetailsPanel = ({ 
+  booking, 
+  table, 
+  onEdit, 
+  onClose, 
+  onStatusChange, 
+  onBookingUpdate 
+}: BookingDetailsPanelProps) => {
   if (!booking) {
     return (
       <Card className="h-full bg-[#111315] border-[#292C2D]">
@@ -42,17 +52,29 @@ export const BookingDetailsPanel = ({ booking, table, onEdit }: BookingDetailsPa
       <CardHeader className="bg-[#292C2D] border-b border-[#676767]/20">
         <div className="flex items-center justify-between">
           <CardTitle className="text-white font-inter">Booking Details</CardTitle>
-          {onEdit && (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={onEdit}
-              className="border-[#676767] text-white hover:bg-[#676767]/20"
-            >
-              <Edit2 className="h-3 w-3 mr-1" />
-              Edit
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {onEdit && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={onEdit}
+                className="border-[#676767] text-white hover:bg-[#676767]/20"
+              >
+                <Edit2 className="h-3 w-3 mr-1" />
+                Edit
+              </Button>
+            )}
+            {onClose && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={onClose}
+                className="border-[#676767] text-white hover:bg-[#676767]/20"
+              >
+                <X className="h-3 w-3" />
+              </Button>
+            )}
+          </div>
         </div>
       </CardHeader>
       
@@ -72,6 +94,46 @@ export const BookingDetailsPanel = ({ booking, table, onEdit }: BookingDetailsPa
           </div>
 
           <Separator className="bg-[#676767]/20" />
+
+          {/* Status Change Buttons */}
+          {onStatusChange && (
+            <>
+              <div className="space-y-2">
+                <h4 className="font-medium text-white font-inter">Actions</h4>
+                <div className="flex flex-wrap gap-2">
+                  {booking.status === 'confirmed' && (
+                    <Button 
+                      size="sm" 
+                      onClick={() => onStatusChange(booking, 'seated')}
+                      className="bg-[#CCF0DB] text-[#111315] hover:bg-[#CCF0DB]/80"
+                    >
+                      Mark Seated
+                    </Button>
+                  )}
+                  {booking.status === 'seated' && (
+                    <Button 
+                      size="sm" 
+                      onClick={() => onStatusChange(booking, 'finished')}
+                      className="bg-[#676767] text-white hover:bg-[#676767]/80"
+                    >
+                      Mark Finished
+                    </Button>
+                  )}
+                  {(booking.status === 'confirmed' || booking.status === 'seated') && (
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => onStatusChange(booking, 'no-show')}
+                      className="border-[#E47272] text-[#E47272] hover:bg-[#E47272]/20"
+                    >
+                      No Show
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <Separator className="bg-[#676767]/20" />
+            </>
+          )}
 
           {/* Booking Information */}
           <div className="space-y-3">
