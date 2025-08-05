@@ -25,7 +25,7 @@ const DEFAULT_FORM_DATA: ServiceFormData = {
 };
 
 export const useServiceForm = () => {
-  const [formData, setFormData] = useState<ServiceFormData>(DEFAULT_FORM_DATA);
+  const [formData, setFormData] = useState<ServiceFormData & { id?: string }>(DEFAULT_FORM_DATA);
   const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
 
   const resetForm = () => {
@@ -36,6 +36,7 @@ export const useServiceForm = () => {
   const startEditing = (service: Service) => {
     setEditingServiceId(service.id);
     setFormData({
+      id: service.id, // Include the service ID in form data
       title: service.title,
       description: service.description || '',
       min_guests: service.min_guests,

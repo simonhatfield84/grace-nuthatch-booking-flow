@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +11,7 @@ import { ChevronDown, CreditCard, RefreshCw } from "lucide-react";
 import { ServiceFormData } from '@/hooks/useServicesData';
 import { DurationRules, DurationRule } from './DurationRules';
 import { MediaUpload } from './MediaUpload';
+import { BookingWindowManager } from './BookingWindowManager';
 
 interface ServiceFormProps {
   formData: ServiceFormData;
@@ -32,6 +32,7 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
 }) => {
   // Local state for display amount (in pounds as string)
   const [displayAmount, setDisplayAmount] = useState<string>('');
+  const [bookingWindowsOpen, setBookingWindowsOpen] = useState(false);
 
   // Update display amount when formData changes (e.g., when editing existing service)
   useEffect(() => {
@@ -69,12 +70,16 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
     onSubmit(e);
   };
 
+  // Get the service ID for booking windows - only available when editing
+  const serviceIdForBookingWindows = isEditing ? (formData as any).id : null;
+
   return (
     <form onSubmit={handleFormSubmit} className="space-y-6">
       <Tabs defaultValue="basic" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="basic">Basic</TabsTrigger>
           <TabsTrigger value="booking">Booking</TabsTrigger>
+          <TabsTrigger value="availability">Availability</TabsTrigger>
           <TabsTrigger value="payments">Payments & Refunds</TabsTrigger>
           <TabsTrigger value="advanced">Advanced</TabsTrigger>
         </TabsList>
@@ -171,6 +176,46 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
               checked={formData.online_bookable}
               onCheckedChange={(checked) => onFormDataChange({ online_bookable: checked })}
             />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="availability" className="space-y-4">
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-lg font-semibold mb-2">Booking Windows</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Set when this service is available for booking by configuring specific days, times, and capacity limits.
+              </p>
+            </div>
+            
+            {serviceIdForBookingWindows ? (
+              <div className="border rounded-lg p-4">
+                <BookingWindowManager
+                  serviceId={serviceIdForBookingWindows}
+                  open={bookingWindowsOpen}
+                  onOpenChange={setBookingWindowsOpen}
+                />
+                {!bookingWindowsOpen && (
+                  <Button 
+                    type="button"
+                    variant="outline" 
+                    onClick={() => setBookingWindowsOpen(true)}
+                    className="w-full"
+                  >
+                    Manage Booking Windows
+                  </Button>
+                )}
+              </div>
+            ) : (
+              <div className="border rounded-lg p-6 text-center">
+                <p className="text-muted-foreground mb-4">
+                  Save the service first to configure booking availability windows.
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  You'll be able to set specific days, times, and booking limits after creating the service.
+                </p>
+              </div>
+            )}
           </div>
         </TabsContent>
 
