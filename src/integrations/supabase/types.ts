@@ -203,8 +203,13 @@ export type Database = {
           failure_reason: string | null
           id: string
           payment_method_type: string | null
+          refund_amount_cents: number | null
+          refund_reason: string | null
+          refund_status: string | null
+          refunded_at: string | null
           status: string
           stripe_payment_intent_id: string | null
+          stripe_refund_id: string | null
           updated_at: string
         }
         Insert: {
@@ -214,8 +219,13 @@ export type Database = {
           failure_reason?: string | null
           id?: string
           payment_method_type?: string | null
+          refund_amount_cents?: number | null
+          refund_reason?: string | null
+          refund_status?: string | null
+          refunded_at?: string | null
           status?: string
           stripe_payment_intent_id?: string | null
+          stripe_refund_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -225,8 +235,13 @@ export type Database = {
           failure_reason?: string | null
           id?: string
           payment_method_type?: string | null
+          refund_amount_cents?: number | null
+          refund_reason?: string | null
+          refund_status?: string | null
+          refunded_at?: string | null
           status?: string
           stripe_payment_intent_id?: string | null
+          stripe_refund_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1180,6 +1195,59 @@ export type Database = {
           },
         ]
       }
+      stripe_key_audit: {
+        Row: {
+          action: string
+          created_at: string
+          environment: string
+          error_message: string | null
+          id: string
+          ip_address: unknown | null
+          key_type: string
+          metadata: Json | null
+          success: boolean | null
+          user_agent: string | null
+          user_id: string | null
+          venue_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          environment: string
+          error_message?: string | null
+          id?: string
+          ip_address?: unknown | null
+          key_type: string
+          metadata?: Json | null
+          success?: boolean | null
+          user_agent?: string | null
+          user_id?: string | null
+          venue_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          environment?: string
+          error_message?: string | null
+          id?: string
+          ip_address?: unknown | null
+          key_type?: string
+          metadata?: Json | null
+          success?: boolean | null
+          user_agent?: string | null
+          user_id?: string | null
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_key_audit_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscription_plans: {
         Row: {
           billing_interval: string
@@ -1405,12 +1473,17 @@ export type Database = {
           charge_type: string | null
           configuration_status: Json | null
           created_at: string
+          encryption_key_id: string | null
           environment: string | null
           id: string
           is_active: boolean
+          key_validation_status: Json | null
+          last_key_update_at: string | null
           minimum_guests_for_charge: number | null
           publishable_key_live: string | null
           publishable_key_test: string | null
+          secret_key_live_encrypted: string | null
+          secret_key_test_encrypted: string | null
           test_mode: boolean
           updated_at: string
           venue_id: string
@@ -1422,12 +1495,17 @@ export type Database = {
           charge_type?: string | null
           configuration_status?: Json | null
           created_at?: string
+          encryption_key_id?: string | null
           environment?: string | null
           id?: string
           is_active?: boolean
+          key_validation_status?: Json | null
+          last_key_update_at?: string | null
           minimum_guests_for_charge?: number | null
           publishable_key_live?: string | null
           publishable_key_test?: string | null
+          secret_key_live_encrypted?: string | null
+          secret_key_test_encrypted?: string | null
           test_mode?: boolean
           updated_at?: string
           venue_id: string
@@ -1439,12 +1517,17 @@ export type Database = {
           charge_type?: string | null
           configuration_status?: Json | null
           created_at?: string
+          encryption_key_id?: string | null
           environment?: string | null
           id?: string
           is_active?: boolean
+          key_validation_status?: Json | null
+          last_key_update_at?: string | null
           minimum_guests_for_charge?: number | null
           publishable_key_live?: string | null
           publishable_key_test?: string | null
+          secret_key_live_encrypted?: string | null
+          secret_key_test_encrypted?: string | null
           test_mode?: boolean
           updated_at?: string
           venue_id?: string
