@@ -48,10 +48,9 @@ export default function Services() {
   };
 
   const handleDuplicateService = (service: any) => {
-    // Start in create mode instead of edit mode
-    startCreating();
+    console.log('Duplicating service:', service);
     
-    // Manually set the form data with copied values (excluding id)
+    // Prepare the duplicated form data
     const duplicatedFormData = {
       title: `${service.title} (Copy)`,
       description: service.description || '',
@@ -74,8 +73,12 @@ export default function Services() {
       auto_refund_enabled: service.auto_refund_enabled || false,
     };
     
-    updateFormData(duplicatedFormData);
-    setDialogOpen(true);
+    // Reset to create mode and set the form data in one go
+    resetForm();
+    setTimeout(() => {
+      updateFormData(duplicatedFormData);
+      setDialogOpen(true);
+    }, 0);
   };
 
   const handleToggleActive = async (serviceId: string) => {
