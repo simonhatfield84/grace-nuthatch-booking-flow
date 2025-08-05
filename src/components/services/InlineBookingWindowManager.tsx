@@ -468,22 +468,72 @@ export function InlineBookingWindowManager({ serviceId }: InlineBookingWindowMan
                   </div>
                 </CardHeader>
                 
-                {expandedWindows.has(window.id!) && window.blackout_periods && window.blackout_periods.length > 0 && (
-                  <CardContent className="pt-0">
-                    <div className="text-sm">
-                      <span className="font-medium">Blackout periods:</span>
-                      <div className="mt-1 space-y-1">
-                        {window.blackout_periods.map((bp, idx) => (
-                          <div key={idx} className="flex items-center gap-2">
-                            <Badge variant="destructive" className="text-xs">
-                              {format(bp.startDate, 'MMM d')} - {format(bp.endDate, 'MMM d, yyyy')}
-                            </Badge>
-                            {bp.reason && (
-                              <span className="text-xs text-muted-foreground">({bp.reason})</span>
-                            )}
+                {expandedWindows.has(window.id!) && (
+                  <CardContent className="pt-0 border-t">
+                    <div className="space-y-4">
+                      {/* Detailed Scheduling Info */}
+                      <div>
+                        <h4 className="text-sm font-medium mb-2">Schedule Details</h4>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div>
+                            <span className="text-muted-foreground">Days:</span>
+                            <div className="mt-1">
+                              {dayOptions
+                                .filter(day => window.days.includes(day.value))
+                                .map(day => day.label)
+                                .join(", ")}
+                            </div>
                           </div>
-                        ))}
+                          <div>
+                            <span className="text-muted-foreground">Time Range:</span>
+                            <div className="mt-1 font-mono">
+                              {window.start_time} - {window.end_time}
+                            </div>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Capacity:</span>
+                            <div className="mt-1">
+                              {window.max_bookings_per_slot} booking{window.max_bookings_per_slot !== 1 ? 's' : ''} per time slot
+                            </div>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">Duration:</span>
+                            <div className="mt-1">
+                              {window.start_date && window.end_date 
+                                ? `${format(window.start_date, 'MMM d')} - ${format(window.end_date, 'MMM d, yyyy')}`
+                                : window.start_date 
+                                ? `From ${format(window.start_date, 'MMM d, yyyy')} (ongoing)`
+                                : "No specific date range"}
+                            </div>
+                          </div>
+                        </div>
                       </div>
+
+                      {/* Blackout Periods */}
+                      {window.blackout_periods && window.blackout_periods.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-medium mb-2">Blackout Periods</h4>
+                          <div className="space-y-2">
+                            {window.blackout_periods.map((bp, idx) => (
+                              <div key={idx} className="flex items-center gap-2 p-2 bg-muted/30 rounded">
+                                <Badge variant="destructive" className="text-xs">
+                                  {format(bp.startDate, 'MMM d')} - {format(bp.endDate, 'MMM d, yyyy')}
+                                </Badge>
+                                {bp.reason && (
+                                  <span className="text-xs text-muted-foreground">({bp.reason})</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* No blackout periods message */}
+                      {(!window.blackout_periods || window.blackout_periods.length === 0) && (
+                        <div className="text-sm text-muted-foreground italic">
+                          No blackout periods configured
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 )}
