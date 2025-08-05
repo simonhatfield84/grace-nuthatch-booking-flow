@@ -26,6 +26,48 @@ export interface StripeSettings {
   };
 }
 
+// Type-safe mapping function to convert database response to StripeSettings
+const mapDatabaseRowToStripeSettings = (data: any): StripeSettings => {
+  // Safely parse configuration_status from Json to the expected structure
+  let configurationStatus;
+  try {
+    if (typeof data.configuration_status === 'string') {
+      configurationStatus = JSON.parse(data.configuration_status);
+    } else if (typeof data.configuration_status === 'object' && data.configuration_status !== null) {
+      configurationStatus = data.configuration_status;
+    } else {
+      throw new Error('Invalid configuration_status format');
+    }
+  } catch (error) {
+    console.warn('Failed to parse configuration_status, using defaults:', error);
+    configurationStatus = {
+      test: { keys_configured: false, webhook_configured: false },
+      live: { keys_configured: false, webhook_configured: false }
+    };
+  }
+
+  // Ensure the structure matches our interface
+  if (!configurationStatus.test || !configurationStatus.live) {
+    configurationStatus = {
+      test: { keys_configured: false, webhook_configured: false },
+      live: { keys_configured: false, webhook_configured: false }
+    };
+  }
+
+  return {
+    id: data.id,
+    venue_id: data.venue_id,
+    is_active: Boolean(data.is_active),
+    test_mode: Boolean(data.test_mode),
+    environment: data.environment || 'test',
+    publishable_key_test: data.publishable_key_test || undefined,
+    publishable_key_live: data.publishable_key_live || undefined,
+    webhook_secret_test: data.webhook_secret_test || undefined,
+    webhook_secret_live: data.webhook_secret_live || undefined,
+    configuration_status: configurationStatus,
+  };
+};
+
 export const useStripeSettings = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -84,7 +126,8 @@ export const useStripeSettings = () => {
         };
       }
       
-      return data as StripeSettings;
+      // Use the type-safe mapping function instead of direct casting
+      return mapDatabaseRowToStripeSettings(data);
     },
     enabled: !!userVenue,
   });
@@ -117,7 +160,7 @@ export const useStripeSettings = () => {
           throw error;
         }
         console.log('Updated stripe settings:', data);
-        return data;
+        return mapDatabaseRowToStripeSettings(data);
       } else {
         // Create new settings
         console.log('Creating new stripe settings');
@@ -132,7 +175,7 @@ export const useStripeSettings = () => {
           throw error;
         }
         console.log('Created stripe settings:', data);
-        return data;
+        return mapDatabaseRowToStripeSettings(data);
       }
     },
     onSuccess: (data) => {
