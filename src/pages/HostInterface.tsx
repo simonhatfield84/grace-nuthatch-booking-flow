@@ -26,7 +26,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Booking } from "@/hooks/useBookings";
 import { useAuth } from "@/contexts/AuthContext";
 import { backfillBookingDurations } from "@/utils/backfillBookingDurations";
-import { Section } from "@/types/core";
 
 import { Users, Link, Ban } from "lucide-react";
 
