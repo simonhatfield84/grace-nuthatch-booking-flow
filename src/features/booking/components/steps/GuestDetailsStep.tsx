@@ -6,16 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useBookingForm } from "../../contexts/BookingFormContext";
 import { useBookingSubmission } from "../../hooks/useBookingSubmission";
 
 interface GuestDetailsStepProps {
-  onNext: (bookingId?: number) => void;
+  onNext?: (details: any, bookingId?: number) => void;
+  onChange?: (details: any, bookingId?: number) => void;
   value?: {
     name: string;
     email: string;
     phone: string;
-    notes: string;
+    notes?: string;
     marketingOptIn: boolean;
     termsAccepted: boolean;
   };
@@ -24,27 +24,25 @@ interface GuestDetailsStepProps {
   partySize?: number;
   date?: Date;
   time?: string;
-  onChange?: (details: any, bookingId?: number) => void;
 }
 
 export function GuestDetailsStep({ 
-  onNext, 
+  onNext,
+  onChange,
   value,
   service,
   venue,
   partySize,
   date,
-  time,
-  onChange 
+  time
 }: GuestDetailsStepProps) {
-  const { formData, updateFormData } = useBookingForm();
   const { submitBooking, isSubmitting } = useBookingSubmission();
   
   const [guestDetails, setGuestDetails] = useState({
     name: value?.name || '',
     email: value?.email || '',
     phone: value?.phone || '',
-    specialRequests: value?.notes || '',
+    notes: value?.notes || '',
     marketingOptIn: value?.marketingOptIn || false,
     termsAccepted: value?.termsAccepted || false,
   });
@@ -59,18 +57,20 @@ export function GuestDetailsStep({
   };
 
   const handleSubmit = async () => {
-    if (!formData.date || !formData.time || !formData.partySize) {
+    if (!date || !time || !partySize) {
       return;
     }
 
     const bookingData = {
-      ...formData,
-      date: formData.date,
-      time: formData.time,
-      partySize: formData.partySize,
-      serviceTitle: formData.serviceTitle || 'General Dining',
+      partySize,
+      date,
+      time,
+      serviceTitle: service?.title || 'General Dining',
       guestDetails: {
-        ...guestDetails,
+        name: guestDetails.name,
+        email: guestDetails.email,
+        phone: guestDetails.phone,
+        notes: guestDetails.notes,
         marketingOptIn: guestDetails.marketingOptIn,
         termsAccepted: guestDetails.termsAccepted
       },
@@ -79,7 +79,12 @@ export function GuestDetailsStep({
     const result = await submitBooking(bookingData, venue?.id || 'venue-id');
     
     if (result.success && result.bookingId) {
-      onNext(result.bookingId);
+      if (onNext) {
+        onNext(guestDetails, result.bookingId);
+      }
+      if (onChange) {
+        onChange(guestDetails, result.bookingId);
+      }
     }
   };
 
@@ -124,12 +129,12 @@ export function GuestDetailsStep({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="requests">Special Requests</Label>
+            <Label htmlFor="notes">Special Requests</Label>
             <Textarea
-              id="requests"
+              id="notes"
               placeholder="Any dietary requirements, special occasions, or other requests..."
-              value={guestDetails.specialRequests}
-              onChange={(e) => handleInputChange('specialRequests', e.target.value)}
+              value={guestDetails.notes}
+              onChange={(e) => handleInputChange('notes', e.target.value)}
               rows={3}
             />
           </div>

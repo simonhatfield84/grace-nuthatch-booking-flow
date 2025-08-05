@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { ChevronRight, Clock, Users, Calendar, CreditCard, Check, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
@@ -205,18 +204,17 @@ export function NuthatchBookingWidget() {
       case 'service':
         return (
           <ServiceStep
-            venueId={venue?.id}
-            partySize={bookingData.partySize}
-            selectedDate={bookingData.date}
+            onNext={(service) => {
+              updateBookingData({ 
+                service
+              });
+              nextStep();
+            }}
             selectedService={bookingData.service}
             onServiceSelect={(service) => {
               updateBookingData({ 
-                service,
-                paymentRequired: service?.requires_payment || false,
-                paymentAmount: service?.charge_amount_per_guest ? 
-                  service.charge_amount_per_guest * bookingData.partySize : 0
+                service
               });
-              nextStep();
             }}
           />
         );
@@ -236,32 +234,35 @@ export function NuthatchBookingWidget() {
       case 'details':
         return (
           <GuestDetailsStep
-            value={bookingData.guestDetails}
+            value={bookingData.guestDetails ? {
+              name: bookingData.guestDetails.name,
+              email: bookingData.guestDetails.email,
+              phone: bookingData.guestDetails.phone,
+              notes: bookingData.guestDetails.notes || '',
+              marketingOptIn: bookingData.guestDetails.marketingOptIn,
+              termsAccepted: bookingData.guestDetails.termsAccepted
+            } : undefined}
             service={bookingData.service}
             venue={venue}
             partySize={bookingData.partySize}
             date={bookingData.date!}
             time={bookingData.time}
-            onChange={(guestDetails, paymentRequired, paymentAmount, bookingId) => {
+            onChange={(guestDetails, bookingId) => {
               updateBookingData({ 
                 guestDetails, 
-                paymentRequired, 
-                paymentAmount,
                 bookingId 
               });
-              // FIXED: Properly navigate to confirmation step after successful payment
               if (bookingId) {
-                console.log('🎉 Payment successful, navigating to confirmation step');
+                console.log('🎉 Booking successful, navigating to confirmation step');
                 setCurrentStep(steps.length - 1);
               }
             }}
           />
         );
-      // Payment is now integrated into the details step
       case 'confirmation':
         return (
           <ConfirmationStep
-            bookingData={bookingData}
+            bookingId={bookingData.bookingId}
             venue={venue}
             onBookingId={(bookingId) => updateBookingData({ bookingId })}
           />

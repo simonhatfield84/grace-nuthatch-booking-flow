@@ -2,34 +2,45 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useBookingForm } from '../../contexts/BookingFormContext';
 import { useServicesData } from '@/hooks/useServicesData';
 import { Loader2 } from 'lucide-react';
 
 interface ServiceStepProps {
-  onNext: () => void;
+  onNext: (service: any) => void;
+  venueId?: string;
+  partySize?: number;
+  selectedDate?: Date | null;
+  selectedService?: any;
+  onServiceSelect?: (service: any) => void;
 }
 
-export const ServiceStep: React.FC<ServiceStepProps> = ({ onNext }) => {
-  const { formData, updateFormData } = useBookingForm();
+export const ServiceStep: React.FC<ServiceStepProps> = ({ 
+  onNext, 
+  venueId, 
+  partySize, 
+  selectedDate, 
+  selectedService, 
+  onServiceSelect 
+}) => {
   const { services, isServicesLoading, servicesError } = useServicesData();
-  const [selectedService, setSelectedService] = useState<any>(null);
+  const [internalSelectedService, setInternalSelectedService] = useState<any>(selectedService || null);
 
   useEffect(() => {
-    if (formData.serviceTitle && services) {
-      const initialService = services.find(service => service.title === formData.serviceTitle);
-      setSelectedService(initialService || null);
+    if (selectedService) {
+      setInternalSelectedService(selectedService);
     }
-  }, [formData.serviceTitle, services]);
+  }, [selectedService]);
 
   const handleServiceSelect = (service: any) => {
-    setSelectedService(service);
-    updateFormData({ serviceTitle: service.title });
+    setInternalSelectedService(service);
+    if (onServiceSelect) {
+      onServiceSelect(service);
+    }
   };
 
   const handleContinue = () => {
-    if (selectedService) {
-      onNext();
+    if (internalSelectedService) {
+      onNext(internalSelectedService);
     }
   };
 
@@ -66,7 +77,7 @@ export const ServiceStep: React.FC<ServiceStepProps> = ({ onNext }) => {
             <Button
               key={service.id}
               onClick={() => handleServiceSelect(service)}
-              className={`w-full p-6 h-auto ${selectedService?.id === service.id ? 'bg-accent text-accent-foreground' : ''}`}
+              className={`w-full p-6 h-auto ${internalSelectedService?.id === service.id ? 'bg-accent text-accent-foreground' : ''}`}
               variant="outline"
             >
               <div className="text-left">
@@ -76,13 +87,13 @@ export const ServiceStep: React.FC<ServiceStepProps> = ({ onNext }) => {
             </Button>
           ))}
 
-          {selectedService && (
+          {internalSelectedService && (
             <div className="mt-4 p-3 bg-muted rounded-lg">
               <p className="text-sm text-muted-foreground">
-                Selected: {selectedService.title}
+                Selected: {internalSelectedService.title}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                {selectedService.min_guests}-{selectedService.max_guests} guests • {selectedService.lead_time_hours}h lead time
+                {internalSelectedService.min_guests}-{internalSelectedService.max_guests} guests • {internalSelectedService.lead_time_hours}h lead time
               </p>
             </div>
           )}
@@ -90,7 +101,7 @@ export const ServiceStep: React.FC<ServiceStepProps> = ({ onNext }) => {
           <Button 
             onClick={handleContinue}
             className="w-full"
-            disabled={!selectedService}
+            disabled={!internalSelectedService}
           >
             Continue
           </Button>

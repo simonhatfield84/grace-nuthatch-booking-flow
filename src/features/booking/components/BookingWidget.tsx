@@ -1,4 +1,3 @@
-
 import { BookingProvider } from '../contexts/BookingContext';
 import { useBookingFlow } from '../hooks/useBookingFlow';
 import { PartyStep } from './steps/PartyStep';
@@ -106,14 +105,7 @@ function BookingWidgetContent({ venueSlug }: BookingWidgetProps) {
               notes: bookingData.guestDetails.notes || '',
               marketingOptIn: bookingData.guestDetails.marketingOptIn,
               termsAccepted: bookingData.guestDetails.termsAccepted
-            } : {
-              name: '',
-              email: '',
-              phone: '',
-              notes: '',
-              marketingOptIn: false,
-              termsAccepted: false
-            }}
+            } : undefined}
             service={bookingData.service}
             venue={venue}
             partySize={bookingData.partySize}
