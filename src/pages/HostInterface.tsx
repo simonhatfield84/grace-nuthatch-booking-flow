@@ -23,7 +23,7 @@ import { BlockDialog } from "@/components/BlockDialog";
 import { WalkInDialog } from "@/features/host/components/walkin/WalkInDialog";
 import { FullBookingDialog } from "@/components/host/FullBookingDialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Booking } from "@/hooks/useBookings";
+import { Booking } from "@/features/booking/types/booking";
 import { useAuth } from "@/contexts/AuthContext";
 import { backfillBookingDurations } from "@/utils/backfillBookingDurations";
 

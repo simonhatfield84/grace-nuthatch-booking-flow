@@ -59,7 +59,7 @@ export interface Booking {
   party_size: number;
   booking_date: string;
   booking_time: string;
-  status: 'confirmed' | 'seated' | 'finished' | 'cancelled' | 'late' | 'pending_payment' | 'incomplete';
+  status: 'confirmed' | 'seated' | 'finished' | 'cancelled' | 'late' | 'pending_payment' | 'incomplete' | 'no_show';
   is_unallocated: boolean;
   original_table_id: number | null;
   phone: string | null;

@@ -1,32 +1,10 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { TableAllocationService } from "@/services/tableAllocation";
 import { calculateBookingDuration, getServiceIdFromServiceName } from "@/utils/durationCalculation";
-
-export interface Booking {
-  id: number;
-  table_id: number | null;
-  guest_name: string;
-  party_size: number;
-  booking_date: string;
-  booking_time: string;
-  status: 'confirmed' | 'seated' | 'finished' | 'cancelled' | 'late' | 'pending_payment' | 'incomplete';
-  is_unallocated: boolean;
-  original_table_id: number | null;
-  phone: string | null;
-  email: string | null;
-  notes: string | null;
-  service: string;
-  duration_minutes: number;
-  end_time: string;
-  booking_reference: string | null;
-  created_at: string;
-  updated_at: string;
-  venue_id: string;
-}
+import { Booking } from "@/features/booking/types/booking";
 
 export const useBookings = (date?: string) => {
   const { toast } = useToast();
