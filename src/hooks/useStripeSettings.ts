@@ -14,6 +14,14 @@ export interface StripeSettings {
   publishable_key_live?: string;
   webhook_secret_test?: string;
   webhook_secret_live?: string;
+  secret_key_test_encrypted?: string;
+  secret_key_live_encrypted?: string;
+  encryption_key_id?: string;
+  last_key_update_at?: string;
+  key_validation_status?: {
+    test: { valid: boolean; last_checked?: string | null };
+    live: { valid: boolean; last_checked?: string | null };
+  };
   configuration_status: {
     test: {
       keys_configured: boolean;
@@ -46,6 +54,27 @@ const mapDatabaseRowToStripeSettings = (data: any): StripeSettings => {
     };
   }
 
+  // Safely parse key_validation_status
+  let keyValidationStatus;
+  try {
+    if (typeof data.key_validation_status === 'string') {
+      keyValidationStatus = JSON.parse(data.key_validation_status);
+    } else if (typeof data.key_validation_status === 'object' && data.key_validation_status !== null) {
+      keyValidationStatus = data.key_validation_status;
+    } else {
+      keyValidationStatus = {
+        test: { valid: false, last_checked: null },
+        live: { valid: false, last_checked: null }
+      };
+    }
+  } catch (error) {
+    console.warn('Failed to parse key_validation_status, using defaults:', error);
+    keyValidationStatus = {
+      test: { valid: false, last_checked: null },
+      live: { valid: false, last_checked: null }
+    };
+  }
+
   // Ensure the structure matches our interface
   if (!configurationStatus.test || !configurationStatus.live) {
     configurationStatus = {
@@ -64,6 +93,11 @@ const mapDatabaseRowToStripeSettings = (data: any): StripeSettings => {
     publishable_key_live: data.publishable_key_live || undefined,
     webhook_secret_test: data.webhook_secret_test || undefined,
     webhook_secret_live: data.webhook_secret_live || undefined,
+    secret_key_test_encrypted: data.secret_key_test_encrypted || undefined,
+    secret_key_live_encrypted: data.secret_key_live_encrypted || undefined,
+    encryption_key_id: data.encryption_key_id || undefined,
+    last_key_update_at: data.last_key_update_at || undefined,
+    key_validation_status: keyValidationStatus,
     configuration_status: configurationStatus,
   };
 };
@@ -119,6 +153,10 @@ export const useStripeSettings = () => {
           is_active: false,
           test_mode: true,
           environment: 'test' as const,
+          key_validation_status: {
+            test: { valid: false, last_checked: null },
+            live: { valid: false, last_checked: null }
+          },
           configuration_status: {
             test: { keys_configured: false, webhook_configured: false },
             live: { keys_configured: false, webhook_configured: false }

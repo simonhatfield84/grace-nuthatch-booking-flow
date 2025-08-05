@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,12 +13,32 @@ interface AuditLog {
   environment: string;
   key_type: string;
   success: boolean;
-  error_message?: string;
+  error_message?: string | null;
   created_at: string;
-  user_id?: string;
-  ip_address?: string;
+  user_id?: string | null;
+  ip_address?: string | null;
+  user_agent?: string | null;
+  venue_id: string;
   metadata: any;
 }
+
+// Type-safe mapping function to convert database response to AuditLog
+const mapDatabaseRowToAuditLog = (data: any): AuditLog => {
+  return {
+    id: data.id,
+    action: data.action,
+    environment: data.environment,
+    key_type: data.key_type,
+    success: Boolean(data.success),
+    error_message: data.error_message || null,
+    created_at: data.created_at,
+    user_id: data.user_id || null,
+    ip_address: data.ip_address ? String(data.ip_address) : null,
+    user_agent: data.user_agent || null,
+    venue_id: data.venue_id,
+    metadata: data.metadata || {}
+  };
+};
 
 export const StripeSecurityDashboard = () => {
   const { user } = useAuth();
@@ -39,7 +58,10 @@ export const StripeSecurityDashboard = () => {
         .limit(50);
 
       if (error) throw error;
-      setAuditLogs(data || []);
+      
+      // Map database response to AuditLog type safely
+      const mappedLogs = data ? data.map(mapDatabaseRowToAuditLog) : [];
+      setAuditLogs(mappedLogs);
     } catch (error) {
       console.error('Failed to load audit logs:', error);
     } finally {
