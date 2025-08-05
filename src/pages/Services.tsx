@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Plus, CreditCard, Users, Clock, Calendar, ShieldCheck } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -66,7 +65,29 @@ export default function Services() {
     const service = services.find(s => s.id === serviceId);
     if (service) {
       try {
-        await updateService(serviceId, { ...service, active: !service.active });
+        // Ensure all required ServiceFormData fields are present
+        const serviceUpdate = {
+          title: service.title,
+          description: service.description || '', // Provide default empty string if missing
+          min_guests: service.min_guests,
+          max_guests: service.max_guests,
+          lead_time_hours: service.lead_time_hours,
+          cancellation_window_hours: service.cancellation_window_hours,
+          online_bookable: service.online_bookable,
+          active: !service.active, // Toggle the active status
+          is_secret: service.is_secret,
+          secret_slug: service.secret_slug || '',
+          image_url: service.image_url || '',
+          duration_rules: service.duration_rules || [],
+          terms_and_conditions: service.terms_and_conditions || '',
+          requires_payment: service.requires_payment,
+          charge_type: service.charge_type,
+          minimum_guests_for_charge: service.minimum_guests_for_charge || 8,
+          charge_amount_per_guest: service.charge_amount_per_guest || 0,
+          refund_window_hours: service.refund_window_hours || 24,
+          auto_refund_enabled: service.auto_refund_enabled || false,
+        };
+        await updateService(serviceId, serviceUpdate);
       } catch (error) {
         console.error('Error toggling service active status:', error);
       }
