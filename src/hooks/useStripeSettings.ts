@@ -7,10 +7,23 @@ import { useAuth } from "@/contexts/AuthContext";
 export interface StripeSettings {
   id?: string;
   venue_id: string;
-  stripe_account_id?: string;
-  webhook_endpoint_secret?: string;
   is_active: boolean;
   test_mode: boolean;
+  environment: 'test' | 'live';
+  publishable_key_test?: string;
+  publishable_key_live?: string;
+  webhook_secret_test?: string;
+  webhook_secret_live?: string;
+  configuration_status: {
+    test: {
+      keys_configured: boolean;
+      webhook_configured: boolean;
+    };
+    live: {
+      keys_configured: boolean;
+      webhook_configured: boolean;
+    };
+  };
 }
 
 export const useStripeSettings = () => {
@@ -56,17 +69,22 @@ export const useStripeSettings = () => {
       
       console.log('Fetched stripe settings:', data);
       
-      // If no settings exist, return default settings (don't create yet)
+      // If no settings exist, return default settings
       if (!data) {
         console.log('No stripe settings found, returning defaults');
         return {
           venue_id: userVenue,
           is_active: false,
           test_mode: true,
+          environment: 'test' as const,
+          configuration_status: {
+            test: { keys_configured: false, webhook_configured: false },
+            live: { keys_configured: false, webhook_configured: false }
+          }
         };
       }
       
-      return data;
+      return data as StripeSettings;
     },
     enabled: !!userVenue,
   });
@@ -83,7 +101,7 @@ export const useStripeSettings = () => {
         ...settings,
       };
 
-      // Check if stripeSettings has an id (meaning it exists in database)
+      // Check if settings exist
       if (stripeSettings && 'id' in stripeSettings && stripeSettings.id) {
         // Update existing settings
         console.log('Updating existing stripe settings with ID:', stripeSettings.id);

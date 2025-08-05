@@ -23,7 +23,7 @@ export const useStripePublishableKey = () => {
     enabled: !!user,
   });
 
-  // Get venue's Stripe settings to determine test mode
+  // Get venue's Stripe settings
   const { data: stripeSettings } = useQuery({
     queryKey: ['stripe-settings', userVenue],
     queryFn: async () => {
@@ -31,7 +31,7 @@ export const useStripePublishableKey = () => {
       
       const { data, error } = await supabase
         .from('venue_stripe_settings')
-        .select('test_mode, is_active')
+        .select('test_mode, is_active, publishable_key_test, publishable_key_live')
         .eq('venue_id', userVenue)
         .maybeSingle();
       
@@ -46,11 +46,9 @@ export const useStripePublishableKey = () => {
     if (!stripeSettings?.is_active) return null;
     
     if (stripeSettings.test_mode) {
-      // Use your test publishable key
-      return 'pk_test_7vT4o5vhEWnMwZ9cn93x929W003935Vcug';
+      return stripeSettings.publishable_key_test;
     } else {
-      // Use your live publishable key (replace with actual live key when ready)
-      return 'pk_live_gd8JdMEmr2PUXOoRHjpxhJxn00ndF8BhX4';
+      return stripeSettings.publishable_key_live;
     }
   };
 

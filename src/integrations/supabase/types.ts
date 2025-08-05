@@ -1403,41 +1403,53 @@ export type Database = {
         Row: {
           charge_amount_per_guest: number | null
           charge_type: string | null
+          configuration_status: Json | null
           created_at: string
+          environment: string | null
           id: string
           is_active: boolean
           minimum_guests_for_charge: number | null
-          stripe_account_id: string | null
+          publishable_key_live: string | null
+          publishable_key_test: string | null
           test_mode: boolean
           updated_at: string
           venue_id: string
-          webhook_endpoint_secret: string | null
+          webhook_secret_live: string | null
+          webhook_secret_test: string | null
         }
         Insert: {
           charge_amount_per_guest?: number | null
           charge_type?: string | null
+          configuration_status?: Json | null
           created_at?: string
+          environment?: string | null
           id?: string
           is_active?: boolean
           minimum_guests_for_charge?: number | null
-          stripe_account_id?: string | null
+          publishable_key_live?: string | null
+          publishable_key_test?: string | null
           test_mode?: boolean
           updated_at?: string
           venue_id: string
-          webhook_endpoint_secret?: string | null
+          webhook_secret_live?: string | null
+          webhook_secret_test?: string | null
         }
         Update: {
           charge_amount_per_guest?: number | null
           charge_type?: string | null
+          configuration_status?: Json | null
           created_at?: string
+          environment?: string | null
           id?: string
           is_active?: boolean
           minimum_guests_for_charge?: number | null
-          stripe_account_id?: string | null
+          publishable_key_live?: string | null
+          publishable_key_test?: string | null
           test_mode?: boolean
           updated_at?: string
           venue_id?: string
-          webhook_endpoint_secret?: string | null
+          webhook_secret_live?: string | null
+          webhook_secret_test?: string | null
         }
         Relationships: [
           {
