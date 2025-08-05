@@ -48,9 +48,11 @@ export default function Services() {
   };
 
   const handleDuplicateService = (service: any) => {
-    // Fix the copy function with proper data mapping including all required Service fields
-    const duplicatedService = {
-      id: '', // This will be generated when the service is created, but we need it for the interface
+    // Start in create mode instead of edit mode
+    startCreating();
+    
+    // Manually set the form data with copied values (excluding id)
+    const duplicatedFormData = {
       title: `${service.title} (Copy)`,
       description: service.description || '',
       min_guests: service.min_guests,
@@ -70,16 +72,9 @@ export default function Services() {
       charge_amount_per_guest: service.charge_amount_per_guest || 0,
       refund_window_hours: service.refund_window_hours || 24,
       auto_refund_enabled: service.auto_refund_enabled || false,
-      // Required Service fields that were missing
-      requires_deposit: service.requires_deposit || false,
-      deposit_per_guest: service.deposit_per_guest || 0,
-      venue_id: service.venue_id,
-      // Optional fields that might be needed
-      created_at: service.created_at,
-      updated_at: service.updated_at,
-      tag_ids: service.tag_ids || [],
     };
-    startEditing(duplicatedService);
+    
+    updateFormData(duplicatedFormData);
     setDialogOpen(true);
   };
 

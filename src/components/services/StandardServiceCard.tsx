@@ -31,10 +31,12 @@ export const StandardServiceCard = ({
   const availabilitySummary = getBookingWindowSummary(serviceWindows);
 
   return (
-    <Card className="h-full flex flex-col hover:shadow-md transition-shadow">
+    <Card className={`h-full flex flex-col hover:shadow-md transition-shadow ${!service.active ? 'opacity-60 bg-muted/20' : ''}`}>
       <CardHeader className="flex-shrink-0">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg line-clamp-1">{service.title}</CardTitle>
+          <CardTitle className={`text-lg line-clamp-1 ${!service.active ? 'text-muted-foreground' : ''}`}>
+            {service.title}
+          </CardTitle>
           <div className="flex gap-2 flex-shrink-0">
             {service.requires_payment && (
               <Badge variant="secondary" className="flex items-center gap-1">
@@ -45,7 +47,9 @@ export const StandardServiceCard = ({
             {service.active ? (
               <Badge variant="default">Active</Badge>
             ) : (
-              <Badge variant="secondary">Inactive</Badge>
+              <Badge variant="outline" className="text-muted-foreground border-muted-foreground/50">
+                Inactive
+              </Badge>
             )}
           </div>
         </div>
@@ -128,7 +132,7 @@ export const StandardServiceCard = ({
             variant="outline"
             size="sm"
             onClick={() => onToggleActive(service.id)}
-            className={service.active ? "text-orange-600" : "text-green-600"}
+            className={service.active ? "text-orange-600 hover:text-orange-700" : "text-green-600 hover:text-green-700"}
           >
             {service.active ? "Deactivate" : "Activate"}
           </Button>
@@ -136,7 +140,7 @@ export const StandardServiceCard = ({
             variant="outline"
             size="sm"
             onClick={() => onDelete(service.id)}
-            className="text-red-600"
+            className="text-red-600 hover:text-red-700"
           >
             Delete
           </Button>

@@ -48,7 +48,6 @@ export const useServicesData = () => {
       const { data, error } = await supabase
         .from('services')
         .select('*')
-        .eq('active', true)
         .order('title');
 
       if (error) throw error;
