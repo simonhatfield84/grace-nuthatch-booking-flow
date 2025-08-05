@@ -1,5 +1,6 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
@@ -49,10 +50,36 @@ export interface ServiceFormData {
   charge_amount_per_guest: number;
 }
 
+const defaultFormData: ServiceFormData = {
+  title: '',
+  description: '',
+  min_guests: 1,
+  max_guests: 8,
+  lead_time_hours: 0,
+  cancellation_window_hours: 0,
+  online_bookable: true,
+  active: true,
+  is_secret: false,
+  secret_slug: '',
+  image_url: '',
+  duration_rules: [],
+  terms_and_conditions: '',
+  requires_payment: false,
+  charge_type: 'none',
+  minimum_guests_for_charge: 1,
+  charge_amount_per_guest: 0,
+};
+
 export const useServicesData = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  
+  // Dialog state
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [formData, setFormData] = useState<ServiceFormData>(defaultFormData);
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Get user's venue ID
   const { data: userVenue } = useQuery({
@@ -93,6 +120,50 @@ export const useServicesData = () => {
     enabled: !!userVenue,
   });
 
+  // Update form data helper
+  const updateFormData = (updates: Partial<ServiceFormData>) => {
+    setFormData(prev => ({ ...prev, ...updates }));
+  };
+
+  // Handle create service
+  const handleCreateService = () => {
+    setFormData(defaultFormData);
+    setEditingServiceId(null);
+    setDialogOpen(true);
+  };
+
+  // Handle edit service
+  const handleEditService = (service: Service) => {
+    setFormData({
+      title: service.title,
+      description: service.description || '',
+      min_guests: service.min_guests,
+      max_guests: service.max_guests,
+      lead_time_hours: service.lead_time_hours,
+      cancellation_window_hours: service.cancellation_window_hours,
+      online_bookable: service.online_bookable,
+      active: service.active,
+      is_secret: service.is_secret,
+      secret_slug: service.secret_slug || '',
+      image_url: service.image_url || '',
+      duration_rules: service.duration_rules || [],
+      terms_and_conditions: service.terms_and_conditions || '',
+      requires_payment: service.requires_payment,
+      charge_type: service.charge_type,
+      minimum_guests_for_charge: service.minimum_guests_for_charge || 1,
+      charge_amount_per_guest: service.charge_amount_per_guest,
+    });
+    setEditingServiceId(service.id);
+    setDialogOpen(true);
+  };
+
+  // Handle cancel
+  const handleCancel = () => {
+    setDialogOpen(false);
+    setFormData(defaultFormData);
+    setEditingServiceId(null);
+  };
+
   // Create service mutation
   const createServiceMutation = useMutation({
     mutationFn: async (serviceData: ServiceFormData) => {
@@ -128,6 +199,7 @@ export const useServicesData = () => {
         title: "Service created", 
         description: "Your service has been created successfully." 
       });
+      handleCancel();
     },
     onError: (error: any) => {
       toast({ 
@@ -173,6 +245,7 @@ export const useServicesData = () => {
         title: "Service updated", 
         description: "Your service has been updated successfully." 
       });
+      handleCancel();
     },
     onError: (error: any) => {
       toast({ 
@@ -210,10 +283,36 @@ export const useServicesData = () => {
     }
   });
 
+  // Handle submit
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
+    try {
+      if (editingServiceId) {
+        await updateServiceMutation.mutateAsync({ id: editingServiceId, updates: formData });
+      } else {
+        await createServiceMutation.mutateAsync(formData);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return {
     services,
-    isServicesLoading,
+    isLoading: isServicesLoading,
     servicesError,
+    dialogOpen,
+    setDialogOpen,
+    formData,
+    updateFormData,
+    isSubmitting,
+    isEditing: !!editingServiceId,
+    handleCreateService,
+    handleEditService,
+    handleSubmit,
+    handleCancel,
     createServiceMutation,
     updateServiceMutation,
     deleteServiceMutation,

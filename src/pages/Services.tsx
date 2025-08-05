@@ -1,7 +1,7 @@
 
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Plus, CreditCard, Users, Clock, MapPin } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Plus, CreditCard, Users, Clock } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -128,11 +128,11 @@ export default function Services() {
                     </div>
                   </div>
                   
-                  {service.requires_payment && service.charge_type === 'per_guest' && (
+                  {service.requires_payment && service.charge_type === 'all_reservations' && (
                     <div className="pt-2 border-t">
                       <p className="text-sm text-muted-foreground">
                         {formatPrice(service.charge_amount_per_guest)} per guest
-                        {service.minimum_guests_for_charge > 1 && 
+                        {service.minimum_guests_for_charge && service.minimum_guests_for_charge > 1 && 
                           ` (min ${service.minimum_guests_for_charge} guests)`
                         }
                       </p>
@@ -189,7 +189,7 @@ export default function Services() {
                           {service.charge_type?.replace('_', ' ') || 'Not set'}
                         </p>
                       </div>
-                      {service.charge_type === 'per_guest' && (
+                      {service.charge_type === 'all_reservations' && (
                         <>
                           <div>
                             <p className="text-sm font-medium">Amount Per Guest</p>
