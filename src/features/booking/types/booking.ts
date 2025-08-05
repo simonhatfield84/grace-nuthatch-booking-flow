@@ -51,7 +51,7 @@ export interface BookingValidation {
   warnings: string[];
 }
 
-// Updated booking interface to match the one used in HostInterface
+// Updated booking interface to match the one used in HostInterface with 'incomplete' status added
 export interface Booking {
   id: number;
   table_id: number | null;

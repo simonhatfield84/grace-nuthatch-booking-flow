@@ -55,13 +55,15 @@ export const useEmailService = () => {
       party_size: string;
       booking_reference: string;
     },
-    venue_slug: string
+    venueId: string,
+    reminderType: 'booking_reminder_24h' | 'booking_reminder_2h' = 'booking_reminder_24h'
   ) => {
     try {
-      const success = await emailService.sendBookingReminder(
+      const success = await emailService.sendReminderEmail(
         guestEmail,
         bookingData,
-        venue_slug
+        reminderType,
+        venueId
       );
 
       if (success) {
@@ -93,21 +95,17 @@ export const useEmailService = () => {
     }
   ) => {
     try {
-      const success = await emailService.sendUserInvitation(
-        userEmail,
-        invitationData
-      );
-
-      if (success) {
-        toast({
-          title: "Invitation sent",
-          description: `Invitation sent to ${userEmail}`,
-        });
-      } else {
-        throw new Error("Failed to send email");
-      }
-
-      return success;
+      // This functionality would need to be implemented in emailService if needed
+      // For now, return a placeholder implementation
+      console.warn("sendUserInvitation not implemented in emailService");
+      
+      toast({
+        title: "Feature not available",
+        description: "User invitation emails are not currently supported",
+        variant: "destructive",
+      });
+      
+      return false;
     } catch (error) {
       console.error("Failed to send user invitation:", error);
       toast({
