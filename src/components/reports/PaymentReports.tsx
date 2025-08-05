@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -45,17 +44,17 @@ export const PaymentReports = () => {
 
       if (error) throw error;
 
-      // Transform data to match PaymentReport interface
-      const transformedReports: PaymentReport[] = data.map(payment => ({
+      // Transform data to match PaymentReport interface - handle missing columns gracefully
+      const transformedReports: PaymentReport[] = (data || []).map(payment => ({
         id: payment.id,
         booking_id: payment.booking_id,
         venue_id: payment.bookings.venue_id,
         amount_cents: payment.amount_cents,
         status: payment.status,
-        refund_amount_cents: payment.refund_amount_cents || 0,
-        refund_status: payment.refund_status || 'none',
+        refund_amount_cents: (payment as any).refund_amount_cents || 0, // Handle missing column
+        refund_status: (payment as any).refund_status || 'none', // Handle missing column
         payment_date: payment.created_at,
-        refunded_at: payment.refunded_at || undefined,
+        refunded_at: (payment as any).refunded_at || undefined, // Handle missing column
         booking_date: payment.bookings.booking_date,
         guest_name: payment.bookings.guest_name,
         party_size: payment.bookings.party_size,

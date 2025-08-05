@@ -53,8 +53,9 @@ export const useServiceForm = () => {
       charge_type: service.charge_type,
       minimum_guests_for_charge: service.minimum_guests_for_charge || 8,
       charge_amount_per_guest: service.charge_amount_per_guest || 0,
-      refund_window_hours: service.refund_window_hours || 24,
-      auto_refund_enabled: service.auto_refund_enabled || false,
+      // Handle missing refund columns gracefully
+      refund_window_hours: (service as any).refund_window_hours || 24,
+      auto_refund_enabled: (service as any).auto_refund_enabled || false,
     });
   };
 
