@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { WebhookConfiguration } from "./WebhookConfiguration";
 import { SetupWizardCard } from "./SetupWizardCard";
+import { CollapsibleSection } from "./CollapsibleSection";
 
 export const VaultStripeSettings = () => {
   const { stripeSettings, isLoading, updateStripeSettings } = useStripeSettings();
@@ -274,6 +275,9 @@ export const VaultStripeSettings = () => {
     live: { keys_configured: false, webhook_configured: false }
   };
 
+  const testComplete = configuration_status.test.keys_configured && configuration_status.test.webhook_configured;
+  const liveComplete = configuration_status.live.keys_configured && configuration_status.live.webhook_configured;
+
   if (isLoading) {
     return (
       <Card>
@@ -306,7 +310,7 @@ export const VaultStripeSettings = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Master Controls */}
+          {/* Master Controls - Always visible */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
@@ -346,29 +350,34 @@ export const VaultStripeSettings = () => {
 
           {formData.is_active && (
             <>
-              {/* Setup Wizard Cards */}
-              <SetupWizardCard
-                environment="test"
-                isActive={activeTab === 'test'}
-                hasPublishableKey={keyValidation.test_publishable_valid}
-                hasSecretKey={keyValidation.test_secret_valid}
-                hasWebhook={!!formData.webhook_secret_test}
-              />
-              
-              <SetupWizardCard
-                environment="live"
-                isActive={activeTab === 'live'}
-                hasPublishableKey={keyValidation.live_publishable_valid}
-                hasSecretKey={keyValidation.live_secret_valid}
-                hasWebhook={!!formData.webhook_secret_live}
-              />
+              {/* Setup Status Overview */}
+              <div className="space-y-4">
+                <SetupWizardCard
+                  environment="test"
+                  isActive={true}
+                  hasPublishableKey={keyValidation.test_publishable_valid}
+                  hasSecretKey={keyValidation.test_secret_valid}
+                  hasWebhook={!!formData.webhook_secret_test}
+                  showOnlyWhenIncomplete={true}
+                />
+                
+                <SetupWizardCard
+                  environment="live"
+                  isActive={true}
+                  hasPublishableKey={keyValidation.live_publishable_valid}
+                  hasSecretKey={keyValidation.live_secret_valid}
+                  hasWebhook={!!formData.webhook_secret_live}
+                  showOnlyWhenIncomplete={true}
+                />
+              </div>
 
-              {/* Security Status Dashboard */}
-              <div className="border rounded-lg p-4 bg-muted/50">
-                <h4 className="font-medium mb-3 flex items-center gap-2">
-                  <Shield className="h-4 w-4" />
-                  Security Status
-                </h4>
+              {/* Security Status Dashboard - Collapsible when all environments are healthy */}
+              <CollapsibleSection
+                title="Security Status"
+                icon={<Shield className="h-4 w-4" />}
+                defaultOpen={!testComplete || !liveComplete}
+                className="bg-muted/50"
+              >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Test Environment</span>
@@ -379,193 +388,199 @@ export const VaultStripeSettings = () => {
                     {getSecurityIndicator('live')}
                   </div>
                 </div>
-              </div>
+              </CollapsibleSection>
 
-              {/* Environment Configuration */}
-              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="test" className="flex items-center gap-2">
-                    Test Environment
-                    {getSecurityIndicator('test')}
-                  </TabsTrigger>
-                  <TabsTrigger value="live" className="flex items-center gap-2">
-                    Live Environment
-                    {getSecurityIndicator('live')}
-                  </TabsTrigger>
-                </TabsList>
+              {/* Environment Configuration - Collapsible */}
+              <CollapsibleSection
+                title="Environment Configuration"
+                icon={<CreditCard className="h-4 w-4" />}
+                defaultOpen={!testComplete || !liveComplete}
+              >
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="test" className="flex items-center gap-2">
+                      Test Environment
+                      {getSecurityIndicator('test')}
+                    </TabsTrigger>
+                    <TabsTrigger value="live" className="flex items-center gap-2">
+                      Live Environment
+                      {getSecurityIndicator('live')}
+                    </TabsTrigger>
+                  </TabsList>
 
-                <TabsContent value="test" className="space-y-4">
-                  <Alert>
-                    <Shield className="h-4 w-4" />
-                    <AlertDescription>
-                      <strong>Test Environment</strong> - All secret keys are encrypted with AES-256-GCM before storage.
-                    </AlertDescription>
-                  </Alert>
+                  <TabsContent value="test" className="space-y-4">
+                    <Alert>
+                      <Shield className="h-4 w-4" />
+                      <AlertDescription>
+                        <strong>Test Environment</strong> - All secret keys are encrypted with AES-256-GCM before storage.
+                      </AlertDescription>
+                    </Alert>
 
-                  <div className="space-y-4">
-                    {/* Test Publishable Key */}
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <Label htmlFor="test-publishable">Test Publishable Key</Label>
-                        {keyValidation.test_publishable_valid && (
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                        )}
+                    <div className="space-y-4">
+                      {/* Test Publishable Key */}
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <Label htmlFor="test-publishable">Test Publishable Key</Label>
+                          {keyValidation.test_publishable_valid && (
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          )}
+                        </div>
+                        <Input
+                          id="test-publishable"
+                          placeholder="pk_test_..."
+                          value={formData.publishable_key_test}
+                          onChange={(e) => handleKeyChange('publishable_key_test', e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Find this in your Stripe Dashboard → Developers → API keys (Test mode)
+                        </p>
                       </div>
-                      <Input
-                        id="test-publishable"
-                        placeholder="pk_test_..."
-                        value={formData.publishable_key_test}
-                        onChange={(e) => handleKeyChange('publishable_key_test', e.target.value)}
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Find this in your Stripe Dashboard → Developers → API keys (Test mode)
-                      </p>
-                    </div>
 
-                    {/* Test Secret Key */}
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <Label htmlFor="test-secret">Test Secret Key</Label>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setShowSecrets(prev => ({ ...prev, test_secret: !prev.test_secret }))}
-                        >
-                          {showSecrets.test_secret ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                        </Button>
-                        {keyValidation.test_secret_valid ? (
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                        ) : formData.secret_key_test ? (
-                          <AlertCircle className="h-4 w-4 text-red-500" />
-                        ) : null}
+                      {/* Test Secret Key */}
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <Label htmlFor="test-secret">Test Secret Key</Label>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowSecrets(prev => ({ ...prev, test_secret: !prev.test_secret }))}
+                          >
+                            {showSecrets.test_secret ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                          </Button>
+                          {keyValidation.test_secret_valid ? (
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          ) : formData.secret_key_test ? (
+                            <AlertCircle className="h-4 w-4 text-red-500" />
+                          ) : null}
+                        </div>
+                        <Input
+                          id="test-secret"
+                          type={showSecrets.test_secret ? "text" : "password"}
+                          placeholder="sk_test_..."
+                          value={formData.secret_key_test}
+                          onChange={(e) => handleKeyChange('secret_key_test', e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          🔐 Encrypted with AES-256-GCM before storage. Never stored in plain text.
+                        </p>
                       </div>
-                      <Input
-                        id="test-secret"
-                        type={showSecrets.test_secret ? "text" : "password"}
-                        placeholder="sk_test_..."
-                        value={formData.secret_key_test}
-                        onChange={(e) => handleKeyChange('secret_key_test', e.target.value)}
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        🔐 Encrypted with AES-256-GCM before storage. Never stored in plain text.
-                      </p>
-                    </div>
 
-                    {/* Test Webhook Secret */}
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <Label htmlFor="test-webhook-secret">Test Webhook Secret</Label>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setShowSecrets(prev => ({ ...prev, test_webhook: !prev.test_webhook }))}
-                        >
-                          {showSecrets.test_webhook ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                        </Button>
+                      {/* Test Webhook Secret */}
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <Label htmlFor="test-webhook-secret">Test Webhook Secret</Label>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowSecrets(prev => ({ ...prev, test_webhook: !prev.test_webhook }))}
+                          >
+                            {showSecrets.test_webhook ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                          </Button>
+                        </div>
+                        <Input
+                          id="test-webhook-secret"
+                          type={showSecrets.test_webhook ? "text" : "password"}
+                          placeholder="whsec_..."
+                          value={formData.webhook_secret_test}
+                          onChange={(e) => setFormData(prev => ({ ...prev, webhook_secret_test: e.target.value }))}
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Found when you create a webhook endpoint in your Stripe Dashboard
+                        </p>
                       </div>
-                      <Input
-                        id="test-webhook-secret"
-                        type={showSecrets.test_webhook ? "text" : "password"}
-                        placeholder="whsec_..."
-                        value={formData.webhook_secret_test}
-                        onChange={(e) => setFormData(prev => ({ ...prev, webhook_secret_test: e.target.value }))}
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Found when you create a webhook endpoint in your Stripe Dashboard
-                      </p>
+
+                      {/* Webhook Configuration for Test */}
+                      <WebhookConfiguration environment="test" />
                     </div>
+                  </TabsContent>
 
-                    {/* Webhook Configuration for Test */}
-                    <WebhookConfiguration environment="test" />
-                  </div>
-                </TabsContent>
+                  <TabsContent value="live" className="space-y-4">
+                    <Alert variant="destructive">
+                      <Shield className="h-4 w-4" />
+                      <AlertDescription>
+                        <strong>LIVE Environment</strong> - Real payments will be processed. All keys encrypted with bank-grade security.
+                      </AlertDescription>
+                    </Alert>
 
-                <TabsContent value="live" className="space-y-4">
-                  <Alert variant="destructive">
-                    <Shield className="h-4 w-4" />
-                    <AlertDescription>
-                      <strong>LIVE Environment</strong> - Real payments will be processed. All keys encrypted with bank-grade security.
-                    </AlertDescription>
-                  </Alert>
-
-                  <div className="space-y-4">
-                    {/* Live Publishable Key */}
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <Label htmlFor="live-publishable">Live Publishable Key</Label>
-                        {keyValidation.live_publishable_valid && (
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                        )}
+                    <div className="space-y-4">
+                      {/* Live Publishable Key */}
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <Label htmlFor="live-publishable">Live Publishable Key</Label>
+                          {keyValidation.live_publishable_valid && (
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          )}
+                        </div>
+                        <Input
+                          id="live-publishable"
+                          placeholder="pk_live_..."
+                          value={formData.publishable_key_live}
+                          onChange={(e) => handleKeyChange('publishable_key_live', e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Find this in your Stripe Dashboard → Developers → API keys (Live mode)
+                        </p>
                       </div>
-                      <Input
-                        id="live-publishable"
-                        placeholder="pk_live_..."
-                        value={formData.publishable_key_live}
-                        onChange={(e) => handleKeyChange('publishable_key_live', e.target.value)}
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Find this in your Stripe Dashboard → Developers → API keys (Live mode)
-                      </p>
-                    </div>
 
-                    {/* Live Secret Key */}
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <Label htmlFor="live-secret">Live Secret Key</Label>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setShowSecrets(prev => ({ ...prev, live_secret: !prev.live_secret }))}
-                        >
-                          {showSecrets.live_secret ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                        </Button>
-                        {keyValidation.live_secret_valid ? (
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                        ) : formData.secret_key_live ? (
-                          <AlertCircle className="h-4 w-4 text-red-500" />
-                        ) : null}
+                      {/* Live Secret Key */}
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <Label htmlFor="live-secret">Live Secret Key</Label>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowSecrets(prev => ({ ...prev, live_secret: !prev.live_secret }))}
+                          >
+                            {showSecrets.live_secret ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                          </Button>
+                          {keyValidation.live_secret_valid ? (
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          ) : formData.secret_key_live ? (
+                            <AlertCircle className="h-4 w-4 text-red-500" />
+                          ) : null}
+                        </div>
+                        <Input
+                          id="live-secret"
+                          type={showSecrets.live_secret ? "text" : "password"}
+                          placeholder="sk_live_..."
+                          value={formData.secret_key_live}
+                          onChange={(e) => handleKeyChange('secret_key_live', e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          🔐 Encrypted with AES-256-GCM before storage. Never stored in plain text.
+                        </p>
                       </div>
-                      <Input
-                        id="live-secret"
-                        type={showSecrets.live_secret ? "text" : "password"}
-                        placeholder="sk_live_..."
-                        value={formData.secret_key_live}
-                        onChange={(e) => handleKeyChange('secret_key_live', e.target.value)}
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        🔐 Encrypted with AES-256-GCM before storage. Never stored in plain text.
-                      </p>
-                    </div>
 
-                    {/* Live Webhook Secret */}
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <Label htmlFor="live-webhook-secret">Live Webhook Secret</Label>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setShowSecrets(prev => ({ ...prev, live_webhook: !prev.live_webhook }))}
-                        >
-                          {showSecrets.live_webhook ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                        </Button>
+                      {/* Live Webhook Secret */}
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <Label htmlFor="live-webhook-secret">Live Webhook Secret</Label>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowSecrets(prev => ({ ...prev, live_webhook: !prev.live_webhook }))}
+                          >
+                            {showSecrets.live_webhook ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                          </Button>
+                        </div>
+                        <Input
+                          id="live-webhook-secret"
+                          type={showSecrets.live_webhook ? "text" : "password"}
+                          placeholder="whsec_..."
+                          value={formData.webhook_secret_live}
+                          onChange={(e) => setFormData(prev => ({ ...prev, webhook_secret_live: e.target.value }))}
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Found when you create a webhook endpoint in your Stripe Dashboard
+                        </p>
                       </div>
-                      <Input
-                        id="live-webhook-secret"
-                        type={showSecrets.live_webhook ? "text" : "password"}
-                        placeholder="whsec_..."
-                        value={formData.webhook_secret_live}
-                        onChange={(e) => setFormData(prev => ({ ...prev, webhook_secret_live: e.target.value }))}
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Found when you create a webhook endpoint in your Stripe Dashboard
-                      </p>
-                    </div>
 
-                    {/* Webhook Configuration for Live */}
-                    <WebhookConfiguration environment="live" />
-                  </div>
-                </TabsContent>
-              </Tabs>
+                      {/* Webhook Configuration for Live */}
+                      <WebhookConfiguration environment="live" />
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </CollapsibleSection>
             </>
           )}
 
