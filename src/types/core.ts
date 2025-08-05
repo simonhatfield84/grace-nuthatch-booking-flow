@@ -26,6 +26,17 @@ export interface Table {
   join_groups?: number[];
 }
 
+export interface Section {
+  id: number;
+  name: string;
+  description?: string;
+  color?: string;
+  sort_order: number;
+  venue_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Booking {
   id: number;
   table_id?: number;

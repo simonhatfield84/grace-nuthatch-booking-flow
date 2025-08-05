@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -12,6 +11,7 @@ interface Section {
   name: string;
   description?: string;
   color?: string;
+  sort_order: number;
 }
 
 interface SectionDialogProps {
@@ -27,11 +27,12 @@ export const SectionDialog = ({
   editingSection,
   onSectionSaved 
 }: SectionDialogProps) => {
-  const { createSection, updateSection } = useSections();
+  const { createSection, updateSection, sections } = useSections();
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    color: "#3B82F6"
+    color: "#3B82F6",
+    sort_order: 0
   });
 
   useEffect(() => {
@@ -39,16 +40,22 @@ export const SectionDialog = ({
       setFormData({
         name: editingSection.name,
         description: editingSection.description || "",
-        color: editingSection.color || "#3B82F6"
+        color: editingSection.color || "#3B82F6",
+        sort_order: editingSection.sort_order
       });
     } else {
+      // Calculate next sort order for new sections
+      const maxSortOrder = sections.reduce((max, section) => 
+        Math.max(max, section.sort_order || 0), 0
+      );
       setFormData({
         name: "",
         description: "",
-        color: "#3B82F6"
+        color: "#3B82F6",
+        sort_order: maxSortOrder + 1
       });
     }
-  }, [editingSection, isOpen]);
+  }, [editingSection, isOpen, sections]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
