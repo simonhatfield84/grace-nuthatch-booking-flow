@@ -199,41 +199,41 @@ export type Database = {
         Row: {
           amount_cents: number
           booking_id: number
-          created_at: string | null
+          created_at: string
           failure_reason: string | null
           id: string
           payment_method_type: string | null
-          status: string | null
+          status: string
           stripe_payment_intent_id: string | null
-          updated_at: string | null
+          updated_at: string
         }
         Insert: {
           amount_cents: number
           booking_id: number
-          created_at?: string | null
+          created_at?: string
           failure_reason?: string | null
           id?: string
           payment_method_type?: string | null
-          status?: string | null
+          status?: string
           stripe_payment_intent_id?: string | null
-          updated_at?: string | null
+          updated_at?: string
         }
         Update: {
           amount_cents?: number
           booking_id?: number
-          created_at?: string | null
+          created_at?: string
           failure_reason?: string | null
           id?: string
           payment_method_type?: string | null
-          status?: string | null
+          status?: string
           stripe_payment_intent_id?: string | null
-          updated_at?: string | null
+          updated_at?: string
         }
         Relationships: [
           {
             foreignKeyName: "booking_payments_booking_id_fkey"
             columns: ["booking_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
           },
@@ -710,84 +710,44 @@ export type Database = {
           },
         ]
       }
-      payment_analytics: {
-        Row: {
-          booking_id: number
-          created_at: string
-          event_data: Json | null
-          event_type: string
-          id: string
-          venue_id: string
-        }
-        Insert: {
-          booking_id: number
-          created_at?: string
-          event_data?: Json | null
-          event_type: string
-          id?: string
-          venue_id: string
-        }
-        Update: {
-          booking_id?: number
-          created_at?: string
-          event_data?: Json | null
-          event_type?: string
-          id?: string
-          venue_id?: string
-        }
-        Relationships: []
-      }
       payment_transactions: {
         Row: {
           amount_cents: number
           created_at: string
           currency: string
-          failure_reason: string | null
           id: string
           payment_method: string | null
           processed_at: string | null
           status: string
           stripe_invoice_id: string | null
           stripe_payment_intent_id: string | null
-          subscription_id: string | null
-          venue_id: string | null
+          venue_id: string
         }
         Insert: {
           amount_cents: number
           created_at?: string
           currency?: string
-          failure_reason?: string | null
           id?: string
           payment_method?: string | null
           processed_at?: string | null
           status: string
           stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
-          subscription_id?: string | null
-          venue_id?: string | null
+          venue_id: string
         }
         Update: {
           amount_cents?: number
           created_at?: string
           currency?: string
-          failure_reason?: string | null
           id?: string
           payment_method?: string | null
           processed_at?: string | null
           status?: string
           stripe_invoice_id?: string | null
           stripe_payment_intent_id?: string | null
-          subscription_id?: string | null
-          venue_id?: string | null
+          venue_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "payment_transactions_subscription_id_fkey"
-            columns: ["subscription_id"]
-            isOneToOne: false
-            referencedRelation: "venue_subscriptions"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "payment_transactions_venue_id_fkey"
             columns: ["venue_id"]
@@ -1103,7 +1063,7 @@ export type Database = {
           minimum_guests_for_charge: number | null
           online_bookable: boolean
           requires_deposit: boolean
-          requires_payment: boolean | null
+          requires_payment: boolean
           secret_slug: string | null
           tag_ids: string[] | null
           terms_and_conditions: string | null
@@ -1129,7 +1089,7 @@ export type Database = {
           minimum_guests_for_charge?: number | null
           online_bookable?: boolean
           requires_deposit?: boolean
-          requires_payment?: boolean | null
+          requires_payment?: boolean
           secret_slug?: string | null
           tag_ids?: string[] | null
           terms_and_conditions?: string | null
@@ -1155,7 +1115,7 @@ export type Database = {
           minimum_guests_for_charge?: number | null
           online_bookable?: boolean
           requires_deposit?: boolean
-          requires_payment?: boolean | null
+          requires_payment?: boolean
           secret_slug?: string | null
           tag_ids?: string[] | null
           terms_and_conditions?: string | null
@@ -1396,44 +1356,41 @@ export type Database = {
         Row: {
           charge_amount_per_guest: number | null
           charge_type: string | null
-          created_at: string | null
+          created_at: string
           id: string
-          is_active: boolean | null
+          is_active: boolean
           minimum_guests_for_charge: number | null
           stripe_account_id: string | null
-          test_mode: boolean | null
-          updated_at: string | null
+          test_mode: boolean
+          updated_at: string
           venue_id: string
           webhook_endpoint_secret: string | null
-          webhook_secret: string | null
         }
         Insert: {
           charge_amount_per_guest?: number | null
           charge_type?: string | null
-          created_at?: string | null
+          created_at?: string
           id?: string
-          is_active?: boolean | null
+          is_active?: boolean
           minimum_guests_for_charge?: number | null
           stripe_account_id?: string | null
-          test_mode?: boolean | null
-          updated_at?: string | null
+          test_mode?: boolean
+          updated_at?: string
           venue_id: string
           webhook_endpoint_secret?: string | null
-          webhook_secret?: string | null
         }
         Update: {
           charge_amount_per_guest?: number | null
           charge_type?: string | null
-          created_at?: string | null
+          created_at?: string
           id?: string
-          is_active?: boolean | null
+          is_active?: boolean
           minimum_guests_for_charge?: number | null
           stripe_account_id?: string | null
-          test_mode?: boolean | null
-          updated_at?: string | null
+          test_mode?: boolean
+          updated_at?: string
           venue_id?: string
           webhook_endpoint_secret?: string | null
-          webhook_secret?: string | null
         }
         Relationships: [
           {
@@ -1541,6 +1498,36 @@ export type Database = {
           phone?: string | null
           slug?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      webhook_events: {
+        Row: {
+          created_at: string | null
+          event_data: Json | null
+          event_type: string
+          id: string
+          processed_at: string | null
+          stripe_event_id: string
+          test_mode: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_data?: Json | null
+          event_type: string
+          id?: string
+          processed_at?: string | null
+          stripe_event_id: string
+          test_mode?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          event_data?: Json | null
+          event_type?: string
+          id?: string
+          processed_at?: string | null
+          stripe_event_id?: string
+          test_mode?: boolean | null
         }
         Relationships: []
       }
