@@ -1,36 +1,79 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
-export const fixXmasInJulyService = async () => {
-  try {
-    // Find the "Xmas in July" service
-    const { data: service, error: findError } = await supabase
+export async function fixXmasService(venueId: string) {
+  // Check if the service already exists
+  const { data: existingService, error: selectError } = await supabase
+    .from('services')
+    .select('id')
+    .eq('venue_id', venueId)
+    .eq('title', 'Christmas Special Menu')
+    .single();
+
+  if (selectError && selectError.code !== '404') {
+    console.error('Error checking for existing Christmas service:', selectError);
+    return;
+  }
+
+  let serviceId: string | null = null;
+
+  if (existingService) {
+    // Service exists, update it
+    serviceId = existingService.id;
+    console.log('Christmas service already exists, updating:', serviceId);
+  } else {
+    // Service does not exist, create it
+    console.log('Christmas service does not exist, creating...');
+    const { data: newService, error: insertError } = await supabase
       .from('services')
-      .select('*')
-      .ilike('title', '%xmas%july%')
+      .insert([
+        {
+          venue_id: venueId,
+          title: 'Christmas Special Menu',
+          description: 'Festive holiday dining experience with special Christmas menu',
+          min_guests: 2,
+          max_guests: 12,
+          lead_time_hours: 24,
+          cancellation_window_hours: 48,
+          online_bookable: true,
+          active: true,
+          is_secret: false,
+          terms_and_conditions: 'Special Christmas menu available. Please mention any dietary requirements when booking.',
+        }
+      ])
+      .select('id')
       .single();
 
-    if (findError || !service) {
-      console.log('Xmas in July service not found');
+    if (insertError) {
+      console.error('Error creating Christmas service:', insertError);
       return;
     }
 
-    // Update the service with correct payment settings
+    serviceId = newService.id;
+    console.log('Christmas service created:', serviceId);
+  }
+
+  if (serviceId) {
+    // Update the service if it exists
     const { error: updateError } = await supabase
       .from('services')
       .update({
-        requires_payment: true,
-        charge_type: 'all_reservations',
-        charge_amount_per_guest: 4500, // £45 in pence
+        title: 'Christmas Special Menu',
+        description: 'Festive holiday dining experience with special Christmas menu',
+        min_guests: 2,
+        max_guests: 12,
+        lead_time_hours: 24,
+        cancellation_window_hours: 48,
+        online_bookable: true,
+        active: true,
+        is_secret: false,
+        terms_and_conditions: 'Special Christmas menu available. Please mention any dietary requirements when booking.',
       })
-      .eq('id', service.id);
+      .eq('id', serviceId);
 
     if (updateError) {
-      console.error('Failed to update Xmas in July service:', updateError);
+      console.error('Error updating Christmas service:', updateError);
     } else {
-      console.log('Successfully updated Xmas in July service payment settings');
+      console.log('Christmas service updated successfully.');
     }
-  } catch (error) {
-    console.error('Error fixing Xmas service:', error);
   }
-};
+}

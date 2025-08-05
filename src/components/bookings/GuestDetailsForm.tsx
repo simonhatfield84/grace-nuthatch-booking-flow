@@ -32,7 +32,9 @@ export const GuestDetailsForm = ({ onSubmit, bookingData }: GuestDetailsFormProp
     name: '',
     email: '',
     phone: '',
-    specialRequests: ''
+    specialRequests: '',
+    marketingOptIn: false,
+    termsAccepted: false
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -54,6 +56,10 @@ export const GuestDetailsForm = ({ onSubmit, bookingData }: GuestDetailsFormProp
       newErrors.phone = 'Phone number is required';
     }
 
+    if (!formData.termsAccepted) {
+      newErrors.termsAccepted = 'You must accept the terms and conditions';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -68,7 +74,14 @@ export const GuestDetailsForm = ({ onSubmit, bookingData }: GuestDetailsFormProp
       date: new Date(bookingData.date + 'T00:00:00'),
       time: bookingData.time,
       serviceTitle: bookingData.service,
-      guestDetails: formData
+      guestDetails: {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        specialRequests: formData.specialRequests,
+        marketingOptIn: formData.marketingOptIn,
+        termsAccepted: formData.termsAccepted
+      }
     };
 
     const result = await submitBooking(bookingFormData, venue.id);
@@ -78,7 +91,7 @@ export const GuestDetailsForm = ({ onSubmit, bookingData }: GuestDetailsFormProp
     }
   };
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     // Clear error when user starts typing
     if (errors[field]) {
@@ -175,6 +188,37 @@ export const GuestDetailsForm = ({ onSubmit, bookingData }: GuestDetailsFormProp
                 placeholder="Any dietary requirements, allergies, or special occasions?"
                 rows={3}
               />
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="marketingOptIn"
+                  checked={formData.marketingOptIn}
+                  onChange={(e) => handleInputChange('marketingOptIn', e.target.checked)}
+                  className="rounded border-gray-300"
+                />
+                <Label htmlFor="marketingOptIn" className="text-sm">
+                  I'd like to receive updates and offers via email
+                </Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="termsAccepted"
+                  checked={formData.termsAccepted}
+                  onChange={(e) => handleInputChange('termsAccepted', e.target.checked)}
+                  className="rounded border-gray-300"
+                />
+                <Label htmlFor="termsAccepted" className="text-sm">
+                  I accept the terms and conditions *
+                </Label>
+              </div>
+              {errors.termsAccepted && (
+                <p className="text-sm text-red-500 mt-1">{errors.termsAccepted}</p>
+              )}
             </div>
 
             <Button

@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
@@ -163,12 +162,12 @@ const Services = () => {
       <ServiceDialog
         open={showDialog}
         onOpenChange={setShowDialog}
-        formData={formData}
-        onFormDataChange={updateFormData}
-        onSubmit={handleSubmit}
+        service={isEditing && editingServiceId ? services.find(s => s.id === editingServiceId) : undefined}
+        onSuccess={() => {
+          setShowDialog(false);
+          resetForm();
+        }}
         onCancel={handleCancel}
-        isSubmitting={createServiceMutation.isPending || updateServiceMutation.isPending}
-        isEditing={isEditing}
       />
 
       <BookingWindowManager

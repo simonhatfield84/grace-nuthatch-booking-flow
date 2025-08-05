@@ -27,15 +27,13 @@ export function useBookingFlow(venueSlug: string) {
     nextStep();
   };
 
-  const handleGuestDetails = (details: any, paymentRequired: boolean, paymentAmount: number = 0, bookingId?: number) => {
+  const handleGuestDetails = (details: any, bookingId?: number) => {
     updateBookingData({
       guestDetails: details,
-      paymentRequired,
-      paymentAmount,
       bookingId
     });
     
-    // Always go to confirmation step (step 5) after guest details/payment is complete
+    // Always go to confirmation step (step 5) after guest details is complete
     goToStep(5);
   };
 

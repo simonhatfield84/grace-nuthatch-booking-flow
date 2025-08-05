@@ -1,76 +1,91 @@
 
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from "@/integrations/supabase/client";
 
-interface BookingDetails {
-  id: number;
-  guest_name: string;
-  email: string;
-  booking_date: string;
-  booking_time: string;
-  party_size: number;
-  service?: string;
-  venue?: {
-    name: string;
-    email?: string;
-    phone?: string;
-    address?: string;
-  };
+class EmailService {
+  async sendBookingConfirmation(
+    guestEmail: string,
+    bookingData: {
+      guest_name: string;
+      venue_name: string;
+      booking_date: string;
+      booking_time: string;
+      party_size: string;
+      booking_reference: string;
+    },
+    venue_slug: string
+  ): Promise<boolean> {
+    try {
+      const { data, error } = await supabase.functions.invoke('send-email', {
+        body: {
+          type: 'booking_confirmation',
+          to: guestEmail,
+          data: bookingData,
+          venue_slug
+        }
+      });
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Email service error:', error);
+      return false;
+    }
+  }
+
+  async sendBookingReminder(
+    guestEmail: string,
+    bookingData: {
+      guest_name: string;
+      venue_name: string;
+      booking_date: string;
+      booking_time: string;
+      party_size: string;
+      booking_reference: string;
+    },
+    venue_slug: string
+  ): Promise<boolean> {
+    try {
+      const { data, error } = await supabase.functions.invoke('send-email', {
+        body: {
+          type: 'booking_reminder',
+          to: guestEmail,
+          data: bookingData,
+          venue_slug
+        }
+      });
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Email service error:', error);
+      return false;
+    }
+  }
+
+  async sendUserInvitation(
+    userEmail: string,
+    invitationData: {
+      venue_name: string;
+      invitation_link: string;
+    }
+  ): Promise<boolean> {
+    try {
+      const { data, error } = await supabase.functions.invoke('send-email', {
+        body: {
+          type: 'user_invitation',
+          to: userEmail,
+          data: invitationData
+        }
+      });
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Email service error:', error);
+      return false;
+    }
+  }
 }
 
-export const fetchBookingForEmail = async (bookingId: number): Promise<BookingDetails | null> => {
-  try {
-    const { data: booking, error } = await supabase
-      .from('bookings')
-      .select(`
-        id,
-        guest_name,
-        email,
-        booking_date,
-        booking_time,
-        party_size,
-        service,
-        venues!inner(
-          name,
-          email,
-          phone,
-          address
-        )
-      `)
-      .eq('id', bookingId)
-      .single();
-
-    if (error) {
-      console.error('Error fetching booking:', error);
-      return null;
-    }
-
-    return {
-      ...booking,
-      venue: booking.venues
-    };
-  } catch (error) {
-    console.error('Error fetching booking for email:', error);
-    return null;
-  }
-};
-
-export const sendBookingConfirmation = async (bookingId: number) => {
-  try {
-    const { error } = await supabase.functions.invoke('send-email', {
-      body: {
-        booking_id: bookingId,
-        email_type: 'booking_confirmation'
-      }
-    });
-
-    if (error) {
-      console.error('Error sending confirmation email:', error);
-      throw error;
-    }
-
-    console.log('✅ Confirmation email sent successfully');
-  } catch (error) {
-    console.error('Error in sendBookingConfirmation:', error);
-    throw error;
-  }
-};
+export const emailService = new EmailService();
+export default emailService;

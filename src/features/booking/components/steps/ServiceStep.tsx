@@ -1,113 +1,100 @@
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { useBookingForm } from '../../contexts/BookingFormContext';
+import { useServicesData } from '@/hooks/useServicesData';
+import { Loader2 } from 'lucide-react';
 
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { useQuery } from "@tanstack/react-query";
-import { Utensils, Clock, Users } from 'lucide-react';
-import { BookingService } from '../../services/BookingService';
-
-interface ServiceStepProps {
-  selectedService: any;
-  onServiceSelect: (service: any) => void;
-  partySize: number;
-  selectedDate: Date | null;
-  venueId: string;
+interface ServiceSelectionStepProps {
+  onNext: () => void;
 }
 
-export function ServiceStep({
-  selectedService,
-  onServiceSelect,
-  partySize,
-  selectedDate,
-  venueId
-}: ServiceStepProps) {
-  const { data: services = [], isLoading } = useQuery({
-    queryKey: ['available-services', partySize, selectedDate, venueId],
-    queryFn: async () => {
-      if (!venueId) return [];
+export const ServiceSelectionStep: React.FC<ServiceSelectionStepProps> = ({ onNext }) => {
+  const { formData, updateFormData } = useBookingForm();
+  const { services, isServicesLoading, servicesError } = useServicesData();
+  const [selectedService, setSelectedService] = useState<any>(null);
 
-      const services = await BookingService.getAvailableServices(
-        venueId,
-        partySize,
-        selectedDate ? selectedDate.toISOString().split('T')[0] : undefined
-      );
-
-      return services;
-    },
-    enabled: !!venueId && partySize > 0
-  });
+  useEffect(() => {
+    if (formData.serviceTitle && services) {
+      const initialService = services.find(service => service.title === formData.serviceTitle);
+      setSelectedService(initialService || null);
+    }
+  }, [formData.serviceTitle, services]);
 
   const handleServiceSelect = (service: any) => {
-    console.log(`🍽️ Service selected: ${service.title}`);
-    onServiceSelect(service);
-    // Auto-advance will be handled by parent component
+    setSelectedService(service);
+    updateFormData({ serviceTitle: service.title });
   };
 
-  if (isLoading) {
+  const handleContinue = () => {
+    if (selectedService) {
+      onNext();
+    }
+  };
+
+  if (isServicesLoading) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-center py-8">
-          <div className="text-gray-500">Loading services...</div>
+      <div className="flex flex-col items-center justify-center py-12 space-y-4">
+        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <p className="text-gray-700 font-medium">Loading services...</p>
+      </div>
+    );
+  }
+
+  if (servicesError) {
+    return (
+      <div className="flex flex-col items-center justify-center py-8">
+        <div className="text-center">
+          <p className="text-red-600 font-medium">Error loading services</p>
+          <p className="text-sm text-gray-500 mt-1">
+            Failed to load available services. Please try again later.
+          </p>
         </div>
       </div>
     );
   }
 
-  if (services.length === 0) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-gray-500">No services available for your selection.</p>
-        <p className="text-gray-400 text-sm mt-1">Try adjusting your party size or date.</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-4">
-      {services.map((service) => (
-        <Card 
-          key={service.id}
-          className={`cursor-pointer transition-all duration-200 hover:shadow-md border-2 ${
-            selectedService?.id === service.id 
-              ? 'border-blue-500 bg-blue-50' 
-              : 'border-gray-200 hover:border-gray-300'
-          }`}
-          onClick={() => handleServiceSelect(service)}
-        >
-          <CardContent className="p-0">
-            <div className="flex flex-col">
-              {service.image_url && (
-                <div className="w-full h-48 bg-gray-100">
-                  <img 
-                    src={service.image_url} 
-                    alt={service.title}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-              )}
-              
-              <div className="p-6">
-                <h3 className="font-semibold text-xl text-gray-900 mb-2">
-                  {service.title}
-                </h3>
-                {service.description && (
-                  <p className="text-gray-600 mb-4">
-                    {service.description}
-                  </p>
-                )}
-                
-                {service.requires_deposit && (
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary">
-                      Deposit required
-                    </Badge>
-                  </div>
-                )}
+    <div className="max-w-2xl mx-auto">
+      <Card>
+        <CardHeader>
+          <CardTitle>Select Your Service</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {services && services.map((service) => (
+            <Button
+              key={service.id}
+              onClick={() => handleServiceSelect(service)}
+              className={`w-full p-6 h-auto ${selectedService?.id === service.id ? 'bg-accent text-accent-foreground' : ''}`}
+              variant="outline"
+            >
+              <div className="text-left">
+                <h3 className="font-semibold">{service.title}</h3>
+                <p className="text-sm text-muted-foreground">{service.description}</p>
               </div>
+            </Button>
+          ))}
+
+          {selectedService && (
+            <div className="mt-4 p-3 bg-muted rounded-lg">
+              <p className="text-sm text-muted-foreground">
+                Selected: {selectedService.title}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {selectedService.min_guests}-{selectedService.max_guests} guests • {selectedService.lead_time_hours}h lead time
+              </p>
             </div>
-          </CardContent>
-        </Card>
-      ))}
+          )}
+
+          <Button 
+            onClick={handleContinue}
+            className="w-full"
+            disabled={!selectedService}
+          >
+            Continue
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
-}
+};
