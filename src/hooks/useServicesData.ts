@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Service as CoreService } from '@/types/core';
@@ -58,7 +59,7 @@ export const useServicesData = () => {
         ...service,
         duration_rules: Array.isArray(service.duration_rules) 
           ? service.duration_rules 
-          : service.duration_rules 
+          : service.duration_rules && typeof service.duration_rules === 'string'
             ? JSON.parse(service.duration_rules) 
             : [],
         refund_window_hours: (service as any).refund_window_hours || 24,
@@ -155,7 +156,7 @@ export const useServicesData = () => {
         ...data,
         duration_rules: Array.isArray(data.duration_rules) 
           ? data.duration_rules 
-          : data.duration_rules 
+          : data.duration_rules && typeof data.duration_rules === 'string'
             ? JSON.parse(data.duration_rules) 
             : [],
         refund_window_hours: (data as any).refund_window_hours || 24,

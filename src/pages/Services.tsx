@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, CreditCard, Users, Clock } from "lucide-react";
@@ -29,6 +30,7 @@ export default function Services() {
   // Use the form hook
   const {
     formData,
+    editingServiceId,
     updateFormData,
     resetForm,
     startEditing,
@@ -53,8 +55,8 @@ export default function Services() {
     setIsSubmitting(true);
     
     try {
-      if (isEditing) {
-        await updateService(formData.editingServiceId!, formData);
+      if (isEditing && editingServiceId) {
+        await updateService(editingServiceId, formData);
       } else {
         await createService(formData);
       }
