@@ -3,17 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-
-export interface Section {
-  id: number;
-  name: string;
-  description?: string;
-  color?: string;
-  sort_order: number;
-  venue_id: string;
-  created_at: string;
-  updated_at: string;
-}
+import { Section } from "@/types/core";
 
 export const useSections = () => {
   const { toast } = useToast();
