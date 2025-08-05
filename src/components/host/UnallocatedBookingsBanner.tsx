@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, Users, Clock, RefreshCw } from "lucide-react";
-import { Booking } from "@/hooks/useBookings";
+import { Booking } from "@/features/booking/types/booking";
 
 interface UnallocatedBookingsBannerProps {
   bookings: Booking[];

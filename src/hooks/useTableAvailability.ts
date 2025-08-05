@@ -1,7 +1,7 @@
 
 import { useMemo } from "react";
 import { Table } from "./useTables";
-import { Booking } from "./useBookings";
+import { Booking } from "@/features/booking/types/booking";
 import { format, addMinutes, parseISO } from "date-fns";
 
 interface AvailabilityCheck {
