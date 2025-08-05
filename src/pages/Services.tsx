@@ -10,26 +10,27 @@ import ServiceDialog from "@/components/services/ServiceDialog";
 import { ServicePaymentSettings } from "@/components/services/ServicePaymentSettings";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useServicesData } from "@/hooks/useServicesData";
 
 export default function Services() {
-  const [selectedService, setSelectedService] = useState<any>(null);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingPaymentService, setEditingPaymentService] = useState<any>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: services, isLoading } = useQuery({
-    queryKey: ["services"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("services")
-        .select("*")
-        .order("title");
-      
-      if (error) throw error;
-      return data;
-    },
-  });
+  const {
+    services,
+    isLoading,
+    dialogOpen,
+    setDialogOpen,
+    formData,
+    updateFormData,
+    isSubmitting,
+    isEditing,
+    handleCreateService,
+    handleEditService,
+    handleSubmit,
+    handleCancel
+  } = useServicesData();
 
   const updateServiceMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: any }) => {
@@ -78,7 +79,7 @@ export default function Services() {
             Manage your venue's services and payment settings
           </p>
         </div>
-        <Button onClick={() => setIsCreateDialogOpen(true)}>
+        <Button onClick={handleCreateService}>
           <Plus className="mr-2 h-4 w-4" />
           Add Service
         </Button>
@@ -141,7 +142,7 @@ export default function Services() {
                   <Button
                     variant="outline"
                     className="w-full"
-                    onClick={() => setSelectedService(service)}
+                    onClick={() => handleEditService(service)}
                   >
                     Edit Service
                   </Button>
@@ -214,14 +215,14 @@ export default function Services() {
       </Tabs>
 
       <ServiceDialog
-        service={selectedService}
-        open={!!selectedService || isCreateDialogOpen}
-        onOpenChange={(open) => {
-          if (!open) {
-            setSelectedService(null);
-            setIsCreateDialogOpen(false);
-          }
-        }}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        formData={formData}
+        onFormDataChange={updateFormData}
+        onSubmit={handleSubmit}
+        onCancel={handleCancel}
+        isSubmitting={isSubmitting}
+        isEditing={isEditing}
       />
 
       {editingPaymentService && (
