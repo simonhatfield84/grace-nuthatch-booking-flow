@@ -6,6 +6,9 @@ import { TableAllocationService } from "@/services/tableAllocation";
 import { calculateBookingDuration, getServiceIdFromServiceName } from "@/utils/durationCalculation";
 import { Booking } from "@/features/booking/types/booking";
 
+// Export the Booking type so other files can import it from here if needed
+export type { Booking };
+
 export const useBookings = (date?: string) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
