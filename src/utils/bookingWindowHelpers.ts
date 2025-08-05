@@ -1,4 +1,3 @@
-
 export const formatDaysOfWeek = (days: string[]): string => {
   if (!days || days.length === 0) return 'Not scheduled';
   
@@ -56,6 +55,37 @@ export const getBookingWindowSummary = (windows: any[]): string => {
     return `${days} ${times}`;
   }
   
-  // Multiple windows - show count
-  return `${windows.length} booking windows`;
+  if (windows.length === 2) {
+    // For 2 windows, try to show both concisely
+    const window1 = windows[0];
+    const window2 = windows[1];
+    
+    const days1 = formatDaysOfWeek(window1.days);
+    const times1 = formatTimeRange(window1.start_time, window1.end_time);
+    const days2 = formatDaysOfWeek(window2.days);
+    const times2 = formatTimeRange(window2.start_time, window2.end_time);
+    
+    // If both have same times, combine days
+    if (times1 === times2) {
+      return `${days1} + ${days2} ${times1}`;
+    }
+    
+    // If one is weekdays and other is weekends, show abbreviated
+    if ((days1 === 'Mon-Fri' && days2 === 'Sat-Sun') || (days1 === 'Sat-Sun' && days2 === 'Mon-Fri')) {
+      const [weekdayWindow, weekendWindow] = days1 === 'Mon-Fri' ? [window1, window2] : [window2, window1];
+      const weekdayTimes = formatTimeRange(weekdayWindow.start_time, weekdayWindow.end_time);
+      const weekendTimes = formatTimeRange(weekendWindow.start_time, weekendWindow.end_time);
+      
+      if (weekdayTimes === weekendTimes) {
+        return `Every day ${weekdayTimes}`;
+      }
+      return `Weekdays ${weekdayTimes}, Weekends ${weekendTimes}`;
+    }
+    
+    // Otherwise show abbreviated
+    return `${days1} ${times1.split('-')[0]} + ${days2} ${times2.split('-')[0]}`;
+  }
+  
+  // For 3+ windows, show count with hint about complexity
+  return `${windows.length} booking schedules`;
 };
