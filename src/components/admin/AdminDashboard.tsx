@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { RefreshCw } from "lucide-react";
 import { WebhookMonitor } from "./WebhookMonitor";
 import { QuickReconciliation } from "./QuickReconciliation";
+import { WebhookStatusMonitor } from "./WebhookStatusMonitor";
 
 export const AdminDashboard = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -11,7 +12,9 @@ export const AdminDashboard = () => {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     // Force refresh of child components
-    window.location.reload();
+    setTimeout(() => {
+      window.location.reload();
+    }, 500);
   };
 
   return (
@@ -24,10 +27,13 @@ export const AdminDashboard = () => {
         </Button>
       </div>
 
+      {/* Critical webhook status monitoring */}
+      <WebhookStatusMonitor />
+
       {/* Quick Reconciliation for immediate fixes */}
       <QuickReconciliation />
 
-      {/* Webhook monitoring */}
+      {/* Detailed webhook monitoring */}
       <WebhookMonitor />
     </div>
   );

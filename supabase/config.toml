@@ -50,6 +50,9 @@ enable_confirmations = false
 [functions.get-stripe-keys]
 verify_jwt = true
 
+[functions.stripe-webhook-secure]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 policy = "per_request"

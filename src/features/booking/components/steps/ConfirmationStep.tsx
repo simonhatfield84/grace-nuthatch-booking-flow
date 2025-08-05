@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -12,7 +13,8 @@ import {
   Download,
   Edit,
   ExternalLink,
-  AlertTriangle
+  AlertTriangle,
+  RefreshCw
 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -29,7 +31,9 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
   const { toast } = useToast();
   const [bookingReference, setBookingReference] = useState<string | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
+  const [bookingStatus, setBookingStatus] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isVerifying, setIsVerifying] = useState(false);
 
   useEffect(() => {
     const loadBookingDetails = async () => {
@@ -58,7 +62,7 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
 
         console.log('Booking loaded:', booking);
         setBookingReference(booking.booking_reference);
-        // REMOVED: onBookingId(booking.id) - this was causing the infinite loop
+        setBookingStatus(booking.status);
 
         // Check payment status if payment was required
         if (bookingData.paymentRequired) {
@@ -76,12 +80,19 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
           }
         }
 
-        toast({
-          title: "Booking Confirmed!",
-          description: booking.status === 'confirmed' ? 
-            "Your table is reserved and ready!" : 
-            "Your booking has been created.",
-        });
+        // Only show success toast if booking is actually confirmed
+        if (booking.status === 'confirmed') {
+          toast({
+            title: "Booking Confirmed!",
+            description: "Your table is reserved and ready!",
+          });
+        } else {
+          toast({
+            title: "Booking Created",
+            description: "Your booking is being processed. Payment verification in progress.",
+            variant: "default",
+          });
+        }
 
       } catch (error) {
         console.error('Error loading booking details:', error);
@@ -96,7 +107,60 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
     };
 
     loadBookingDetails();
-  }, [bookingData.bookingId, bookingData.paymentRequired, toast]); // Removed onBookingId from dependencies
+  }, [bookingData.bookingId, bookingData.paymentRequired, toast]);
+
+  const verifyPaymentStatus = async () => {
+    if (!bookingData.bookingId) return;
+    
+    setIsVerifying(true);
+    
+    try {
+      // Check both booking and payment status
+      const { data: booking } = await supabase
+        .from('bookings')
+        .select('status')
+        .eq('id', bookingData.bookingId)
+        .single();
+
+      if (booking) {
+        setBookingStatus(booking.status);
+      }
+
+      if (bookingData.paymentRequired) {
+        const { data: payment } = await supabase
+          .from('booking_payments')
+          .select('status')
+          .eq('booking_id', bookingData.bookingId)
+          .single();
+
+        if (payment) {
+          setPaymentStatus(payment.status);
+        }
+
+        // If payment succeeded, try to verify with Stripe
+        if (payment?.status === 'pending') {
+          const { data: verifyData } = await supabase.functions.invoke('verify-payment-status', {
+            body: {
+              booking_id: bookingData.bookingId
+            }
+          });
+
+          if (verifyData?.payment_succeeded) {
+            toast.success('Payment verified and booking confirmed!');
+            // Refresh the page to show updated status
+            setTimeout(() => window.location.reload(), 1000);
+          }
+        }
+      }
+
+      toast.success('Status refreshed');
+    } catch (error) {
+      console.error('Error verifying payment:', error);
+      toast.error('Failed to verify payment status');
+    } finally {
+      setIsVerifying(false);
+    }
+  };
 
   const generateCalendarEvent = () => {
     const startDate = new Date(bookingData.date);
@@ -143,18 +207,35 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
     );
   }
 
+  // Determine if booking is fully confirmed
+  const isFullyConfirmed = bookingStatus === 'confirmed' && (!bookingData.paymentRequired || paymentStatus === 'succeeded');
+  const isPendingPayment = bookingData.paymentRequired && paymentStatus === 'pending';
+
   return (
     <div className="space-y-6">
-      {/* Success Header */}
+      {/* Status Header */}
       <div className="text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-          <Check className="h-8 w-8 text-green-600" />
+        <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 ${
+          isFullyConfirmed ? 'bg-green-100' : 
+          isPendingPayment ? 'bg-yellow-100' : 'bg-blue-100'
+        }`}>
+          {isFullyConfirmed ? (
+            <Check className="h-8 w-8 text-green-600" />
+          ) : isPendingPayment ? (
+            <AlertTriangle className="h-8 w-8 text-yellow-600" />
+          ) : (
+            <Clock className="h-8 w-8 text-blue-600" />
+          )}
         </div>
         <h2 className="text-2xl font-nuthatch-heading font-light text-nuthatch-dark mb-2">
-          Booking Confirmed!
+          {isFullyConfirmed ? 'Booking Confirmed!' : 
+           isPendingPayment ? 'Payment Processing' : 
+           'Booking Created'}
         </h2>
         <p className="text-nuthatch-muted">
-          Your table at {venue.name} has been reserved
+          {isFullyConfirmed ? `Your table at ${venue.name} is confirmed` :
+           isPendingPayment ? 'Your booking will be confirmed once payment is processed' :
+           'Your booking has been created'}
         </p>
         {bookingReference && (
           <p className="text-sm text-nuthatch-green font-medium mt-2">
@@ -164,13 +245,23 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
       </div>
 
       {/* Payment Status Warning */}
-      {bookingData.paymentRequired && paymentStatus && paymentStatus !== 'succeeded' && (
+      {isPendingPayment && (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
-            <strong>Payment Status: {paymentStatus}</strong>
-            {paymentStatus === 'pending' && ' - Your payment may still be processing. Please contact the venue if this persists.'}
-            {paymentStatus === 'failed' && ' - Your payment failed. Please contact the venue to resolve this issue.'}
+          <AlertDescription className="flex items-center justify-between">
+            <div>
+              <strong>Payment Processing:</strong> Your payment is being verified. 
+              This may take a few minutes due to payment processing delays.
+            </div>
+            <Button 
+              onClick={verifyPaymentStatus} 
+              disabled={isVerifying}
+              size="sm"
+              variant="outline"
+            >
+              <RefreshCw className={`h-4 w-4 mr-1 ${isVerifying ? 'animate-spin' : ''}`} />
+              Check Now
+            </Button>
           </AlertDescription>
         </Alert>
       )}
@@ -181,7 +272,7 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
           <div className="flex items-center space-x-2">
             <Mail className="h-5 w-5 text-nuthatch-green" />
             <span className="text-nuthatch-dark">
-              Confirmation email sent to {bookingData.guestDetails.email}
+              {isFullyConfirmed ? 'Confirmation email sent' : 'Email will be sent once booking is confirmed'} to {bookingData.guestDetails.email}
             </span>
           </div>
         </Card>
@@ -205,7 +296,7 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
               {bookingData.time} - {(() => {
                 const [hours, minutes] = bookingData.time.split(':').map(Number);
                 const endTime = new Date();
-                endTime.setHours(hours + 2, minutes); // Assuming 2-hour duration
+                endTime.setHours(hours + 2, minutes);
                 return endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
               })()}
             </span>
@@ -249,7 +340,8 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
               }`}>
                 {paymentStatus === 'succeeded' ? 'Paid' : 
                  paymentStatus === 'failed' ? 'Failed' : 
-                 paymentStatus || 'Confirmed'}
+                 paymentStatus === 'pending' ? 'Processing' :
+                 'Confirming'}
               </span>
             </div>
           </div>
@@ -322,12 +414,12 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
       <Card className="p-4 bg-nuthatch-light border-nuthatch-border">
         <h4 className="font-medium text-nuthatch-dark mb-2">Important Information</h4>
         <ul className="text-sm text-nuthatch-muted space-y-1">
-          <li>• {bookingData.guestDetails.email ? 'A confirmation email has been sent to you' : 'Please save these booking details for your records'}</li>
+          <li>• {bookingData.guestDetails.email ? 'A confirmation email will be sent once your booking is fully confirmed' : 'Please save these booking details for your records'}</li>
           <li>• A reminder will be sent 24 hours before your booking</li>
           <li>• Please arrive on time for your reservation</li>
           <li>• Contact us directly if you need to make changes</li>
-          {paymentStatus && paymentStatus !== 'succeeded' && (
-            <li>• <strong>Payment Issue:</strong> Please contact the venue regarding your payment status</li>
+          {isPendingPayment && (
+            <li>• <strong>Payment Processing:</strong> Your booking will be confirmed automatically once payment is verified</li>
           )}
         </ul>
       </Card>
