@@ -40,6 +40,25 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
     onFormDataChange({ image_url: '' });
   };
 
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    if (value === '') {
+      onFormDataChange({ charge_amount_per_guest: 0 });
+    } else {
+      const poundValue = parseFloat(value);
+      if (!isNaN(poundValue)) {
+        onFormDataChange({ charge_amount_per_guest: Math.round(poundValue * 100) });
+      }
+    }
+  };
+
+  const getDisplayAmount = () => {
+    if (formData.charge_amount_per_guest === 0 && !isEditing) {
+      return '';
+    }
+    return (formData.charge_amount_per_guest / 100).toFixed(2);
+  };
+
   return (
     <form onSubmit={onSubmit} className="space-y-6">
       <Tabs defaultValue="basic" className="w-full">
@@ -198,19 +217,25 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
               )}
 
               <div>
-                <Label htmlFor="charge_amount_per_guest">Charge Amount per Guest (£)</Label>
-                <Input
-                  id="charge_amount_per_guest"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={formData.charge_amount_per_guest / 100}
-                  onChange={(e) =>
-                    onFormDataChange({ 
-                      charge_amount_per_guest: Math.round((parseFloat(e.target.value) || 0) * 100)
-                    })
-                  }
-                />
+                <Label htmlFor="charge_amount_per_guest">Charge Amount per Guest</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground">
+                    £
+                  </span>
+                  <Input
+                    id="charge_amount_per_guest"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    className="pl-8"
+                    placeholder="29.95"
+                    value={getDisplayAmount()}
+                    onChange={handleAmountChange}
+                  />
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Enter the amount in pounds (e.g., 29.95 for £29.95)
+                </p>
               </div>
             </>
           )}
