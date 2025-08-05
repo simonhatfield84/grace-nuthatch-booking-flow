@@ -2,7 +2,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { VenueHoursSettings } from "@/components/settings/VenueHoursSettings";
-import { EnhancedStripeSettings } from "@/components/settings/EnhancedStripeSettings";
+import { StripeSettings } from "@/components/settings/StripeSettings";
 import { DefaultTermsSettings } from "@/components/settings/DefaultTermsSettings";
 import { TagManagement } from "@/components/settings/TagManagement";
 import { EmailSettingsPanel } from "@/components/settings/EmailSettingsPanel";
@@ -46,7 +46,7 @@ const Settings = () => {
         </TabsContent>
 
         <TabsContent value="payments">
-          <EnhancedStripeSettings />
+          <StripeSettings />
         </TabsContent>
 
         <TabsContent value="terms">
