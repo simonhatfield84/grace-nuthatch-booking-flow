@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,6 +12,8 @@ import { useStripeSettings } from "@/hooks/useStripeSettings";
 import { StripeKeyEncryption } from "@/utils/encryption";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { WebhookConfiguration } from "./WebhookConfiguration";
+import { SetupWizardCard } from "./SetupWizardCard";
 
 export const VaultStripeSettings = () => {
   const { stripeSettings, isLoading, updateStripeSettings } = useStripeSettings();
@@ -148,7 +149,6 @@ export const VaultStripeSettings = () => {
     setIsEncrypting(true);
     
     try {
-      // Encrypt secret keys if they've been provided
       let encryptedTestKey = undefined;
       let encryptedLiveKey = undefined;
 
@@ -346,6 +346,23 @@ export const VaultStripeSettings = () => {
 
           {formData.is_active && (
             <>
+              {/* Setup Wizard Cards */}
+              <SetupWizardCard
+                environment="test"
+                isActive={activeTab === 'test'}
+                hasPublishableKey={keyValidation.test_publishable_valid}
+                hasSecretKey={keyValidation.test_secret_valid}
+                hasWebhook={!!formData.webhook_secret_test}
+              />
+              
+              <SetupWizardCard
+                environment="live"
+                isActive={activeTab === 'live'}
+                hasPublishableKey={keyValidation.live_publishable_valid}
+                hasSecretKey={keyValidation.live_secret_valid}
+                hasWebhook={!!formData.webhook_secret_live}
+              />
+
               {/* Security Status Dashboard */}
               <div className="border rounded-lg p-4 bg-muted/50">
                 <h4 className="font-medium mb-3 flex items-center gap-2">
@@ -386,6 +403,25 @@ export const VaultStripeSettings = () => {
                   </Alert>
 
                   <div className="space-y-4">
+                    {/* Test Publishable Key */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Label htmlFor="test-publishable">Test Publishable Key</Label>
+                        {keyValidation.test_publishable_valid && (
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        )}
+                      </div>
+                      <Input
+                        id="test-publishable"
+                        placeholder="pk_test_..."
+                        value={formData.publishable_key_test}
+                        onChange={(e) => handleKeyChange('publishable_key_test', e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Find this in your Stripe Dashboard → Developers → API keys (Test mode)
+                      </p>
+                    </div>
+
                     {/* Test Secret Key */}
                     <div>
                       <div className="flex items-center gap-2 mb-1">
@@ -415,22 +451,6 @@ export const VaultStripeSettings = () => {
                       </p>
                     </div>
 
-                    {/* Test Publishable Key */}
-                    <div>
-                      <Label htmlFor="test-publishable">Test Publishable Key</Label>
-                      <div className="flex gap-2 mt-1">
-                        <Input
-                          id="test-publishable"
-                          placeholder="pk_test_..."
-                          value={formData.publishable_key_test}
-                          onChange={(e) => handleKeyChange('publishable_key_test', e.target.value)}
-                        />
-                        {keyValidation.test_publishable_valid && (
-                          <CheckCircle className="h-4 w-4 text-green-500 mt-2" />
-                        )}
-                      </div>
-                    </div>
-
                     {/* Test Webhook Secret */}
                     <div>
                       <div className="flex items-center gap-2 mb-1">
@@ -450,7 +470,13 @@ export const VaultStripeSettings = () => {
                         value={formData.webhook_secret_test}
                         onChange={(e) => setFormData(prev => ({ ...prev, webhook_secret_test: e.target.value }))}
                       />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Found when you create a webhook endpoint in your Stripe Dashboard
+                      </p>
                     </div>
+
+                    {/* Webhook Configuration for Test */}
+                    <WebhookConfiguration environment="test" />
                   </div>
                 </TabsContent>
 
@@ -463,6 +489,25 @@ export const VaultStripeSettings = () => {
                   </Alert>
 
                   <div className="space-y-4">
+                    {/* Live Publishable Key */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <Label htmlFor="live-publishable">Live Publishable Key</Label>
+                        {keyValidation.live_publishable_valid && (
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        )}
+                      </div>
+                      <Input
+                        id="live-publishable"
+                        placeholder="pk_live_..."
+                        value={formData.publishable_key_live}
+                        onChange={(e) => handleKeyChange('publishable_key_live', e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Find this in your Stripe Dashboard → Developers → API keys (Live mode)
+                      </p>
+                    </div>
+
                     {/* Live Secret Key */}
                     <div>
                       <div className="flex items-center gap-2 mb-1">
@@ -492,22 +537,6 @@ export const VaultStripeSettings = () => {
                       </p>
                     </div>
 
-                    {/* Live Publishable Key */}
-                    <div>
-                      <Label htmlFor="live-publishable">Live Publishable Key</Label>
-                      <div className="flex gap-2 mt-1">
-                        <Input
-                          id="live-publishable"
-                          placeholder="pk_live_..."
-                          value={formData.publishable_key_live}
-                          onChange={(e) => handleKeyChange('publishable_key_live', e.target.value)}
-                        />
-                        {keyValidation.live_publishable_valid && (
-                          <CheckCircle className="h-4 w-4 text-green-500 mt-2" />
-                        )}
-                      </div>
-                    </div>
-
                     {/* Live Webhook Secret */}
                     <div>
                       <div className="flex items-center gap-2 mb-1">
@@ -527,7 +556,13 @@ export const VaultStripeSettings = () => {
                         value={formData.webhook_secret_live}
                         onChange={(e) => setFormData(prev => ({ ...prev, webhook_secret_live: e.target.value }))}
                       />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Found when you create a webhook endpoint in your Stripe Dashboard
+                      </p>
                     </div>
+
+                    {/* Webhook Configuration for Live */}
+                    <WebhookConfiguration environment="live" />
                   </div>
                 </TabsContent>
               </Tabs>
