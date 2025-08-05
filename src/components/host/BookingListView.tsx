@@ -1,10 +1,8 @@
+
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { Clock, Users, MapPin, DollarSign, AlertTriangle, Banknote } from "lucide-react";
+import { Clock, Users, MapPin } from "lucide-react";
 
 interface BookingListViewProps {
   bookings: any[];
@@ -12,7 +10,7 @@ interface BookingListViewProps {
   onBookingClick: (booking: any) => void;
 }
 
-interface BookingWithPayment {
+interface BookingWithStatus {
   id: number;
   guest_name: string;
   booking_time: string;
@@ -22,83 +20,13 @@ interface BookingWithPayment {
   is_unallocated?: boolean;
   service?: string;
   notes?: string;
-  payment_status?: string;
-  payment_amount?: number;
-  requires_payment?: boolean;
-  accurate_payment_amount?: number;
 }
 
 export const BookingListView = ({ bookings, tables, onBookingClick }: BookingListViewProps) => {
-  // Fetch payment data for bookings with service information for accurate calculation
-  const { data: paymentData = [] } = useQuery({
-    queryKey: ['booking-payments', bookings.map(b => b.id)],
-    queryFn: async () => {
-      if (bookings.length === 0) return [];
-      
-      const { data, error } = await supabase
-        .from('booking_payments')
-        .select('booking_id, status, amount_cents')
-        .in('booking_id', bookings.map(b => b.id));
-      
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: bookings.length > 0
-  });
-
-  // Fetch service information for accurate payment calculation
-  const { data: serviceData = [] } = useQuery({
-    queryKey: ['booking-services', bookings.map(b => b.service)],
-    queryFn: async () => {
-      if (bookings.length === 0) return [];
-      
-      const serviceNames = [...new Set(bookings.map(b => b.service).filter(Boolean))];
-      if (serviceNames.length === 0) return [];
-      
-      const { data, error } = await supabase
-        .from('services')
-        .select('title, requires_payment, charge_type, charge_amount_per_guest, minimum_guests_for_charge')
-        .in('title', serviceNames);
-      
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: bookings.length > 0
-  });
-
-  // Enhanced function to get accurate payment amount
-  const getAccuratePaymentAmount = (booking: any): number | null => {
-    // First check if there's a payment record
-    const payment = paymentData.find(p => p.booking_id === booking.id);
-    if (payment?.amount_cents) {
-      return payment.amount_cents;
-    }
-
-    // Fallback: calculate based on current service pricing
-    const service = serviceData.find(s => s.title === booking.service);
-    if (service?.requires_payment && service.charge_type === 'per_guest') {
-      const chargePerGuest = service.charge_amount_per_guest || 0;
-      const minGuests = service.minimum_guests_for_charge || 1;
-      const chargingPartySize = Math.max(booking.party_size, minGuests);
-      return chargePerGuest * chargingPartySize;
-    }
-
-    return null;
-  };
-
-  // Enhance bookings with payment data and accurate amounts
-  const bookingsWithPayments: BookingWithPayment[] = bookings.map(booking => {
-    const payment = paymentData.find(p => p.booking_id === booking.id);
-    const accurateAmount = getAccuratePaymentAmount(booking);
-    
-    return {
-      ...booking,
-      payment_status: payment?.status,
-      payment_amount: payment?.amount_cents,
-      accurate_payment_amount: accurateAmount,
-      requires_payment: !!payment || !!accurateAmount
-    };
-  });
+  // Enhance bookings with computed properties
+  const bookingsWithStatus: BookingWithStatus[] = bookings.map(booking => ({
+    ...booking,
+  }));
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -108,17 +36,7 @@ export const BookingListView = ({ bookings, tables, onBookingClick }: BookingLis
       case 'cancelled': return 'bg-[#E47272] text-white border-[#E47272]/30';
       case 'late': return 'bg-[#F1C8D0] text-[#111315] border-[#F1C8D0]/30';
       case 'no-show': return 'bg-[#E47272] text-white border-[#E47272]/30';
-      case 'pending_payment': return 'bg-[#FFA500] text-white border-[#FFA500]/30';
       default: return 'bg-[#C2D8E9] text-[#111315] border-[#C2D8E9]/30';
-    }
-  };
-
-  const getPaymentStatusColor = (status?: string) => {
-    switch (status) {
-      case 'succeeded': return 'text-green-600';
-      case 'failed': return 'text-red-600';
-      case 'pending': return 'text-orange-600';
-      default: return 'text-gray-600';
     }
   };
 
@@ -130,24 +48,19 @@ export const BookingListView = ({ bookings, tables, onBookingClick }: BookingLis
   };
 
   // Sort bookings by priority: unallocated first, then by status, then by time
-  const sortedBookings = [...bookingsWithPayments].sort((a, b) => {
+  const sortedBookings = [...bookingsWithStatus].sort((a, b) => {
     // Unallocated bookings first
     if (a.is_unallocated && !b.is_unallocated) return -1;
     if (!a.is_unallocated && b.is_unallocated) return 1;
     
     // Then sort by status priority
     const statusPriority: Record<string, number> = {
-      'pending_payment': 1,
-      'confirmed': 2,
-      'seated': 3,
-      'finished': 4,
-      'cancelled': 5,
-      'no_show': 6
+      'confirmed': 1,
+      'seated': 2,
+      'finished': 3,
+      'cancelled': 4,
+      'no_show': 5
     };
-
-    // Failed payments get highest priority after unallocated
-    if (a.payment_status === 'failed' && b.payment_status !== 'failed') return -1;
-    if (a.payment_status !== 'failed' && b.payment_status === 'failed') return 1;
     
     const aPriority = statusPriority[a.status] || 10;
     const bPriority = statusPriority[b.status] || 10;
@@ -160,20 +73,18 @@ export const BookingListView = ({ bookings, tables, onBookingClick }: BookingLis
     return a.booking_time.localeCompare(b.booking_time);
   });
 
-  // Group bookings by category with enhanced payment categorization
+  // Group bookings by category
   const unallocatedBookings = sortedBookings.filter(b => b.is_unallocated || !b.table_id);
-  const failedPaymentBookings = sortedBookings.filter(b => b.payment_status === 'failed');
   const activeBookings = sortedBookings.filter(b => 
     !b.is_unallocated && 
     b.table_id && 
-    !['cancelled', 'no_show', 'finished'].includes(b.status) &&
-    b.payment_status !== 'failed'
+    !['cancelled', 'no_show', 'finished'].includes(b.status)
   );
   const cancelledBookings = sortedBookings.filter(b => 
-    ['cancelled', 'no_show'].includes(b.status) && b.payment_status !== 'failed'
+    ['cancelled', 'no_show'].includes(b.status)
   );
   const finishedBookings = sortedBookings.filter(b => 
-    b.status === 'finished' && b.payment_status !== 'failed'
+    b.status === 'finished'
   );
 
   const renderBookingGroup = (bookings: any[], title: string, highlightClass?: string) => {
@@ -187,7 +98,6 @@ export const BookingListView = ({ bookings, tables, onBookingClick }: BookingLis
         <div className="space-y-2">
           {bookings.map((booking) => {
             const table = tables.find(t => t.id === booking.table_id);
-            const displayAmount = booking.accurate_payment_amount || booking.payment_amount;
             
             return (
               <div
@@ -204,28 +114,6 @@ export const BookingListView = ({ bookings, tables, onBookingClick }: BookingLis
                       <Badge className={`${getStatusColor(booking.status)} font-inter font-medium px-1.5 py-0.5 text-xs`}>
                         {booking.status}
                       </Badge>
-                      
-                      {/* Payment Status Indicators */}
-                      {booking.payment_status === 'succeeded' && (
-                        <div title="Payment Received">
-                          <Banknote className="h-3 w-3 text-green-600" />
-                        </div>
-                      )}
-                      {booking.payment_status === 'failed' && (
-                        <div title="Payment Failed">
-                          <AlertTriangle className="h-3 w-3 text-red-600" />
-                        </div>
-                      )}
-                      {booking.payment_status === 'pending' && (
-                        <div title="Payment Pending">
-                          <Clock className="h-3 w-3 text-orange-600" />
-                        </div>
-                      )}
-                      {booking.requires_payment && !booking.payment_status && (
-                        <div title="Payment Required">
-                          <DollarSign className="h-3 w-3 text-[#CCF0DB] opacity-80" />
-                        </div>
-                      )}
                     </div>
                     
                     <div className="flex items-center gap-3 text-xs text-[#676767]">
@@ -249,21 +137,6 @@ export const BookingListView = ({ bookings, tables, onBookingClick }: BookingLis
                         </span>
                       )}
                     </div>
-
-                    {/* Payment Amount Display - Use accurate amount */}
-                    {displayAmount && (
-                      <div className="mt-1 text-xs font-inter">
-                        <span className={`${getPaymentStatusColor(booking.payment_status)}`}>
-                          £{(displayAmount / 100).toFixed(2)} 
-                          {booking.payment_status && ` (${booking.payment_status})`}
-                          {booking.accurate_payment_amount && booking.accurate_payment_amount !== booking.payment_amount && (
-                            <span className="text-blue-600 ml-1" title="Amount recalculated based on current pricing">
-                              *
-                            </span>
-                          )}
-                        </span>
-                      </div>
-                    )}
 
                     {booking.notes && (
                       <div className="mt-1 text-xs text-[#676767] font-inter italic truncate">
@@ -295,7 +168,6 @@ export const BookingListView = ({ bookings, tables, onBookingClick }: BookingLis
       <ScrollArea className="h-[calc(100%-60px)]">
         <div className="p-3">
           {renderBookingGroup(unallocatedBookings, "Needs Table Assignment", "bg-orange-500/20 text-orange-400")}
-          {renderBookingGroup(failedPaymentBookings, "Failed Payments", "bg-red-500/20 text-red-400")}
           {renderBookingGroup(activeBookings, "Active Reservations")}
           {renderBookingGroup(cancelledBookings, "Cancelled & No-Shows")}
           {renderBookingGroup(finishedBookings, "Finished")}

@@ -6,15 +6,13 @@ import { SimplifiedTimeSelector } from "./SimplifiedTimeSelector";
 import { PartyNumberSelector } from "./PartyNumberSelector";
 import { ServiceSelector } from "./ServiceSelector";
 import { GuestDetailsForm } from "./GuestDetailsForm";
-import { PaymentStep } from "./PaymentStep";
 import { BookingConfirmation } from "./BookingConfirmation";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, Loader2 } from "lucide-react";
-import { calculatePaymentAmount } from "@/utils/paymentCalculation";
 import { useVenueBySlug } from "@/hooks/useVenueBySlug";
 import { OptimizedAvailabilityService } from "@/services/optimizedAvailabilityService";
 
-export type BookingStep = 'party' | 'date' | 'time' | 'service' | 'details' | 'payment' | 'confirmation';
+export type BookingStep = 'party' | 'date' | 'time' | 'service' | 'details' | 'confirmation';
 
 interface BookingFlowManagerProps {
   venueSlug: string;
@@ -30,8 +28,6 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
     service: null as any,
     serviceId: '',
     guestDetails: null as any,
-    paymentRequired: false,
-    paymentAmount: 0,
     bookingId: null as number | null,
   });
 
@@ -51,7 +47,7 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
   };
 
   const handleBack = () => {
-    const steps: BookingStep[] = ['party', 'date', 'time', 'service', 'details', 'payment', 'confirmation'];
+    const steps: BookingStep[] = ['party', 'date', 'time', 'service', 'details', 'confirmation'];
     const currentIndex = steps.indexOf(currentStep);
     if (currentIndex > 0) {
       handleStepChange(steps[currentIndex - 1]);
@@ -170,56 +166,18 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
       case 'details':
         return (
           <GuestDetailsForm
-            onSubmit={async (details, paymentRequired) => {
-              console.log('📋 Guest details submitted:', { details, paymentRequired });
-              let paymentAmount = 0;
-              
-              if (paymentRequired && bookingData.serviceId) {
-                try {
-                  const paymentCalculation = await calculatePaymentAmount(
-                    bookingData.serviceId,
-                    bookingData.partySize,
-                    venue.id
-                  );
-                  paymentAmount = paymentCalculation.amount;
-                } catch (error) {
-                  console.error('Error calculating payment:', error);
-                }
-              }
-
+            onSubmit={async (details) => {
+              console.log('📋 Guest details submitted:', details);
               updateBookingData({ 
-                guestDetails: details, 
-                paymentRequired,
-                paymentAmount
+                guestDetails: details
               });
-              
-              if (paymentRequired) {
-                handleStepChange('payment');
-              } else {
-                handleStepChange('confirmation');
-              }
+              handleStepChange('confirmation');
             }}
             bookingData={{
               date: bookingData.date?.toISOString().split('T')[0] || '',
               time: bookingData.time,
               partySize: bookingData.partySize,
               service: bookingData.service?.title || '',
-            }}
-          />
-        );
-
-      case 'payment':
-        return (
-          <PaymentStep
-            amount={bookingData.paymentAmount}
-            description={`Payment for ${bookingData.service?.title} - ${bookingData.partySize} guests`}
-            bookingId={bookingData.bookingId || undefined}
-            onPaymentSuccess={() => {
-              console.log('💳 Payment successful');
-              handleStepChange('confirmation');
-            }}
-            onPaymentError={(error) => {
-              console.error('💳 Payment error:', error);
             }}
           />
         );
