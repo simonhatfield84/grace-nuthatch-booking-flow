@@ -1,10 +1,9 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, Clock, MapPin, Plus, Check, X } from 'lucide-react';
-import { Booking } from '@/hooks/useBookings';
+import { Booking } from '@/features/booking/types/booking';
 
 interface BookingActionsPanelProps {
   booking: Booking | null;

@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Booking } from "@/hooks/useBookings";
+import { Booking } from "@/features/booking/types/booking";
 
 interface BookingEditFormProps {
   booking: Booking;

@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { X, Users, Clock, Phone, Mail, MapPin, FileText, Calendar, Hash, Edit, Save, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { useState } from "react";
-import { Booking } from "@/hooks/useBookings";
+import { Booking } from "@/features/booking/types/booking";
 import { BookingAuditTrail } from "./BookingAuditTrail";
 import { PaymentStatus } from "@/components/payments/PaymentStatus";
 import { useTables } from "@/hooks/useTables";
