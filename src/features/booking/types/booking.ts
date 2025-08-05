@@ -13,9 +13,15 @@ export interface BookingData {
   time: string;
   service: Service | null;
   guestDetails: GuestDetails | null;
-  paymentRequired: boolean;
-  paymentAmount: number;
   bookingId: number | null;
+}
+
+export interface BookingFormData {
+  partySize: number;
+  date: Date;
+  time: string;
+  serviceTitle?: string;
+  guestDetails: GuestDetails;
 }
 
 export interface Service {
@@ -24,8 +30,6 @@ export interface Service {
   description?: string;
   min_guests: number;
   max_guests: number;
-  requires_deposit: boolean;
-  deposit_per_guest: number;
   lead_time_hours: number;
   image_url?: string;
 }
@@ -35,6 +39,7 @@ export interface GuestDetails {
   email: string;
   phone?: string;
   notes?: string;
+  specialRequests?: string;
   marketingOptIn: boolean;
   termsAccepted: boolean;
 }
