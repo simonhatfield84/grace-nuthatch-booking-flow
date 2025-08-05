@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -846,6 +845,7 @@ export function InlineBookingWindowManager({ serviceId }: InlineBookingWindowMan
 
             <div className="flex gap-2 pt-4 border-t">
               <Button 
+                type="button"
                 onClick={handleSubmit}
                 disabled={!formData.start_time || !formData.end_time || !formData.days?.length || createWindowMutation.isPending || updateWindowMutation.isPending || !userVenue}
               >
