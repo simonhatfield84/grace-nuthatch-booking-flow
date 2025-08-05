@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -6,7 +7,8 @@ import { format } from "date-fns";
 import { useVenueHours } from "@/hooks/useVenueHours";
 import { useSections } from "@/hooks/useSections";
 import { useTables } from "@/hooks/useTables";
-import { useBookings, Booking } from "@/hooks/useBookings";
+import { useBookings } from "@/hooks/useBookings";
+import { Booking } from "@/features/booking/types/booking";
 import { useServices } from "@/hooks/useServices";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
