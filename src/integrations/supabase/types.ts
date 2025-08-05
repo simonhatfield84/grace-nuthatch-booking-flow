@@ -710,6 +710,53 @@ export type Database = {
           },
         ]
       }
+      payment_requests: {
+        Row: {
+          amount_cents: number
+          booking_id: number
+          created_at: string
+          expires_at: string
+          id: string
+          payment_link: string
+          reminder_sent_at: string | null
+          status: string
+          updated_at: string
+          venue_id: string
+        }
+        Insert: {
+          amount_cents: number
+          booking_id: number
+          created_at?: string
+          expires_at?: string
+          id?: string
+          payment_link: string
+          reminder_sent_at?: string | null
+          status?: string
+          updated_at?: string
+          venue_id: string
+        }
+        Update: {
+          amount_cents?: number
+          booking_id?: number
+          created_at?: string
+          expires_at?: string
+          id?: string
+          payment_link?: string
+          reminder_sent_at?: string | null
+          status?: string
+          updated_at?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_requests_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_transactions: {
         Row: {
           amount_cents: number

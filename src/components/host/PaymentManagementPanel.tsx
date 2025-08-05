@@ -1,9 +1,8 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CreditCard, RefreshCw, Receipt, AlertTriangle } from "lucide-react";
+import { CreditCard, RefreshCw, Receipt, AlertTriangle, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PaymentRequestDialog } from "./PaymentRequestDialog";
 import { RefundDialog } from "./RefundDialog";
@@ -29,9 +28,11 @@ export const PaymentManagementPanel = ({ booking }: PaymentManagementPanelProps)
   const [paymentRequestDialogOpen, setPaymentRequestDialogOpen] = useState(false);
   const [refundDialogOpen, setRefundDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [paymentRequest, setPaymentRequest] = useState<any>(null);
 
   useEffect(() => {
     loadPaymentData();
+    loadPaymentRequest();
   }, [booking.id]);
 
   const loadPaymentData = async () => {
@@ -46,6 +47,23 @@ export const PaymentManagementPanel = ({ booking }: PaymentManagementPanelProps)
       setPaymentData(payment);
     } catch (error) {
       console.error('Error loading payment data:', error);
+    }
+  };
+
+  const loadPaymentRequest = async () => {
+    try {
+      // Load payment request data
+      const { data: request } = await supabase
+        .from('payment_requests')
+        .select('*')
+        .eq('booking_id', booking.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      setPaymentRequest(request);
+    } catch (error) {
+      console.error('Error loading payment request:', error);
     }
   };
 
@@ -74,6 +92,7 @@ export const PaymentManagementPanel = ({ booking }: PaymentManagementPanelProps)
         }]);
 
       await loadPaymentData();
+      await loadPaymentRequest();
     } catch (error) {
       console.error('Error skipping payment:', error);
     } finally {
@@ -117,10 +136,28 @@ export const PaymentManagementPanel = ({ booking }: PaymentManagementPanelProps)
       <CardContent className="space-y-4">
         <PaymentPendingIndicator
           booking={booking}
-          paymentRequest={null}
+          paymentRequest={paymentRequest}
           onResendRequest={() => setPaymentRequestDialogOpen(true)}
           onSkipPayment={handleSkipPayment}
         />
+
+        {/* Show payment request info if exists */}
+        {paymentRequest && booking.status === 'pending_payment' && (
+          <div className="bg-yellow-50 p-3 rounded-lg">
+            <div className="flex items-center gap-2 mb-1">
+              <Clock className="h-4 w-4 text-yellow-600" />
+              <span className="font-medium text-yellow-800">Payment Request Sent</span>
+            </div>
+            <div className="text-sm text-yellow-700">
+              <p>Amount: {formatAmount(paymentRequest.amount_cents)}</p>
+              <p>Sent: {new Date(paymentRequest.created_at).toLocaleDateString()}</p>
+              <p>Expires: {new Date(paymentRequest.expires_at).toLocaleDateString()}</p>
+              {paymentRequest.reminder_sent_at && (
+                <p>Reminder sent: {new Date(paymentRequest.reminder_sent_at).toLocaleDateString()}</p>
+              )}
+            </div>
+          </div>
+        )}
 
         {paymentData && (
           <div className="space-y-3">

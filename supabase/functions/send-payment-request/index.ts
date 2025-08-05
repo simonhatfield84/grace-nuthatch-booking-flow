@@ -1,152 +1,171 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
-import { Resend } from 'npm:resend@4.0.0';
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const supabase = createClient(
+    const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    )
 
-    const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
+    const { booking_id, venue_id, amount_cents, custom_message } = await req.json()
 
-    const { booking_id, amount_cents, guest_email, custom_message, venue_id } = await req.json();
-
-    console.log('📧 Sending payment request:', {
-      booking_id,
-      amount_cents,
-      guest_email,
-      venue_id
-    });
-
-    // Get booking and venue details
-    const { data: booking } = await supabase
+    // Get booking details
+    const { data: booking, error: bookingError } = await supabaseClient
       .from('bookings')
-      .select('*, venues(*)')
+      .select('*')
       .eq('id', booking_id)
-      .single();
+      .single()
 
-    if (!booking) {
-      throw new Error('Booking not found');
+    if (bookingError || !booking) {
+      throw new Error('Booking not found')
     }
 
-    // Generate secure payment link
-    const paymentToken = crypto.randomUUID();
-    const paymentLink = `https://wxyotttvyexxzeaewyga.supabase.co/booking-widget?payment=${paymentToken}`;
+    // Get venue details
+    const { data: venue, error: venueError } = await supabaseClient
+      .from('venues')
+      .select('name, email')
+      .eq('id', venue_id)
+      .single()
+
+    if (venueError || !venue) {
+      throw new Error('Venue not found')
+    }
+
+    // Create Stripe payment intent
+    const { data: paymentIntent, error: stripeError } = await supabaseClient.functions.invoke(
+      'create-payment-intent',
+      {
+        body: {
+          booking_id,
+          amount_cents,
+          venue_id,
+          guest_email: booking.email
+        }
+      }
+    )
+
+    if (stripeError || !paymentIntent) {
+      throw new Error('Failed to create payment intent')
+    }
 
     // Create payment request record
-    const { error: requestError } = await supabase
+    const paymentLink = `https://wxyotttvyexxzeaewyga.supabase.co/payment/${paymentIntent.id}`
+    
+    const { error: requestError } = await supabaseClient
       .from('payment_requests')
       .insert([{
         booking_id,
         venue_id,
-        payment_link: paymentLink,
         amount_cents,
-        status: 'sent'
-      }]);
+        payment_link: paymentLink,
+        status: 'pending'
+      }])
 
-    if (requestError) throw requestError;
-
-    // Create payment intent for this booking
-    const { error: intentError } = await supabase.functions.invoke('create-payment-intent', {
-      body: {
-        bookingId: booking_id,
-        amount: amount_cents,
-        currency: 'gbp',
-        description: `Payment for booking ${booking_id}`,
-        metadata: { payment_token: paymentToken }
-      }
-    });
-
-    if (intentError) {
-      console.error('Failed to create payment intent:', intentError);
+    if (requestError) {
+      throw new Error('Failed to create payment request record')
     }
 
-    // Send email with payment request
-    const emailHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2>Payment Required for Your Booking</h2>
-        
-        <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <h3>Booking Details</h3>
-          <p><strong>Venue:</strong> ${booking.venues?.name || 'The Venue'}</p>
-          <p><strong>Date:</strong> ${booking.booking_date}</p>
-          <p><strong>Time:</strong> ${booking.booking_time}</p>
-          <p><strong>Party Size:</strong> ${booking.party_size}</p>
-          <p><strong>Service:</strong> ${booking.service}</p>
-        </div>
+    // Get payment request email template
+    const { data: template, error: templateError } = await supabaseClient
+      .from('email_templates')
+      .select('*')
+      .eq('venue_id', venue_id)
+      .eq('template_key', 'payment_request')
+      .eq('is_active', true)
+      .single()
 
-        <div style="background: #fee; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <h3>Payment Required</h3>
-          <p><strong>Amount:</strong> £${(amount_cents / 100).toFixed(2)}</p>
-          <p>Please complete your payment to confirm your booking.</p>
-          ${custom_message ? `<p><em>"${custom_message}"</em></p>` : ''}
-        </div>
+    if (templateError || !template) {
+      throw new Error('Payment request email template not found')
+    }
 
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${paymentLink}" 
-             style="background: #000; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
-            Complete Payment
-          </a>
-        </div>
+    // Get venue signature
+    const { data: emailSettings } = await supabaseClient
+      .from('venue_settings')
+      .select('setting_value')
+      .eq('venue_id', venue_id)
+      .eq('setting_key', 'email_signature')
+      .single()
 
-        <div style="color: #666; font-size: 14px; margin-top: 20px;">
-          <p>This payment request expires in 24 hours.</p>
-          <p>If you have any questions, please contact ${booking.venues?.email || 'the venue'}.</p>
-        </div>
-      </div>
-    `;
+    const emailSignature = emailSettings?.setting_value?.signature || venue.name
 
-    const { error: emailError } = await resend.emails.send({
-      from: `${booking.venues?.name || 'Venue'} <noreply@gracereservations.com>`,
-      to: [guest_email],
-      subject: `Payment Required - Booking Confirmation`,
-      html: emailHtml,
-    });
+    // Prepare template variables
+    const variables = {
+      guest_name: booking.guest_name,
+      venue_name: venue.name,
+      booking_reference: booking.booking_reference || `BK-${booking.id}`,
+      booking_date: booking.booking_date,
+      booking_time: booking.booking_time,
+      party_size: booking.party_size.toString(),
+      service: booking.service,
+      payment_amount: `£${(amount_cents / 100).toFixed(2)}`,
+      payment_link: paymentLink,
+      custom_message: custom_message || '',
+      email_signature: emailSignature
+    }
+
+    // Render template
+    let subject = template.subject || ''
+    let html = template.html_content || ''
+
+    // Replace template variables
+    Object.entries(variables).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        const placeholder = new RegExp(`{{${key}}}`, 'g')
+        subject = subject.replace(placeholder, value.toString())
+        html = html.replace(placeholder, value.toString())
+      }
+    })
+
+    // Handle conditional sections
+    html = html.replace(/{{#(\w+)}}(.*?){{\/\1}}/gs, (match, condition, content) => {
+      return variables[condition as keyof typeof variables] ? content : ''
+    })
+
+    // Send email using send-branded-email function
+    const { error: emailError } = await supabaseClient.functions.invoke('send-branded-email', {
+      body: {
+        to: booking.email,
+        subject,
+        html,
+        venue_id
+      }
+    })
 
     if (emailError) {
-      console.error('Email sending failed:', emailError);
-      throw new Error('Failed to send payment request email');
+      throw new Error('Failed to send payment request email')
     }
 
-    // Log the payment request in booking audit
-    await supabase
-      .from('booking_audit')
-      .insert([{
-        booking_id,
-        venue_id,
-        change_type: 'payment_requested',
-        field_name: 'payment_status',
-        new_value: 'request_sent',
-        notes: `Payment request sent to ${guest_email} for £${(amount_cents / 100).toFixed(2)}`
-      }]);
-
-    console.log('✅ Payment request sent successfully');
+    // Update booking status to pending_payment
+    await supabaseClient
+      .from('bookings')
+      .update({ status: 'pending_payment' })
+      .eq('id', booking_id)
 
     return new Response(
-      JSON.stringify({ success: true, payment_link: paymentLink }),
+      JSON.stringify({ 
+        success: true, 
+        payment_intent_id: paymentIntent.id,
+        payment_link: paymentLink
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    )
 
   } catch (error) {
-    console.error('❌ Error sending payment request:', error);
+    console.error('Error:', error)
     return new Response(
       JSON.stringify({ error: error.message }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
-    );
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    )
   }
-});
+})
