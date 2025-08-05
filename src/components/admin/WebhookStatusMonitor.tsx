@@ -15,24 +15,30 @@ interface WebhookTestResult {
   timestamp: Date;
 }
 
+interface SecurityAuditRecord {
+  id: string;
+  created_at: string;
+  event_type: string;
+  event_details: any;
+}
+
 export const WebhookStatusMonitor = () => {
   const [testResult, setTestResult] = useState<WebhookTestResult | null>(null);
   const [isTesting, setIsTesting] = useState(false);
 
   const { data: recentFailures, refetch } = useQuery({
     queryKey: ['recent-webhook-failures'],
-    queryFn: async () => {
+    queryFn: async (): Promise<SecurityAuditRecord[]> => {
       const { data, error } = await supabase
         .from('security_audit')
         .select('*')
         .eq('event_type', 'webhook_received')
-        .eq('event_details->verified', false)
         .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
         .order('created_at', { ascending: false })
         .limit(10);
 
       if (error) throw error;
-      return data;
+      return data || [];
     }
   });
 
@@ -158,7 +164,9 @@ export const WebhookStatusMonitor = () => {
                 <div key={failure.id} className="text-xs p-2 bg-red-50 rounded">
                   <span className="font-medium">{new Date(failure.created_at).toLocaleString()}</span>
                   <span className="ml-2 text-muted-foreground">
-                    {failure.event_details?.error || 'Authentication failed'}
+                    {typeof failure.event_details === 'object' && failure.event_details && 'error' in failure.event_details 
+                      ? String(failure.event_details.error) 
+                      : 'Authentication failed'}
                   </span>
                 </div>
               ))}

@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -80,8 +79,8 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
           }
         }
 
-        // Only show success toast if booking is actually confirmed
-        if (booking.status === 'confirmed') {
+        // Only show success toast if booking is actually confirmed and payment is complete
+        if (booking.status === 'confirmed' && (!bookingData.paymentRequired || paymentStatus === 'succeeded')) {
           toast({
             title: "Booking Confirmed!",
             description: "Your table is reserved and ready!",
@@ -107,7 +106,7 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
     };
 
     loadBookingDetails();
-  }, [bookingData.bookingId, bookingData.paymentRequired, toast]);
+  }, [bookingData.bookingId, bookingData.paymentRequired, toast, paymentStatus]);
 
   const verifyPaymentStatus = async () => {
     if (!bookingData.bookingId) return;
@@ -146,17 +145,27 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
           });
 
           if (verifyData?.payment_succeeded) {
-            toast.success('Payment verified and booking confirmed!');
+            toast({
+              title: "Success",
+              description: "Payment verified and booking confirmed!",
+            });
             // Refresh the page to show updated status
             setTimeout(() => window.location.reload(), 1000);
           }
         }
       }
 
-      toast.success('Status refreshed');
+      toast({
+        title: "Success",
+        description: "Status refreshed",
+      });
     } catch (error) {
       console.error('Error verifying payment:', error);
-      toast.error('Failed to verify payment status');
+      toast({
+        title: "Error",
+        description: "Failed to verify payment status",
+        variant: "destructive",
+      });
     } finally {
       setIsVerifying(false);
     }
@@ -207,9 +216,9 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
     );
   }
 
-  // Determine if booking is fully confirmed
+  // Determine if booking is fully confirmed - CRITICAL FIX: only confirm if payment is verified
   const isFullyConfirmed = bookingStatus === 'confirmed' && (!bookingData.paymentRequired || paymentStatus === 'succeeded');
-  const isPendingPayment = bookingData.paymentRequired && paymentStatus === 'pending';
+  const isPendingPayment = bookingData.paymentRequired && (paymentStatus === 'pending' || paymentStatus === null);
 
   return (
     <div className="space-y-6">
