@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -30,6 +30,18 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
   isSubmitting,
   isEditing
 }) => {
+  // Local state for display amount (in pounds as string)
+  const [displayAmount, setDisplayAmount] = useState<string>('');
+
+  // Update display amount when formData changes (e.g., when editing existing service)
+  useEffect(() => {
+    if (formData.charge_amount_per_guest === 0) {
+      setDisplayAmount('');
+    } else {
+      setDisplayAmount((formData.charge_amount_per_guest / 100).toFixed(2));
+    }
+  }, [formData.charge_amount_per_guest]);
+
   const handleDurationRulesChange = (rules: DurationRule[]) => {
     onFormDataChange({ duration_rules: rules });
   };
@@ -42,25 +54,19 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
     onFormDataChange({ image_url: '' });
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  // Handle payment amount change
+  const handlePaymentAmountChange = (value: string) => {
+    setDisplayAmount(value);
     
-    // Convert pound amount to pence before submission if there's a value
-    const amountInput = (e.target as HTMLFormElement).querySelector('#charge_amount_per_guest') as HTMLInputElement;
-    if (amountInput && amountInput.value) {
-      const poundValue = parseFloat(amountInput.value) || 0;
-      const penceValue = Math.round(poundValue * 100);
-      onFormDataChange({ charge_amount_per_guest: penceValue });
-    }
-    
-    onSubmit(e);
+    // Convert to pence and update form data immediately
+    const poundValue = parseFloat(value) || 0;
+    const penceValue = Math.round(poundValue * 100);
+    onFormDataChange({ charge_amount_per_guest: penceValue });
   };
 
-  const getDisplayAmount = () => {
-    if (formData.charge_amount_per_guest === 0) {
-      return '';
-    }
-    return (formData.charge_amount_per_guest / 100).toFixed(2);
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit(e);
   };
 
   return (
@@ -239,7 +245,8 @@ export const ServiceForm: React.FC<ServiceFormProps> = ({
                       type="text"
                       className="pl-8"
                       placeholder="29.95"
-                      defaultValue={getDisplayAmount()}
+                      value={displayAmount}
+                      onChange={(e) => handlePaymentAmountChange(e.target.value)}
                     />
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">
