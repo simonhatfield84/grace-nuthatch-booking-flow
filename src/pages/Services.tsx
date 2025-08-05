@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -5,19 +6,18 @@ import ServiceDialog from "@/components/services/ServiceDialog";
 import { StandardServiceCard } from "@/components/services/StandardServiceCard";
 import { useServicesData } from "@/hooks/useServicesData";
 import { useServiceForm } from "@/hooks/useServiceForm";
+import { useServiceActions } from "@/hooks/useServiceActions";
 import { useBookingWindows } from "@/hooks/useBookingWindows";
 import { getServiceWindows } from "@/utils/serviceHelpers";
 
 export default function Services() {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Use the data hook
   const {
     services,
     loading,
-    createService,
-    updateService,
-    deleteService,
   } = useServicesData();
 
   // Use the form hook
@@ -31,10 +31,16 @@ export default function Services() {
     isEditing,
   } = useServiceForm();
 
+  // Use the actions hook
+  const {
+    handleDuplicateService,
+    handleToggleActive,
+    handleDeleteService,
+    handleSubmitService,
+  } = useServiceActions();
+
   // Load booking windows
   const { allBookingWindows, isLoadingWindows } = useBookingWindows();
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleCreateService = () => {
     startCreating();
@@ -47,108 +53,30 @@ export default function Services() {
     setDialogOpen(true);
   };
 
-  const handleDuplicateService = (service: any) => {
-    console.log('Duplicating service:', service);
-    
-    // Prepare the duplicated form data
-    const duplicatedFormData = {
-      title: `${service.title} (Copy)`,
-      description: service.description || '',
-      min_guests: service.min_guests,
-      max_guests: service.max_guests,
-      lead_time_hours: service.lead_time_hours,
-      cancellation_window_hours: service.cancellation_window_hours,
-      online_bookable: service.online_bookable,
-      active: service.active,
-      is_secret: service.is_secret,
-      secret_slug: service.secret_slug || '',
-      image_url: service.image_url || '',
-      duration_rules: service.duration_rules || [],
-      terms_and_conditions: service.terms_and_conditions || '',
-      requires_payment: service.requires_payment,
-      charge_type: service.charge_type,
-      minimum_guests_for_charge: service.minimum_guests_for_charge || 8,
-      charge_amount_per_guest: service.charge_amount_per_guest || 0,
-      refund_window_hours: service.refund_window_hours || 24,
-      auto_refund_enabled: service.auto_refund_enabled || false,
-    };
-    
-    // Reset to create mode and set the form data in one go
-    resetForm();
-    setTimeout(() => {
-      updateFormData(duplicatedFormData);
-      setDialogOpen(true);
-    }, 0);
+  const onDuplicateService = (service: any) => {
+    const duplicatedData = handleDuplicateService(service);
+    setDialogOpen(true);
   };
 
-  const handleToggleActive = async (serviceId: string) => {
-    const service = services.find(s => s.id === serviceId);
-    if (service) {
-      try {
-        // Ensure all required ServiceFormData fields are present
-        const serviceUpdate = {
-          title: service.title,
-          description: service.description || '', // Provide default empty string if missing
-          min_guests: service.min_guests,
-          max_guests: service.max_guests,
-          lead_time_hours: service.lead_time_hours,
-          cancellation_window_hours: service.cancellation_window_hours,
-          online_bookable: service.online_bookable,
-          active: !service.active, // Toggle the active status
-          is_secret: service.is_secret,
-          secret_slug: service.secret_slug || '',
-          image_url: service.image_url || '',
-          duration_rules: service.duration_rules || [],
-          terms_and_conditions: service.terms_and_conditions || '',
-          requires_payment: service.requires_payment,
-          charge_type: service.charge_type,
-          minimum_guests_for_charge: service.minimum_guests_for_charge || 8,
-          charge_amount_per_guest: service.charge_amount_per_guest || 0,
-          refund_window_hours: service.refund_window_hours || 24,
-          auto_refund_enabled: service.auto_refund_enabled || false,
-        };
-        await updateService(serviceId, serviceUpdate);
-      } catch (error) {
-        console.error('Error toggling service active status:', error);
-      }
-    }
+  const onToggleActive = async (serviceId: string) => {
+    await handleToggleActive(serviceId, services);
   };
 
-  const handleDeleteService = async (serviceId: string) => {
-    if (window.confirm('Are you sure you want to delete this service?')) {
-      try {
-        await deleteService(serviceId);
-      } catch (error) {
-        console.error('Error deleting service:', error);
-      }
-    }
+  const onDeleteService = async (serviceId: string) => {
+    await handleDeleteService(serviceId);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Starting form submission...');
-    console.log('Form data before submission:', formData);
-    console.log('Is editing:', isEditing, 'Service ID:', editingServiceId);
-    
     setIsSubmitting(true);
     
     try {
-      let result;
-      if (isEditing && editingServiceId) {
-        console.log('Updating service with ID:', editingServiceId);
-        result = await updateService(editingServiceId, formData);
-        console.log('Update result:', result);
-      } else {
-        console.log('Creating new service');
-        result = await createService(formData);
-        console.log('Create result:', result);
-      }
-      
+      await handleSubmitService(formData, isEditing, editingServiceId);
       console.log('Service operation successful, closing dialog');
       setDialogOpen(false);
       resetForm();
     } catch (error) {
-      console.error('Error saving service:', error);
+      console.error('Error in form submission:', error);
     } finally {
       setIsSubmitting(false);
     }
@@ -190,9 +118,9 @@ export default function Services() {
               serviceWindows={serviceWindows}
               isLoadingWindows={isLoadingWindows}
               onEdit={handleEditService}
-              onDuplicate={handleDuplicateService}
-              onToggleActive={handleToggleActive}
-              onDelete={handleDeleteService}
+              onDuplicate={onDuplicateService}
+              onToggleActive={onToggleActive}
+              onDelete={onDeleteService}
             />
           );
         })}
