@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Service as CoreService } from '@/types/core';
@@ -53,7 +52,20 @@ export const useServicesData = () => {
         .order('title');
 
       if (error) throw error;
-      setServices(data || []);
+      
+      // Transform the data to match our Service interface
+      const transformedServices = (data || []).map(service => ({
+        ...service,
+        duration_rules: Array.isArray(service.duration_rules) 
+          ? service.duration_rules 
+          : service.duration_rules 
+            ? JSON.parse(service.duration_rules) 
+            : [],
+        refund_window_hours: (service as any).refund_window_hours || 24,
+        auto_refund_enabled: (service as any).auto_refund_enabled || false,
+      })) as Service[];
+      
+      setServices(transformedServices);
     } catch (err) {
       console.error('Error loading services:', err);
       setError(err instanceof Error ? err.message : 'Failed to load services');
@@ -141,6 +153,11 @@ export const useServicesData = () => {
       // Add default values for missing refund columns
       return {
         ...data,
+        duration_rules: Array.isArray(data.duration_rules) 
+          ? data.duration_rules 
+          : data.duration_rules 
+            ? JSON.parse(data.duration_rules) 
+            : [],
         refund_window_hours: (data as any).refund_window_hours || 24,
         auto_refund_enabled: (data as any).auto_refund_enabled || false,
       } as Service;

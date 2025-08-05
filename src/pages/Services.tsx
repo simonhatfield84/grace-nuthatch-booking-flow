@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, CreditCard, Users, Clock } from "lucide-react";
@@ -11,26 +10,67 @@ import { ServicePaymentSettings } from "@/components/services/ServicePaymentSett
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useServicesData } from "@/hooks/useServicesData";
+import { useServiceForm } from "@/hooks/useServiceForm";
 
 export default function Services() {
   const [editingPaymentService, setEditingPaymentService] = useState<any>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Use the data hook
   const {
     services,
-    isLoading,
-    dialogOpen,
-    setDialogOpen,
+    loading,
+    createService,
+    updateService,
+  } = useServicesData();
+
+  // Use the form hook
+  const {
     formData,
     updateFormData,
-    isSubmitting,
+    resetForm,
+    startEditing,
+    startCreating,
     isEditing,
-    handleCreateService,
-    handleEditService,
-    handleSubmit,
-    handleCancel
-  } = useServicesData();
+  } = useServiceForm();
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleCreateService = () => {
+    startCreating();
+    setDialogOpen(true);
+  };
+
+  const handleEditService = (service: any) => {
+    startEditing(service);
+    setDialogOpen(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    
+    try {
+      if (isEditing) {
+        await updateService(formData.editingServiceId!, formData);
+      } else {
+        await createService(formData);
+      }
+      setDialogOpen(false);
+      resetForm();
+    } catch (error) {
+      // Error handling is done in the hooks
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleCancel = () => {
+    setDialogOpen(false);
+    resetForm();
+  };
 
   const updateServiceMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: string; updates: any }) => {
@@ -66,7 +106,7 @@ export default function Services() {
     return `£${(pence / 100).toFixed(2)}`;
   };
 
-  if (isLoading) {
+  if (loading) {
     return <div>Loading services...</div>;
   }
 
