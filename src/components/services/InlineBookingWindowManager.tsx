@@ -397,6 +397,7 @@ export function InlineBookingWindowManager({ serviceId }: InlineBookingWindowMan
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-semibold">Booking Windows</h3>
           <Button 
+            type="button"
             onClick={() => {
               resetForm();
               setShowAddForm(true);
@@ -435,6 +436,7 @@ export function InlineBookingWindowManager({ serviceId }: InlineBookingWindowMan
                     
                     <div className="flex gap-2">
                       <Button
+                        type="button"
                         variant="outline"
                         size="sm"
                         onClick={() => toggleWindowExpansion(window.id!)}
@@ -446,6 +448,7 @@ export function InlineBookingWindowManager({ serviceId }: InlineBookingWindowMan
                         )}
                       </Button>
                       <Button
+                        type="button"
                         variant="outline"
                         size="sm"
                         onClick={() => handleEditWindow(window)}
@@ -453,6 +456,7 @@ export function InlineBookingWindowManager({ serviceId }: InlineBookingWindowMan
                         <Edit3 className="h-3 w-3" />
                       </Button>
                       <Button
+                        type="button"
                         variant="outline"
                         size="sm"
                         onClick={() => deleteWindowMutation.mutate(window.id!)}
@@ -500,6 +504,7 @@ export function InlineBookingWindowManager({ serviceId }: InlineBookingWindowMan
             <CardTitle className="flex justify-between items-center">
               {editingWindowId ? 'Edit Booking Window' : 'Add Booking Window'}
               <Button
+                type="button"
                 variant="ghost"
                 size="sm"
                 onClick={() => {
@@ -602,6 +607,7 @@ export function InlineBookingWindowManager({ serviceId }: InlineBookingWindowMan
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
+                        type="button"
                         variant="outline"
                         className={cn(
                           "w-full justify-start text-left font-normal",
@@ -639,6 +645,7 @@ export function InlineBookingWindowManager({ serviceId }: InlineBookingWindowMan
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
+                        type="button"
                         variant="outline"
                         className={cn(
                           "w-full justify-start text-left font-normal",
@@ -679,6 +686,7 @@ export function InlineBookingWindowManager({ serviceId }: InlineBookingWindowMan
                         )}
                       </div>
                       <Button
+                        type="button"
                         variant="outline"
                         size="sm"
                         onClick={() => handleRemoveBlackoutPeriod(index)}
@@ -699,6 +707,7 @@ export function InlineBookingWindowManager({ serviceId }: InlineBookingWindowMan
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
+                          type="button"
                           variant="outline"
                           className={cn(
                             "w-full justify-start text-left font-normal",
@@ -731,6 +740,7 @@ export function InlineBookingWindowManager({ serviceId }: InlineBookingWindowMan
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
+                          type="button"
                           variant="outline"
                           className={cn(
                             "w-full justify-start text-left font-normal",
@@ -772,6 +782,7 @@ export function InlineBookingWindowManager({ serviceId }: InlineBookingWindowMan
                 </div>
                 
                 <Button
+                  type="button"
                   variant="outline"
                   onClick={handleAddBlackoutPeriod}
                   disabled={!newBlackoutPeriod.startDate || !newBlackoutPeriod.endDate}
@@ -794,6 +805,7 @@ export function InlineBookingWindowManager({ serviceId }: InlineBookingWindowMan
                 }
               </Button>
               <Button 
+                type="button"
                 variant="outline" 
                 onClick={() => {
                   setShowAddForm(false);
