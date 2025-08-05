@@ -1,16 +1,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-
-interface Booking {
-  id: number;
-  guest_name: string;
-  party_size: number;
-  booking_time: string;
-  status: string;
-  table_id?: number;
-  notes?: string;
-}
+import { Booking } from "@/types/booking";
 
 interface FloatingBookingBarProps {
   booking: Booking;

@@ -1,10 +1,11 @@
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { TableAllocationService } from "@/services/tableAllocation";
 import { calculateBookingDuration, getServiceIdFromServiceName } from "@/utils/durationCalculation";
-import { Booking } from "@/features/booking/types/booking";
+import { Booking } from "@/types/booking";
 
 // Export the Booking type so other files can import it from here if needed
 export type { Booking };

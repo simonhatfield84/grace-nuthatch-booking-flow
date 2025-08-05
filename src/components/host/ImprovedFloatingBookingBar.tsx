@@ -2,18 +2,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Clock, Users, Phone, Mail } from "lucide-react";
-
-interface Booking {
-  id: number;
-  guest_name: string;
-  party_size: number;
-  booking_time: string;
-  status: string;
-  phone?: string;
-  email?: string;
-  notes?: string;
-  service?: string;
-}
+import { Booking } from "@/types/booking";
 
 interface ImprovedFloatingBookingBarProps {
   booking: Booking;
