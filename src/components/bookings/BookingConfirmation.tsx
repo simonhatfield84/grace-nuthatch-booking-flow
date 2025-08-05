@@ -1,9 +1,9 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, Calendar, Download, Settings, Mail } from "lucide-react";
 import { format } from "date-fns";
+import { PaymentStatusVerifier } from "@/components/payments/PaymentStatusVerifier";
 
 interface BookingConfirmationProps {
   bookingData: {
@@ -19,6 +19,7 @@ interface BookingConfirmationProps {
 
 export const BookingConfirmation = ({ bookingData, venueSlug }: BookingConfirmationProps) => {
   const [calendarUrl, setCalendarUrl] = useState<string>('');
+  const [paymentStatus, setPaymentStatus] = useState<string>('unknown');
 
   useEffect(() => {
     // Generate calendar URL for diary export
@@ -48,6 +49,10 @@ export const BookingConfirmation = ({ bookingData, venueSlug }: BookingConfirmat
       }
     };
   }, [bookingData, venueSlug]);
+
+  const handlePaymentStatusUpdate = (status: string) => {
+    setPaymentStatus(status);
+  };
 
   const handleDownloadCalendar = () => {
     const link = document.createElement('a');
@@ -90,6 +95,17 @@ export const BookingConfirmation = ({ bookingData, venueSlug }: BookingConfirmat
               </p>
             )}
           </div>
+
+          {/* Payment Status Section */}
+          {bookingData.bookingId && (
+            <div className="border-t pt-4">
+              <h4 className="font-medium mb-3">Payment Status</h4>
+              <PaymentStatusVerifier
+                bookingId={bookingData.bookingId}
+                onStatusUpdate={handlePaymentStatusUpdate}
+              />
+            </div>
+          )}
 
           <div className="border-t pt-4 space-y-3">
             <h4 className="font-medium">Guest Details</h4>
