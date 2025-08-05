@@ -44,24 +44,7 @@ export interface ServiceFormData {
 export const useServicesData = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
-
-  // Get user's venue ID
-  const { data: userVenue } = useQuery({
-    queryKey: ['user-venue', user?.id],
-    queryFn: async () => {
-      if (!user) return null;
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('venue_id')
-        .eq('id', user.id)
-        .single();
-      
-      if (error) throw error;
-      return data?.venue_id;
-    },
-    enabled: !!user,
-  });
+  const { user, userVenue } = useAuth();
 
   // Fetch services
   const { 
@@ -71,7 +54,12 @@ export const useServicesData = () => {
   } = useQuery({
     queryKey: ['services', userVenue],
     queryFn: async () => {
-      if (!userVenue) return [];
+      if (!userVenue || !user) {
+        console.log('⏭️ No venue or user, skipping services fetch');
+        return [];
+      }
+      
+      console.log('🔄 Fetching services for venue:', userVenue);
       
       const { data, error } = await supabase
         .from('services')
@@ -79,10 +67,15 @@ export const useServicesData = () => {
         .eq('venue_id', userVenue)
         .order('created_at', { ascending: false });
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Services fetch error:', error);
+        throw error;
+      }
+      
+      console.log('✅ Services fetched:', data?.length || 0);
       return data as Service[];
     },
-    enabled: !!userVenue,
+    enabled: !!userVenue && !!user,
   });
 
   // Create service mutation

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -44,24 +45,32 @@ export interface EmailTemplateUpdate {
 
 export const useEmailTemplates = () => {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, userVenue } = useAuth();
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const loadTemplates = async () => {
+    if (!userVenue || !user) {
+      console.log('⏭️ No venue or user, skipping templates fetch');
+      return;
+    }
+
     try {
       setIsLoading(true);
+      console.log('🔄 Fetching templates for venue:', userVenue);
 
       // Load venue-specific templates only
       const { data, error } = await supabase
         .from('email_templates')
         .select('*')
+        .eq('venue_id', userVenue)
         .order('template_key');
 
       if (error) throw error;
+      console.log('✅ Templates fetched:', data?.length || 0);
       setTemplates(data || []);
     } catch (error) {
-      console.error('Error loading templates:', error);
+      console.error('❌ Error loading templates:', error);
       toast({
         title: "Error",
         description: "Failed to load email templates",
@@ -73,21 +82,14 @@ export const useEmailTemplates = () => {
   };
 
   const createTemplate = async (template: EmailTemplateCreate) => {
+    if (!userVenue) throw new Error('Venue not found');
+
     try {
-      // Get user's venue from profile
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('venue_id')
-        .eq('id', user?.id)
-        .single();
-
-      if (!profile?.venue_id) throw new Error('Venue not found');
-
       const { data, error } = await supabase
         .from('email_templates')
         .insert({
           ...template,
-          venue_id: profile.venue_id,
+          venue_id: userVenue,
         })
         .select()
         .single();
@@ -171,23 +173,23 @@ export const useEmailTemplates = () => {
   };
 
   const createDefaultTemplates = async () => {
+    if (!userVenue || !user) {
+      toast({
+        title: "Error",
+        description: "User venue not found. Please ensure you're logged in.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     try {
       console.log('🔄 Starting template creation/migration...');
       
-      // Get user's venue from profile
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('venue_id')
-        .eq('id', user?.id)
-        .single();
-
-      if (!profile?.venue_id) throw new Error('Venue not found');
-
       // Get venue name for template customization
       const { data: venue } = await supabase
         .from('venues')
         .select('name')
-        .eq('id', profile.venue_id)
+        .eq('id', userVenue)
         .single();
 
       const venueName = venue?.name || 'Your Venue';
@@ -196,7 +198,7 @@ export const useEmailTemplates = () => {
       const { data: existingTemplates } = await supabase
         .from('email_templates')
         .select('*')
-        .eq('venue_id', profile.venue_id);
+        .eq('venue_id', userVenue);
 
       console.log('📋 Found existing templates:', existingTemplates?.length || 0);
 
@@ -287,7 +289,7 @@ export const useEmailTemplates = () => {
             await supabase
               .from('email_templates')
               .insert({
-                venue_id: profile.venue_id,
+                venue_id: userVenue,
                 template_key: config.key,
                 template_type: 'venue',
                 subject: config.subject,
@@ -343,10 +345,10 @@ export const useEmailTemplates = () => {
   };
 
   useEffect(() => {
-    if (user) {
+    if (user && userVenue) {
       loadTemplates();
     }
-  }, [user]);
+  }, [user, userVenue]);
 
   return {
     templates,

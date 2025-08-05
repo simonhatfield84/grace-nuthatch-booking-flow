@@ -24,48 +24,41 @@ export interface Table {
 export const useTables = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
-
-  // Get user's venue ID
-  const { data: userVenue } = useQuery({
-    queryKey: ['user-venue', user?.id],
-    queryFn: async () => {
-      if (!user) return null;
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('venue_id')
-        .eq('id', user.id)
-        .single();
-      
-      if (error) throw error;
-      return data?.venue_id;
-    },
-    enabled: !!user,
-  });
+  const { user, userVenue } = useAuth();
 
   const { data: tables = [], isLoading } = useQuery({
     queryKey: ['tables', userVenue],
     queryFn: async () => {
-      if (!userVenue) return [];
+      if (!userVenue || !user) {
+        console.log('⏭️ No venue or user, skipping tables fetch');
+        return [];
+      }
       
-      const { data, error } = await (supabase as any)
+      console.log('🔄 Fetching tables for venue:', userVenue);
+      
+      const { data, error } = await supabase
         .from('tables')
         .select('*')
         .eq('status', 'active')
         .eq('venue_id', userVenue)
         .order('priority_rank');
       
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Tables fetch error:', error);
+        throw error;
+      }
+      
+      console.log('✅ Tables fetched:', data?.length || 0);
       return (data || []) as Table[];
     },
-    enabled: !!userVenue,
+    enabled: !!userVenue && !!user,
   });
 
   const createTableMutation = useMutation({
     mutationFn: async (newTable: Omit<Table, 'id' | 'created_at' | 'updated_at' | 'status' | 'deleted_at' | 'venue_id'>) => {
       if (!userVenue) throw new Error('No venue associated with user');
       
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('tables')
         .insert([{ ...newTable, venue_id: userVenue }])
         .select()
@@ -86,7 +79,7 @@ export const useTables = () => {
 
   const updateTableMutation = useMutation({
     mutationFn: async ({ id, updates }: { id: number, updates: Partial<Table> }) => {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('tables')
         .update({ ...updates, updated_at: new Date().toISOString() })
         .eq('id', id)
@@ -109,7 +102,7 @@ export const useTables = () => {
 
   const deleteTableMutation = useMutation({
     mutationFn: async (id: number) => {
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('tables')
         .delete()
         .eq('id', id)
@@ -130,7 +123,7 @@ export const useTables = () => {
   const updateTablePositions = useMutation({
     mutationFn: async (updates: Array<{ id: number; position_x: number; position_y: number }>) => {
       for (const update of updates) {
-        const { error } = await (supabase as any)
+        const { error } = await supabase
           .from('tables')
           .update({ 
             position_x: update.position_x, 
