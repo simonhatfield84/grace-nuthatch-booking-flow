@@ -203,6 +203,7 @@ export type Database = {
           failure_reason: string | null
           id: string
           payment_method_type: string | null
+          processed_at: string | null
           refund_amount_cents: number | null
           refund_reason: string | null
           refund_status: string | null
@@ -219,6 +220,7 @@ export type Database = {
           failure_reason?: string | null
           id?: string
           payment_method_type?: string | null
+          processed_at?: string | null
           refund_amount_cents?: number | null
           refund_reason?: string | null
           refund_status?: string | null
@@ -235,6 +237,7 @@ export type Database = {
           failure_reason?: string | null
           id?: string
           payment_method_type?: string | null
+          processed_at?: string | null
           refund_amount_cents?: number | null
           refund_reason?: string | null
           refund_status?: string | null

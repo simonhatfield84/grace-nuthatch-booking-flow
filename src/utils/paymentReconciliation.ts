@@ -114,17 +114,22 @@ export const reconcilePayment = async (data: PaymentReconciliationData) => {
 export const checkPaymentConsistency = async (bookingId: number) => {
   try {
     // Get booking data
-    const { data: booking } = await supabase
+    const { data: booking, error: bookingError } = await supabase
       .from('bookings')
       .select('status')
       .eq('id', bookingId)
-      .single();
+      .maybeSingle();
+
+    if (bookingError) {
+      console.error('Booking query error:', bookingError);
+      return { consistent: false, reason: 'booking_query_failed', error: bookingError };
+    }
 
     if (!booking) {
       return { consistent: false, reason: 'missing_booking_record' };
     }
 
-    // Query payment data with error handling
+    // Query payment data with proper error handling
     const { data: payment, error: paymentError } = await supabase
       .from('booking_payments')
       .select('status, processed_at')
@@ -141,7 +146,7 @@ export const checkPaymentConsistency = async (bookingId: number) => {
       return { consistent: false, reason: 'missing_payment_record' };
     }
 
-    // Now we can safely check payment properties
+    // Now we can safely check payment properties since we know payment exists and has the correct type
     // Check for consistency issues
     if (booking.status === 'confirmed' && payment.status !== 'succeeded') {
       return { consistent: false, reason: 'booking_confirmed_payment_not_succeeded' };
