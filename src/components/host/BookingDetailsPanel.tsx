@@ -1,490 +1,350 @@
-
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import React, { useState, useEffect } from 'react';
+import { format } from 'date-fns';
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Users, Clock, Phone, Mail, MapPin, FileText, Calendar, Hash, Edit, Save, Plus } from "lucide-react";
-import { format } from "date-fns";
-import { useState } from "react";
-import { Booking } from "@/features/booking/types/booking";
-import { BookingAuditTrail } from "./BookingAuditTrail";
-import { PaymentStatus } from "@/components/payments/PaymentStatus";
-import { useTables } from "@/hooks/useTables";
-import { useServices } from "@/hooks/useServices";
-import { useToast } from "@/hooks/use-toast";
-import { useBookings } from "@/hooks/useBookings";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { CalendarIcon, CheckCircle2, User2, Phone, Mail, StickyNote, Clock, ListChecks, MessageSquare, UserCog, Trash2 } from "lucide-react";
+import { DateRange } from "react-day-picker";
+import { supabase } from "@/integrations/supabase/client";
+import { BookingAudit, useBookingAudit } from "@/hooks/useBookingAudit";
+import { DeleteBookingDialog } from './DeleteBookingDialog';
+import { EditBookingForm } from './EditBookingForm';
+import { Booking } from '@/features/booking/types/booking';
+import { EnhancedCancellationDialog } from './EnhancedCancellationDialog';
 
 interface BookingDetailsPanelProps {
   booking: Booking | null;
   onClose: () => void;
-  onStatusChange: (booking: Booking, newStatus: string) => void;
-  onBookingUpdate: () => void;
+  onUpdate: () => void;
 }
 
-export const BookingDetailsPanel = ({ 
+interface EditedBooking {
+  guest_name: string;
+  phone: string;
+  email: string;
+  notes: string;
+}
+
+const BookingDetailsPanel = ({ 
   booking, 
   onClose, 
-  onStatusChange, 
-  onBookingUpdate 
+  onUpdate 
 }: BookingDetailsPanelProps) => {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState<Partial<Booking>>({});
-  const { tables } = useTables();
-  const { services } = useServices();
-  const { updateBooking } = useBookings();
-  const { toast } = useToast();
+  const [editedBooking, setEditedBooking] = useState<EditedBooking | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [showCancellationDialog, setShowCancellationDialog] = useState(false);
 
-  if (!booking) return null;
+  const { auditTrail, logAudit } = useBookingAudit(booking?.id);
 
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'confirmed':
-        return 'bg-[#C2D8E9] text-[#111315] border-[#C2D8E9]/30';
-      case 'seated':
-        return 'bg-[#CCF0DB] text-[#111315] border-[#CCF0DB]/30';
-      case 'finished':
-        return 'bg-[#676767] text-white border-[#676767]/30';
-      case 'cancelled':
-        return 'bg-[#E47272] text-white border-[#E47272]/30';
-      case 'late':
-        return 'bg-[#F1C8D0] text-[#111315] border-[#F1C8D0]/30';
-      case 'no-show':
-        return 'bg-[#E47272] text-white border-[#E47272]/30';
-      default:
-        return 'bg-[#C2D8E9] text-[#111315] border-[#C2D8E9]/30';
+  useEffect(() => {
+    if (booking) {
+      setEditedBooking({
+        guest_name: booking.guest_name,
+        phone: booking.phone || '',
+        email: booking.email || '',
+        notes: booking.notes || '',
+      });
     }
+  }, [booking]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setEditedBooking(prev => ({
+      ...prev,
+      [name]: value,
+    } as any));
   };
 
-  const statusOptions = ['confirmed', 'seated', 'finished', 'cancelled', 'late', 'no-show'];
-
-  const getAvailableTables = () => {
-    return tables.filter(table => table.seats >= booking.party_size);
+  const handleEditBooking = () => {
+    setShowEditForm(true);
   };
 
-  const handleTableAssignment = async (tableId: string) => {
+  const handleUpdateBooking = async (updatedBooking: any) => {
+    if (!booking) return;
+
+    setIsSubmitting(true);
     try {
-      await updateBooking({
-        id: booking.id,
-        updates: { table_id: parseInt(tableId) }
+      const { error } = await supabase
+        .from('bookings')
+        .update({
+          ...updatedBooking,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', booking.id);
+
+      if (error) throw error;
+
+      // Log the update
+      await logAudit({
+        booking_id: booking.id,
+        change_type: 'booking_updated',
+        field_name: null,
+        old_value: null,
+        new_value: null,
+        changed_by: 'staff',
+        notes: 'Booking details updated',
+        source_type: 'manual',
+        source_details: updatedBooking
       });
-      
-      toast({
-        title: "Table Assigned",
-        description: `Booking assigned to table ${tables.find(t => t.id === parseInt(tableId))?.label}`,
-      });
-      onBookingUpdate();
+
+      onUpdate();
+      toast.success('Booking updated successfully');
+      setShowEditForm(false);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to assign table",
-        variant: "destructive"
-      });
+      console.error('Error updating booking:', error);
+      toast.error('Failed to update booking');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleServiceChange = async (serviceTitle: string) => {
+  const handleDeleteBooking = () => {
+    setShowDeleteDialog(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!booking) return;
+
+    setIsSubmitting(true);
     try {
-      await updateBooking({
-        id: booking.id,
-        updates: { service: serviceTitle }
+      const { error } = await supabase
+        .from('bookings')
+        .delete()
+        .eq('id', booking.id);
+
+      if (error) throw error;
+
+      // Log the deletion
+      await logAudit({
+        booking_id: booking.id,
+        change_type: 'booking_deleted',
+        field_name: null,
+        old_value: null,
+        new_value: null,
+        changed_by: 'staff',
+        notes: 'Booking deleted',
+        source_type: 'manual',
+        source_details: {}
       });
-      
-      toast({
-        title: "Service Updated",
-        description: `Service changed to ${serviceTitle}`,
-      });
-      onBookingUpdate();
+
+      onUpdate();
+      toast.success('Booking deleted successfully');
+      onClose();
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update service",
-        variant: "destructive"
-      });
+      console.error('Error deleting booking:', error);
+      toast.error('Failed to delete booking');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleEditStart = () => {
-    setEditForm({
-      guest_name: booking.guest_name,
-      party_size: booking.party_size,
-      booking_time: booking.booking_time,
-      duration_minutes: booking.duration_minutes || 120,
-      phone: booking.phone || '',
-      email: booking.email || '',
-      notes: booking.notes || '',
-    });
-    setIsEditing(true);
-  };
+  const handleStatusChange = async (newStatus: string) => {
+    if (newStatus === 'cancelled') {
+      setShowCancellationDialog(true);
+      return;
+    }
 
-  const handleEditSave = async () => {
+    if (!booking) return;
+    
+    setIsSubmitting(true);
     try {
-      await updateBooking({
-        id: booking.id,
-        updates: editForm
+      const { error } = await supabase
+        .from('bookings')
+        .update({ 
+          status: newStatus as any, 
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', booking.id);
+
+      if (error) throw error;
+
+      // Log the status change
+      await logAudit({
+        booking_id: booking.id,
+        change_type: 'status_change',
+        field_name: 'status',
+        old_value: booking.status,
+        new_value: newStatus,
+        changed_by: 'staff',
+        notes: `Status changed from ${booking.status} to ${newStatus}`,
+        source_type: 'manual',
+        source_details: { previous_status: booking.status }
       });
-      
-      setIsEditing(false);
-      onBookingUpdate();
-      toast({
-        title: "Booking Updated",
-        description: "Booking details have been updated successfully",
-      });
+
+      onUpdate();
+      toast.success(`Booking status updated to ${newStatus}`);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to update booking",
-        variant: "destructive"
-      });
+      console.error('Error updating booking status:', error);
+      toast.error('Failed to update booking status');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleDurationAdjust = (minutes: number) => {
-    const currentDuration = editForm.duration_minutes || 120;
-    const newDuration = Math.max(15, currentDuration + minutes);
-    setEditForm({...editForm, duration_minutes: newDuration});
+  const handleBookingCancelled = () => {
+    setShowCancellationDialog(false);
+    onUpdate();
+    onClose();
   };
-
-  const currentTable = tables.find(t => t.id === booking.table_id);
 
   return (
-    <Card className="h-full flex flex-col bg-[#292C2D] border-[#676767]/20 text-white rounded-2xl shadow-2xl">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b border-[#676767]/20">
-        <CardTitle className="text-lg font-semibold text-white font-inter">
-          Booking Details
-        </CardTitle>
-        <div className="flex gap-2">
-          {!isEditing && (
-            <Button variant="ghost" size="sm" onClick={handleEditStart} className="text-white hover:text-[#CCF0DB] hover:bg-[#676767]/20 rounded-xl">
-              <Edit className="h-4 w-4" />
-            </Button>
-          )}
-          <Button variant="ghost" size="sm" onClick={onClose} className="text-white hover:text-[#E47272] hover:bg-[#676767]/20 rounded-xl">
-            <X className="h-4 w-4" />
+    <>
+      <div className="w-80 bg-white border-l border-gray-200 flex flex-col h-full">
+        <div className="border-b p-4">
+          <h2 className="text-lg font-semibold">Booking Details</h2>
+          <Button variant="ghost" size="sm" className="absolute top-2 right-2" onClick={onClose}>
+            Close
           </Button>
         </div>
-      </CardHeader>
-      
-      <CardContent className="flex-1 space-y-6 pt-4">
-        <ScrollArea className="flex-1">
-          <div className="space-y-6">
-            {/* Guest Information */}
-            <div>
-              <h3 className="font-medium text-sm mb-3 flex items-center gap-2 text-white font-inter">
-                <Users className="h-4 w-4 text-[#CCF0DB]" />
-                Guest Information
-              </h3>
-              <div className="space-y-3 bg-[#111315] p-4 rounded-xl border border-[#676767]/20">
-                {isEditing ? (
-                  <>
-                    <div>
-                      <Label htmlFor="guest_name" className="text-white font-inter">Name</Label>
-                      <Input
-                        id="guest_name"
-                        value={editForm.guest_name || ''}
-                        onChange={(e) => setEditForm({...editForm, guest_name: e.target.value})}
-                        className="bg-[#676767]/20 border-[#676767]/30 text-white font-inter rounded-xl"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="party_size" className="text-white font-inter">Party Size</Label>
-                      <Input
-                        id="party_size"
-                        type="number"
-                        value={editForm.party_size || ''}
-                        onChange={(e) => setEditForm({...editForm, party_size: parseInt(e.target.value)})}
-                        className="bg-[#676767]/20 border-[#676767]/30 text-white font-inter rounded-xl"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="phone" className="text-white font-inter">Phone</Label>
-                      <Input
-                        id="phone"
-                        value={editForm.phone || ''}
-                        onChange={(e) => setEditForm({...editForm, phone: e.target.value})}
-                        className="bg-[#676767]/20 border-[#676767]/30 text-white font-inter rounded-xl"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="email" className="text-white font-inter">Email</Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={editForm.email || ''}
-                        onChange={(e) => setEditForm({...editForm, email: e.target.value})}
-                        className="bg-[#676767]/20 border-[#676767]/30 text-white font-inter rounded-xl"
-                      />
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-[#676767] font-inter">Name:</span>
-                      <span className="font-medium text-white font-inter">{booking.guest_name}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-[#676767] font-inter">Party Size:</span>
-                      <span className="font-medium text-white font-inter">{booking.party_size} guests</span>
-                    </div>
-                    {booking.phone && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-[#676767] flex items-center gap-1 font-inter">
-                          <Phone className="h-3 w-3" />
-                          Phone:
-                        </span>
-                        <span className="font-medium text-white font-inter">{booking.phone}</span>
-                      </div>
-                    )}
-                    {booking.email && (
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-[#676767] flex items-center gap-1 font-inter">
-                          <Mail className="h-3 w-3" />
-                          Email:
-                        </span>
-                        <span className="font-medium text-sm text-white font-inter">{booking.email}</span>
-                      </div>
-                    )}
-                  </>
-                )}
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div>
+            <Label className="text-sm font-medium mb-2 block">Guest</Label>
+            <div className="flex items-center space-x-2">
+              <Avatar>
+                <AvatarImage src={`https://avatar.api.qrserver.com/v1/create/?size=40x40&data=${booking?.guest_name}`} />
+                <AvatarFallback>{booking?.guest_name.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="font-medium">{booking?.guest_name}</p>
+                <p className="text-sm text-muted-foreground">
+                  <Mail className="mr-1 inline-block h-4 w-4 align-middle" />
+                  {booking?.email || 'No email'}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  <Phone className="mr-1 inline-block h-4 w-4 align-middle" />
+                  {booking?.phone || 'No phone'}
+                </p>
               </div>
             </div>
-
-            <Separator className="bg-[#676767]/20" />
-
-            {/* Booking Information */}
-            <div>
-              <h3 className="font-medium text-sm mb-3 flex items-center gap-2 text-white font-inter">
-                <Calendar className="h-4 w-4 text-[#C2D8E9]" />
-                Booking Information
-              </h3>
-              <div className="space-y-3 bg-[#111315] p-4 rounded-xl border border-[#676767]/20">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#676767] flex items-center gap-1 font-inter">
-                    <Hash className="h-3 w-3" />
-                    Booking ID:
-                  </span>
-                  <span className="font-medium text-sm text-white font-inter">
-                    {booking.booking_reference || `#${booking.id}`}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#676767] font-inter">Date:</span>
-                  <span className="font-medium text-white font-inter">
-                    {format(new Date(booking.booking_date), 'EEEE, MMM d, yyyy')}
-                  </span>
-                </div>
-                
-                {isEditing ? (
-                  <>
-                    <div>
-                      <Label htmlFor="booking_time" className="text-white font-inter">Time</Label>
-                      <Input
-                        id="booking_time"
-                        type="time"
-                        value={editForm.booking_time || ''}
-                        onChange={(e) => setEditForm({...editForm, booking_time: e.target.value})}
-                        className="bg-[#676767]/20 border-[#676767]/30 text-white font-inter rounded-xl"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="duration" className="text-white font-inter">Duration (minutes)</Label>
-                      <div className="space-y-2">
-                        <Input
-                          id="duration"
-                          type="number"
-                          value={editForm.duration_minutes || ''}
-                          onChange={(e) => setEditForm({...editForm, duration_minutes: parseInt(e.target.value)})}
-                          className="bg-[#676767]/20 border-[#676767]/30 text-white font-inter rounded-xl"
-                        />
-                        <div className="flex gap-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDurationAdjust(15)}
-                            className="bg-[#676767]/20 hover:bg-[#CCF0DB]/20 text-white border-[#676767]/30 rounded-xl font-inter"
-                          >
-                            <Plus className="h-3 w-3 mr-1" />
-                            15m
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDurationAdjust(30)}
-                            className="bg-[#676767]/20 hover:bg-[#CCF0DB]/20 text-white border-[#676767]/30 rounded-xl font-inter"
-                          >
-                            <Plus className="h-3 w-3 mr-1" />
-                            30m
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDurationAdjust(60)}
-                            className="bg-[#676767]/20 hover:bg-[#CCF0DB]/20 text-white border-[#676767]/30 rounded-xl font-inter"
-                          >
-                            <Plus className="h-3 w-3 mr-1" />
-                            60m
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-[#676767] flex items-center gap-1 font-inter">
-                        <Clock className="h-3 w-3" />
-                        Time:
-                      </span>
-                      <span className="font-medium text-white font-inter">
-                        {booking.booking_time}
-                        {booking.end_time && booking.status === 'finished' && 
-                          ` - ${booking.end_time}`
-                        }
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-[#676767] font-inter">Duration:</span>
-                      <span className="font-medium text-white font-inter">
-                        {Math.floor((booking.duration_minutes || 120) / 60)}h {((booking.duration_minutes || 120) % 60)}m
-                      </span>
-                    </div>
-                  </>
-                )}
-
-                {/* Service Selection */}
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#676767] font-inter">Service:</span>
-                  <Select value={booking.service || 'Dinner'} onValueChange={handleServiceChange}>
-                    <SelectTrigger className="w-32 h-8 text-sm bg-[#676767]/20 border-[#676767]/30 text-white rounded-xl font-inter">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-[#292C2D] border-[#676767]/30 rounded-xl">
-                      {services.map((service) => (
-                        <SelectItem key={service.id} value={service.title} className="text-white hover:bg-[#676767]/20 font-inter">
-                          {service.title}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                {/* Table Assignment */}
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-[#676767] flex items-center gap-1 font-inter">
-                    <MapPin className="h-3 w-3" />
-                    Table:
-                  </span>
-                  <Select 
-                    value={booking.table_id?.toString() || ''} 
-                    onValueChange={handleTableAssignment}
-                  >
-                    <SelectTrigger className="w-32 h-8 text-sm bg-[#676767]/20 border-[#676767]/30 text-white rounded-xl font-inter">
-                      <SelectValue placeholder="Assign table" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-[#292C2D] border-[#676767]/30 rounded-xl">
-                      {getAvailableTables().map((table) => (
-                        <SelectItem key={table.id} value={table.id.toString()} className="text-white hover:bg-[#676767]/20 font-inter">
-                          {table.label} ({table.seats})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            <Separator className="bg-[#676767]/20" />
-
-            {/* Payment Information */}
-            <div>
-              <h3 className="font-medium text-sm mb-3 flex items-center gap-2 text-white font-inter">
-                <Hash className="h-4 w-4 text-[#CCF0DB]" />
-                Payment Information
-              </h3>
-              <div className="bg-[#111315] p-4 rounded-xl border border-[#676767]/20">
-                <PaymentStatus bookingId={booking.id} />
-              </div>
-            </div>
-
-            <Separator className="bg-[#676767]/20" />
-
-            {/* Status & Quick Actions */}
-            <div>
-              <h3 className="font-medium text-sm mb-3 text-white font-inter">Status & Quick Actions</h3>
-              <div className="space-y-3 bg-[#111315] p-4 rounded-xl border border-[#676767]/20">
-                <Badge className={`${getStatusColor(booking.status)} font-inter`}>
-                  {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-                </Badge>
-                
-                <div className="grid grid-cols-2 gap-2">
-                  {statusOptions.map((status) => (
-                    <Button
-                      key={status}
-                      size="sm"
-                      variant={booking.status === status ? "default" : "outline"}
-                      onClick={() => onStatusChange(booking, status)}
-                      className={`text-xs font-inter rounded-xl ${
-                        booking.status === status 
-                          ? 'bg-[#CCF0DB] text-[#111315]' 
-                          : 'bg-[#676767]/20 text-white border-[#676767]/30 hover:bg-[#676767]/30'
-                      }`}
-                    >
-                      {status.charAt(0).toUpperCase() + status.slice(1)}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Notes Section */}
-            <div>
-              <h3 className="font-medium text-sm mb-3 flex items-center gap-2 text-white font-inter">
-                <FileText className="h-4 w-4 text-[#F1C8D0]" />
-                Notes
-              </h3>
-              <div className="bg-[#111315] p-4 rounded-xl border border-[#676767]/20">
-                {isEditing ? (
-                  <Textarea
-                    value={editForm.notes || ''}
-                    onChange={(e) => setEditForm({...editForm, notes: e.target.value})}
-                    placeholder="Add notes..."
-                    className="bg-[#676767]/20 border-[#676767]/30 text-white font-inter rounded-xl"
-                  />
-                ) : (
-                  <p className="text-sm text-white font-inter">
-                    {booking.notes || 'No notes'}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Edit Actions */}
-            {isEditing && (
-              <div className="flex gap-2">
-                <Button onClick={handleEditSave} size="sm" className="bg-[#CCF0DB] text-[#111315] hover:bg-[#CCF0DB]/80 rounded-xl font-inter">
-                  <Save className="h-4 w-4 mr-1" />
-                  Save Changes
-                </Button>
-                <Button onClick={() => setIsEditing(false)} variant="outline" size="sm" className="bg-[#676767]/20 text-white border-[#676767]/30 hover:bg-[#676767]/30 rounded-xl font-inter">
-                  Cancel
-                </Button>
-              </div>
-            )}
-
-            <Separator className="bg-[#676767]/20" />
-
-            {/* Audit Trail */}
-            <BookingAuditTrail bookingId={booking.id} />
           </div>
-        </ScrollArea>
-      </CardContent>
-    </Card>
+
+          <div>
+            <Label className="text-sm font-medium mb-2 block">Booking Info</Label>
+            <div className="space-y-1">
+              <p>
+                <Clock className="mr-1 inline-block h-4 w-4 align-middle" />
+                {booking?.booking_date} at {booking?.booking_time}
+              </p>
+              <p>
+                <User2 className="mr-1 inline-block h-4 w-4 align-middle" />
+                Party Size: {booking?.party_size}
+              </p>
+              <p>
+                <ListChecks className="mr-1 inline-block h-4 w-4 align-middle" />
+                Service: {booking?.service}
+              </p>
+              <p>
+                <MessageSquare className="mr-1 inline-block h-4 w-4 align-middle" />
+                Reference: {booking?.booking_reference}
+              </p>
+            </div>
+          </div>
+
+          <div>
+            <Label className="text-sm font-medium mb-2 block">Table Assignment</Label>
+            <p className="text-muted-foreground">
+              {booking?.table_id ? `Table ${booking.table_id}` : 'No table assigned'}
+            </p>
+          </div>
+
+          <div>
+            <Label className="text-sm font-medium mb-2 block">Notes</Label>
+            <Textarea
+              name="notes"
+              value={editedBooking?.notes || ''}
+              onChange={handleInputChange}
+              className="w-full resize-none"
+              placeholder="Add notes about this booking..."
+            />
+          </div>
+
+          <div>
+            <Label className="text-sm font-medium mb-2 block">Status</Label>
+            <Select value={booking.status} onValueChange={handleStatusChange}>
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="confirmed">Confirmed</SelectItem>
+                <SelectItem value="seated">Seated</SelectItem>
+                <SelectItem value="finished">Finished</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
+                <SelectItem value="no_show">No Show</SelectItem>
+                <SelectItem value="late">Late</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label className="text-sm font-medium mb-2 block">Audit Trail</Label>
+            <div className="space-y-2">
+              {auditTrail.map(audit => (
+                <div key={audit.id} className="border rounded-md p-2">
+                  <p className="text-xs text-muted-foreground">
+                    {format(new Date(audit.changed_at), 'MMM dd, yyyy hh:mm a')}
+                  </p>
+                  <p className="text-sm">
+                    {audit.change_type}: {audit.field_name || 'Details'}
+                  </p>
+                  {audit.notes && (
+                    <p className="text-xs italic">
+                      <StickyNote className="mr-1 inline-block h-3 w-3 align-text-bottom" />
+                      {audit.notes}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex justify-between space-x-2 border-t pt-4">
+            <Button variant="outline" onClick={handleEditBooking}>
+              <UserCog className="mr-2 h-4 w-4" />
+              Edit Booking
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteBooking}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Booking
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Enhanced Cancellation Dialog */}
+      {booking && (
+        <EnhancedCancellationDialog
+          open={showCancellationDialog}
+          onOpenChange={setShowCancellationDialog}
+          booking={booking}
+          onBookingCancelled={handleBookingCancelled}
+        />
+      )}
+
+      <DeleteBookingDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setShowDeleteDialog(false)}
+      />
+
+      <EditBookingForm
+        open={showEditForm}
+        onOpenChange={setShowEditForm}
+        booking={booking}
+        onUpdate={handleUpdateBooking}
+      />
+    </>
   );
 };
+
+export default BookingDetailsPanel;
