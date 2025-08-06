@@ -10,6 +10,7 @@ import { Edit, Eye, Save, X, Clock, Palette, RefreshCw } from "lucide-react";
 import { useEmailTemplates, EmailTemplate, EmailTemplateUpdate } from "@/hooks/useEmailTemplates";
 import { EmailTemplateService } from "@/services/emailTemplateService";
 import { FullScreenEmailBuilder } from "./FullScreenEmailBuilder";
+import { CopyDesignDropdown } from "./CopyDesignDropdown";
 
 interface EmailTemplateEditorProps {
   template?: EmailTemplate;
@@ -152,7 +153,7 @@ export function EmailTemplateEditor({ template, onSave, onCancel }: EmailTemplat
 }
 
 export function EmailTemplatesList() {
-  const { templates, isLoading, createDefaultTemplates, toggleTemplateActive, loadTemplates, updateTemplate } = useEmailTemplates();
+  const { templates, isLoading, createDefaultTemplates, toggleTemplateActive, loadTemplates, updateTemplate, copyTemplateDesign } = useEmailTemplates();
   const [hasInitialized, setHasInitialized] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<EmailTemplate | null>(null);
@@ -208,6 +209,12 @@ export function EmailTemplatesList() {
 
   const handleCancelEdit = () => {
     setEditingTemplate(null);
+  };
+
+  const handleCopyDesign = async (sourceTemplateId: string, targetTemplateId: string) => {
+    await copyTemplateDesign(sourceTemplateId, targetTemplateId);
+    // Refresh templates to show updated design
+    await loadTemplates();
   };
 
   const availableVariables = EmailTemplateService.getAvailableVariables();
@@ -284,6 +291,11 @@ export function EmailTemplatesList() {
                   <div className="flex gap-2">
                     {existingTemplate ? (
                       <>
+                        <CopyDesignDropdown
+                          targetTemplate={existingTemplate}
+                          availableTemplates={templates}
+                          onCopyDesign={handleCopyDesign}
+                        />
                         <Dialog>
                           <DialogTrigger asChild>
                             <Button variant="outline" size="sm">

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -169,6 +168,57 @@ export const useEmailTemplates = () => {
 
   const getTemplate = (templateKey: string) => {
     return templates.find(t => t.template_key === templateKey);
+  };
+
+  const copyTemplateDesign = async (sourceTemplateId: string, targetTemplateId: string) => {
+    try {
+      console.log(`🔄 Copying design from ${sourceTemplateId} to ${targetTemplateId}`);
+      
+      // Get source template
+      const sourceTemplate = templates.find(t => t.id === sourceTemplateId);
+      const targetTemplate = templates.find(t => t.id === targetTemplateId);
+      
+      if (!sourceTemplate || !targetTemplate) {
+        throw new Error('Source or target template not found');
+      }
+      
+      if (!sourceTemplate.design_json) {
+        throw new Error('Source template has no design to copy');
+      }
+      
+      // Copy design_json and html_content from source to target
+      const updates: EmailTemplateUpdate = {
+        design_json: sourceTemplate.design_json,
+        html_content: sourceTemplate.html_content
+      };
+      
+      const { data, error } = await supabase
+        .from('email_templates')
+        .update(updates)
+        .eq('id', targetTemplateId)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Update local state
+      setTemplates(prev => prev.map(t => t.id === targetTemplateId ? data : t));
+      
+      toast({
+        title: "Design Copied",
+        description: `Design copied from "${sourceTemplate.template_key}" to "${targetTemplate.template_key}"`
+      });
+
+      return data;
+    } catch (error) {
+      console.error('Error copying template design:', error);
+      toast({
+        title: "Error",
+        description: "Failed to copy template design",
+        variant: "destructive"
+      });
+      throw error;
+    }
   };
 
   const createDefaultTemplates = async () => {
@@ -380,5 +430,6 @@ export const useEmailTemplates = () => {
     getTemplate,
     createDefaultTemplates,
     toggleTemplateActive,
+    copyTemplateDesign,
   };
 };
