@@ -13,12 +13,14 @@ export const reconcilePayment = async (data: PaymentReconciliationData) => {
   try {
     console.log('🔧 Starting manual payment reconciliation for booking:', data.bookingId);
 
+    const now = new Date().toISOString();
+
     // Update booking status to confirmed
     const { error: bookingError } = await supabase
       .from('bookings')
       .update({ 
         status: 'confirmed',
-        updated_at: new Date().toISOString()
+        updated_at: now
       })
       .eq('id', data.bookingId);
 
@@ -27,21 +29,43 @@ export const reconcilePayment = async (data: PaymentReconciliationData) => {
       throw bookingError;
     }
 
-    // Update payment status to succeeded
+    // Update payment status to succeeded with processed_at timestamp
     const { error: paymentError } = await supabase
       .from('booking_payments')
       .update({
         status: 'succeeded',
-        updated_at: new Date().toISOString()
+        processed_at: now,
+        updated_at: now
       })
       .eq('stripe_payment_intent_id', data.paymentIntentId);
 
     if (paymentError) {
       console.error('Error updating payment status:', paymentError);
-      throw paymentError;
+      
+      // If update failed, try to create the missing payment record
+      console.log('🔧 Attempting to create missing payment record');
+      const { error: createError } = await supabase
+        .from('booking_payments')
+        .insert({
+          booking_id: data.bookingId,
+          stripe_payment_intent_id: data.paymentIntentId,
+          amount_cents: data.amountCents,
+          status: 'succeeded',
+          payment_method_type: 'card',
+          processed_at: now,
+          created_at: now,
+          updated_at: now
+        });
+
+      if (createError) {
+        console.error('Error creating payment record:', createError);
+        throw createError;
+      } else {
+        console.log('✅ Created missing payment record');
+      }
     }
 
-    // Log the manual reconciliation
+    // Log the manual reconciliation with enhanced details
     await supabase
       .from('security_audit')
       .insert({
@@ -52,7 +76,8 @@ export const reconcilePayment = async (data: PaymentReconciliationData) => {
           amount_cents: data.amountCents,
           stripe_status: data.stripeStatus,
           reconciled_by: 'manual_intervention',
-          reason: 'webhook_failure_recovery'
+          reason: 'webhook_failure_recovery',
+          timestamp: now
         }
       });
 
@@ -82,5 +107,44 @@ export const reconcilePayment = async (data: PaymentReconciliationData) => {
     console.error('❌ Payment reconciliation failed:', error);
     toast.error('Failed to reconcile payment');
     return { success: false, error };
+  }
+};
+
+// New function to check payment status consistency
+export const checkPaymentConsistency = async (bookingId: number) => {
+  try {
+    const { data: booking } = await supabase
+      .from('bookings')
+      .select('status')
+      .eq('id', bookingId)
+      .single();
+
+    const { data: payment } = await supabase
+      .from('booking_payments')
+      .select('status, processed_at')
+      .eq('booking_id', bookingId)
+      .single();
+
+    if (!booking || !payment) {
+      return { consistent: false, reason: 'missing_records' };
+    }
+
+    // Check for consistency issues
+    if (booking.status === 'confirmed' && payment.status !== 'succeeded') {
+      return { consistent: false, reason: 'booking_confirmed_payment_not_succeeded' };
+    }
+
+    if (payment.status === 'succeeded' && booking.status !== 'confirmed') {
+      return { consistent: false, reason: 'payment_succeeded_booking_not_confirmed' };
+    }
+
+    if (payment.status === 'succeeded' && !payment.processed_at) {
+      return { consistent: false, reason: 'missing_processed_timestamp' };
+    }
+
+    return { consistent: true };
+  } catch (error) {
+    console.error('Error checking payment consistency:', error);
+    return { consistent: false, reason: 'check_failed', error };
   }
 };

@@ -1,9 +1,11 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, Calendar, Download, Settings, Mail } from "lucide-react";
 import { format } from "date-fns";
 import { PaymentStatusVerifier } from "@/components/payments/PaymentStatusVerifier";
+import { supabase } from "@/integrations/supabase/client";
 
 interface BookingConfirmationProps {
   bookingData: {
@@ -20,6 +22,7 @@ interface BookingConfirmationProps {
 export const BookingConfirmation = ({ bookingData, venueSlug }: BookingConfirmationProps) => {
   const [calendarUrl, setCalendarUrl] = useState<string>('');
   const [paymentStatus, setPaymentStatus] = useState<string>('unknown');
+  const [initialPaymentData, setInitialPaymentData] = useState<any>(null);
 
   useEffect(() => {
     // Generate calendar URL for diary export
@@ -43,12 +46,33 @@ export const BookingConfirmation = ({ bookingData, venueSlug }: BookingConfirmat
     const blob = new Blob([icsContent], { type: 'text/calendar' });
     setCalendarUrl(URL.createObjectURL(blob));
 
+    // Fetch initial payment data if booking ID exists
+    if (bookingData.bookingId) {
+      fetchInitialPaymentData();
+    }
+
     return () => {
       if (calendarUrl) {
         URL.revokeObjectURL(calendarUrl);
       }
     };
   }, [bookingData, venueSlug]);
+
+  const fetchInitialPaymentData = async () => {
+    if (!bookingData.bookingId) return;
+
+    try {
+      const { data: paymentData } = await supabase
+        .from('booking_payments')
+        .select('*')
+        .eq('booking_id', bookingData.bookingId)
+        .single();
+
+      setInitialPaymentData(paymentData);
+    } catch (error) {
+      console.error('Error fetching initial payment data:', error);
+    }
+  };
 
   const handlePaymentStatusUpdate = (status: string) => {
     setPaymentStatus(status);
@@ -96,12 +120,13 @@ export const BookingConfirmation = ({ bookingData, venueSlug }: BookingConfirmat
             )}
           </div>
 
-          {/* Payment Status Section */}
+          {/* Enhanced Payment Status Section */}
           {bookingData.bookingId && (
             <div className="border-t pt-4">
               <h4 className="font-medium mb-3">Payment Status</h4>
               <PaymentStatusVerifier
                 bookingId={bookingData.bookingId}
+                initialPaymentData={initialPaymentData}
                 onStatusUpdate={handlePaymentStatusUpdate}
               />
             </div>
