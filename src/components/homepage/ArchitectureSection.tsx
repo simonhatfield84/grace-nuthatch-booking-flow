@@ -17,7 +17,7 @@ const ArchitectureSection = () => {
             <CardDescription>Technologies and frameworks powering the Grace OS platform</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid md:grid-cols-2 gap-6">
+            <div className="grid md:grid-cols-3 gap-6">
               <div>
                 <h4 className="font-semibold text-grace-primary mb-3">Frontend</h4>
                 <ul className="space-y-2 text-gray-600 dark:text-gray-300">
@@ -31,6 +31,14 @@ const ArchitectureSection = () => {
                 <ul className="space-y-2 text-gray-600 dark:text-gray-300">
                   {techStack.backend.map((tech, index) => (
                     <li key={index}>• {tech}</li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <h4 className="font-semibold text-grace-primary mb-3">Third-Party Development Tools</h4>
+                <ul className="space-y-2 text-gray-600 dark:text-gray-300">
+                  {techStack.thirdPartyTools.map((tool, index) => (
+                    <li key={index}>• {tool}</li>
                   ))}
                 </ul>
               </div>
