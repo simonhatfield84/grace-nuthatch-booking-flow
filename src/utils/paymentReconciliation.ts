@@ -119,14 +119,19 @@ export const checkPaymentConsistency = async (bookingId: number) => {
       .eq('id', bookingId)
       .single();
 
-    const { data: payment } = await supabase
+    // Query payment data safely
+    const { data: payment, error: paymentError } = await supabase
       .from('booking_payments')
       .select('status, processed_at')
       .eq('booking_id', bookingId)
       .single();
 
-    if (!booking || !payment) {
-      return { consistent: false, reason: 'missing_records' };
+    if (!booking) {
+      return { consistent: false, reason: 'missing_booking_record' };
+    }
+
+    if (paymentError || !payment) {
+      return { consistent: false, reason: 'missing_payment_record' };
     }
 
     // Check for consistency issues
@@ -138,6 +143,7 @@ export const checkPaymentConsistency = async (bookingId: number) => {
       return { consistent: false, reason: 'payment_succeeded_booking_not_confirmed' };
     }
 
+    // Check processed_at timestamp if payment is succeeded
     if (payment.status === 'succeeded' && !payment.processed_at) {
       return { consistent: false, reason: 'missing_processed_timestamp' };
     }
