@@ -57,12 +57,12 @@ serve(async (req) => {
     // Create Stripe refund (simplified for demo - in production, use actual Stripe API)
     const stripe_refund_id = `re_${crypto.randomUUID().slice(0, 24)}`;
 
-    // Update payment record with refund information
+    // Update payment record with refund information - use valid status
     const { error: updateError } = await supabase
       .from('booking_payments')
       .update({
         refund_amount_cents,
-        refund_status: 'processed',
+        refund_status: 'processed', // Use valid status from constraint
         refund_reason,
         refunded_at: new Date().toISOString(),
         stripe_refund_id,
@@ -70,7 +70,10 @@ serve(async (req) => {
       })
       .eq('id', payment_id);
 
-    if (updateError) throw updateError;
+    if (updateError) {
+      console.error('Update error:', updateError);
+      throw updateError;
+    }
 
     // Log refund in booking audit
     await supabase
@@ -89,8 +92,24 @@ serve(async (req) => {
     if (refund_amount_cents === payment.amount_cents) {
       await supabase
         .from('bookings')
-        .update({ status: 'cancelled' })
+        .update({ 
+          status: 'cancelled',
+          updated_at: new Date().toISOString()
+        })
         .eq('id', booking_id);
+
+      // Log status change
+      await supabase
+        .from('booking_audit')
+        .insert([{
+          booking_id,
+          venue_id,
+          change_type: 'status_change',
+          field_name: 'status',
+          old_value: 'confirmed',
+          new_value: 'cancelled',
+          notes: `Booking cancelled due to full refund: £${(refund_amount_cents / 100).toFixed(2)}`
+        }]);
     }
 
     console.log('✅ Refund processed successfully');

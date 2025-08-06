@@ -2,8 +2,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle, XCircle, Clock, CreditCard, AlertTriangle } from "lucide-react";
+import { CheckCircle, XCircle, Clock, CreditCard, AlertTriangle, RefreshCw } from "lucide-react";
 
 interface PaymentStatusProps {
   bookingId: number;
@@ -117,29 +116,63 @@ export const PaymentStatus = ({ bookingId }: PaymentStatusProps) => {
   const displayAmount = accurateAmount || payment?.amount_cents;
   const isAmountCorrected = accurateAmount && payment?.amount_cents && accurateAmount !== payment.amount_cents;
 
+  const formatAmount = (pence: number) => `£${(pence / 100).toFixed(2)}`;
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <Badge variant={getStatusVariant()} className="flex items-center gap-1 w-fit">
         {getStatusIcon()}
         {getStatusText()}
       </Badge>
       
       {displayAmount && (
-        <div className="text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <p>Amount: £{(displayAmount / 100).toFixed(2)}</p>
-            {isAmountCorrected && (
-              <div className="flex items-center gap-1 text-blue-600" title="Amount corrected based on current service pricing">
-                <AlertTriangle className="h-3 w-3" />
-                <span className="text-xs">Corrected</span>
-              </div>
+        <div className="space-y-2">
+          <div className="text-sm">
+            <div className="flex items-center gap-2">
+              <p><strong>Original Amount:</strong> {formatAmount(displayAmount)}</p>
+              {isAmountCorrected && (
+                <div className="flex items-center gap-1 text-blue-600" title="Amount corrected based on current service pricing">
+                  <AlertTriangle className="h-3 w-3" />
+                  <span className="text-xs">Corrected</span>
+                </div>
+              )}
+            </div>
+            {payment?.payment_method_type && (
+              <p><strong>Method:</strong> {payment.payment_method_type}</p>
+            )}
+            {payment?.failure_reason && (
+              <p className="text-destructive"><strong>Reason:</strong> {payment.failure_reason}</p>
             )}
           </div>
-          {payment?.payment_method_type && (
-            <p>Method: {payment.payment_method_type}</p>
-          )}
-          {payment?.failure_reason && (
-            <p className="text-destructive">Reason: {payment.failure_reason}</p>
+
+          {/* Refund Information */}
+          {payment?.refund_amount_cents && payment.refund_amount_cents > 0 && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-1">
+              <div className="flex items-center gap-2 mb-1">
+                <RefreshCw className="h-4 w-4 text-blue-600" />
+                <span className="font-medium text-blue-800">Refund Information</span>
+              </div>
+              <div className="text-sm text-blue-700 space-y-1">
+                <p><strong>Refund Amount:</strong> {formatAmount(payment.refund_amount_cents)}</p>
+                <p><strong>Status:</strong> {payment.refund_status || 'processed'}</p>
+                {payment.refunded_at && (
+                  <p><strong>Refunded:</strong> {new Date(payment.refunded_at).toLocaleDateString()}</p>
+                )}
+                {payment.refund_reason && (
+                  <p><strong>Reason:</strong> {payment.refund_reason}</p>
+                )}
+                {payment.stripe_refund_id && (
+                  <p className="text-xs text-blue-600"><strong>Refund ID:</strong> {payment.stripe_refund_id}</p>
+                )}
+                
+                {/* Net Balance */}
+                <div className="border-t border-blue-300 pt-2 mt-2">
+                  <p className="font-medium">
+                    <strong>Net Balance:</strong> {formatAmount(displayAmount - payment.refund_amount_cents)}
+                  </p>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       )}
