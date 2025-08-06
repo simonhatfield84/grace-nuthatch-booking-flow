@@ -167,37 +167,46 @@ const handler = async (req: Request): Promise<Response> => {
       return new Response('Invalid JSON', { status: 400, headers: corsHeaders });
     }
 
-    // Get venue-specific webhook secret based on the customer ID or subscription ID
-    const customerId = event.data.object.customer;
-    const subscriptionId = event.data.object.id;
+    console.log('📋 Processing webhook event:', event.type, 'for object:', event.data.object.id);
 
-    // Find the venue for this webhook
-    let venueWebhookSecret: string | null = null;
+    // Extract venue ID - ENHANCED LOGIC FOR BOOKING PAYMENTS
     let venueId: string | null = null;
 
-    // Try to find venue by subscription ID first
-    if (subscriptionId && event.type.includes('subscription')) {
-      const { data: subscription } = await supabaseAdmin
-        .from('venue_subscriptions')
-        .select('venue_id, venues!inner(id)')
-        .eq('stripe_subscription_id', subscriptionId)
-        .single();
-
-      if (subscription) {
-        venueId = subscription.venue_id;
-      }
+    // Method 1: Check metadata for booking payments (payment_intent events)
+    if (event.type.includes('payment_intent') && event.data.object.metadata?.venue_id) {
+      venueId = event.data.object.metadata.venue_id;
+      console.log('🎯 Found venue from payment intent metadata:', venueId);
     }
+    
+    // Method 2: Check customer ID for subscription events
+    if (!venueId) {
+      const customerId = event.data.object.customer;
+      const subscriptionId = event.data.object.id;
 
-    // Try to find venue by customer ID
-    if (!venueId && customerId) {
-      const { data: subscription } = await supabaseAdmin
-        .from('venue_subscriptions')
-        .select('venue_id, venues!inner(id)')
-        .eq('stripe_customer_id', customerId)
-        .single();
+      if (subscriptionId && event.type.includes('subscription')) {
+        const { data: subscription } = await supabaseAdmin
+          .from('venue_subscriptions')
+          .select('venue_id, venues!inner(id)')
+          .eq('stripe_subscription_id', subscriptionId)
+          .single();
 
-      if (subscription) {
-        venueId = subscription.venue_id;
+        if (subscription) {
+          venueId = subscription.venue_id;
+          console.log('🏢 Found venue from subscription:', venueId);
+        }
+      }
+
+      if (!venueId && customerId) {
+        const { data: subscription } = await supabaseAdmin
+          .from('venue_subscriptions')
+          .select('venue_id, venues!inner(id)')
+          .eq('stripe_customer_id', customerId)
+          .single();
+
+        if (subscription) {
+          venueId = subscription.venue_id;
+          console.log('🏢 Found venue from customer:', venueId);
+        }
       }
     }
 
@@ -206,7 +215,9 @@ const handler = async (req: Request): Promise<Response> => {
       await logSecurityEvent(supabaseAdmin, 'webhook_received', {
         error: 'venue_not_found',
         stripe_event_id: event.id,
-        threat_level: threatLevel
+        threat_level: threatLevel,
+        event_type: event.type,
+        object_id: event.data.object.id
       }, req);
       return new Response('Venue not found', { status: 400, headers: corsHeaders });
     }
@@ -214,21 +225,35 @@ const handler = async (req: Request): Promise<Response> => {
     // Get the webhook secret for this venue
     const { data: stripeSettings } = await supabaseAdmin
       .from('venue_stripe_settings')
-      .select('webhook_secret')
+      .select('webhook_secret_test, webhook_secret_live, test_mode')
       .eq('venue_id', venueId)
       .single();
 
-    if (!stripeSettings?.webhook_secret) {
+    if (!stripeSettings) {
+      console.error('❌ No Stripe settings found for venue:', venueId);
+      await logSecurityEvent(supabaseAdmin, 'webhook_received', {
+        error: 'no_stripe_settings',
+        venue_id: venueId,
+        threat_level: threatLevel
+      }, req, venueId);
+      return new Response('Stripe settings not found', { status: 400, headers: corsHeaders });
+    }
+
+    // Select the appropriate webhook secret based on test mode
+    const webhookSecret = stripeSettings.test_mode 
+      ? stripeSettings.webhook_secret_test 
+      : stripeSettings.webhook_secret_live;
+
+    if (!webhookSecret) {
       console.error('❌ No webhook secret configured for venue:', venueId);
       await logSecurityEvent(supabaseAdmin, 'webhook_received', {
         error: 'no_webhook_secret',
         venue_id: venueId,
-        threat_level: threatLevel
+        threat_level: threatLevel,
+        test_mode: stripeSettings.test_mode
       }, req, venueId);
       return new Response('Webhook secret not configured', { status: 400, headers: corsHeaders });
     }
-
-    venueWebhookSecret = stripeSettings.webhook_secret;
 
     // Proper Stripe webhook signature verification
     const sigElements = signature.split(',');
@@ -265,7 +290,7 @@ const handler = async (req: Request): Promise<Response> => {
     const payloadForSignature = timestamp + '.' + body;
     const expectedSignature = await crypto.subtle.importKey(
       'raw',
-      new TextEncoder().encode(venueWebhookSecret),
+      new TextEncoder().encode(webhookSecret),
       { name: 'HMAC', hash: 'SHA-256' },
       false,
       ['sign']
@@ -338,8 +363,12 @@ const handler = async (req: Request): Promise<Response> => {
 
 async function handlePaymentSuccess(supabase: any, event: StripeEvent, venueId: string) {
   const paymentIntentId = event.data.object.id;
+  const bookingId = event.data.object.metadata?.booking_id;
   
-  await supabase
+  console.log('💰 Processing payment success:', paymentIntentId, 'for booking:', bookingId);
+
+  // Update booking payment record
+  const { error: paymentError } = await supabase
     .from('booking_payments')
     .update({ 
       status: 'succeeded', 
@@ -347,13 +376,41 @@ async function handlePaymentSuccess(supabase: any, event: StripeEvent, venueId: 
     })
     .eq('stripe_payment_intent_id', paymentIntentId);
 
-  console.log('💰 Payment succeeded:', paymentIntentId);
+  if (paymentError) {
+    console.error('❌ Failed to update booking payment:', paymentError);
+  } else {
+    console.log('✅ Updated booking payment status to succeeded');
+  }
+
+  // If this is a booking payment, also update the booking status
+  if (bookingId) {
+    const { error: bookingError } = await supabase
+      .from('bookings')
+      .update({ 
+        status: 'confirmed',
+        updated_at: new Date().toISOString() 
+      })
+      .eq('id', parseInt(bookingId))
+      .eq('venue_id', venueId);
+
+    if (bookingError) {
+      console.error('❌ Failed to update booking status:', bookingError);
+    } else {
+      console.log('✅ Updated booking status to confirmed for booking:', bookingId);
+    }
+  }
+
+  console.log('💰 Payment succeeded processing complete:', paymentIntentId);
 }
 
 async function handlePaymentFailure(supabase: any, event: StripeEvent, venueId: string) {
   const paymentIntentId = event.data.object.id;
+  const bookingId = event.data.object.metadata?.booking_id;
   
-  await supabase
+  console.log('❌ Processing payment failure:', paymentIntentId, 'for booking:', bookingId);
+  
+  // Update booking payment record
+  const { error: paymentError } = await supabase
     .from('booking_payments')
     .update({ 
       status: 'failed', 
@@ -362,11 +419,33 @@ async function handlePaymentFailure(supabase: any, event: StripeEvent, venueId: 
     })
     .eq('stripe_payment_intent_id', paymentIntentId);
 
-  console.log('❌ Payment failed:', paymentIntentId);
+  if (paymentError) {
+    console.error('❌ Failed to update booking payment:', paymentError);
+  }
+
+  // If this is a booking payment, also update the booking status
+  if (bookingId) {
+    const { error: bookingError } = await supabase
+      .from('bookings')
+      .update({ 
+        status: 'cancelled',
+        updated_at: new Date().toISOString() 
+      })
+      .eq('id', parseInt(bookingId))
+      .eq('venue_id', venueId);
+
+    if (bookingError) {
+      console.error('❌ Failed to update booking status:', bookingError);
+    }
+  }
+
+  console.log('❌ Payment failed processing complete:', paymentIntentId);
 }
 
 async function handleSubscriptionPayment(supabase: any, event: StripeEvent, venueId: string) {
   const invoice = event.data.object;
+  
+  console.log('💰 Processing subscription payment:', invoice.id);
   
   await supabase
     .from('payment_transactions')
