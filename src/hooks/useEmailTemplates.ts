@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -200,7 +201,7 @@ export const useEmailTemplates = () => {
 
       console.log('📋 Found existing templates:', existingTemplates?.length || 0);
 
-      // Define template configurations
+      // Define template configurations with all templates including payment ones
       const templateConfigs = [
         {
           key: 'booking_confirmation',
@@ -208,6 +209,27 @@ export const useEmailTemplates = () => {
           subject: `Booking Confirmation - ${venueName}`,
           description: 'Sent immediately after a booking is confirmed',
           auto_send: true
+        },
+        {
+          key: 'payment_request',
+          name: 'Payment Request',
+          subject: `Payment Required - ${venueName}`,
+          description: 'Sent when payment is required for a booking made by staff',
+          auto_send: false
+        },
+        {
+          key: 'payment_reminder_22h',
+          name: 'Payment Reminder (22h)',
+          subject: `Payment Reminder - Only 2 Hours Left - ${venueName}`,
+          description: 'Sent 22 hours after payment request as final reminder',
+          auto_send: false
+        },
+        {
+          key: 'payment_expired_24h',
+          name: 'Payment Expired',
+          subject: `Booking Expired - Payment Not Received - ${venueName}`,
+          description: 'Sent when payment expires after 24 hours',
+          auto_send: false
         },
         {
           key: 'booking_reminder_24h',
