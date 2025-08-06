@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { isEventDetailsObject } from '@/types/security';
 
 interface SecurityMetrics {
   totalEvents: number;
@@ -32,7 +33,8 @@ export const useSecurityEnhancements = () => {
       const totalEvents = events.length;
       
       const severityCounts = events.reduce((acc, event) => {
-        const severity = event.event_details?.severity || 'LOW';
+        const eventDetails = isEventDetailsObject(event.event_details) ? event.event_details : {};
+        const severity = eventDetails.severity || 'LOW';
         acc[severity] = (acc[severity] || 0) + 1;
         return acc;
       }, {} as Record<string, number>);

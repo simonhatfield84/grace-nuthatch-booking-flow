@@ -1,8 +1,8 @@
 
 import { SecurityHardeningBanner } from "@/components/security/SecurityHardeningBanner";
 import { EnhancedSecurityMonitor } from "@/components/security/EnhancedSecurityMonitor";
-import { SecurityAlertsPanel } from "@/components/security/SecurityAlertsPanel";
-import { SecurityAuditPanel } from "@/components/security/SecurityAuditPanel";
+import SecurityAlertsPanel from "@/components/security/SecurityAlertsPanel";
+import SecurityAuditPanel from "@/components/security/SecurityAuditPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const SecurityDashboard = () => {

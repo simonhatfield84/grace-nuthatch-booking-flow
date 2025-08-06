@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { AlertTriangle, Shield, Activity, Lock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { isEventDetailsObject } from '@/types/security';
 
 interface SecurityEvent {
   id: string;
@@ -41,11 +42,13 @@ export const EnhancedSecurityMonitor = () => {
       
       // Calculate security score based on recent events
       const criticalEvents = events?.filter(event => 
-        event.event_details?.severity === 'CRITICAL'
+        isEventDetailsObject(event.event_details) && 
+        event.event_details.severity === 'CRITICAL'
       ).length || 0;
       
       const highEvents = events?.filter(event => 
-        event.event_details?.severity === 'HIGH'
+        isEventDetailsObject(event.event_details) && 
+        event.event_details.severity === 'HIGH'
       ).length || 0;
       
       // Calculate score (100 is perfect, decreases with security issues)
@@ -134,34 +137,38 @@ export const EnhancedSecurityMonitor = () => {
             {securityEvents.length === 0 ? (
               <p className="text-sm text-muted-foreground">No recent security events</p>
             ) : (
-              securityEvents.map((event) => (
-                <div
-                  key={event.id}
-                  className="flex items-start gap-3 p-3 rounded-lg border"
-                >
-                  {getEventIcon(event.event_type)}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium text-sm">
-                        {event.event_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      </span>
-                      {event.event_details?.severity && (
-                        <Badge variant={getEventSeverityColor(event.event_details.severity)}>
-                          {event.event_details.severity}
-                        </Badge>
+              securityEvents.map((event) => {
+                const eventDetails = isEventDetailsObject(event.event_details) ? event.event_details : {};
+                
+                return (
+                  <div
+                    key={event.id}
+                    className="flex items-start gap-3 p-3 rounded-lg border"
+                  >
+                    {getEventIcon(event.event_type)}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium text-sm">
+                          {event.event_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </span>
+                        {eventDetails.severity && (
+                          <Badge variant={getEventSeverityColor(eventDetails.severity)}>
+                            {eventDetails.severity}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(event.created_at).toLocaleString()}
+                      </p>
+                      {eventDetails.reason && (
+                        <p className="text-sm mt-1">
+                          Reason: {eventDetails.reason}
+                        </p>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(event.created_at).toLocaleString()}
-                    </p>
-                    {event.event_details?.reason && (
-                      <p className="text-sm mt-1">
-                        Reason: {event.event_details.reason}
-                      </p>
-                    )}
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
