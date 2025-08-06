@@ -2,11 +2,12 @@
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Clock, User2, Phone, Mail, ListChecks, MessageSquare, X } from "lucide-react";
+import { Clock, User2, Phone, Mail, MapPin, MessageSquare, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useBookingAudit } from "@/hooks/useBookingAudit";
 import { Booking } from '@/types/booking';
@@ -33,6 +34,17 @@ const BookingDetailsPanel = ({
   const { logAudit } = useBookingAudit();
 
   if (!booking) return null;
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'confirmed': return 'bg-green-100 text-green-800';
+      case 'seated': return 'bg-blue-100 text-blue-800';
+      case 'finished': return 'bg-gray-100 text-gray-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
+      case 'late': return 'bg-orange-100 text-orange-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
 
   const handleStatusChange = async (newStatus: string) => {
     if (newStatus === 'cancelled') {
@@ -97,93 +109,93 @@ const BookingDetailsPanel = ({
 
   return (
     <>
-      <div className="w-80 bg-white border-l border-gray-200 flex flex-col h-full">
-        <div className="border-b p-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Booking Details</h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
+      <Card className="w-80 shadow-lg">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">Booking Details</CardTitle>
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardHeader>
+        
+        <CardContent className="space-y-4">
+          {/* Guest Info */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <Avatar className="h-10 w-10">
+                  <AvatarImage src={`https://avatar.api.qrserver.com/v1/create/?size=40x40&data=${booking.guest_name}`} />
+                  <AvatarFallback>{booking.guest_name.charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <h3 className="font-semibold text-lg">{booking.guest_name}</h3>
+                  {booking.booking_reference && (
+                    <p className="text-xs text-muted-foreground">Ref: {booking.booking_reference}</p>
+                  )}
+                </div>
+              </div>
+              <Badge className={getStatusColor(booking.status)}>
+                {booking.status.toUpperCase()}
+              </Badge>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
+              <div className="flex items-center gap-1">
+                <User2 className="h-4 w-4" />
+                {booking.party_size} guests
+              </div>
+              <div className="flex items-center gap-1">
+                <Clock className="h-4 w-4" />
+                {booking.booking_time}
+              </div>
+              <div className="flex items-center gap-1">
+                <MapPin className="h-4 w-4" />
+                {booking.table_id ? `Table ${booking.table_id}` : 'No table'}
+              </div>
+              <div className="text-xs">
+                {booking.duration_minutes} mins
+              </div>
+            </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-6">
-          {/* Guest Information */}
-          <div>
-            <Label className="text-sm font-medium mb-3 block">Guest Information</Label>
-            <div className="flex items-start space-x-3">
-              <Avatar className="h-10 w-10">
-                <AvatarImage src={`https://avatar.api.qrserver.com/v1/create/?size=40x40&data=${booking.guest_name}`} />
-                <AvatarFallback>{booking.guest_name.charAt(0).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-sm">{booking.guest_name}</p>
+            <div className="text-sm">
+              <p><strong>Date:</strong> {format(new Date(booking.booking_date), 'EEEE, MMMM d, yyyy')}</p>
+              <p><strong>Service:</strong> {booking.service}</p>
+            </div>
+
+            {/* Contact Info */}
+            {(booking.email || booking.phone) && (
+              <div className="space-y-1">
                 {booking.email && (
-                  <p className="text-xs text-muted-foreground flex items-center mt-1">
+                  <div className="flex items-center text-xs text-muted-foreground">
                     <Mail className="h-3 w-3 mr-1" />
                     {booking.email}
-                  </p>
+                  </div>
                 )}
                 {booking.phone && (
-                  <p className="text-xs text-muted-foreground flex items-center mt-1">
+                  <div className="flex items-center text-xs text-muted-foreground">
                     <Phone className="h-3 w-3 mr-1" />
                     {booking.phone}
-                  </p>
+                  </div>
                 )}
               </div>
-            </div>
-          </div>
-
-          {/* Booking Information */}
-          <div>
-            <Label className="text-sm font-medium mb-3 block">Booking Information</Label>
-            <div className="space-y-2">
-              <div className="flex items-center text-sm">
-                <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
-                <span>{format(new Date(`${booking.booking_date}T${booking.booking_time}`), 'EEEE, MMMM d, yyyy')}</span>
-              </div>
-              <div className="flex items-center text-sm">
-                <Clock className="h-4 w-4 mr-2 text-muted-foreground" />
-                <span>{booking.booking_time}</span>
-              </div>
-              <div className="flex items-center text-sm">
-                <User2 className="h-4 w-4 mr-2 text-muted-foreground" />
-                <span>Party of {booking.party_size}</span>
-              </div>
-              <div className="flex items-center text-sm">
-                <ListChecks className="h-4 w-4 mr-2 text-muted-foreground" />
-                <span>{booking.service}</span>
-              </div>
-              {booking.booking_reference && (
-                <div className="flex items-center text-sm">
-                  <MessageSquare className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <span>Ref: {booking.booking_reference}</span>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Table Assignment */}
-          <div>
-            <Label className="text-sm font-medium mb-3 block">Table Assignment</Label>
-            <div className="p-3 bg-gray-50 rounded-md">
-              <p className="text-sm">
-                {booking.table_id ? `Table ${booking.table_id}` : 'No table assigned'}
-              </p>
-            </div>
+            )}
           </div>
 
           {/* Notes */}
           {booking.notes && (
-            <div>
-              <Label className="text-sm font-medium mb-3 block">Notes</Label>
-              <div className="p-3 bg-gray-50 rounded-md">
-                <p className="text-sm">{booking.notes}</p>
+            <div className="p-3 bg-gray-50 rounded-md">
+              <div className="flex items-center gap-1 mb-1">
+                <MessageSquare className="h-3 w-3" />
+                <span className="text-xs font-medium">Notes</span>
               </div>
+              <p className="text-sm">{booking.notes}</p>
             </div>
           )}
 
-          {/* Status */}
-          <div>
-            <Label className="text-sm font-medium mb-3 block">Status</Label>
+          {/* Status Change */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Change Status</label>
             <Select value={booking.status} onValueChange={handleStatusChange} disabled={isSubmitting}>
               <SelectTrigger className="w-full">
                 <SelectValue />
@@ -198,8 +210,16 @@ const BookingDetailsPanel = ({
               </SelectContent>
             </Select>
           </div>
-        </div>
-      </div>
+
+          {/* Booking Meta */}
+          <div className="pt-2 border-t space-y-1 text-xs text-gray-500">
+            <div>Created: {new Date(booking.created_at).toLocaleDateString()}</div>
+            {booking.updated_at !== booking.created_at && (
+              <div>Updated: {new Date(booking.updated_at).toLocaleDateString()}</div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Enhanced Cancellation Dialog */}
       <EnhancedCancellationDialog
