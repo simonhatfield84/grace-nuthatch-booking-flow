@@ -28,7 +28,16 @@ export const useEnhancedSecurity = () => {
     queryFn: async (): Promise<SecurityMetrics> => {
       const { data, error } = await supabase.rpc('get_security_metrics');
       if (error) throw error;
-      return data;
+      
+      // Type cast and validate the JSON response
+      const metricsData = data as any;
+      return {
+        failed_logins_24h: Number(metricsData.failed_logins_24h || 0),
+        blocked_attempts_24h: Number(metricsData.blocked_attempts_24h || 0),
+        high_threat_events_24h: Number(metricsData.high_threat_events_24h || 0),
+        role_violations_24h: Number(metricsData.role_violations_24h || 0),
+        unique_threat_actors_24h: Number(metricsData.unique_threat_actors_24h || 0),
+      };
     },
     refetchInterval: 30000 // Refresh every 30 seconds
   });
