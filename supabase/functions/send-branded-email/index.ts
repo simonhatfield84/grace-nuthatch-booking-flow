@@ -1,121 +1,175 @@
 
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
-interface BrandedEmailRequest {
-  to: string;
-  subject: string;
-  template_key: string;
-  template_data: Record<string, string>;
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const handler = async (req: Request): Promise<Response> => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
+    const { to, template, booking_data, venue_slug } = await req.json()
+
+    // Initialize Supabase client
     const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    )
 
-    const { to, subject, template_key, template_data }: BrandedEmailRequest = await req.json();
+    console.log('📧 Processing branded email request:', {
+      to,
+      template,
+      venue_slug,
+      booking_reference: booking_data?.booking_reference
+    })
 
-    // Get email template
-    const { data: template, error: templateError } = await supabaseClient
-      .from('email_templates')
-      .select('*')
-      .eq('template_key', template_key)
-      .single();
-
-    if (templateError || !template) {
-      throw new Error(`Template not found: ${template_key}`);
-    }
-
-    // Get platform settings for branding
-    const { data: settings, error: settingsError } = await supabaseClient
+    // Get platform settings for email configuration
+    const { data: platformSettings, error: settingsError } = await supabaseClient
       .from('platform_settings')
       .select('setting_key, setting_value')
-      .in('setting_key', [
-        'from_email', 'from_name', 'email_logo_url', 
-        'email_primary_color', 'email_secondary_color'
-      ]);
+      .in('setting_key', ['from_email', 'from_name', 'email_signature'])
 
     if (settingsError) {
-      console.error('Error fetching settings:', settingsError);
+      console.error('❌ Error fetching platform settings:', settingsError)
     }
 
-    // Parse settings
-    const platformSettings: Record<string, string> = {};
-    settings?.forEach(setting => {
-      try {
-        platformSettings[setting.setting_key] = JSON.parse(setting.setting_value);
-      } catch {
-        platformSettings[setting.setting_key] = setting.setting_value;
-      }
-    });
+    // Convert settings to object
+    const settings = platformSettings?.reduce((acc, setting) => {
+      acc[setting.setting_key] = JSON.parse(setting.setting_value)
+      return acc
+    }, {} as Record<string, string>) || {}
 
-    // Replace template variables
-    let htmlContent = template.html_content;
-    let textContent = template.text_content || '';
+    // Use default values if settings not found
+    const fromEmail = settings.from_email || 'nuthatch@grace-os.co.uk'
+    const fromName = settings.from_name || 'Grace OS'
+    const emailSignature = settings.email_signature || 'Best regards,\nThe Nuthatch Team'
 
-    Object.entries(template_data).forEach(([key, value]) => {
-      const placeholder = `{{${key}}}`;
-      htmlContent = htmlContent.replace(new RegExp(placeholder, 'g'), value);
-      textContent = textContent.replace(new RegExp(placeholder, 'g'), value);
-    });
+    // Get venue info for branding
+    const { data: venue } = await supabaseClient
+      .from('venues')
+      .select('name')
+      .eq('slug', venue_slug)
+      .single()
 
-    // Apply branding colors if they exist
-    if (platformSettings.email_primary_color) {
-      htmlContent = htmlContent.replace(/#ea580c/g, platformSettings.email_primary_color);
+    const venueName = venue?.name || 'Restaurant'
+
+    // Build email content based on template
+    let subject = ''
+    let htmlContent = ''
+
+    if (template === 'booking_confirmation') {
+      subject = `Booking Confirmation - ${venueName}`
+      
+      // Create booking confirmation HTML
+      htmlContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="text-align: center; margin-bottom: 30px;">
+            <img src="/lovable-uploads/0fac96e7-74c4-452d-841d-1d727bf769c7.png" alt="The Nuthatch" style="height: 60px; width: auto; margin: 20px 0;" />
+            <p style="color: #64748b; margin: 5px 0;">Booking Confirmation</p>
+          </div>
+          <div style="background: #f8fafc; padding: 30px; border-radius: 8px;">
+            <h2 style="color: #1e293b; margin-top: 0;">Your booking is confirmed!</h2>
+            <p>Dear ${booking_data.guest_name},</p>
+            <p>Thank you for your booking at ${venueName}.</p>
+            <div style="background: white; padding: 20px; border-radius: 5px; margin: 20px 0;">
+              <h3 style="margin-top: 0; color: #000000;">Booking Details</h3>
+              <p><strong>Reference:</strong> ${booking_data.booking_reference}</p>
+              <p><strong>Date:</strong> ${booking_data.booking_date}</p>
+              <p><strong>Time:</strong> ${booking_data.booking_time}</p>
+              <p><strong>Party Size:</strong> ${booking_data.party_size}</p>
+              <p><strong>Venue:</strong> ${venueName}</p>
+            </div>
+            <p>We look forward to seeing you!</p>
+          </div>
+          <div style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 30px;">
+            <p>${emailSignature}</p>
+            <p style="margin-top: 20px; font-size: 10px; color: #999;">Powered by Grace</p>
+          </div>
+        </div>
+      `
     }
-    if (platformSettings.email_secondary_color) {
-      htmlContent = htmlContent.replace(/#1e293b/g, platformSettings.email_secondary_color);
+
+    // Send email via Resend
+    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
+    if (!RESEND_API_KEY) {
+      console.error('❌ RESEND_API_KEY not configured')
+      throw new Error('Email service not configured')
     }
 
-    // Use the send-email function
-    const emailResponse = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-email`, {
+    console.log('📤 Sending email via Resend:', {
+      from: `${fromName} <${fromEmail}>`,
+      to,
+      subject
+    })
+
+    const resendResponse = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${Deno.env.get("SUPABASE_ANON_KEY")}`,
       },
       body: JSON.stringify({
-        to,
-        subject: template.subject,
+        from: `${fromName} <${fromEmail}>`,
+        to: [to],
+        subject,
         html: htmlContent,
-        text: textContent,
-        from_email: platformSettings.from_email || 'noreply@grace-os.co.uk',
-        from_name: platformSettings.from_name || 'Fred at Grace OS',
       }),
-    });
+    })
 
-    const result = await emailResponse.json();
+    const responseText = await resendResponse.text()
+    console.log('📬 Resend response status:', resendResponse.status)
+    console.log('📬 Resend response:', responseText)
 
-    return new Response(JSON.stringify(result), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        ...corsHeaders,
-      },
-    });
-  } catch (error: any) {
-    console.error("Error in send-branded-email function:", error);
-    return new Response(
-      JSON.stringify({ error: error.message }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
+    if (!resendResponse.ok) {
+      console.error('❌ Resend API error:', {
+        status: resendResponse.status,
+        response: responseText
+      })
+      
+      // Try to parse error details
+      let errorDetails = 'Unknown Resend error'
+      try {
+        const errorData = JSON.parse(responseText)
+        errorDetails = errorData.message || JSON.stringify(errorData)
+      } catch (e) {
+        errorDetails = responseText || `HTTP ${resendResponse.status}`
       }
-    );
-  }
-};
+      
+      throw new Error(`Resend API error: ${errorDetails}`)
+    }
 
-serve(handler);
+    const resendResult = JSON.parse(responseText)
+    console.log('✅ Email sent successfully via Resend:', resendResult.id)
+
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        message: 'Email sent successfully',
+        resend_id: resendResult.id
+      }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    )
+
+  } catch (error) {
+    console.error('❌ Send branded email error:', error)
+    
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: error.message || 'Failed to send email',
+        details: error.toString()
+      }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    )
+  }
+})
