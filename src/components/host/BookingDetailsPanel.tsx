@@ -16,7 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { BookingAudit, useBookingAudit } from "@/hooks/useBookingAudit";
 import { DeleteBookingDialog } from './DeleteBookingDialog';
 import { EditBookingForm } from './EditBookingForm';
-import { Booking } from '@/features/booking/types/booking';
+import { Booking } from '@/types/booking';
 import { EnhancedCancellationDialog } from './EnhancedCancellationDialog';
 
 interface BookingDetailsPanelProps {
@@ -93,7 +93,9 @@ const BookingDetailsPanel = ({
         changed_by: 'staff',
         notes: 'Booking details updated',
         source_type: 'manual',
-        source_details: updatedBooking
+        source_details: updatedBooking,
+        email_status: null,
+        notification_details: {}
       });
 
       onUpdate();
@@ -133,7 +135,9 @@ const BookingDetailsPanel = ({
         changed_by: 'staff',
         notes: 'Booking deleted',
         source_type: 'manual',
-        source_details: {}
+        source_details: {},
+        email_status: null,
+        notification_details: {}
       });
 
       onUpdate();
@@ -177,7 +181,9 @@ const BookingDetailsPanel = ({
         changed_by: 'staff',
         notes: `Status changed from ${booking.status} to ${newStatus}`,
         source_type: 'manual',
-        source_details: { previous_status: booking.status }
+        source_details: { previous_status: booking.status },
+        email_status: null,
+        notification_details: {}
       });
 
       onUpdate();

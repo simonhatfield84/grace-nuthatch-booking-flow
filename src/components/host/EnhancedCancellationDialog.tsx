@@ -108,7 +108,9 @@ export const EnhancedCancellationDialog = ({
           refund_declined: true,
           had_payment: !!payment,
           payment_amount: payment?.amount_cents || 0
-        }
+        },
+        email_status: null,
+        notification_details: {}
       });
 
       toast.success('Booking cancelled successfully');
@@ -157,7 +159,9 @@ export const EnhancedCancellationDialog = ({
         source_details: {
           refund_processed: true,
           refund_type: selectedRefundOption
-        }
+        },
+        email_status: null,
+        notification_details: {}
       });
 
       toast.success('Booking cancelled and refund processed');

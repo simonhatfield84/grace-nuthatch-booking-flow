@@ -1,296 +1,165 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Service as CoreService } from '@/types/core';
-import { toast } from 'sonner';
-import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '@/contexts/AuthContext';
-
-// Extend Service interface for form data with refund settings
-export interface Service extends CoreService {
-  refund_window_hours?: number;
-  auto_refund_enabled?: boolean;
-  tag_ids?: string[];
-  is_secret: boolean;
-  secret_slug?: string;
-  duration_rules?: any[];
-}
+import { toast } from "sonner";
 
 export interface ServiceFormData {
   title: string;
   description: string;
-  min_guests: number;
-  max_guests: number;
-  lead_time_hours: number;
-  cancellation_window_hours: number;
-  online_bookable: boolean;
-  active: boolean;
-  is_secret: boolean;
-  secret_slug: string;
-  image_url: string;
-  duration_rules: any[];
+  duration_minutes: number;
+  price_pence: number;
+  deposit_pence: number;
+  max_party_size: number;
+  min_advance_booking_hours: number;
+  max_advance_booking_days: number;
+  is_active: boolean;
+  requires_deposit: boolean;
+  requires_full_payment: boolean;
+  allows_past_date_booking: boolean;
+  auto_confirm: boolean;
+  send_confirmation_email: boolean;
+  send_reminder_email: boolean;
+  reminder_hours_before: number;
+  cancellation_policy: string;
+  special_requests_enabled: boolean;
+  dietary_requirements_enabled: boolean;
+  booking_notes_enabled: boolean;
   terms_and_conditions: string;
-  requires_payment: boolean;
-  charge_type: string;
-  minimum_guests_for_charge: number;
-  charge_amount_per_guest: number;
   refund_window_hours: number;
   auto_refund_enabled: boolean;
+  refund_policy_text: string;
 }
 
-export const useServicesData = () => {
-  const [services, setServices] = useState<Service[]>([]);
-  const [loading, setLoading] = useState(true);
+interface UseServicesDataProps {
+  venueId?: string;
+}
+
+export const useServicesData = ({ venueId }: UseServicesDataProps = {}) => {
+  const [services, setServices] = useState<ServiceFormData[]>([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { user } = useAuth();
 
-  // Get user's venue ID from profiles table
-  const { data: userVenue } = useQuery({
-    queryKey: ['user-venue', user?.id],
-    queryFn: async () => {
-      if (!user) return null;
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('venue_id')
-        .eq('id', user.id)
-        .single();
-      
-      if (error) {
-        console.error('Error fetching user venue:', error);
-        throw error;
-      }
-      return data?.venue_id;
-    },
-    enabled: !!user,
-  });
+  useEffect(() => {
+    if (!venueId) {
+      console.warn('Venue ID is missing. Services will not be loaded.');
+      return;
+    }
 
-  const loadServices = async () => {
-    try {
+    const fetchServices = async () => {
       setLoading(true);
       setError(null);
-      
-      if (!userVenue) {
-        console.log('No venue ID available, skipping service load');
-        setServices([]);
-        return;
+
+      try {
+        const { data, error } = await supabase
+          .from('services')
+          .select('*')
+          .eq('venue_id', venueId);
+
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        if (data) {
+          // Convert price_pence and deposit_pence to numbers if they exist
+          const formattedServices = data.map(service => ({
+            ...service,
+            price_pence: typeof service.price_pence === 'string' ? parseInt(service.price_pence, 10) : service.price_pence,
+            deposit_pence: typeof service.deposit_pence === 'string' ? parseInt(service.deposit_pence, 10) : service.deposit_pence,
+            refund_window_hours: service.refund_window_hours || 24,
+            auto_refund_enabled: service.auto_refund_enabled || false,
+            refund_policy_text: service.refund_policy_text || ''
+          })) as ServiceFormData[];
+          setServices(formattedServices);
+        }
+      } catch (err: any) {
+        setError(err.message);
+        toast.error(`Failed to fetch services: ${err.message}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchServices();
+  }, [venueId]);
+
+  const createService = async (newService: ServiceFormData) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { error } = await supabase
+        .from('services')
+        .insert([{ ...newService, venue_id: venueId }]);
+
+      if (error) {
+        throw new Error(error.message);
       }
 
-      console.log('Loading services for venue:', userVenue);
-      
-      const { data, error } = await supabase
-        .from('services')
-        .select('*')
-        .eq('venue_id', userVenue)
-        .order('title');
-
-      if (error) throw error;
-      
-      // Transform the data to match our Service interface
-      const transformedServices = (data || []).map(service => ({
-        ...service,
-        duration_rules: Array.isArray(service.duration_rules) 
-          ? service.duration_rules 
-          : service.duration_rules && typeof service.duration_rules === 'string'
-            ? JSON.parse(service.duration_rules) 
-            : [],
-        refund_window_hours: service.refund_window_hours || 24,
-        auto_refund_enabled: service.auto_refund_enabled || false,
-      })) as Service[];
-      
-      console.log('Loaded services:', transformedServices);
-      setServices(transformedServices);
-    } catch (err) {
-      console.error('Error loading services:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load services');
+      setServices(prevServices => [...prevServices, newService]);
+      toast.success('Service created successfully!');
+    } catch (err: any) {
+      setError(err.message);
+      toast.error(`Failed to create service: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  const createService = async (serviceData: ServiceFormData) => {
+  const updateService = async (id: string, updates: Partial<ServiceFormData>) => {
+    setLoading(true);
+    setError(null);
+
     try {
-      if (!userVenue) {
-        throw new Error('No venue associated with user');
-      }
-
-      console.log('Creating service with venue_id:', userVenue);
-      console.log('Service data:', serviceData);
-
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('services')
-        .insert([{
-          ...serviceData,
-          venue_id: userVenue
-        }])
-        .select()
-        .single();
+        .update(updates)
+        .eq('id', id);
 
       if (error) {
-        console.error('Error creating service:', error);
-        throw error;
-      }
-      
-      await loadServices();
-      toast.success('Service created successfully');
-      return data;
-    } catch (err) {
-      console.error('Error creating service:', err);
-      const message = err instanceof Error ? err.message : 'Failed to create service';
-      toast.error(message);
-      throw err;
-    }
-  };
-
-  const updateService = async (id: string, serviceData: ServiceFormData) => {
-    try {
-      if (!userVenue) {
-        throw new Error('No venue associated with user');
+        throw new Error(error.message);
       }
 
-      console.log('Updating service:', id, 'for venue:', userVenue);
-
-      const { data, error } = await supabase
-        .from('services')
-        .update({
-          ...serviceData,
-          venue_id: userVenue
-        })
-        .eq('id', id)
-        .eq('venue_id', userVenue) // Ensure user can only update their venue's services
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error updating service:', error);
-        throw error;
-      }
-      
-      await loadServices();
-      toast.success('Service updated successfully');
-      return data;
-    } catch (err) {
-      console.error('Error updating service:', err);
-      const message = err instanceof Error ? err.message : 'Failed to update service';
-      toast.error(message);
-      throw err;
+      setServices(prevServices =>
+        prevServices.map(service => (service.title === id ? { ...service, ...updates } : service))
+      );
+      toast.success('Service updated successfully!');
+    } catch (err: any) {
+      setError(err.message);
+      toast.error(`Failed to update service: ${err.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
   const deleteService = async (id: string) => {
-    try {
-      if (!userVenue) {
-        throw new Error('No venue associated with user');
-      }
+    setLoading(true);
+    setError(null);
 
+    try {
       const { error } = await supabase
         .from('services')
-        .update({ active: false })
-        .eq('id', id)
-        .eq('venue_id', userVenue); // Ensure user can only delete their venue's services
+        .delete()
+        .eq('title', id);
 
       if (error) {
-        console.error('Error deleting service:', error);
-        throw error;
-      }
-      
-      await loadServices();
-      toast.success('Service deleted successfully');
-    } catch (err) {
-      console.error('Error deleting service:', err);
-      const message = err instanceof Error ? err.message : 'Failed to delete service';
-      toast.error(message);
-      throw err;
-    }
-  };
-
-  // Get service with enhanced payment info
-  const getServiceById = async (id: string) => {
-    try {
-      if (!userVenue) {
-        throw new Error('No venue associated with user');
+        throw new Error(error.message);
       }
 
-      const { data, error } = await supabase
-        .from('services')
-        .select('*')
-        .eq('id', id)
-        .eq('venue_id', userVenue) // Ensure user can only access their venue's services
-        .single();
-
-      if (error) throw error;
-      
-      return {
-        ...data,
-        duration_rules: Array.isArray(data.duration_rules) 
-          ? data.duration_rules 
-          : data.duration_rules && typeof data.duration_rules === 'string'
-            ? JSON.parse(data.duration_rules) 
-            : [],
-        refund_window_hours: data.refund_window_hours || 24,
-        auto_refund_enabled: data.auto_refund_enabled || false,
-      } as Service;
-    } catch (err) {
-      console.error('Error fetching service:', err);
-      throw err;
-    }
-  };
-
-  // Check if service requires payment for given party size
-  const checkPaymentRequired = (service: Service, partySize: number): boolean => {
-    if (!service.requires_payment) return false;
-    
-    switch (service.charge_type) {
-      case 'all_reservations':
-        return true;
-      case 'large_groups':
-        return partySize >= (service.minimum_guests_for_charge || 8);
-      case 'per_person':
-      case 'flat_rate':
-        return true;
-      default:
-        return false;
-    }
-  };
-
-  // Calculate payment amount for booking
-  const calculatePaymentAmount = (service: Service, partySize: number): number => {
-    if (!checkPaymentRequired(service, partySize)) return 0;
-    
-    switch (service.charge_type) {
-      case 'per_person':
-        return (service.charge_amount_per_guest || 0) * partySize;
-      case 'flat_rate':
-      case 'all_reservations':
-        return service.charge_amount_per_guest || 0;
-      case 'large_groups':
-        return partySize >= (service.minimum_guests_for_charge || 8) 
-          ? (service.charge_amount_per_guest || 0) * partySize 
-          : 0;
-      default:
-        return 0;
-    }
-  };
-
-  // Load services when userVenue changes
-  useEffect(() => {
-    if (userVenue) {
-      loadServices();
-    } else {
-      setServices([]);
+      setServices(prevServices => prevServices.filter(service => service.title !== id));
+      toast.success('Service deleted successfully!');
+    } catch (err: any) {
+      setError(err.message);
+      toast.error(`Failed to delete service: ${err.message}`);
+    } finally {
       setLoading(false);
     }
-  }, [userVenue]);
+  };
 
   return {
     services,
-    loading: loading || !userVenue, // Show loading while venue is being fetched
+    loading,
     error,
-    loadServices,
     createService,
     updateService,
     deleteService,
-    getServiceById,
-    checkPaymentRequired,
-    calculatePaymentAmount,
   };
 };
