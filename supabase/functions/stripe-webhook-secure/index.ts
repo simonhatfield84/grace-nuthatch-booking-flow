@@ -532,49 +532,65 @@ async function sendBookingConfirmationEmail(supabase: any, bookingId: number, ve
     } else {
       console.log('📧 Sending confirmation email to:', booking.email);
       
-      // Prepare booking data for email template
-      const templateData = {
-        guest_name: booking.guest_name,
-        venue_name: booking.venues.name,
-        booking_date: new Date(booking.booking_date).toLocaleDateString('en-GB', {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        }),
-        booking_time: booking.booking_time,
-        party_size: `${booking.party_size} ${booking.party_size === 1 ? 'guest' : 'guests'}`,
-        booking_reference: booking.booking_reference,
-        booking_id: booking.id,
-        venue_slug: booking.venues.slug
-      };
-
-      // Send email via the branded email function with correct parameters
-      const { error: emailSendError } = await supabase.functions.invoke('send-branded-email', {
+      // Send email via the send-email function with proper error handling
+      const { data: emailResult, error: emailSendError } = await supabase.functions.invoke('send-email', {
         body: {
-          to: booking.email,
-          subject: `Booking Confirmation - ${booking.venues.name}`,
-          template_key: 'booking_confirmation',
-          template_data: templateData
+          booking_id: booking.id,
+          guest_email: booking.email,
+          venue_id: venueId,
+          email_type: 'booking_confirmation',
         }
       });
 
+      console.log('📧 Email function response:', { data: emailResult, error: emailSendError });
+
+      // Check for function invocation errors
       if (emailSendError) {
-        console.error('❌ Failed to send confirmation email:', emailSendError);
+        console.error('❌ Function invocation error:', emailSendError);
         emailStatus = 'failed';
-        emailError = emailSendError.message;
+        emailError = emailSendError.message || 'Function invocation failed';
         notificationDetails = {
           email_type: 'booking_confirmation',
+          error_type: 'function_error',
           error_message: emailSendError.message,
           recipient: booking.email
         };
-      } else {
-        console.log('✅ Confirmation email sent successfully');
+      }
+      // Check for email service errors (when function runs but email fails)
+      else if (emailResult && !emailResult.success) {
+        console.error('❌ Email service error:', emailResult.error);
+        emailStatus = 'failed';
+        emailError = emailResult.error || 'Email service error';
+        notificationDetails = {
+          email_type: 'booking_confirmation',
+          error_type: 'email_service_error',
+          error_message: emailResult.error,
+          recipient: booking.email,
+          details: emailResult.details
+        };
+      }
+      // Success case
+      else if (emailResult && emailResult.success) {
+        console.log('✅ Confirmation email sent successfully with ID:', emailResult.id);
         emailStatus = 'sent';
         notificationDetails = {
           email_type: 'booking_confirmation',
           recipient: booking.email,
-          sent_at: new Date().toISOString()
+          sent_at: new Date().toISOString(),
+          email_id: emailResult.id
+        };
+      }
+      // Unexpected response format
+      else {
+        console.error('❌ Unexpected email response format:', emailResult);
+        emailStatus = 'failed';
+        emailError = 'Unexpected response format';
+        notificationDetails = {
+          email_type: 'booking_confirmation',
+          error_type: 'unexpected_response',
+          error_message: 'Unexpected response format',
+          recipient: booking.email,
+          response: emailResult
         };
       }
     }
@@ -584,11 +600,13 @@ async function sendBookingConfirmationEmail(supabase: any, bookingId: number, ve
     emailError = error.message;
     notificationDetails = {
       email_type: 'booking_confirmation',
-      error_message: error.message
+      error_type: 'exception',
+      error_message: error.message,
+      stack_trace: error.stack
     };
   }
 
-  // Log audit entry for email attempt
+  // Log audit entry for email attempt with accurate status
   try {
     await supabase
       .from('booking_audit')
@@ -609,7 +627,7 @@ async function sendBookingConfirmationEmail(supabase: any, bookingId: number, ve
         notification_details: notificationDetails
       }]);
     
-    console.log('✅ Email audit entry logged');
+    console.log('✅ Email audit entry logged with status:', emailStatus);
   } catch (auditError) {
     console.error('❌ Failed to log email audit entry:', auditError);
   }

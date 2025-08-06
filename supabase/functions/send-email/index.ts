@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.3";
 import { Resend } from "npm:resend@2.0.0";
@@ -143,17 +142,40 @@ const handler = async (req: Request): Promise<Response> => {
       text 
     } = requestBody;
 
-    // Determine the from address
+    // Get platform settings for from address
     let fromAddress: string;
     if (from) {
       fromAddress = from;
     } else if (from_name && from_email) {
       fromAddress = `${from_name} <${from_email}>`;
     } else {
-      fromAddress = from_email || 'noreply@grace-os.co.uk';
+      // Get from platform settings
+      const { data: platformSettings } = await supabase
+        .from('platform_settings')
+        .select('setting_value')
+        .eq('setting_key', 'from_email')
+        .single();
+      
+      const { data: platformName } = await supabase
+        .from('platform_settings')
+        .select('setting_value')
+        .eq('setting_key', 'from_name')
+        .single();
+
+      const defaultFromEmail = platformSettings?.setting_value 
+        ? JSON.parse(platformSettings.setting_value) 
+        : 'nuthatch@grace-os.co.uk';
+      
+      const defaultFromName = platformName?.setting_value 
+        ? JSON.parse(platformName.setting_value) 
+        : 'Grace OS';
+
+      fromAddress = from_email || from_name 
+        ? `${from_name || defaultFromName} <${from_email || defaultFromEmail}>` 
+        : `${defaultFromName} <${defaultFromEmail}>`;
     }
 
-    console.log(`Sending email from: ${fromAddress} to: ${Array.isArray(to) ? to.join(', ') : to}`);
+    console.log(`📧 Sending email from: ${fromAddress} to: ${Array.isArray(to) ? to.join(', ') : to}`);
 
     const emailResponse = await resend.emails.send({
       from: fromAddress,
@@ -163,9 +185,26 @@ const handler = async (req: Request): Promise<Response> => {
       text,
     });
 
-    console.log("Email sent successfully:", emailResponse);
+    console.log("📧 Resend response:", emailResponse);
 
-    return new Response(JSON.stringify(emailResponse), {
+    // Check for Resend errors
+    if (emailResponse.error) {
+      console.error("❌ Resend error:", emailResponse.error);
+      throw new Error(`Resend error: ${emailResponse.error.message || emailResponse.error}`);
+    }
+
+    if (!emailResponse.data || !emailResponse.data.id) {
+      console.error("❌ No email ID returned from Resend");
+      throw new Error("Email sending failed - no confirmation ID received");
+    }
+
+    console.log("✅ Email sent successfully with ID:", emailResponse.data.id);
+
+    return new Response(JSON.stringify({
+      success: true,
+      id: emailResponse.data.id,
+      ...emailResponse
+    }), {
       status: 200,
       headers: {
         "Content-Type": "application/json",
@@ -173,9 +212,13 @@ const handler = async (req: Request): Promise<Response> => {
       },
     });
   } catch (error: any) {
-    console.error("Error in send-email function:", error);
+    console.error("❌ Error in send-email function:", error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        success: false,
+        error: error.message,
+        details: error.stack 
+      }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
@@ -222,15 +265,14 @@ async function handleBookingEmail(supabase: any, request: SendEmailRequest, req:
 
     console.log('🏢 Venue details retrieved:', venue.name);
 
-    // Get venue-specific email settings
-    const { data: venueSettings } = await supabase
-      .from('venue_settings')
+    // Get platform email settings for from address
+    const { data: platformSettings } = await supabase
+      .from('platform_settings')
       .select('setting_key, setting_value')
-      .eq('venue_id', venue_id)
-      .in('setting_key', ['from_email', 'from_name', 'email_signature', 'currency']);
+      .in('setting_key', ['from_email', 'from_name']);
 
     const emailSettings: Record<string, string> = {};
-    venueSettings?.forEach(setting => {
+    platformSettings?.forEach(setting => {
       try {
         const parsedValue = typeof setting.setting_value === 'string' 
           ? JSON.parse(setting.setting_value) 
@@ -241,7 +283,30 @@ async function handleBookingEmail(supabase: any, request: SendEmailRequest, req:
       }
     });
 
-    console.log('⚙️ Email settings retrieved:', Object.keys(emailSettings));
+    // Use platform settings with fallback
+    const defaultFromEmail = emailSettings.from_email || 'nuthatch@grace-os.co.uk';
+    const defaultFromName = emailSettings.from_name || 'Grace OS';
+
+    // Get venue-specific email settings
+    const { data: venueSettings } = await supabase
+      .from('venue_settings')
+      .select('setting_key, setting_value')
+      .eq('venue_id', venue_id)
+      .in('setting_key', ['from_email', 'from_name', 'email_signature', 'currency']);
+
+    const venueEmailSettings: Record<string, string> = {};
+    venueSettings?.forEach(setting => {
+      try {
+        const parsedValue = typeof setting.setting_value === 'string' 
+          ? JSON.parse(setting.setting_value) 
+          : setting.setting_value;
+        venueEmailSettings[setting.setting_key] = String(parsedValue || '');
+      } catch {
+        venueEmailSettings[setting.setting_key] = String(setting.setting_value || '');
+      }
+    });
+
+    console.log('⚙️ Email settings retrieved:', { platform: Object.keys(emailSettings), venue: Object.keys(venueEmailSettings) });
 
     // Generate booking tokens for cancel/modify links
     let cancelLink = '';
@@ -447,10 +512,10 @@ async function handleBookingEmail(supabase: any, request: SendEmailRequest, req:
       `;
     }
 
-    // Send the email
-    const fromAddress = emailSettings.from_name && emailSettings.from_email
-      ? `${emailSettings.from_name} <${emailSettings.from_email}>`
-      : emailSettings.from_email || `${venue.name} <noreply@grace-os.co.uk>`;
+    // Send the email with proper error handling
+    const fromAddress = venueEmailSettings.from_name && venueEmailSettings.from_email
+      ? `${venueEmailSettings.from_name} <${venueEmailSettings.from_email}>`
+      : venueEmailSettings.from_email || `${venue.name} <${defaultFromEmail}>`;
 
     console.log('📧 Sending email from:', fromAddress, 'to:', guest_email);
 
@@ -461,9 +526,26 @@ async function handleBookingEmail(supabase: any, request: SendEmailRequest, req:
       html,
     });
 
-    console.log('✅ Booking email sent successfully:', emailResponse);
+    console.log('📧 Resend response:', emailResponse);
 
-    return new Response(JSON.stringify(emailResponse), {
+    // Check for Resend errors
+    if (emailResponse.error) {
+      console.error("❌ Resend error:", emailResponse.error);
+      throw new Error(`Email delivery failed: ${emailResponse.error.message || emailResponse.error}`);
+    }
+
+    if (!emailResponse.data || !emailResponse.data.id) {
+      console.error("❌ No email ID returned from Resend");
+      throw new Error("Email sending failed - no confirmation ID received");
+    }
+
+    console.log('✅ Booking email sent successfully with ID:', emailResponse.data.id);
+
+    return new Response(JSON.stringify({
+      success: true,
+      id: emailResponse.data.id,
+      ...emailResponse
+    }), {
       status: 200,
       headers: {
         "Content-Type": "application/json",
@@ -474,7 +556,11 @@ async function handleBookingEmail(supabase: any, request: SendEmailRequest, req:
   } catch (error: any) {
     console.error('❌ Error in handleBookingEmail:', error);
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ 
+        success: false,
+        error: error.message,
+        details: error.stack 
+      }),
       {
         status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
