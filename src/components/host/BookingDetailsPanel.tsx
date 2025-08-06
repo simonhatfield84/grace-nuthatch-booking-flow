@@ -20,6 +20,7 @@ import { useBookings } from "@/hooks/useBookings";
 import { supabase } from "@/integrations/supabase/client";
 import { EnhancedCancellationDialog } from "./EnhancedCancellationDialog";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface BookingDetailsPanelProps {
   booking: Booking | null;
@@ -43,8 +44,25 @@ export const BookingDetailsPanel = ({
   const { updateBooking } = useBookings();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
 
   if (!booking) return null;
+
+  // Get user's venue ID for proper query invalidation
+  const getUserVenue = async () => {
+    if (!user) return null;
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('venue_id')
+      .eq('id', user.id)
+      .single();
+    
+    if (error) {
+      console.error('Error getting user venue:', error);
+      return null;
+    }
+    return data?.venue_id;
+  };
 
   // Load payment data for cancellation workflow
   useEffect(() => {
@@ -188,22 +206,52 @@ export const BookingDetailsPanel = ({
   const handleCancellationComplete = async () => {
     console.log('Cancellation completed, refreshing booking data...');
     
-    // Invalidate all relevant queries to ensure fresh data
-    await queryClient.invalidateQueries({
-      queryKey: ['booking-payment', booking.id]
-    });
-    await queryClient.invalidateQueries({
-      queryKey: ['booking-accurate-payment', booking.id]
-    });
-    await queryClient.invalidateQueries({
-      queryKey: ['bookings']
-    });
-    
-    // Call the parent's update handler
-    onBookingUpdate();
-    
-    // Close the cancellation dialog
-    setCancellationDialogOpen(false);
+    try {
+      // Get user venue for proper query invalidation
+      const userVenue = await getUserVenue();
+      
+      // Invalidate all relevant queries with specific patterns to ensure fresh data
+      await queryClient.invalidateQueries({
+        queryKey: ['booking-payment', booking.id]
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ['booking-accurate-payment', booking.id]
+      });
+      
+      // Invalidate bookings queries with all possible patterns
+      await queryClient.invalidateQueries({
+        queryKey: ['bookings']
+      });
+      
+      if (userVenue) {
+        // Invalidate specific date-based booking queries
+        await queryClient.invalidateQueries({
+          queryKey: ['bookings', booking.booking_date, userVenue]
+        });
+      }
+      
+      // Invalidate individual booking query
+      await queryClient.invalidateQueries({
+        queryKey: ['booking', booking.id]
+      });
+
+      console.log('Query invalidation completed');
+      
+      // Call the parent's update handler
+      onBookingUpdate();
+      
+      // Close the cancellation dialog
+      setCancellationDialogOpen(false);
+      
+      // Close the details panel since the booking is now cancelled
+      onClose();
+      
+    } catch (error) {
+      console.error('Error during cancellation complete handler:', error);
+      // Still try to update the UI even if query invalidation fails
+      onBookingUpdate();
+      setCancellationDialogOpen(false);
+    }
   };
 
   const currentTable = tables.find(t => t.id === booking.table_id);

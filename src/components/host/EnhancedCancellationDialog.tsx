@@ -46,13 +46,25 @@ export const EnhancedCancellationDialog = ({
   const [isEntitledToRefund, setIsEntitledToRefund] = useState(false);
   const [refundWindow, setRefundWindow] = useState(24);
   const [error, setError] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   useEffect(() => {
     if (open && booking) {
       checkRefundEntitlement();
+      // Reset form when dialog opens
+      setNotes("");
+      setValidationError(null);
+      setError(null);
     }
   }, [open, booking]);
+
+  // Clear validation error when notes change
+  useEffect(() => {
+    if (validationError && notes.trim()) {
+      setValidationError(null);
+    }
+  }, [notes, validationError]);
 
   const checkRefundEntitlement = async () => {
     try {
@@ -95,7 +107,38 @@ export const EnhancedCancellationDialog = ({
     });
   };
 
+  const validateForm = () => {
+    // Reset errors
+    setValidationError(null);
+    setError(null);
+
+    // Check if refund is selected but no reason provided
+    if ((refundOption === 'full' || refundOption === 'partial') && !notes.trim()) {
+      setValidationError('Refund reason is required when processing a refund');
+      return false;
+    }
+
+    // Validate partial refund amount
+    if (refundOption === 'partial') {
+      const amount = parseFloat(partialAmount || '0');
+      if (amount <= 0) {
+        setError('Partial refund amount must be greater than 0');
+        return false;
+      }
+      if (payment && amount > (payment.amount_cents / 100)) {
+        setError('Partial refund amount cannot exceed the original payment');
+        return false;
+      }
+    }
+
+    return true;
+  };
+
   const handleCancellation = async () => {
+    if (!validateForm()) {
+      return;
+    }
+
     setIsProcessing(true);
     setError(null);
 
@@ -108,15 +151,10 @@ export const EnhancedCancellationDialog = ({
           ? payment.amount_cents 
           : Math.round(parseFloat(partialAmount || '0') * 100);
 
-        if (refundAmount <= 0 || refundAmount > payment.amount_cents) {
-          setError('Invalid refund amount');
-          return;
-        }
-
         console.log('Processing refund:', {
           payment_id: payment.id,
           refund_amount_cents: refundAmount,
-          refund_reason: notes || 'Guest requested cancellation',
+          refund_reason: notes.trim(),
           booking_id: booking.id,
           venue_id: booking.venue_id
         });
@@ -126,7 +164,7 @@ export const EnhancedCancellationDialog = ({
           body: {
             payment_id: payment.id,
             refund_amount_cents: refundAmount,
-            refund_reason: notes || 'Guest requested cancellation',
+            refund_reason: notes.trim(),
             booking_id: booking.id,
             venue_id: booking.venue_id,
             override_window: !isEntitledToRefund
@@ -174,7 +212,7 @@ export const EnhancedCancellationDialog = ({
             field_name: 'status',
             old_value: 'confirmed',
             new_value: 'cancelled',
-            notes: notes || 'Booking cancelled via host interface (no refund)'
+            notes: notes.trim() || 'Booking cancelled via host interface (no refund)'
           }]);
 
         toast.success('Booking cancelled successfully');
@@ -198,6 +236,18 @@ export const EnhancedCancellationDialog = ({
   };
 
   const maxRefundAmount = payment ? formatAmount(payment.amount_cents) : '0.00';
+
+  // Determine if we need a refund reason or cancellation notes
+  const isRefundSelected = refundOption === 'full' || refundOption === 'partial';
+  const fieldLabel = isRefundSelected ? 'Refund Reason' : 'Cancellation Notes (Optional)';
+  const fieldPlaceholder = isRefundSelected 
+    ? 'e.g., Guest requested cancellation, schedule conflict, etc.' 
+    : 'Add any additional notes about the cancellation...';
+
+  // Check if form is valid for submission
+  const isFormValid = !isProcessing && 
+    (refundOption === 'none' || (isRefundSelected && notes.trim())) &&
+    (refundOption !== 'partial' || (partialAmount && parseFloat(partialAmount) > 0));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -321,17 +371,24 @@ export const EnhancedCancellationDialog = ({
             </Alert>
           )}
 
-          {/* Optional Notes */}
+          {/* Refund Reason / Cancellation Notes */}
           <div className="space-y-2">
-            <Label htmlFor="notes">Cancellation Notes (Optional)</Label>
+            <Label htmlFor="notes" className="flex items-center gap-1">
+              {fieldLabel}
+              {isRefundSelected && <span className="text-red-500">*</span>}
+            </Label>
             <Textarea
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add any additional notes about the cancellation..."
+              placeholder={fieldPlaceholder}
               rows={3}
               disabled={isProcessing}
+              className={validationError ? "border-red-500 focus:border-red-500" : ""}
             />
+            {validationError && (
+              <p className="text-sm text-red-500">{validationError}</p>
+            )}
           </div>
 
           {/* Action Buttons */}
@@ -345,10 +402,7 @@ export const EnhancedCancellationDialog = ({
             </Button>
             <Button 
               onClick={handleCancellation} 
-              disabled={
-                isProcessing || 
-                (refundOption === 'partial' && (!partialAmount || parseFloat(partialAmount) <= 0))
-              }
+              disabled={!isFormValid}
               className="bg-red-600 hover:bg-red-700"
             >
               {isProcessing ? (
