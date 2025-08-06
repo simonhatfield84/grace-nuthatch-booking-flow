@@ -160,7 +160,8 @@ export const EnhancedCancellationDialog = ({
           refund_amount_cents: refundAmount,
           refund_reason: notes.trim(),
           booking_id: booking.id,
-          venue_id: booking.venue_id
+          venue_id: booking.venue_id,
+          changed_by: changedByName
         });
 
         // Process refund through edge function
@@ -171,7 +172,8 @@ export const EnhancedCancellationDialog = ({
             refund_reason: notes.trim(),
             booking_id: booking.id,
             venue_id: booking.venue_id,
-            override_window: !isEntitledToRefund
+            override_window: !isEntitledToRefund,
+            changed_by: changedByName
           }
         });
 

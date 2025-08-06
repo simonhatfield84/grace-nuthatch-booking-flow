@@ -24,14 +24,16 @@ serve(async (req) => {
       refund_reason, 
       booking_id, 
       venue_id,
-      override_window = false 
+      override_window = false,
+      changed_by = null
     } = await req.json();
 
     console.log('💰 Processing refund:', {
       payment_id,
       refund_amount_cents,
       refund_reason,
-      booking_id
+      booking_id,
+      changed_by
     });
 
     // Get payment details
@@ -97,7 +99,7 @@ serve(async (req) => {
       throw bookingError;
     }
 
-    // Log refund in booking audit
+    // Log refund in booking audit with proper user attribution
     await supabase
       .from('booking_audit')
       .insert([{
@@ -107,10 +109,11 @@ serve(async (req) => {
         field_name: 'refund_amount',
         old_value: '0',
         new_value: (refund_amount_cents / 100).toString(),
+        changed_by: changed_by,
         notes: `Refund processed: £${(refund_amount_cents / 100).toFixed(2)} - Reason: ${refund_reason || 'No reason provided'}`
       }]);
 
-    // Log status change
+    // Log status change with proper user attribution
     await supabase
       .from('booking_audit')
       .insert([{
@@ -120,6 +123,7 @@ serve(async (req) => {
         field_name: 'status',
         old_value: 'confirmed',
         new_value: 'cancelled',
+        changed_by: changed_by,
         notes: `Booking cancelled with ${refund_status} refund: £${(refund_amount_cents / 100).toFixed(2)}`
       }]);
 
