@@ -14,6 +14,10 @@ export interface BookingAudit {
   changed_at: string;
   notes: string | null;
   venue_id: string;
+  source_type: string | null;
+  source_details: Record<string, any>;
+  email_status: string | null;
+  notification_details: Record<string, any>;
 }
 
 export const useBookingAudit = (bookingId?: number) => {

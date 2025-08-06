@@ -115,15 +115,34 @@ export const useBookings = (date?: string) => {
 
       console.log('✅ Booking created:', booking);
 
-      // Log audit entry for booking creation
+      // Enhanced audit entry for booking creation with source details
+      const sourceType = newBooking.status === 'seated' ? 'host_via_interface_walkin' : 
+                        newBooking.phone ? 'host_via_phone' : 'host_via_interface';
+      
+      const sourceDetails = {
+        interface: 'host_dashboard',
+        booking_type: newBooking.status === 'seated' ? 'walk_in' : 'advance_reservation',
+        party_size: newBooking.party_size,
+        service: newBooking.service || 'Dinner',
+        duration_minutes: duration,
+        timestamp: new Date().toISOString()
+      };
+
+      if (newBooking.original_table_id) {
+        sourceDetails.original_table_id = newBooking.original_table_id;
+      }
+
       await supabase
         .from('booking_audit')
         .insert([{
           booking_id: booking.id,
           change_type: 'created',
           changed_by: user?.email || 'system',
-          notes: `Booking created for ${newBooking.guest_name}`,
-          venue_id: userVenue
+          notes: `Booking created for ${newBooking.guest_name}${newBooking.status === 'seated' ? ' (Walk-in)' : ''}`,
+          venue_id: userVenue,
+          source_type: sourceType,
+          source_details: sourceDetails,
+          email_status: 'not_applicable' // Will be updated if/when emails are sent
         }]);
 
       // If not a walk-in, try to allocate it to a table
@@ -180,7 +199,7 @@ export const useBookings = (date?: string) => {
       
       if (error) throw error;
 
-      // Log audit entries for each changed field
+      // Log audit entries for each changed field with enhanced details
       if (currentBooking) {
         const auditEntries = [];
         
@@ -201,7 +220,13 @@ export const useBookings = (date?: string) => {
               old_value: oldValue?.toString() || null,
               new_value: newValue?.toString() || null,
               changed_by: user?.email || 'system',
-              venue_id: userVenue
+              venue_id: userVenue,
+              source_type: 'host_via_interface',
+              source_details: {
+                interface: 'host_dashboard',
+                field_updated: key,
+                timestamp: new Date().toISOString()
+              }
             });
           }
         });

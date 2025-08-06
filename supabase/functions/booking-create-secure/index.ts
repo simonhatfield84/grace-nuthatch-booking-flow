@@ -294,6 +294,38 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error('Failed to create booking');
     }
 
+    // Enhanced audit logging for guest-created booking
+    try {
+      const ipAddress = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+      const userAgent = req.headers.get('user-agent') || 'unknown';
+      
+      await supabaseAdmin
+        .from('booking_audit')
+        .insert([{
+          booking_id: booking.id,
+          change_type: 'created',
+          changed_by: 'guest',
+          notes: `Booking created via online widget by ${sanitizedData.guest_name}`,
+          venue_id: sanitizedData.venue_id,
+          source_type: 'guest_via_widget',
+          source_details: {
+            ip_address: ipAddress,
+            user_agent: userAgent,
+            threat_level: threatLevel,
+            party_size: sanitizedData.party_size,
+            service: sanitizedData.service,
+            interface: 'booking_widget',
+            timestamp: new Date().toISOString()
+          },
+          email_status: 'not_applicable' // Email will be sent after payment if required
+        }]);
+      
+      console.log('✅ Guest booking audit entry created');
+    } catch (auditError) {
+      console.error('❌ Failed to create audit entry:', auditError);
+      // Don't fail the booking creation for audit logging failures
+    }
+
     // Log successful booking creation
     await logSecurityEvent(supabaseAdmin, 'booking_created', {
       booking_id: booking.id,

@@ -3,6 +3,7 @@ import { useBookingAudit } from "@/hooks/useBookingAudit";
 import { format } from "date-fns";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Mail, MailX, Clock, User, Globe, Smartphone } from "lucide-react";
 
 interface BookingAuditTrailProps {
   bookingId: number;
@@ -34,15 +35,74 @@ export const BookingAuditTrail = ({ bookingId }: BookingAuditTrailProps) => {
         return <Badge variant="default" className="bg-orange-100 text-orange-800 text-xs">Time</Badge>;
       case 'updated':
         return <Badge variant="default" className="bg-yellow-100 text-yellow-800 text-xs">Updated</Badge>;
+      case 'email_sent':
+        return <Badge variant="default" className="bg-emerald-100 text-emerald-800 text-xs">Email Sent</Badge>;
+      case 'email_failed':
+        return <Badge variant="default" className="bg-red-100 text-red-800 text-xs">Email Failed</Badge>;
       default:
         return <Badge variant="secondary" className="text-xs">{changeType}</Badge>;
     }
   };
 
-  const formatChangedBy = (changedBy: string | null) => {
+  const getEmailStatusIcon = (emailStatus: string | null) => {
+    if (!emailStatus) return null;
+    
+    switch (emailStatus) {
+      case 'sent':
+        return <Mail className="w-3 h-3 text-green-600" />;
+      case 'failed':
+        return <MailX className="w-3 h-3 text-red-600" />;
+      case 'pending':
+        return <Clock className="w-3 h-3 text-yellow-600" />;
+      default:
+        return null;
+    }
+  };
+
+  const getSourceIcon = (sourceType: string | null) => {
+    if (!sourceType) return <User className="w-3 h-3 text-gray-500" />;
+    
+    switch (sourceType) {
+      case 'guest_via_widget':
+        return <Globe className="w-3 h-3 text-blue-600" />;
+      case 'host_via_interface':
+        return <User className="w-3 h-3 text-purple-600" />;
+      case 'host_via_phone':
+        return <Smartphone className="w-3 h-3 text-orange-600" />;
+      case 'system_automatic':
+        return <Clock className="w-3 h-3 text-gray-600" />;
+      default:
+        return <User className="w-3 h-3 text-gray-500" />;
+    }
+  };
+
+  const formatChangedBy = (changedBy: string | null, sourceType: string | null) => {
     if (!changedBy) return 'System';
     if (changedBy === 'guest') return 'Guest';
-    return changedBy; // This would be the user's name/email
+    if (sourceType === 'guest_via_widget') return 'Guest via Booking Widget';
+    if (sourceType === 'host_via_phone') return `${changedBy} (Phone Booking)`;
+    return changedBy;
+  };
+
+  const formatSourceDetails = (sourceDetails: Record<string, any>) => {
+    if (!sourceDetails || Object.keys(sourceDetails).length === 0) return null;
+    
+    const details = [];
+    if (sourceDetails.ip_address) {
+      details.push(`IP: ${sourceDetails.ip_address}`);
+    }
+    if (sourceDetails.user_agent) {
+      const userAgent = sourceDetails.user_agent.split(' ')[0]; // Just first part for brevity
+      details.push(`Device: ${userAgent}`);
+    }
+    if (sourceDetails.interface_type) {
+      details.push(`Interface: ${sourceDetails.interface_type}`);
+    }
+    if (sourceDetails.threat_level) {
+      details.push(`Security: ${sourceDetails.threat_level} risk`);
+    }
+    
+    return details.length > 0 ? details.join(' • ') : null;
   };
 
   return (
@@ -53,7 +113,10 @@ export const BookingAuditTrail = ({ bookingId }: BookingAuditTrailProps) => {
           {auditTrail.map((entry) => (
             <div key={entry.id} className="p-2 bg-gray-50 dark:bg-gray-800 rounded text-xs space-y-1">
               <div className="flex items-center justify-between">
-                {getChangeTypeBadge(entry.change_type)}
+                <div className="flex items-center gap-2">
+                  {getChangeTypeBadge(entry.change_type)}
+                  {entry.email_status && getEmailStatusIcon(entry.email_status)}
+                </div>
                 <span className="text-gray-500 dark:text-gray-400">
                   {format(new Date(entry.changed_at), 'MMM d, HH:mm')}
                 </span>
@@ -87,10 +150,30 @@ export const BookingAuditTrail = ({ bookingId }: BookingAuditTrailProps) => {
                   "{entry.notes}"
                 </div>
               )}
+
+              {/* Email notification details */}
+              {entry.email_status && entry.notification_details && Object.keys(entry.notification_details).length > 0 && (
+                <div className="text-gray-600 dark:text-gray-300 mt-1 p-1 bg-gray-100 dark:bg-gray-700 rounded">
+                  {entry.notification_details.email_type && (
+                    <div>Email: {entry.notification_details.email_type}</div>
+                  )}
+                  {entry.notification_details.error_message && (
+                    <div className="text-red-600">Error: {entry.notification_details.error_message}</div>
+                  )}
+                </div>
+              )}
               
-              <div className="text-gray-500 dark:text-gray-400 mt-1">
-                by {formatChangedBy(entry.changed_by)}
+              <div className="flex items-center gap-2 text-gray-500 dark:text-gray-400 mt-1">
+                {getSourceIcon(entry.source_type)}
+                <span>by {formatChangedBy(entry.changed_by, entry.source_type)}</span>
               </div>
+
+              {/* Source details */}
+              {formatSourceDetails(entry.source_details) && (
+                <div className="text-gray-500 dark:text-gray-400 text-xs mt-1 pl-5">
+                  {formatSourceDetails(entry.source_details)}
+                </div>
+              )}
             </div>
           ))}
         </div>

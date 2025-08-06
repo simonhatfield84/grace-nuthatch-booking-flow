@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.3";
 
@@ -491,6 +490,9 @@ async function handlePaymentSuccess(supabase: any, event: StripeEvent, venueId: 
       } else {
         console.log('✅ Updated booking status to confirmed for booking:', bookingId);
       }
+
+      // Send booking confirmation email and log audit trail
+      await sendBookingConfirmationEmail(supabase, parseInt(bookingId), venueId);
     }
 
     console.log('💰 Payment succeeded processing complete:', paymentIntentId);
@@ -499,6 +501,116 @@ async function handlePaymentSuccess(supabase: any, event: StripeEvent, venueId: 
   } catch (error) {
     console.error('💥 Error in handlePaymentSuccess:', error);
     throw error;
+  }
+}
+
+async function sendBookingConfirmationEmail(supabase: any, bookingId: number, venueId: string) {
+  console.log('📧 Attempting to send booking confirmation email for booking:', bookingId);
+  
+  let emailStatus = 'not_applicable';
+  let emailError = null;
+  let notificationDetails = {};
+
+  try {
+    // Get booking details including venue information
+    const { data: booking, error: bookingError } = await supabase
+      .from('bookings')
+      .select(`
+        *,
+        venues!inner(name, slug)
+      `)
+      .eq('id', bookingId)
+      .single();
+
+    if (bookingError || !booking) {
+      console.error('❌ Failed to fetch booking details:', bookingError);
+      emailStatus = 'failed';
+      emailError = 'Failed to fetch booking details';
+    } else if (!booking.email) {
+      console.log('📧 No email address for booking, skipping email');
+      emailStatus = 'not_applicable';
+    } else {
+      console.log('📧 Sending confirmation email to:', booking.email);
+      
+      // Prepare booking data for email
+      const bookingData = {
+        guest_name: booking.guest_name,
+        venue_name: booking.venues.name,
+        booking_date: new Date(booking.booking_date).toLocaleDateString('en-GB', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        }),
+        booking_time: booking.booking_time,
+        party_size: `${booking.party_size} ${booking.party_size === 1 ? 'guest' : 'guests'}`,
+        booking_reference: booking.booking_reference,
+        booking_id: booking.id
+      };
+
+      // Send email via the branded email function
+      const { error: emailSendError } = await supabase.functions.invoke('send-branded-email', {
+        body: {
+          to: booking.email,
+          template: 'booking_confirmation',
+          booking_data: bookingData,
+          venue_slug: booking.venues.slug
+        }
+      });
+
+      if (emailSendError) {
+        console.error('❌ Failed to send confirmation email:', emailSendError);
+        emailStatus = 'failed';
+        emailError = emailSendError.message;
+        notificationDetails = {
+          email_type: 'booking_confirmation',
+          error_message: emailSendError.message,
+          recipient: booking.email
+        };
+      } else {
+        console.log('✅ Confirmation email sent successfully');
+        emailStatus = 'sent';
+        notificationDetails = {
+          email_type: 'booking_confirmation',
+          recipient: booking.email,
+          sent_at: new Date().toISOString()
+        };
+      }
+    }
+  } catch (error) {
+    console.error('💥 Error in sendBookingConfirmationEmail:', error);
+    emailStatus = 'failed';
+    emailError = error.message;
+    notificationDetails = {
+      email_type: 'booking_confirmation',
+      error_message: error.message
+    };
+  }
+
+  // Log audit entry for email attempt
+  try {
+    await supabase
+      .from('booking_audit')
+      .insert([{
+        booking_id: bookingId,
+        change_type: emailStatus === 'sent' ? 'email_sent' : 'email_failed',
+        changed_by: 'system',
+        notes: emailStatus === 'sent' 
+          ? 'Booking confirmation email sent after successful payment'
+          : `Failed to send confirmation email: ${emailError}`,
+        venue_id: venueId,
+        source_type: 'system_automatic',
+        source_details: {
+          trigger: 'payment_success_webhook',
+          payment_processor: 'stripe'
+        },
+        email_status: emailStatus,
+        notification_details: notificationDetails
+      }]);
+    
+    console.log('✅ Email audit entry logged');
+  } catch (auditError) {
+    console.error('❌ Failed to log email audit entry:', auditError);
   }
 }
 

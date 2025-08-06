@@ -147,11 +147,15 @@ export type Database = {
           change_type: string
           changed_at: string
           changed_by: string | null
+          email_status: string | null
           field_name: string | null
           id: string
           new_value: string | null
           notes: string | null
+          notification_details: Json | null
           old_value: string | null
+          source_details: Json | null
+          source_type: string | null
           venue_id: string | null
         }
         Insert: {
@@ -159,11 +163,15 @@ export type Database = {
           change_type: string
           changed_at?: string
           changed_by?: string | null
+          email_status?: string | null
           field_name?: string | null
           id?: string
           new_value?: string | null
           notes?: string | null
+          notification_details?: Json | null
           old_value?: string | null
+          source_details?: Json | null
+          source_type?: string | null
           venue_id?: string | null
         }
         Update: {
@@ -171,11 +179,15 @@ export type Database = {
           change_type?: string
           changed_at?: string
           changed_by?: string | null
+          email_status?: string | null
           field_name?: string | null
           id?: string
           new_value?: string | null
           notes?: string | null
+          notification_details?: Json | null
           old_value?: string | null
+          source_details?: Json | null
+          source_type?: string | null
           venue_id?: string | null
         }
         Relationships: [
