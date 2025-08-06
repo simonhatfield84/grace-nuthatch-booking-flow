@@ -1725,6 +1725,16 @@ export type Database = {
           bulk_booking_count: number
         }[]
       }
+      check_advanced_rate_limit: {
+        Args: {
+          identifier: string
+          operation_type: string
+          max_attempts?: number
+          window_minutes?: number
+          threat_level?: string
+        }
+        Returns: boolean
+      }
       check_rate_limit_enhanced: {
         Args: {
           identifier: string
@@ -1782,6 +1792,10 @@ export type Database = {
       generate_webhook_secret: {
         Args: Record<PropertyKey, never>
         Returns: string
+      }
+      get_security_metrics: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
       }
       get_tag_usage_count: {
         Args: { tag_id: string }

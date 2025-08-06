@@ -1,4 +1,3 @@
-
 // Enhanced client-side security utilities with comprehensive validation
 export interface RateLimitConfig {
   windowMs: number;
@@ -17,9 +16,9 @@ export class AdvancedRateLimiter {
     const now = Date.now();
     const key = `${identifier}-${config.windowMs}`;
     
-    // Adjust limits based on threat level
-    const adjustedMax = threatLevel === 'high' ? Math.floor(config.maxRequests * 0.3) : 
-                      threatLevel === 'medium' ? Math.floor(config.maxRequests * 0.6) : 
+    // Adjust limits based on threat level - more aggressive than before
+    const adjustedMax = threatLevel === 'high' ? Math.floor(config.maxRequests * 0.2) : 
+                      threatLevel === 'medium' ? Math.floor(config.maxRequests * 0.5) : 
                       config.maxRequests;
 
     let limit = this.limits.get(key);
@@ -47,6 +46,10 @@ export class AdvancedRateLimiter {
     const safeIp = ip || 'unknown';
     return `${safeIp}-${userAgent.slice(0, 50)}`;
   }
+
+  static clearLimits(): void {
+    this.limits.clear();
+  }
 }
 
 // Enhanced input sanitization functions
@@ -57,6 +60,7 @@ export function sanitizeInput(input: string): string {
     .replace(/[\x00-\x1F\x7F-\x9F]/g, '') // Remove control characters
     .replace(/javascript:/gi, '') // Remove javascript: protocol
     .replace(/data:/gi, '') // Remove data: protocol
+    .replace(/vbscript:/gi, '') // Remove vbscript: protocol
     .slice(0, 1000); // Limit length
 }
 
@@ -133,6 +137,7 @@ export function detectThreatLevel(userAgent: string, referer?: string, ip?: stri
     userAgent.includes('bot') ||
     userAgent.includes('crawler') ||
     userAgent.includes('spider') ||
+    userAgent.includes('scraper') ||
     userAgent.length < 10
   ) {
     threatScore += 3;
@@ -143,7 +148,8 @@ export function detectThreatLevel(userAgent: string, referer?: string, ip?: stri
     userAgent.includes('curl') || 
     userAgent.includes('wget') ||
     userAgent.includes('python') ||
-    userAgent.includes('node')
+    userAgent.includes('node') ||
+    userAgent.includes('postman')
   ) {
     threatScore += 2;
   }
@@ -158,12 +164,21 @@ export function detectThreatLevel(userAgent: string, referer?: string, ip?: stri
     threatScore += 1;
   }
   
-  if (threatScore >= 3) return 'high';
-  if (threatScore >= 1) return 'medium';
+  // Check for headless browser indicators
+  if (
+    !window.navigator.webdriver === undefined ||
+    window.navigator.languages === undefined ||
+    window.outerWidth === 0
+  ) {
+    threatScore += 2;
+  }
+  
+  if (threatScore >= 4) return 'high';
+  if (threatScore >= 2) return 'medium';
   return 'low';
 }
 
-// Password strength validation
+// Enhanced password strength validation
 export function validatePasswordStrength(password: string): { 
   isValid: boolean; 
   score: number; 
@@ -172,7 +187,8 @@ export function validatePasswordStrength(password: string): {
   const feedback: string[] = [];
   let score = 0;
   
-  if (password.length >= 8) score += 1;
+  if (password.length >= 12) score += 2;
+  else if (password.length >= 8) score += 1;
   else feedback.push('Password must be at least 8 characters long');
   
   if (/[a-z]/.test(password)) score += 1;
@@ -184,7 +200,7 @@ export function validatePasswordStrength(password: string): {
   if (/\d/.test(password)) score += 1;
   else feedback.push('Password must contain numbers');
   
-  if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) score += 1;
+  if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) score += 2;
   else feedback.push('Password must contain special characters');
   
   // Check for common patterns
@@ -198,8 +214,14 @@ export function validatePasswordStrength(password: string): {
     feedback.push('Password cannot be all the same character');
   }
   
+  // Check for sequential patterns
+  if (/123|abc|qwe/i.test(password)) {
+    score -= 1;
+    feedback.push('Avoid sequential patterns');
+  }
+  
   return {
-    isValid: score >= 4,
+    isValid: score >= 5,
     score: Math.max(0, score),
     feedback
   };
@@ -212,7 +234,7 @@ export function generateCSPNonce(): string {
   return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
-// Secure session storage
+// Enhanced secure session storage
 export class SecureStorage {
   private static encrypt(data: string, key: string): string {
     // Simple XOR encryption for client-side (not cryptographically secure)
@@ -233,26 +255,66 @@ export class SecureStorage {
   }
   
   static setSecureItem(key: string, value: string): void {
-    const encryptionKey = sessionStorage.getItem('_sk') || Math.random().toString(36);
-    if (!sessionStorage.getItem('_sk')) {
-      sessionStorage.setItem('_sk', encryptionKey);
+    try {
+      const encryptionKey = sessionStorage.getItem('_sk') || Math.random().toString(36);
+      if (!sessionStorage.getItem('_sk')) {
+        sessionStorage.setItem('_sk', encryptionKey);
+      }
+      
+      const encrypted = this.encrypt(value, encryptionKey);
+      sessionStorage.setItem(key, encrypted);
+    } catch (error) {
+      console.error('Secure storage set failed:', error);
     }
-    
-    const encrypted = this.encrypt(value, encryptionKey);
-    sessionStorage.setItem(key, encrypted);
   }
   
   static getSecureItem(key: string): string | null {
-    const encryptionKey = sessionStorage.getItem('_sk');
-    if (!encryptionKey) return null;
-    
-    const encrypted = sessionStorage.getItem(key);
-    if (!encrypted) return null;
-    
     try {
+      const encryptionKey = sessionStorage.getItem('_sk');
+      if (!encryptionKey) return null;
+      
+      const encrypted = sessionStorage.getItem(key);
+      if (!encrypted) return null;
+      
       return this.decrypt(encrypted, encryptionKey);
-    } catch {
+    } catch (error) {
+      console.error('Secure storage get failed:', error);
       return null;
     }
+  }
+  
+  static clearSecureStorage(): void {
+    try {
+      sessionStorage.removeItem('_sk');
+    } catch (error) {
+      console.error('Secure storage clear failed:', error);
+    }
+  }
+}
+
+// Security event logger helper
+export function logClientSecurityEvent(eventType: string, details: Record<string, any> = {}) {
+  const event = {
+    type: eventType,
+    timestamp: new Date().toISOString(),
+    userAgent: navigator.userAgent,
+    url: window.location.href,
+    ...details
+  };
+  
+  // Store in secure session storage for potential server sync
+  try {
+    const existingEvents = SecureStorage.getSecureItem('security_events');
+    const events = existingEvents ? JSON.parse(existingEvents) : [];
+    events.push(event);
+    
+    // Keep only last 50 events
+    if (events.length > 50) {
+      events.splice(0, events.length - 50);
+    }
+    
+    SecureStorage.setSecureItem('security_events', JSON.stringify(events));
+  } catch (error) {
+    console.error('Failed to log client security event:', error);
   }
 }
