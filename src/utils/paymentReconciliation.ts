@@ -9,6 +9,12 @@ export interface PaymentReconciliationData {
   stripeStatus: string;
 }
 
+// Extended type to include processed_at field that exists in DB but not in generated types
+interface ExtendedPayment {
+  status: string;
+  processed_at: string | null;
+}
+
 export const reconcilePayment = async (data: PaymentReconciliationData) => {
   try {
     console.log('🔧 Starting manual payment reconciliation for booking:', data.bookingId);
@@ -129,8 +135,8 @@ export const checkPaymentConsistency = async (bookingId: number) => {
       return { consistent: false, reason: 'missing_booking_record' };
     }
 
-    // Query payment data with proper error handling
-    const { data: payment, error: paymentError } = await supabase
+    // Query payment data with proper error handling and type assertion
+    const { data: paymentData, error: paymentError } = await supabase
       .from('booking_payments')
       .select('status, processed_at')
       .eq('booking_id', bookingId)
@@ -142,11 +148,13 @@ export const checkPaymentConsistency = async (bookingId: number) => {
       return { consistent: false, reason: 'payment_query_failed', error: paymentError };
     }
 
-    if (!payment) {
+    if (!paymentData) {
       return { consistent: false, reason: 'missing_payment_record' };
     }
 
-    // Now we can safely check payment properties since we know payment exists and has the correct type
+    // Type assertion to tell TypeScript that processed_at exists
+    const payment = paymentData as ExtendedPayment;
+
     // Check for consistency issues
     if (booking.status === 'confirmed' && payment.status !== 'succeeded') {
       return { consistent: false, reason: 'booking_confirmed_payment_not_succeeded' };
