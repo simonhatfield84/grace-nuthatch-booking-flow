@@ -154,7 +154,13 @@ export const PaymentStatus = ({ bookingId }: PaymentStatusProps) => {
               </div>
               <div className="text-sm text-blue-700 space-y-1">
                 <p><strong>Refund Amount:</strong> {formatAmount(payment.refund_amount_cents)}</p>
-                <p><strong>Status:</strong> {payment.refund_status || 'processed'}</p>
+                <p><strong>Status:</strong> {
+                  payment.refund_status === 'full' ? 'Full Refund' :
+                  payment.refund_status === 'partial' ? 'Partial Refund' :
+                  payment.refund_status === 'processing' ? 'Processing' :
+                  payment.refund_status === 'failed' ? 'Failed' :
+                  'Processed'
+                }</p>
                 {payment.refunded_at && (
                   <p><strong>Refunded:</strong> {new Date(payment.refunded_at).toLocaleDateString()}</p>
                 )}

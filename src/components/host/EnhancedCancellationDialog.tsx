@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -44,6 +43,7 @@ export const EnhancedCancellationDialog = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [isEntitledToRefund, setIsEntitledToRefund] = useState(false);
   const [refundWindow, setRefundWindow] = useState(24);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (open && booking) {
@@ -78,6 +78,7 @@ export const EnhancedCancellationDialog = ({
 
   const handleCancellation = async () => {
     setIsProcessing(true);
+    setError(null);
 
     try {
       // Process refund if needed
@@ -87,12 +88,20 @@ export const EnhancedCancellationDialog = ({
           : Math.round(parseFloat(partialAmount || '0') * 100);
 
         if (refundAmount <= 0 || refundAmount > payment.amount_cents) {
-          toast.error('Invalid refund amount');
+          setError('Invalid refund amount');
           return;
         }
 
+        console.log('Processing refund:', {
+          payment_id: payment.id,
+          refund_amount_cents: refundAmount,
+          refund_reason: notes || 'Guest requested cancellation',
+          booking_id: booking.id,
+          venue_id: booking.venue_id
+        });
+
         // Process refund through edge function
-        const { error: refundError } = await supabase.functions.invoke('process-refund', {
+        const { data: refundResult, error: refundError } = await supabase.functions.invoke('process-refund', {
           body: {
             payment_id: payment.id,
             refund_amount_cents: refundAmount,
@@ -103,50 +112,59 @@ export const EnhancedCancellationDialog = ({
           }
         });
 
+        console.log('Refund result:', refundResult);
+
         if (refundError) {
           console.error('Refund error:', refundError);
-          toast.error('Failed to process refund');
+          setError(`Failed to process refund: ${refundError.message}`);
+          return;
+        }
+
+        if (!refundResult?.success) {
+          console.error('Refund failed:', refundResult);
+          setError(`Refund failed: ${refundResult?.error || 'Unknown error'}`);
           return;
         }
 
         toast.success(`Refund of ${formatAmount(refundAmount)} processed successfully`);
+      } else {
+        // No payment or no refund - just cancel the booking
+        const { error: bookingError } = await supabase
+          .from('bookings')
+          .update({ 
+            status: 'cancelled',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', booking.id);
+
+        if (bookingError) {
+          console.error('Error updating booking:', bookingError);
+          setError('Failed to cancel booking');
+          return;
+        }
+
+        // Log cancellation in audit trail
+        await supabase
+          .from('booking_audit')
+          .insert([{
+            booking_id: booking.id,
+            venue_id: booking.venue_id,
+            change_type: 'status_change',
+            field_name: 'status',
+            old_value: 'confirmed',
+            new_value: 'cancelled',
+            notes: notes || 'Booking cancelled via host interface (no refund)'
+          }]);
+
+        toast.success('Booking cancelled successfully');
       }
 
-      // Update booking status to cancelled
-      const { error: bookingError } = await supabase
-        .from('bookings')
-        .update({ 
-          status: 'cancelled',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', booking.id);
-
-      if (bookingError) {
-        console.error('Error updating booking:', bookingError);
-        toast.error('Failed to cancel booking');
-        return;
-      }
-
-      // Log cancellation in audit trail
-      await supabase
-        .from('booking_audit')
-        .insert([{
-          booking_id: booking.id,
-          venue_id: booking.venue_id,
-          change_type: 'status_change',
-          field_name: 'status',
-          old_value: 'confirmed',
-          new_value: 'cancelled',
-          notes: notes || 'Booking cancelled via host interface'
-        }]);
-
-      toast.success('Booking cancelled successfully');
       onCancellationComplete();
       onOpenChange(false);
 
     } catch (error) {
       console.error('Error during cancellation:', error);
-      toast.error('Failed to cancel booking');
+      setError(`Failed to cancel booking: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsProcessing(false);
     }
@@ -168,6 +186,15 @@ export const EnhancedCancellationDialog = ({
         </DialogHeader>
 
         <div className="space-y-4">
+          {error && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                {error}
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Refund Entitlement Alert */}
           <Alert variant={isEntitledToRefund ? "default" : "destructive"}>
             {isEntitledToRefund ? (
@@ -277,7 +304,11 @@ export const EnhancedCancellationDialog = ({
 
           {/* Action Buttons */}
           <div className="flex gap-2 justify-end">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button 
+              variant="outline" 
+              onClick={() => onOpenChange(false)}
+              disabled={isProcessing}
+            >
               Keep Booking
             </Button>
             <Button 
