@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useBookings } from "@/hooks/useBookings";
 import { supabase } from "@/integrations/supabase/client";
 import { EnhancedCancellationDialog } from "./EnhancedCancellationDialog";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface BookingDetailsPanelProps {
   booking: Booking | null;
@@ -41,6 +42,7 @@ export const BookingDetailsPanel = ({
   const { services } = useServices();
   const { updateBooking } = useBookings();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   if (!booking) return null;
 
@@ -183,9 +185,25 @@ export const BookingDetailsPanel = ({
     }
   };
 
-  const handleCancellationComplete = () => {
-    // Refresh booking data after successful cancellation
+  const handleCancellationComplete = async () => {
+    console.log('Cancellation completed, refreshing booking data...');
+    
+    // Invalidate all relevant queries to ensure fresh data
+    await queryClient.invalidateQueries({
+      queryKey: ['booking-payment', booking.id]
+    });
+    await queryClient.invalidateQueries({
+      queryKey: ['booking-accurate-payment', booking.id]
+    });
+    await queryClient.invalidateQueries({
+      queryKey: ['bookings']
+    });
+    
+    // Call the parent's update handler
     onBookingUpdate();
+    
+    // Close the cancellation dialog
+    setCancellationDialogOpen(false);
   };
 
   const currentTable = tables.find(t => t.id === booking.table_id);

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { Clock, AlertTriangle, CheckCircle, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { differenceInHours } from "date-fns";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface EnhancedCancellationDialogProps {
   open: boolean;
@@ -44,6 +46,7 @@ export const EnhancedCancellationDialog = ({
   const [isEntitledToRefund, setIsEntitledToRefund] = useState(false);
   const [refundWindow, setRefundWindow] = useState(24);
   const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (open && booking) {
@@ -76,11 +79,29 @@ export const EnhancedCancellationDialog = ({
 
   const formatAmount = (pence: number) => `£${(pence / 100).toFixed(2)}`;
 
+  const invalidateQueries = async () => {
+    // Invalidate all relevant queries to refresh the UI
+    await queryClient.invalidateQueries({
+      queryKey: ['booking-payment', booking.id]
+    });
+    await queryClient.invalidateQueries({
+      queryKey: ['booking-accurate-payment', booking.id]
+    });
+    await queryClient.invalidateQueries({
+      queryKey: ['bookings']
+    });
+    await queryClient.invalidateQueries({
+      queryKey: ['booking', booking.id]
+    });
+  };
+
   const handleCancellation = async () => {
     setIsProcessing(true);
     setError(null);
 
     try {
+      console.log('Starting cancellation process for booking:', booking.id);
+
       // Process refund if needed
       if (payment && refundOption !== 'none') {
         const refundAmount = refundOption === 'full' 
@@ -159,7 +180,13 @@ export const EnhancedCancellationDialog = ({
         toast.success('Booking cancelled successfully');
       }
 
+      // Invalidate queries to refresh UI immediately
+      await invalidateQueries();
+      
+      // Call the completion callback to refresh parent components
       onCancellationComplete();
+      
+      // Close dialog
       onOpenChange(false);
 
     } catch (error) {
@@ -233,6 +260,7 @@ export const EnhancedCancellationDialog = ({
                     checked={refundOption === 'full'}
                     onChange={(e) => setRefundOption(e.target.value as 'full')}
                     className="w-4 h-4"
+                    disabled={isProcessing}
                   />
                   <label htmlFor="full-refund" className="flex items-center gap-2">
                     Full Refund ({maxRefundAmount})
@@ -249,6 +277,7 @@ export const EnhancedCancellationDialog = ({
                     checked={refundOption === 'partial'}
                     onChange={(e) => setRefundOption(e.target.value as 'partial')}
                     className="w-4 h-4"
+                    disabled={isProcessing}
                   />
                   <label htmlFor="partial-refund">Partial Refund</label>
                 </div>
@@ -264,6 +293,7 @@ export const EnhancedCancellationDialog = ({
                       value={partialAmount}
                       onChange={(e) => setPartialAmount(e.target.value)}
                       placeholder="0.00"
+                      disabled={isProcessing}
                     />
                   </div>
                 )}
@@ -277,6 +307,7 @@ export const EnhancedCancellationDialog = ({
                     checked={refundOption === 'none'}
                     onChange={(e) => setRefundOption(e.target.value as 'none')}
                     className="w-4 h-4"
+                    disabled={isProcessing}
                   />
                   <label htmlFor="no-refund">No Refund</label>
                 </div>
@@ -299,6 +330,7 @@ export const EnhancedCancellationDialog = ({
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Add any additional notes about the cancellation..."
               rows={3}
+              disabled={isProcessing}
             />
           </div>
 
@@ -319,7 +351,14 @@ export const EnhancedCancellationDialog = ({
               }
               className="bg-red-600 hover:bg-red-700"
             >
-              {isProcessing ? 'Processing...' : 'Cancel Booking'}
+              {isProcessing ? (
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 animate-spin" />
+                  Processing...
+                </div>
+              ) : (
+                'Cancel Booking'
+              )}
             </Button>
           </div>
         </div>
