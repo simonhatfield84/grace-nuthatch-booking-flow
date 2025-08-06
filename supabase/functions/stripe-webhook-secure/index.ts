@@ -532,8 +532,8 @@ async function sendBookingConfirmationEmail(supabase: any, bookingId: number, ve
     } else {
       console.log('📧 Sending confirmation email to:', booking.email);
       
-      // Prepare booking data for email
-      const bookingData = {
+      // Prepare booking data for email template
+      const templateData = {
         guest_name: booking.guest_name,
         venue_name: booking.venues.name,
         booking_date: new Date(booking.booking_date).toLocaleDateString('en-GB', {
@@ -545,16 +545,17 @@ async function sendBookingConfirmationEmail(supabase: any, bookingId: number, ve
         booking_time: booking.booking_time,
         party_size: `${booking.party_size} ${booking.party_size === 1 ? 'guest' : 'guests'}`,
         booking_reference: booking.booking_reference,
-        booking_id: booking.id
+        booking_id: booking.id,
+        venue_slug: booking.venues.slug
       };
 
-      // Send email via the branded email function
+      // Send email via the branded email function with correct parameters
       const { error: emailSendError } = await supabase.functions.invoke('send-branded-email', {
         body: {
           to: booking.email,
-          template: 'booking_confirmation',
-          booking_data: bookingData,
-          venue_slug: booking.venues.slug
+          subject: `Booking Confirmation - ${booking.venues.name}`,
+          template_key: 'booking_confirmation',
+          template_data: templateData
         }
       });
 
