@@ -7,12 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { RefreshCw, AlertTriangle, Clock, Shield } from "lucide-react";
+import { RefreshCw, AlertTriangle, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { differenceInHours } from "date-fns";
-import { useAuth } from "@/contexts/AuthContext";
 
 interface RefundDialogProps {
   open: boolean;
@@ -40,20 +38,15 @@ export const RefundDialog = ({
   booking, 
   onRefundProcessed 
 }: RefundDialogProps) => {
-  const { user } = useAuth();
   const [refundAmount, setRefundAmount] = useState("");
   const [refundReason, setRefundReason] = useState("");
   const [customReason, setCustomReason] = useState("");
-  const [overrideReason, setOverrideReason] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [serviceSettings, setServiceSettings] = useState<any>(null);
-  const [isStaff, setIsStaff] = useState(false);
-  const [requiresOverride, setRequiresOverride] = useState(false);
 
   useEffect(() => {
     if (open) {
       loadServiceSettings();
-      checkStaffStatus();
     }
   }, [open]);
 
@@ -61,29 +54,17 @@ export const RefundDialog = ({
     try {
       const { data: service } = await supabase
         .from('services')
-        .select('title, refund_window_hours, auto_refund_enabled')
+        .select('title') // Only select existing columns
         .eq('title', booking.service)
         .single();
       
+      // Set default values since refund columns don't exist yet
       setServiceSettings({
-        refund_window_hours: service?.refund_window_hours || 24,
-        auto_refund_enabled: service?.auto_refund_enabled || false
+        refund_window_hours: 24,
+        auto_refund_enabled: false
       });
     } catch (error) {
       console.error('Error loading service settings:', error);
-    }
-  };
-
-  const checkStaffStatus = async () => {
-    try {
-      const { data } = await supabase.rpc('is_admin', {
-        _user_id: user?.id,
-        _venue_id: booking.venue_id
-      });
-      setIsStaff(data || false);
-    } catch (error) {
-      console.error('Error checking staff status:', error);
-      setIsStaff(false);
     }
   };
 
@@ -95,14 +76,6 @@ export const RefundDialog = ({
     
     return hoursUntilBooking >= (serviceSettings.refund_window_hours || 24);
   };
-
-  const needsStaffOverride = () => {
-    return !isWithinRefundWindow() && isStaff;
-  };
-
-  useEffect(() => {
-    setRequiresOverride(needsStaffOverride());
-  }, [serviceSettings, isStaff]);
 
   const handleProcessRefund = async () => {
     setIsLoading(true);
@@ -121,24 +94,10 @@ export const RefundDialog = ({
         return;
       }
 
-      // Check if override is required and validate
-      if (requiresOverride) {
-        if (!overrideReason.trim()) {
-          toast.error('Staff override reason is required for out-of-policy refunds');
-          return;
-        }
-        if (!['emergency', 'bereavement', 'force_majeure', 'venue_discretion'].includes(overrideReason)) {
-          toast.error('Please select a valid override reason');
-          return;
-        }
-      }
-
       console.log('Processing refund:', {
         paymentId: payment.id,
         amount,
-        reason,
-        requiresOverride,
-        overrideReason
+        reason
       });
 
       const { error } = await supabase.functions.invoke('process-refund', {
@@ -148,18 +107,13 @@ export const RefundDialog = ({
           refund_reason: reason,
           booking_id: booking.id,
           venue_id: booking.venue_id,
-          override_window: requiresOverride,
-          override_reason: overrideReason,
-          staff_user_id: isStaff ? user?.id : null
+          override_window: !isWithinRefundWindow()
         }
       });
 
       if (error) throw error;
 
-      toast.success(requiresOverride ? 
-        'Staff override refund processed successfully!' : 
-        'Refund processed successfully!'
-      );
+      toast.success('Refund processed successfully!');
       onRefundProcessed();
       onOpenChange(false);
 
@@ -181,7 +135,6 @@ export const RefundDialog = ({
           <DialogTitle className="flex items-center gap-2">
             <RefreshCw className="h-5 w-5" />
             Process Refund
-            {requiresOverride && <Badge variant="outline" className="ml-2">Staff Override</Badge>}
           </DialogTitle>
           <DialogDescription>
             Process a refund for this payment
@@ -198,22 +151,12 @@ export const RefundDialog = ({
             </div>
           </div>
 
-          {requiresOverride && (
-            <Alert>
-              <Shield className="h-4 w-4" />
-              <AlertDescription>
-                This booking is outside the standard refund window ({serviceSettings?.refund_window_hours || 24} hours). 
-                As staff, you can override this policy for compassionate reasons.
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {!isWithinRefundWindow() && !isStaff && (
+          {!isWithinRefundWindow() && (
             <Alert variant="destructive">
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription>
-                This booking is outside the refund window ({serviceSettings?.refund_window_hours || 24} hours).
-                Only staff members can process out-of-policy refunds.
+                This booking is outside the refund window ({serviceSettings?.refund_window_hours || 24} hours). 
+                Processing this refund will require manager override.
               </AlertDescription>
             </Alert>
           )}
@@ -264,26 +207,6 @@ export const RefundDialog = ({
             </div>
           )}
 
-          {requiresOverride && (
-            <div className="space-y-2 border-t pt-4">
-              <Label htmlFor="override-reason">Staff Override Reason *</Label>
-              <Select value={overrideReason} onValueChange={setOverrideReason}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select override reason" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="emergency">Medical/Family Emergency</SelectItem>
-                  <SelectItem value="bereavement">Bereavement</SelectItem>
-                  <SelectItem value="force_majeure">Force Majeure (Travel disruption, etc.)</SelectItem>
-                  <SelectItem value="venue_discretion">Venue Discretion (Good customer relations)</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                Required for out-of-policy refunds. This will be logged for management review.
-              </p>
-            </div>
-          )}
-
           {serviceSettings?.auto_refund_enabled && isWithinRefundWindow() && (
             <Alert>
               <Clock className="h-4 w-4" />
@@ -299,13 +222,7 @@ export const RefundDialog = ({
             </Button>
             <Button 
               onClick={handleProcessRefund} 
-              disabled={
-                isLoading || 
-                !refundReason || 
-                (refundReason === 'other' && !customReason.trim()) ||
-                (requiresOverride && !overrideReason) ||
-                (!isWithinRefundWindow() && !isStaff)
-              }
+              disabled={isLoading || !refundReason || (refundReason === 'other' && !customReason.trim())}
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               {isLoading ? 'Processing...' : 'Process Refund'}

@@ -18,10 +18,7 @@ export const SERVICE_DEFAULTS = {
   duration_rules: [],
   useStandardTerms: true,
   requires_payment: false,
-  charge_type: 'none' as const,
+  charge_type: 'none' as const, // Explicitly set to 'none'
   minimum_guests_for_charge: 8,
   charge_amount_per_guest: 0,
-  refund_window_hours: 24,
-  auto_refund_enabled: false,
-  refund_policy_text: '',
 };
