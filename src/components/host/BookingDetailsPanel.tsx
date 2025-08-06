@@ -22,7 +22,9 @@ import { EnhancedCancellationDialog } from './EnhancedCancellationDialog';
 interface BookingDetailsPanelProps {
   booking: Booking | null;
   onClose: () => void;
-  onUpdate: () => void;
+  onStatusChange?: (booking: Booking, newStatus: string) => Promise<void>;
+  onBookingUpdate?: () => void;
+  onUpdate?: () => void;
 }
 
 interface EditedBooking {
@@ -35,6 +37,8 @@ interface EditedBooking {
 const BookingDetailsPanel = ({ 
   booking, 
   onClose, 
+  onStatusChange,
+  onBookingUpdate,
   onUpdate 
 }: BookingDetailsPanelProps) => {
   const [editedBooking, setEditedBooking] = useState<EditedBooking | null>(null);
@@ -158,6 +162,12 @@ const BookingDetailsPanel = ({
     }
 
     if (!booking) return;
+
+    // Use the passed onStatusChange prop if available, otherwise use the internal logic
+    if (onStatusChange) {
+      await onStatusChange(booking, newStatus);
+      return;
+    }
     
     setIsSubmitting(true);
     try {
@@ -186,7 +196,10 @@ const BookingDetailsPanel = ({
         notification_details: {}
       });
 
-      onUpdate();
+      const updateCallback = onUpdate || onBookingUpdate;
+      if (updateCallback) {
+        updateCallback();
+      }
       toast.success(`Booking status updated to ${newStatus}`);
     } catch (error) {
       console.error('Error updating booking status:', error);
@@ -198,7 +211,10 @@ const BookingDetailsPanel = ({
 
   const handleBookingCancelled = () => {
     setShowCancellationDialog(false);
-    onUpdate();
+    const updateCallback = onUpdate || onBookingUpdate;
+    if (updateCallback) {
+      updateCallback();
+    }
     onClose();
   };
 

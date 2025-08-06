@@ -88,7 +88,7 @@ export const useServicesData = ({ venueId }: UseServicesDataProps = {}) => {
             charge_amount_per_guest: service.charge_amount_per_guest || 0,
             refund_window_hours: service.refund_window_hours || 24,
             auto_refund_enabled: service.auto_refund_enabled || false,
-            refund_policy_text: service.refund_policy_description || ''
+            refund_policy_text: (service as any).refund_policy_description || (service as any).refund_policy_text || ''
           })) as Service[];
           setServices(formattedServices);
         }

@@ -1,6 +1,4 @@
 import { useState, useEffect } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,113 +6,43 @@ import { format } from "date-fns";
 import { useVenueHours } from "@/hooks/useVenueHours";
 import { useSections } from "@/hooks/useSections";
 import { useTables } from "@/hooks/useTables";
-import { useBlocks } from "@/hooks/useBlocks";
-import { useBookingAudit } from "@/hooks/useBookingAudit";
-import { TableAllocationService } from "@/services/tableAllocation";
+import { useBookings } from "@/hooks/useBookings";
+import { Booking } from "@/features/booking/types/booking";
+import { useServices } from "@/hooks/useServices";
 import { useToast } from "@/hooks/use-toast";
-import { UnallocatedBookingsBanner } from "@/components/host/UnallocatedBookingsBanner";
-import { IPadCalendar } from "@/components/host/IPadCalendar";
-import { OptimizedTimeGrid } from "@/components/host/OptimizedTimeGrid";
-import { TouchOptimizedBookingBar } from "@/components/host/TouchOptimizedBookingBar";
-import { BookingDetailsPanel } from "@/components/host/BookingDetailsPanel";
-import { BlockOverlay } from "@/components/host/BlockOverlay";
-import { CancelledBookingsPanel } from "@/components/host/CancelledBookingsPanel";
-import { BlockDialog } from "@/components/BlockDialog";
-import { WalkInDialog } from "@/features/host/components/walkin/WalkInDialog";
-import { FullBookingDialog } from "@/components/host/FullBookingDialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Booking } from "@/types/booking";
 import { useAuth } from "@/contexts/AuthContext";
-import { backfillBookingDurations } from "@/utils/backfillBookingDurations";
+import { NewTimeGrid } from "@/components/host/NewTimeGrid";
+import { BookingListView } from "@/components/host/BookingListView";
+import { EnhancedWalkInDialog } from "@/components/host/EnhancedWalkInDialog";
+import BookingDetailsPanel from '@/components/host/BookingDetailsPanel';
+import { CollapsibleCalendar } from "@/components/host/CollapsibleCalendar";
+import { BlockDialog } from "@/components/host/BlockDialog";
+import { BlockManagementDialog } from "@/components/host/BlockManagementDialog";
+import { FullBookingDialog } from "@/components/host/FullBookingDialog";
+import { Users, Grid, List, Ban, PlusCircle, BarChart3, Clock, CheckCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Block } from "@/hooks/useBlocks";
 
-import { Users, Link, Ban } from "lucide-react";
-
-const HostInterface = () => {
+const NewHostInterface = () => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
-  const [showDetails, setShowDetails] = useState(false);
   const [walkInDialogOpen, setWalkInDialogOpen] = useState(false);
-  const [bookingDialogOpen, setBookingDialogOpen] = useState(false);
-  const [clickedTime, setClickedTime] = useState<string>("");
-  const [backfillComplete, setBackfillComplete] = useState(false);
-  const [dragOverTable, setDragOverTable] = useState<number | null>(null);
+  const [blockDialogOpen, setBlockDialogOpen] = useState(false);
+  const [blockManagementOpen, setBlockManagementOpen] = useState(false);
+  const [fullBookingDialogOpen, setFullBookingDialogOpen] = useState(false);
+  const [selectedTable, setSelectedTable] = useState<any>(null);
+  const [selectedTime, setSelectedTime] = useState('');
+  const [selectedBlock, setSelectedBlock] = useState<Block | null>(null);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const { toast } = useToast();
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const { data: venueHours } = useVenueHours();
   const { sections } = useSections();
   const { tables } = useTables();
-  const { blocks } = useBlocks(format(selectedDate, 'yyyy-MM-dd'));
-  const { logAudit } = useBookingAudit();
-  
-  const { data: bookings = [], refetch: refetchBookings } = useQuery({
-    queryKey: ['bookings', format(selectedDate, 'yyyy-MM-dd')],
-    queryFn: async () => {
-      if (!user) return [];
-      
-      // Get user's venue ID first
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('venue_id')
-        .eq('id', user.id)
-        .single();
-      
-      if (!profile?.venue_id) return [];
-      
-      const { data, error } = await supabase
-        .from('bookings')
-        .select('*')
-        .eq('booking_date', format(selectedDate, 'yyyy-MM-dd'))
-        .eq('venue_id', profile.venue_id)
-        .neq('status', 'cancelled')
-        .order('booking_time');
-      
-      if (error) throw error;
-      
-      const typedBookings = (data || []).map(booking => ({
-        ...booking,
-        status: booking.status as Booking['status'],
-        duration_minutes: booking.duration_minutes || 120
-      })) as Booking[];
-
-      const unallocatedBookings = typedBookings.filter(b => b.is_unallocated || !b.table_id);
-      if (unallocatedBookings.length > 0) {
-        console.log(`Found ${unallocatedBookings.length} unallocated bookings, attempting allocation`);
-        for (const booking of unallocatedBookings) {
-          await TableAllocationService.allocateBookingToTables(
-            booking.id,
-            booking.party_size,
-            booking.booking_date,
-            booking.booking_time
-          );
-        }
-        setTimeout(() => refetchBookings(), 1000);
-      }
-      
-      return typedBookings;
-    },
-    enabled: !!user
-  });
-
-  useEffect(() => {
-    const runBackfill = async () => {
-      if (!backfillComplete) {
-        console.log('Running booking duration backfill...');
-        const updatedCount = await backfillBookingDurations();
-        setBackfillComplete(true);
-        
-        if (updatedCount && updatedCount > 0) {
-          toast({
-            title: "Duration Backfill Complete",
-            description: `Updated ${updatedCount} bookings with calculated durations.`,
-          });
-          refetchBookings();
-        }
-      }
-    };
-
-    runBackfill();
-  }, [backfillComplete, toast, refetchBookings]);
+  const { services } = useServices();
+  const { bookings, createBooking, updateBooking } = useBookings(format(selectedDate, 'yyyy-MM-dd'));
 
   const { data: allBookings = [] } = useQuery({
     queryKey: ['all-bookings-dates'],
@@ -131,185 +59,161 @@ const HostInterface = () => {
 
   const bookingDates = [...new Set(allBookings.map(b => b.booking_date))];
 
-  const handleBookingClick = (booking: Booking) => {
-    setSelectedBooking(booking);
-    setShowDetails(true);
-  };
+  console.log('📅 Host Interface Debug:', {
+    selectedDate: format(selectedDate, 'yyyy-MM-dd'),
+    bookingsCount: bookings.length,
+    tablesCount: tables.length,
+    sectionsCount: sections.length
+  });
 
-  const handleCloseDetails = () => {
-    setShowDetails(false);
-    setSelectedBooking(null);
-  };
+  // Calculate covers (party_size) instead of bookings
+  const remainingCovers = bookings
+    .filter(booking => booking.status === 'confirmed')
+    .reduce((sum, booking) => sum + booking.party_size, 0);
+  
+  const seatedCovers = bookings
+    .filter(booking => booking.status === 'seated')
+    .reduce((sum, booking) => sum + booking.party_size, 0);
+  
+  const finishedCovers = bookings
+    .filter(booking => booking.status === 'finished')
+    .reduce((sum, booking) => sum + booking.party_size, 0);
+  
+  const totalCovers = bookings
+    .reduce((sum, booking) => sum + booking.party_size, 0);
 
-  const handleAllocateUnallocatedBookings = async () => {
-    const unallocatedBookings = bookings.filter(booking => booking.is_unallocated);
-    
-    console.log(`Attempting to allocate ${unallocatedBookings.length} unallocated bookings`);
-    
-    let successCount = 0;
-    for (const booking of unallocatedBookings) {
-      const success = await TableAllocationService.allocateBookingToTables(
-        booking.id,
-        booking.party_size,
-        booking.booking_date,
-        booking.booking_time
-      );
-      if (success) successCount++;
+  // Get names of parties yet to be seated for display
+  const remainingParties = bookings
+    .filter(booking => booking.status === 'confirmed')
+    .map(booking => booking.guest_name)
+    .slice(0, 2); // Show first 2 names
+
+  const handleWalkInClick = (tableId: number, time: string) => {
+    const table = tables.find(t => t.id === tableId);
+    if (table) {
+      setSelectedTable(table);
+      setSelectedTime(time);
+      setWalkInDialogOpen(true);
     }
-    
-    refetchBookings();
-    toast({
-      title: "Allocation Complete",
-      description: `Successfully allocated ${successCount} out of ${unallocatedBookings.length} bookings.`,
-    });
   };
 
-  const getUnallocatedBookings = () => {
-    return bookings.filter(booking => booking.is_unallocated || !booking.table_id);
-  };
-
-  const getBookingsForTable = (tableId: number) => {
-    return bookings.filter(booking => booking.table_id === tableId);
-  };
-
-  const handleStatusChange = async (booking: Booking, newStatus: string) => {
+  const handleCreateWalkIn = async (walkInData: {
+    tableId: number;
+    time: string;
+    partySize: number;
+    guestName?: string;
+    duration: number;
+    phone?: string;
+    email?: string;
+    notes?: string;
+    guestId?: string;
+  }) => {
     try {
-      console.log(`Updating booking ${booking.id} status from ${booking.status} to ${newStatus}`);
+      // Handle guest creation/update if guest details are provided
+      let finalGuestId = walkInData.guestId;
       
-      const oldStatus = booking.status;
-      const updateData: any = { 
-        status: newStatus, 
-        updated_at: new Date().toISOString() 
-      };
+      if ((walkInData.phone || walkInData.email) && walkInData.guestName) {
+        // Get user's venue ID
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('venue_id')
+          .eq('id', user?.id)
+          .single();
 
-      if (newStatus === 'finished' && oldStatus !== 'finished') {
-        const now = new Date();
-        const endTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-        updateData.end_time = endTime;
-        
-        const [bookingHour, bookingMin] = booking.booking_time.split(':').map(Number);
-        const bookingDate = new Date(booking.booking_date);
-        const bookingDateTime = new Date(bookingDate.getFullYear(), bookingDate.getMonth(), bookingDate.getDate(), bookingHour, bookingMin);
-        const actualDuration = Math.max(30, Math.floor((now.getTime() - bookingDateTime.getTime()) / (1000 * 60)));
-        updateData.duration_minutes = actualDuration;
-        
-        console.log(`Setting end_time to ${endTime} and duration to ${actualDuration} minutes`);
+        if (profile?.venue_id) {
+          if (walkInData.guestId) {
+            // Update existing guest
+            await supabase
+              .from('guests')
+              .update({
+                name: walkInData.guestName,
+                phone: walkInData.phone || null,
+                email: walkInData.email || null,
+                notes: walkInData.notes || null,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', walkInData.guestId);
+          } else {
+            // Create new guest
+            const { data: newGuest } = await supabase
+              .from('guests')
+              .insert({
+                name: walkInData.guestName,
+                phone: walkInData.phone || null,
+                email: walkInData.email || null,
+                notes: walkInData.notes || null,
+                venue_id: profile.venue_id
+              })
+              .select('id')
+              .single();
+            
+            finalGuestId = newGuest?.id;
+          }
+        }
       }
 
-      const { error } = await supabase
-        .from('bookings')
-        .update(updateData)
-        .eq('id', booking.id);
-      
-      if (error) {
-        console.error('Database error updating booking status:', error);
-        throw error;
-      }
-
-      console.log('Booking status updated successfully in database');
-
-      await logAudit({
-        booking_id: booking.id,
-        change_type: 'status_changed',
-        field_name: 'status',
-        old_value: oldStatus,
-        new_value: newStatus,
-        changed_by: 'Host Interface',
-        notes: newStatus === 'finished' ? 'End time automatically set to current time' : null,
-        source_type: 'host_via_interface',
-        source_details: {
-          interface: 'host_dashboard',
-          action: 'status_change',
-          timestamp: new Date().toISOString()
-        },
-        email_status: 'not_applicable',
-        notification_details: {}
+      await createBooking({
+        guest_name: walkInData.guestName || 'WALK-IN',
+        party_size: walkInData.partySize,
+        booking_date: format(selectedDate, 'yyyy-MM-dd'),
+        booking_time: walkInData.time,
+        status: 'seated',
+        phone: walkInData.phone || null,
+        email: walkInData.email || null,
+        notes: walkInData.notes || 'Walk-in customer',
+        service: 'Walk-In',
+        original_table_id: walkInData.tableId,
+        duration_minutes: walkInData.duration
       });
-      
-      refetchBookings();
-      setSelectedBooking({ 
-        ...booking, 
-        status: newStatus as Booking['status'],
-        ...(updateData.end_time && { end_time: updateData.end_time }),
-        ...(updateData.duration_minutes && { duration_minutes: updateData.duration_minutes })
-      });
+
       toast({
-        title: "Status Updated",
-        description: `Booking status changed to ${newStatus}`,
+        title: "Walk-in seated",
+        description: `${walkInData.partySize} guests seated at table ${selectedTable?.label}${finalGuestId ? ' and guest profile updated' : ''}`,
       });
     } catch (error) {
-      console.error('Error updating booking status:', error);
+      console.error('❌ Walk-in creation error:', error);
       toast({
         title: "Error",
-        description: `Failed to update booking status: ${error.message || 'Unknown error'}`,
+        description: "Failed to create walk-in",
         variant: "destructive"
       });
     }
   };
 
-  const handleBookingUpdate = () => {
-    refetchBookings();
-  };
-
-  const handleGridClick = (time: string, event: React.MouseEvent) => {
-    const target = event.target as HTMLElement;
-    if (!target.closest('[data-booking-bar]')) {
-      setClickedTime(time);
-      
-      // Check if the selected date is today and clicked time is current or past
-      const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
-      const now = new Date();
-      const [clickHour, clickMin] = time.split(':').map(Number);
-      const clickTime = new Date();
-      clickTime.setHours(clickHour, clickMin, 0, 0);
-      
-      // If today and clicked time is within 30 minutes of now, show walk-in dialog
-      const timeDiff = clickTime.getTime() - now.getTime();
-      const isWalkInTime = isToday && timeDiff <= 30 * 60 * 1000; // 30 minutes
-      
-      if (isWalkInTime) {
-        setWalkInDialogOpen(true);
-      } else {
-        // For future times/dates, open booking creation dialog
-        setBookingDialogOpen(true);
-      }
+  const handleFullBookingCreate = async (bookingData: any) => {
+    try {
+      const booking = await createBooking(bookingData);
+      toast({
+        title: "Booking created",
+        description: `Booking created for ${bookingData.guest_name}`,
+      });
+      return booking;
+    } catch (error) {
+      console.error('❌ Full booking creation error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create booking",
+        variant: "destructive"
+      });
+      throw error;
     }
   };
 
-  const handleDragOver = (e: React.DragEvent, tableId: number) => {
-    e.preventDefault();
-    setDragOverTable(tableId);
-  };
-
-  const handleDragLeave = () => {
-    setDragOverTable(null);
-  };
-
-  const handleDrop = async (e: React.DragEvent, tableId: number) => {
-    e.preventDefault();
-    setDragOverTable(null);
-    
+  const handleBookingDrag = async (bookingId: number, newTime: string, newTableId: number) => {
     try {
-      const bookingData = JSON.parse(e.dataTransfer.getData('application/json'));
-      
-      const { error } = await supabase
-        .from('bookings')
-        .update({ 
-          table_id: tableId,
-          is_unallocated: false,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', bookingData.id);
-      
-      if (error) throw error;
-      
-      refetchBookings();
+      await updateBooking({
+        id: bookingId,
+        updates: {
+          booking_time: newTime,
+          table_id: newTableId
+        }
+      });
+
       toast({
-        title: "Booking Moved",
-        description: `${bookingData.guest_name}'s booking moved to new table`,
+        title: "Booking moved",
+        description: "Booking time and table updated successfully",
       });
     } catch (error) {
-      console.error('Drop error:', error);
       toast({
         title: "Error",
         description: "Failed to move booking",
@@ -318,227 +222,231 @@ const HostInterface = () => {
     }
   };
 
-  const handleBookingDrag = async (bookingId: number, newTime: string, newTableId?: number) => {
+  const handleStatusChange = async (booking: Booking, newStatus: string) => {
     try {
-      const updateData: any = { 
-        booking_time: newTime,
-        updated_at: new Date().toISOString()
-      };
+      const updateData: any = { status: newStatus };
       
-      if (newTableId !== undefined) {
-        updateData.table_id = newTableId;
-        updateData.is_unallocated = false;
+      if (newStatus === 'finished') {
+        const now = new Date();
+        const endTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+        updateData.end_time = endTime;
       }
 
-      const { error } = await supabase
-        .from('bookings')
-        .update(updateData)
-        .eq('id', bookingId);
+      await updateBooking({
+        id: booking.id,
+        updates: updateData
+      });
+
+      const updatedBooking = { ...booking, status: newStatus as Booking['status'] };
+      setSelectedBooking(updatedBooking);
       
-      if (error) throw error;
-      
-      refetchBookings();
       toast({
-        title: "Booking Updated",
-        description: "Booking time updated successfully",
+        title: "Status updated",
+        description: `Booking marked as ${newStatus}`,
       });
     } catch (error) {
-      console.error('Booking drag error:', error);
       toast({
         title: "Error",
-        description: "Failed to update booking time",
+        description: "Failed to update booking status",
         variant: "destructive"
       });
     }
   };
 
-  const generateTimeSlots = () => {
-    if (!venueHours) return [];
-    const slots = [];
-    const [startHour, startMin] = venueHours.start_time.split(':').map(Number);
-    let totalMinutes = startHour * 60 + startMin;
-    
-    for (let i = 0; i < 48; i++) {
-      const hours = Math.floor(totalMinutes / 60);
-      const minutes = totalMinutes % 60;
-      slots.push(`${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`);
-      totalMinutes += 15;
-    }
-    
-    return slots;
+  const handleBookingClick = (booking: Booking) => {
+    setSelectedBooking(booking);
   };
 
-  const renderTableRow = (table: any, section: any) => {
-    const tableBookings = getBookingsForTable(table.id);
-    const isDragOver = dragOverTable === table.id;
-
-    return (
-      <>
-        <div 
-          className={`absolute inset-0 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 ${isDragOver ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}
-          onDragOver={(e) => handleDragOver(e, table.id)}
-          onDragLeave={handleDragLeave}
-          onDrop={(e) => handleDrop(e, table.id)}
-          onClick={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const clickX = e.clientX - rect.left;
-            const slotWidth = 60;
-            const slotIndex = Math.floor(clickX / slotWidth);
-            
-            if (venueHours) {
-              const [startHour, startMin] = venueHours.start_time.split(':').map(Number);
-              const totalMinutes = startHour * 60 + startMin + (slotIndex * 15);
-              const hours = Math.floor(totalMinutes / 60);
-              const minutes = totalMinutes % 60;
-              const timeStr = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-              handleGridClick(timeStr, e);
-            }
-          }}
-        />
-        
-        <BlockOverlay
-          selectedDate={selectedDate}
-          venueHours={venueHours}
-          tableId={table.id}
-        />
-        
-        {tableBookings.map((booking) => (
-          <div key={booking.id} data-booking-bar>
-            <TouchOptimizedBookingBar
-              booking={booking}
-              startTime={venueHours?.start_time || '17:00'}
-              onBookingClick={handleBookingClick}
-              onBookingDrag={handleBookingDrag}
-            />
-          </div>
-        ))}
-      </>
-    );
+  const handleBookingUpdate = () => {
+    // Refresh bookings after update
   };
+
+  const handleBlockClick = (block: Block) => {
+    setSelectedBlock(block);
+    setBlockManagementOpen(true);
+  };
+
+  const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
 
   return (
-    <div className="min-h-screen bg-grace-secondary text-grace-background p-4">
-      <UnallocatedBookingsBanner
-        bookings={getUnallocatedBookings()}
-        onAllocateAll={handleAllocateUnallocatedBookings}
-        onBookingClick={handleBookingClick}
-      />
+    <div className="space-y-4 bg-background text-foreground">
+      {/* Compact Header */}
+      <div className="bg-card border border-border rounded-lg p-3 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-medium text-foreground">
+                  {format(selectedDate, 'EEEE, MMMM do, yyyy')}
+                </span>
+                {isToday && <span className="ml-2 text-xs bg-primary text-primary-foreground px-2 py-1 rounded-full font-medium">TODAY</span>}
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex gap-2 items-center">
+            <CollapsibleCalendar
+              selectedDate={selectedDate}
+              onDateSelect={setSelectedDate}
+              bookingDates={bookingDates}
+            />
 
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-playfair font-bold text-grace-background">
-            Host Interface
-          </h1>
-          <p className="text-grace-background/70 font-karla">
-            {format(selectedDate, 'EEEE, MMMM do, yyyy')} • {bookings.length} bookings
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <div className="grace-logo text-4xl font-bold text-grace-primary">
-            grace
+            <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
+              <Button 
+                variant={viewMode === 'grid' ? 'default' : 'ghost'} 
+                size="sm"
+                onClick={() => setViewMode('grid')}
+                className="h-8 text-sm px-3"
+              >
+                <Grid className="h-4 w-4 mr-1" />
+                Grid
+              </Button>
+              <Button 
+                variant={viewMode === 'list' ? 'default' : 'ghost'} 
+                size="sm"
+                onClick={() => setViewMode('list')}
+                className="h-8 text-sm px-3"
+              >
+                <List className="h-4 w-4 mr-1" />
+                List
+              </Button>
+            </div>
+            
+            <Button 
+              onClick={() => navigate('/dashboard')} 
+              variant="outline"
+              size="sm"
+              className="text-sm h-8 px-3"
+            >
+              <BarChart3 className="h-4 w-4 mr-1" />
+              Dashboard
+            </Button>
+            
+            <Button 
+              onClick={() => setFullBookingDialogOpen(true)} 
+              variant="outline"
+              size="sm"
+              className="text-sm h-8 px-3"
+            >
+              <PlusCircle className="h-4 w-4 mr-1" />
+              New Booking
+            </Button>
+            
+            <Button 
+              onClick={() => setBlockDialogOpen(true)} 
+              variant="outline"
+              size="sm"
+              className="text-sm h-8 px-3"
+            >
+              <Ban className="h-4 w-4 mr-1" />
+              Block
+            </Button>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-4 h-[calc(100vh-200px)]">
-        <div className={`${showDetails ? 'col-span-8' : 'col-span-9'} flex flex-col`}>
-          <div className="flex-1 overflow-auto bg-grace-secondary/50 rounded-lg border border-grace-background/20">
-            <OptimizedTimeGrid 
+      {/* Compact Statistics Bar - Covers instead of bookings */}
+      <div className="bg-card border border-border rounded-lg p-3 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-6 text-muted-foreground">
+            <div className="flex items-center gap-2">
+              <Clock className="h-4 w-4 text-primary" />
+              <span className="text-foreground font-medium">{remainingCovers} remaining</span>
+              {remainingParties.length > 0 && (
+                <span className="text-xs text-muted-foreground">
+                  ({remainingParties.join(', ')}{remainingParties.length === 2 ? ' + others' : ''} yet to be seated)
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-green-600" />
+              <span className="text-foreground font-medium">{seatedCovers} seated</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-muted-foreground" />
+              <span className="text-foreground font-medium">{finishedCovers} finished</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">{totalCovers} total covers today</span>
+            </div>
+          </div>
+          <div className="text-sm font-medium text-foreground">Tables</div>
+        </div>
+      </div>
+
+      {/* Main Interface */}
+      <div className="grid grid-cols-12 gap-4">
+        <div className={`${selectedBooking ? 'col-span-8' : 'col-span-12'}`}>
+          {viewMode === 'grid' ? (
+            <NewTimeGrid
               venueHours={venueHours}
               tables={tables}
               sections={sections}
-              onTableRowRender={renderTableRow}
+              bookings={bookings}
+              onWalkInClick={handleWalkInClick}
+              onBookingClick={handleBookingClick}
+              onBookingDrag={handleBookingDrag}
+              onBlockClick={handleBlockClick}
+              selectedDate={selectedDate}
+              remainingBookings={remainingCovers}
+              currentlySeated={seatedCovers}
+              finishedBookings={finishedCovers}
             />
-          </div>
-        </div>
-
-        <div className={`${showDetails ? 'col-span-4' : 'col-span-3'} flex flex-col space-y-4`}>
-          {showDetails ? (
-            <div className="bg-grace-secondary/30 rounded-lg border border-grace-background/20 p-4">
-              <BookingDetailsPanel
-                booking={selectedBooking}
-                onClose={handleCloseDetails}
-                onStatusChange={handleStatusChange}
-                onBookingUpdate={handleBookingUpdate}
-              />
-            </div>
           ) : (
-            <div className="bg-grace-secondary/30 rounded-lg border border-grace-background/20 p-4">
-              <IPadCalendar
-                selectedDate={selectedDate}
-                onDateSelect={setSelectedDate}
-                bookingDates={bookingDates}
-              />
-            </div>
-          )}
-          
-          <div className="flex gap-2">
-            <BlockDialog
+            <BookingListView
+              bookings={bookings}
               tables={tables}
-              timeSlots={generateTimeSlots()}
-              selectedDate={selectedDate}
+              onBookingClick={handleBookingClick}
             />
-            <WalkInDialog
-              open={walkInDialogOpen}
-              onOpenChange={setWalkInDialogOpen}
-              selectedDate={format(selectedDate, 'yyyy-MM-dd')}
-              selectedTime={clickedTime}
-            />
-            <FullBookingDialog
-              open={bookingDialogOpen}
-              onOpenChange={setBookingDialogOpen}
-              selectedDate={selectedDate}
-              onCreateBooking={async (bookingData) => {
-                try {
-                  // Get user's venue ID
-                  const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('venue_id')
-                    .eq('id', user?.id)
-                    .single();
-                  
-                  if (!profile?.venue_id) {
-                    throw new Error('No venue ID found');
-                  }
+          )}
+        </div>
 
-                  const { data: booking, error } = await supabase
-                    .from('bookings')
-                    .insert({
-                      ...bookingData,
-                      venue_id: profile.venue_id
-                    })
-                    .select()
-                    .single();
-                  
-                  if (error) throw error;
-                  
-                  handleBookingUpdate();
-                  toast({
-                    title: "Booking Created",
-                    description: `Booking for ${bookingData.guest_name} created successfully`,
-                  });
-                  
-                  return booking;
-                } catch (error) {
-                  console.error('Error creating booking:', error);
-                  toast({
-                    title: "Error",
-                    description: "Failed to create booking",
-                    variant: "destructive"
-                  });
-                }
-              }}
+        {selectedBooking && (
+          <div className="col-span-4 space-y-4">
+            <BookingDetailsPanel
+              booking={selectedBooking}
+              onClose={() => setSelectedBooking(null)}
+              onStatusChange={handleStatusChange}
+              onBookingUpdate={handleBookingUpdate}
             />
           </div>
-        </div>
+        )}
       </div>
 
-      <CancelledBookingsPanel
+      <EnhancedWalkInDialog
+        open={walkInDialogOpen}
+        onOpenChange={setWalkInDialogOpen}
+        table={selectedTable}
+        time={selectedTime}
+        onCreateWalkIn={handleCreateWalkIn}
+        defaultDuration={120}
         selectedDate={selectedDate}
-        onBookingRestore={handleBookingUpdate}
+      />
+      
+      <BlockDialog
+        open={blockDialogOpen}
+        onOpenChange={setBlockDialogOpen}
+        selectedDate={selectedDate}
+      />
+
+      <BlockManagementDialog
+        open={blockManagementOpen}
+        onOpenChange={(open) => {
+          setBlockManagementOpen(open);
+          if (!open) setSelectedBlock(null);
+        }}
+        selectedDate={selectedDate}
+        selectedBlock={selectedBlock}
+      />
+      
+      <FullBookingDialog
+        open={fullBookingDialogOpen}
+        onOpenChange={setFullBookingDialogOpen}
+        selectedDate={selectedDate}
+        onCreateBooking={handleFullBookingCreate}
       />
     </div>
   );
 };
 
-export default HostInterface;
+export default NewHostInterface;
