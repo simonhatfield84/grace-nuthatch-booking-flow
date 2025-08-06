@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -31,6 +30,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ChangePasswordDialog } from "@/components/auth/ChangePasswordDialog";
+import { useCurrentUserProfile } from "@/hooks/useUserProfile";
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -54,6 +54,7 @@ const AdminSidebar = ({ collapsed = false, onToggleCollapse, showUserProfile = f
   const { user } = useAuth();
   const { toast } = useToast();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { data: userProfile } = useCurrentUserProfile();
 
   const handleLogout = async () => {
     try {
@@ -134,7 +135,7 @@ const AdminSidebar = ({ collapsed = false, onToggleCollapse, showUserProfile = f
                 <Button variant="ghost" className="w-full h-10 p-0">
                   <Avatar className="h-6 w-6">
                     <AvatarFallback className="text-xs">
-                      {user?.email?.charAt(0).toUpperCase() || 'U'}
+                      {userProfile?.displayName?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -142,7 +143,7 @@ const AdminSidebar = ({ collapsed = false, onToggleCollapse, showUserProfile = f
               <DropdownMenuContent className="w-56" align="end" side="right">
                 <DropdownMenuItem disabled className="font-normal">
                   <User className="mr-2 h-4 w-4" />
-                  {user?.email}
+                  {userProfile?.displayName || user?.email}
                 </DropdownMenuItem>
                 <ChangePasswordDialog />
                 <DropdownMenuItem onClick={handleLogout}>
@@ -156,10 +157,12 @@ const AdminSidebar = ({ collapsed = false, onToggleCollapse, showUserProfile = f
               <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
                 <Avatar className="h-6 w-6">
                   <AvatarFallback className="text-xs">
-                    {user?.email?.charAt(0).toUpperCase() || 'U'}
+                    {userProfile?.displayName?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-xs truncate flex-1">{user?.email}</span>
+                <span className="text-xs truncate flex-1">
+                  {userProfile?.displayName || user?.email}
+                </span>
               </div>
               <div className="flex gap-1">
                 <ChangePasswordDialog />

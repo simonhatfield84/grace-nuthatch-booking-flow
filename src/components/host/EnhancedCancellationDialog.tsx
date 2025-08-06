@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -12,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { differenceInHours } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
+import { useCurrentUserProfile } from "@/hooks/useUserProfile";
 
 interface EnhancedCancellationDialogProps {
   open: boolean;
@@ -48,6 +48,7 @@ export const EnhancedCancellationDialog = ({
   const [error, setError] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const { data: currentUserProfile } = useCurrentUserProfile();
 
   useEffect(() => {
     if (open && booking) {
@@ -145,6 +146,9 @@ export const EnhancedCancellationDialog = ({
     try {
       console.log('Starting cancellation process for booking:', booking.id);
 
+      // Get the display name for audit logging
+      const changedByName = currentUserProfile?.displayName || 'System';
+
       // Process refund if needed
       if (payment && refundOption !== 'none') {
         const refundAmount = refundOption === 'full' 
@@ -202,16 +206,17 @@ export const EnhancedCancellationDialog = ({
           return;
         }
 
-        // Log cancellation in audit trail
+        // Log cancellation in audit trail with proper user name
         await supabase
           .from('booking_audit')
           .insert([{
             booking_id: booking.id,
             venue_id: booking.venue_id,
-            change_type: 'status_change',
+            change_type: 'status_changed',
             field_name: 'status',
             old_value: 'confirmed',
             new_value: 'cancelled',
+            changed_by: changedByName,
             notes: notes.trim() || 'Booking cancelled via host interface (no refund)'
           }]);
 

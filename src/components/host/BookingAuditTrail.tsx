@@ -1,9 +1,9 @@
-
 import { useBookingAudit } from "@/hooks/useBookingAudit";
 import { format } from "date-fns";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Mail, MailX, Clock, User, Globe, Smartphone } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface BookingAuditTrailProps {
   bookingId: number;
@@ -11,6 +11,7 @@ interface BookingAuditTrailProps {
 
 export const BookingAuditTrail = ({ bookingId }: BookingAuditTrailProps) => {
   const { auditTrail } = useBookingAudit(bookingId);
+  const { user } = useAuth();
 
   if (auditTrail.length === 0) {
     return (
@@ -78,6 +79,22 @@ export const BookingAuditTrail = ({ bookingId }: BookingAuditTrailProps) => {
 
   const formatChangedBy = (changedBy: string | null, sourceType: string | null) => {
     if (!changedBy) return 'System';
+    
+    // If it's the current user, show "You"
+    if (user && changedBy.includes(user.email || '')) {
+      if (sourceType === 'guest_via_widget') return 'You (via Booking Widget)';
+      if (sourceType === 'host_via_phone') return 'You (Phone Booking)';
+      return 'You';
+    }
+    
+    // If changedBy looks like an email, it's probably a legacy entry
+    if (changedBy.includes('@')) {
+      if (sourceType === 'guest_via_widget') return 'Guest via Booking Widget';
+      if (sourceType === 'host_via_phone') return `${changedBy.split('@')[0]} (Phone Booking)`;
+      return changedBy.split('@')[0]; // Show username part of email
+    }
+    
+    // Otherwise, assume it's already a display name
     if (changedBy === 'guest') return 'Guest';
     if (sourceType === 'guest_via_widget') return 'Guest via Booking Widget';
     if (sourceType === 'host_via_phone') return `${changedBy} (Phone Booking)`;
