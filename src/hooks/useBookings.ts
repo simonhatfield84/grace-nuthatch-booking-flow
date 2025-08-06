@@ -119,7 +119,7 @@ export const useBookings = (date?: string) => {
       const sourceType = newBooking.status === 'seated' ? 'host_via_interface_walkin' : 
                         newBooking.phone ? 'host_via_phone' : 'host_via_interface';
       
-      const sourceDetails = {
+      const sourceDetails: Record<string, any> = {
         interface: 'host_dashboard',
         booking_type: newBooking.status === 'seated' ? 'walk_in' : 'advance_reservation',
         party_size: newBooking.party_size,
@@ -142,7 +142,8 @@ export const useBookings = (date?: string) => {
           venue_id: userVenue,
           source_type: sourceType,
           source_details: sourceDetails,
-          email_status: 'not_applicable' // Will be updated if/when emails are sent
+          email_status: 'not_applicable', // Will be updated if/when emails are sent
+          notification_details: {}
         }]);
 
       // If not a walk-in, try to allocate it to a table
@@ -226,7 +227,9 @@ export const useBookings = (date?: string) => {
                 interface: 'host_dashboard',
                 field_updated: key,
                 timestamp: new Date().toISOString()
-              }
+              },
+              email_status: 'not_applicable',
+              notification_details: {}
             });
           }
         });

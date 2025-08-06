@@ -215,7 +215,15 @@ const HostInterface = () => {
         old_value: oldStatus,
         new_value: newStatus,
         changed_by: 'Host Interface',
-        notes: newStatus === 'finished' ? 'End time automatically set to current time' : null
+        notes: newStatus === 'finished' ? 'End time automatically set to current time' : null,
+        source_type: 'host_via_interface',
+        source_details: {
+          interface: 'host_dashboard',
+          action: 'status_change',
+          timestamp: new Date().toISOString()
+        },
+        email_status: 'not_applicable',
+        notification_details: {}
       });
       
       refetchBookings();
