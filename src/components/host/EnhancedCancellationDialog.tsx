@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -39,7 +40,7 @@ export const EnhancedCancellationDialog = ({
   payment,
   onCancellationComplete
 }: EnhancedCancellationDialogProps) => {
-  const [refundOption, setRefundOption] = useState<'full' | 'partial' | 'none'>('full');
+  const [refundOption, setRefundOption] = useState<'full' | 'partial' | 'none'>('none');
   const [partialAmount, setPartialAmount] = useState("");
   const [notes, setNotes] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -52,13 +53,18 @@ export const EnhancedCancellationDialog = ({
 
   useEffect(() => {
     if (open && booking) {
-      checkRefundEntitlement();
+      if (payment) {
+        checkRefundEntitlement();
+        setRefundOption('full'); // Default to full refund when payment exists
+      } else {
+        setRefundOption('none'); // No refund option when no payment
+      }
       // Reset form when dialog opens
       setNotes("");
       setValidationError(null);
       setError(null);
     }
-  }, [open, booking]);
+  }, [open, booking, payment]);
 
   // Clear validation error when notes change
   useEffect(() => {
@@ -113,8 +119,8 @@ export const EnhancedCancellationDialog = ({
     setValidationError(null);
     setError(null);
 
-    // Check if refund is selected but no reason provided
-    if ((refundOption === 'full' || refundOption === 'partial') && !notes.trim()) {
+    // Only require refund reason if payment exists and refund is selected
+    if (payment && (refundOption === 'full' || refundOption === 'partial') && !notes.trim()) {
       setValidationError('Refund reason is required when processing a refund');
       return false;
     }
@@ -209,6 +215,10 @@ export const EnhancedCancellationDialog = ({
         }
 
         // Log cancellation in audit trail with proper user name
+        const cancellationNotes = payment 
+          ? notes.trim() || 'Booking cancelled via host interface (no refund)'
+          : notes.trim() || 'Booking cancelled via host interface (no payment)';
+
         await supabase
           .from('booking_audit')
           .insert([{
@@ -219,7 +229,7 @@ export const EnhancedCancellationDialog = ({
             old_value: 'confirmed',
             new_value: 'cancelled',
             changed_by: changedByName,
-            notes: notes.trim() || 'Booking cancelled via host interface (no refund)'
+            notes: cancellationNotes
           }]);
 
         toast.success('Booking cancelled successfully');
@@ -246,14 +256,15 @@ export const EnhancedCancellationDialog = ({
 
   // Determine if we need a refund reason or cancellation notes
   const isRefundSelected = refundOption === 'full' || refundOption === 'partial';
-  const fieldLabel = isRefundSelected ? 'Refund Reason' : 'Cancellation Notes (Optional)';
-  const fieldPlaceholder = isRefundSelected 
+  const isReasonRequired = payment && isRefundSelected;
+  const fieldLabel = isReasonRequired ? 'Refund Reason' : 'Cancellation Notes (Optional)';
+  const fieldPlaceholder = isReasonRequired
     ? 'e.g., Guest requested cancellation, schedule conflict, etc.' 
     : 'Add any additional notes about the cancellation...';
 
   // Check if form is valid for submission
   const isFormValid = !isProcessing && 
-    (refundOption === 'none' || (isRefundSelected && notes.trim())) &&
+    (!isReasonRequired || (isReasonRequired && notes.trim())) &&
     (refundOption !== 'partial' || (partialAmount && parseFloat(partialAmount) > 0));
 
   return (
@@ -279,31 +290,39 @@ export const EnhancedCancellationDialog = ({
             </Alert>
           )}
 
-          {/* Refund Entitlement Alert */}
-          <Alert variant={isEntitledToRefund ? "default" : "destructive"}>
-            {isEntitledToRefund ? (
-              <CheckCircle className="h-4 w-4" />
-            ) : (
-              <AlertTriangle className="h-4 w-4" />
-            )}
-            <AlertDescription>
-              {isEntitledToRefund 
-                ? `This booking is entitled to a refund (${refundWindow}+ hours notice)`
-                : `This booking is outside the ${refundWindow}-hour refund window`
-              }
-            </AlertDescription>
-          </Alert>
+          {/* Show refund entitlement alert only if payment exists */}
+          {payment && (
+            <Alert variant={isEntitledToRefund ? "default" : "destructive"}>
+              {isEntitledToRefund ? (
+                <CheckCircle className="h-4 w-4" />
+              ) : (
+                <AlertTriangle className="h-4 w-4" />
+              )}
+              <AlertDescription>
+                {isEntitledToRefund 
+                  ? `This booking is entitled to a refund (${refundWindow}+ hours notice)`
+                  : `This booking is outside the ${refundWindow}-hour refund window`
+                }
+              </AlertDescription>
+            </Alert>
+          )}
 
           {/* Payment Information */}
-          {payment && (
+          {payment ? (
             <div className="bg-muted rounded-lg p-4">
               <h4 className="font-medium mb-2">Payment Details</h4>
               <p><span className="font-medium">Original Amount:</span> {maxRefundAmount}</p>
             </div>
+          ) : (
+            <Alert>
+              <AlertDescription>
+                No payment found for this booking. The booking will be cancelled without any refund processing.
+              </AlertDescription>
+            </Alert>
           )}
 
-          {/* Refund Options */}
-          {payment ? (
+          {/* Refund Options - Only show if payment exists */}
+          {payment && (
             <div className="space-y-3">
               <Label className="text-base font-medium">Refund Option</Label>
               
@@ -370,19 +389,13 @@ export const EnhancedCancellationDialog = ({
                 </div>
               </div>
             </div>
-          ) : (
-            <Alert>
-              <AlertDescription>
-                No payment found for this booking. The booking will be cancelled without any refund processing.
-              </AlertDescription>
-            </Alert>
           )}
 
           {/* Refund Reason / Cancellation Notes */}
           <div className="space-y-2">
             <Label htmlFor="notes" className="flex items-center gap-1">
               {fieldLabel}
-              {isRefundSelected && <span className="text-red-500">*</span>}
+              {isReasonRequired && <span className="text-red-500">*</span>}
             </Label>
             <Textarea
               id="notes"
