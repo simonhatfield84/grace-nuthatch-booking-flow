@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -15,7 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { NewTimeGrid } from "@/components/host/NewTimeGrid";
 import { BookingListView } from "@/components/host/BookingListView";
 import { EnhancedWalkInDialog } from "@/components/host/EnhancedWalkInDialog";
-import { BookingDetailsPanel } from "@/components/host/BookingDetailsPanel";
+import BookingDetailsPanel from '@/components/host/BookingDetailsPanel';
 import { CollapsibleCalendar } from "@/components/host/CollapsibleCalendar";
 import { BlockDialog } from "@/components/host/BlockDialog";
 import { BlockManagementDialog } from "@/components/host/BlockManagementDialog";
