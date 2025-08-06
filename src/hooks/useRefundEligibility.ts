@@ -38,14 +38,13 @@ export const useRefundEligibility = (
           _venue_id: venueId
         });
 
-        // Get service refund settings - handle case where columns might not exist yet
+        // Get service refund settings - handle both old and new column names
         const { data: serviceData } = await supabase
           .from('services')
           .select(`
             title,
             refund_window_hours,
-            auto_refund_enabled,
-            refund_policy_text
+            auto_refund_enabled
           `)
           .eq('title', service)
           .eq('venue_id', venueId)
@@ -64,7 +63,7 @@ export const useRefundEligibility = (
         const hoursUntilBooking = differenceInHours(bookingDateTime, new Date());
         
         // Use default values if columns don't exist or have no data
-        const refundWindowHours = serviceData?.refund_window_hours || 24;
+        const refundWindowHours = serviceData?.refund_window_hours ?? 24;
         const isWithinWindow = hoursUntilBooking >= refundWindowHours;
         const paymentAmount = payment?.amount_cents || 0;
         const hasPayment = payment && payment.status === 'succeeded';

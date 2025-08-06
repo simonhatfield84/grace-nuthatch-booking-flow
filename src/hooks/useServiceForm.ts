@@ -22,6 +22,7 @@ const DEFAULT_FORM_DATA: ServiceFormData = {
   charge_amount_per_guest: 0,
   refund_window_hours: 24,
   auto_refund_enabled: false,
+  refund_policy_text: '',
 };
 
 export const useServiceForm = () => {
@@ -36,7 +37,7 @@ export const useServiceForm = () => {
   const startEditing = (service: Service) => {
     setEditingServiceId(service.id);
     setFormData({
-      id: service.id, // Include the service ID in form data
+      id: service.id,
       title: service.title,
       description: service.description || '',
       min_guests: service.min_guests,
@@ -56,6 +57,7 @@ export const useServiceForm = () => {
       charge_amount_per_guest: service.charge_amount_per_guest || 0,
       refund_window_hours: service.refund_window_hours || 24,
       auto_refund_enabled: service.auto_refund_enabled || false,
+      refund_policy_text: service.refund_policy_text || '',
     });
   };
 
