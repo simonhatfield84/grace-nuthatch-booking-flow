@@ -1,14 +1,19 @@
-
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { CheckCircle, XCircle, Clock, CreditCard, AlertTriangle, RefreshCw } from "lucide-react";
+import { IndependentRefundDialog } from "@/components/host/IndependentRefundDialog";
 
 interface PaymentStatusProps {
   bookingId: number;
+  onRefundProcessed?: () => void;
 }
 
-export const PaymentStatus = ({ bookingId }: PaymentStatusProps) => {
+export const PaymentStatus = ({ bookingId, onRefundProcessed }: PaymentStatusProps) => {
+  const [refundDialogOpen, setRefundDialogOpen] = useState(false);
+
   const { data: payment, isLoading } = useQuery({
     queryKey: ['booking-payment', bookingId],
     queryFn: async () => {
@@ -23,36 +28,18 @@ export const PaymentStatus = ({ bookingId }: PaymentStatusProps) => {
     }
   });
 
-  // Get accurate payment amount by calculating from service
-  const { data: accurateAmount } = useQuery({
-    queryKey: ['booking-accurate-payment', bookingId],
+  const { data: booking } = useQuery({
+    queryKey: ['booking-details', bookingId],
     queryFn: async () => {
-      // First get the booking details
-      const { data: booking } = await supabase
+      const { data, error } = await supabase
         .from('bookings')
-        .select('party_size, service')
+        .select('id, venue_id, guest_name, booking_date, booking_time, status')
         .eq('id', bookingId)
         .single();
-
-      if (!booking?.service) return null;
-
-      // Then get the service details by matching the service title
-      const { data: serviceData } = await supabase
-        .from('services')
-        .select('requires_payment, charge_type, charge_amount_per_guest, minimum_guests_for_charge')
-        .eq('title', booking.service)
-        .single();
-
-      if (serviceData?.requires_payment && serviceData.charge_type === 'per_guest') {
-        const chargePerGuest = serviceData.charge_amount_per_guest || 0;
-        const minGuests = serviceData.minimum_guests_for_charge || 1;
-        const chargingPartySize = Math.max(booking.party_size, minGuests);
-        return chargePerGuest * chargingPartySize;
-      }
-
-      return null;
-    },
-    enabled: !!bookingId
+      
+      if (error) throw error;
+      return data;
+    }
   });
 
   if (isLoading) {
@@ -64,7 +51,7 @@ export const PaymentStatus = ({ bookingId }: PaymentStatusProps) => {
     );
   }
 
-  if (!payment && !accurateAmount) {
+  if (!payment) {
     return (
       <Badge variant="secondary" className="flex items-center gap-1">
         <CreditCard className="h-3 w-3" />
@@ -112,75 +99,100 @@ export const PaymentStatus = ({ bookingId }: PaymentStatusProps) => {
     }
   };
 
-  // Use accurate amount if available, otherwise fall back to payment amount
-  const displayAmount = accurateAmount || payment?.amount_cents;
-  const isAmountCorrected = accurateAmount && payment?.amount_cents && accurateAmount !== payment.amount_cents;
-
   const formatAmount = (pence: number) => `£${(pence / 100).toFixed(2)}`;
+
+  const alreadyRefunded = payment.refund_amount_cents || 0;
+  const remainingRefundable = payment.amount_cents - alreadyRefunded;
+  const isFullyRefunded = remainingRefundable <= 0;
+  const canRefund = payment.status === 'succeeded' && !isFullyRefunded;
+
+  const handleRefundProcessed = () => {
+    if (onRefundProcessed) {
+      onRefundProcessed();
+    }
+  };
 
   return (
     <div className="space-y-3">
-      <Badge variant={getStatusVariant()} className="flex items-center gap-1 w-fit">
-        {getStatusIcon()}
-        {getStatusText()}
-      </Badge>
+      <div className="flex items-center justify-between">
+        <Badge variant={getStatusVariant()} className="flex items-center gap-1">
+          {getStatusIcon()}
+          {getStatusText()}
+        </Badge>
+        
+        {canRefund && (
+          <Button 
+            size="sm" 
+            variant="outline" 
+            onClick={() => setRefundDialogOpen(true)}
+            className="text-xs"
+          >
+            <RefreshCw className="h-3 w-3 mr-1" />
+            Process Refund
+          </Button>
+        )}
+      </div>
       
-      {displayAmount && (
-        <div className="space-y-2">
-          <div className="text-sm">
-            <div className="flex items-center gap-2">
-              <p><strong>Original Amount:</strong> {formatAmount(displayAmount)}</p>
-              {isAmountCorrected && (
-                <div className="flex items-center gap-1 text-blue-600" title="Amount corrected based on current service pricing">
-                  <AlertTriangle className="h-3 w-3" />
-                  <span className="text-xs">Corrected</span>
-                </div>
-              )}
-            </div>
-            {payment?.payment_method_type && (
-              <p><strong>Method:</strong> {payment.payment_method_type}</p>
-            )}
-            {payment?.failure_reason && (
-              <p className="text-destructive"><strong>Reason:</strong> {payment.failure_reason}</p>
-            )}
-          </div>
-
-          {/* Refund Information */}
-          {payment?.refund_amount_cents && payment.refund_amount_cents > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-1">
-              <div className="flex items-center gap-2 mb-1">
-                <RefreshCw className="h-4 w-4 text-blue-600" />
-                <span className="font-medium text-blue-800">Refund Information</span>
-              </div>
-              <div className="text-sm text-blue-700 space-y-1">
-                <p><strong>Refund Amount:</strong> {formatAmount(payment.refund_amount_cents)}</p>
-                <p><strong>Status:</strong> {
-                  payment.refund_status === 'full' ? 'Full Refund' :
-                  payment.refund_status === 'partial' ? 'Partial Refund' :
-                  payment.refund_status === 'processing' ? 'Processing' :
-                  payment.refund_status === 'failed' ? 'Failed' :
-                  'Processed'
-                }</p>
-                {payment.refunded_at && (
-                  <p><strong>Refunded:</strong> {new Date(payment.refunded_at).toLocaleDateString()}</p>
-                )}
-                {payment.refund_reason && (
-                  <p><strong>Reason:</strong> {payment.refund_reason}</p>
-                )}
-                {payment.stripe_refund_id && (
-                  <p className="text-xs text-blue-600"><strong>Refund ID:</strong> {payment.stripe_refund_id}</p>
-                )}
-                
-                {/* Net Balance */}
-                <div className="border-t border-blue-300 pt-2 mt-2">
-                  <p className="font-medium">
-                    <strong>Net Balance:</strong> {formatAmount(displayAmount - payment.refund_amount_cents)}
-                  </p>
-                </div>
-              </div>
-            </div>
+      <div className="space-y-2">
+        <div className="text-sm">
+          <p><strong>Original Amount:</strong> {formatAmount(payment.amount_cents)}</p>
+          {payment?.payment_method_type && (
+            <p><strong>Method:</strong> {payment.payment_method_type}</p>
+          )}
+          {payment?.failure_reason && (
+            <p className="text-destructive"><strong>Reason:</strong> {payment.failure_reason}</p>
           )}
         </div>
+
+        {/* Refund Information */}
+        {alreadyRefunded > 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 space-y-1">
+            <div className="flex items-center gap-2 mb-1">
+              <RefreshCw className="h-4 w-4 text-blue-600" />
+              <span className="font-medium text-blue-800">Refund Information</span>
+            </div>
+            <div className="text-sm text-blue-700 space-y-1">
+              <p><strong>Total Refunded:</strong> {formatAmount(alreadyRefunded)}</p>
+              <p><strong>Refund Status:</strong> {
+                payment.refund_status === 'full' ? 'Fully Refunded' :
+                payment.refund_status === 'partial' ? 'Partially Refunded' :
+                payment.refund_status === 'processing' ? 'Processing' :
+                payment.refund_status === 'failed' ? 'Failed' :
+                'Processed'
+              }</p>
+              {!isFullyRefunded && (
+                <p><strong>Available for Refund:</strong> {formatAmount(remainingRefundable)}</p>
+              )}
+              {payment.refunded_at && (
+                <p><strong>Last Refund:</strong> {new Date(payment.refunded_at).toLocaleDateString()}</p>
+              )}
+              {payment.refund_reason && (
+                <p><strong>Reason:</strong> {payment.refund_reason}</p>
+              )}
+              {payment.stripe_refund_id && (
+                <p className="text-xs text-blue-600"><strong>Refund ID:</strong> {payment.stripe_refund_id}</p>
+              )}
+              
+              {/* Net Balance */}
+              <div className="border-t border-blue-300 pt-2 mt-2">
+                <p className="font-medium">
+                  <strong>Net Balance:</strong> {formatAmount(payment.amount_cents - alreadyRefunded)}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Independent Refund Dialog */}
+      {booking && (
+        <IndependentRefundDialog
+          open={refundDialogOpen}
+          onOpenChange={setRefundDialogOpen}
+          payment={payment}
+          booking={booking}
+          onRefundProcessed={handleRefundProcessed}
+        />
       )}
     </div>
   );
