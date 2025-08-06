@@ -24,6 +24,12 @@ export const techStack = {
     'Stripe (Payment Processing)',
     'pg_cron (Automated Scheduling)'
   ],
+  thirdPartyTools: [
+    'ChatGPT (Debugging assistance and error resolution)',
+    'Aikido (Third-party security monitoring)',
+    'Unlayer (Visual email template builder)',
+    'React Email Editor (Template design interface)'
+  ],
   features: {
     'Authentication & Authorization': [
       'Multi-role system',
@@ -49,7 +55,10 @@ export const techStack = {
       'Automated reminder system',
       'Booking confirmations',
       'Cancel/modify functionality',
-      'Multi-template support'
+      'Multi-template support',
+      'Template design copying system',
+      'Visual email builder with drag-and-drop interface',
+      'Cross-template design migration'
     ],
     'Security & Infrastructure': [
       'Input validation with Zod',
