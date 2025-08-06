@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
@@ -25,7 +24,8 @@ serve(async (req) => {
       booking_id, 
       venue_id,
       override_window = false,
-      changed_by = null
+      changed_by = null,
+      cancel_booking = false
     } = await req.json();
 
     console.log('💰 Processing refund:', {
@@ -33,7 +33,8 @@ serve(async (req) => {
       refund_amount_cents,
       refund_reason,
       booking_id,
-      changed_by
+      changed_by,
+      cancel_booking
     });
 
     // Get payment details
@@ -169,21 +170,31 @@ serve(async (req) => {
       throw updateError;
     }
 
-    // Always update booking status to cancelled when any refund is processed
-    const { error: bookingError } = await supabase
-      .from('bookings')
-      .update({ 
-        status: 'cancelled',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', booking_id);
+    // Only cancel booking if cancel_booking parameter is true
+    if (cancel_booking) {
+      const { error: bookingError } = await supabase
+        .from('bookings')
+        .update({ 
+          status: 'cancelled',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', booking_id);
 
-    if (bookingError) {
-      console.error('❌ Booking update error:', bookingError);
-      throw bookingError;
+      if (bookingError) {
+        console.error('❌ Booking update error:', bookingError);
+        throw bookingError;
+      }
+
+      console.log('📋 Booking cancelled as requested');
+    } else {
+      console.log('📋 Booking status unchanged (independent refund)');
     }
 
-    // Log refund in booking audit with proper user attribution
+    // Log refund in booking audit - always log the refund processing
+    const refundAuditNote = cancel_booking
+      ? `Booking cancellation with ${refund_status} refund: £${(refund_amount_cents / 100).toFixed(2)} - Stripe refund ID: ${stripeRefund.id}`
+      : `Independent ${refund_status} refund processed: £${(refund_amount_cents / 100).toFixed(2)} - Reason: ${refund_reason || 'No reason provided'} - Stripe ID: ${stripeRefund.id}`;
+
     await supabase
       .from('booking_audit')
       .insert([{
@@ -194,22 +205,24 @@ serve(async (req) => {
         old_value: '0',
         new_value: (refund_amount_cents / 100).toString(),
         changed_by: changed_by,
-        notes: `Stripe refund processed: £${(refund_amount_cents / 100).toFixed(2)} - Reason: ${refund_reason || 'No reason provided'} - Stripe ID: ${stripeRefund.id}`
+        notes: refundAuditNote
       }]);
 
-    // Log status change with proper user attribution
-    await supabase
-      .from('booking_audit')
-      .insert([{
-        booking_id,
-        venue_id,
-        change_type: 'status_change',
-        field_name: 'status',
-        old_value: 'confirmed',
-        new_value: 'cancelled',
-        changed_by: changed_by,
-        notes: `Booking cancelled with ${refund_status} refund: £${(refund_amount_cents / 100).toFixed(2)} - Stripe refund ID: ${stripeRefund.id}`
-      }]);
+    // Only log status change if booking was actually cancelled
+    if (cancel_booking) {
+      await supabase
+        .from('booking_audit')
+        .insert([{
+          booking_id,
+          venue_id,
+          change_type: 'status_change',
+          field_name: 'status',
+          old_value: 'confirmed',
+          new_value: 'cancelled',
+          changed_by: changed_by,
+          notes: `Booking cancelled with ${refund_status} refund: £${(refund_amount_cents / 100).toFixed(2)} - Stripe refund ID: ${stripeRefund.id}`
+        }]);
+    }
 
     console.log('✅ Refund processing completed successfully');
 
@@ -219,7 +232,8 @@ serve(async (req) => {
         refund_id: stripeRefund.id,
         amount_refunded: refund_amount_cents,
         refund_status,
-        stripe_status: stripeRefund.status
+        stripe_status: stripeRefund.status,
+        booking_cancelled: cancel_booking
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

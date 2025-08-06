@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -167,10 +166,11 @@ export const EnhancedCancellationDialog = ({
           refund_reason: notes.trim(),
           booking_id: booking.id,
           venue_id: booking.venue_id,
-          changed_by: changedByName
+          changed_by: changedByName,
+          cancel_booking: true // UPDATED: Always cancel booking when using cancellation dialog
         });
 
-        // Process refund through edge function
+        // Process refund through edge function - UPDATED with cancel_booking parameter
         const { data: refundResult, error: refundError } = await supabase.functions.invoke('process-refund', {
           body: {
             payment_id: payment.id,
@@ -179,7 +179,8 @@ export const EnhancedCancellationDialog = ({
             booking_id: booking.id,
             venue_id: booking.venue_id,
             override_window: !isEntitledToRefund,
-            changed_by: changedByName
+            changed_by: changedByName,
+            cancel_booking: true // This ensures booking is always cancelled when using this dialog
           }
         });
 

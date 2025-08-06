@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ interface PaymentStatusProps {
 
 export const PaymentStatus = ({ bookingId, onRefundProcessed }: PaymentStatusProps) => {
   const [refundDialogOpen, setRefundDialogOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: payment, isLoading } = useQuery({
     queryKey: ['booking-payment', bookingId],
@@ -106,7 +107,17 @@ export const PaymentStatus = ({ bookingId, onRefundProcessed }: PaymentStatusPro
   const isFullyRefunded = remainingRefundable <= 0;
   const canRefund = payment.status === 'succeeded' && !isFullyRefunded;
 
-  const handleRefundProcessed = () => {
+  const handleRefundProcessed = async () => {
+    // Invalidate all payment-related queries to ensure UI updates
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['booking-payment', bookingId] }),
+      queryClient.invalidateQueries({ queryKey: ['booking-accurate-payment', bookingId] }),
+      queryClient.invalidateQueries({ queryKey: ['booking-details', bookingId] }),
+      queryClient.invalidateQueries({ queryKey: ['bookings'] }),
+      queryClient.invalidateQueries({ queryKey: ['booking', bookingId] })
+    ]);
+    
+    // Call the parent callback if provided
     if (onRefundProcessed) {
       onRefundProcessed();
     }

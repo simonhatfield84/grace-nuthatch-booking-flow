@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -65,6 +64,7 @@ export const IndependentRefundDialog = ({
       refund_reason: refundReason,
       booking_id: booking.id,
       venue_id: booking.venue_id,
+      cancel_booking: false // This ensures booking status remains unchanged
     });
 
     if (result.success) {

@@ -10,6 +10,7 @@ export interface RefundData {
   refund_reason: string;
   booking_id: number;
   venue_id: string;
+  cancel_booking?: boolean; // NEW: Optional parameter to control booking cancellation
 }
 
 export const useRefund = () => {
@@ -20,18 +21,20 @@ export const useRefund = () => {
     setIsLoading(true);
 
     try {
-      console.log('Processing independent refund:', refundData);
+      console.log('Processing refund:', refundData);
 
       const { error } = await supabase.functions.invoke('process-refund', {
         body: {
           ...refundData,
-          changed_by: user?.email || 'system'
+          changed_by: user?.email || 'system',
+          cancel_booking: refundData.cancel_booking || false // Default to false for independent refunds
         }
       });
 
       if (error) throw error;
 
-      toast.success('Refund processed successfully!');
+      const refundType = refundData.cancel_booking ? 'cancellation' : 'independent';
+      toast.success(`${refundType === 'cancellation' ? 'Booking cancelled and refund' : 'Refund'} processed successfully!`);
       return { success: true };
 
     } catch (error) {
