@@ -5,8 +5,8 @@ import { WifiPortalFlow } from '@/components/wifi/WifiPortalFlow';
 import { Loader2 } from 'lucide-react';
 
 const WifiPortal: React.FC = () => {
-  // Hardcoded for The Nuthatch since route is now /wifi-portal/nuthatch
-  const { data: venue, isLoading } = useVenueBySlug('nuthatch');
+  // Hardcoded for The Nuthatch since route is now /wifi-portal/the-nuthatch
+  const { data: venue, isLoading } = useVenueBySlug('the-nuthatch');
   const [deviceFingerprint, setDeviceFingerprint] = useState<string>('');
 
   useEffect(() => {

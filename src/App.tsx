@@ -52,13 +52,13 @@ function App() {
                 <Route path="/setup" element={<Setup />} />
                 
                 {/* Booking routes - hardcoded for The Nuthatch */}
-                <Route path="/booking/nuthatch" element={<BookingWidget />} />
-                <Route path="/booking/nuthatch/:serviceSlug" element={<BookingWidget />} />
+                <Route path="/booking/the-nuthatch" element={<BookingWidget />} />
+                <Route path="/booking/the-nuthatch/:serviceSlug" element={<BookingWidget />} />
                 <Route path="/booking/:bookingReference" element={<ModifyBooking />} />
                 <Route path="/cancel/:bookingReference" element={<CancelBooking />} />
                 
                 {/* WiFi Portal route - hardcoded for The Nuthatch */}
-                <Route path="/wifi-portal/nuthatch" element={<WifiPortal />} />
+                <Route path="/wifi-portal/the-nuthatch" element={<WifiPortal />} />
 
                 {/* Protected venue admin routes - wrapped with AdminLayout */}
                 <Route
