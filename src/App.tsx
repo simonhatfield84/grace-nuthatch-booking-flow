@@ -31,6 +31,8 @@ import BookingWidget from "@/pages/BookingWidget";
 import ModifyBooking from "@/pages/ModifyBooking";
 import CancelBooking from "@/pages/CancelBooking";
 import WifiPortal from "@/pages/WifiPortal";
+import { AdminLayout } from "@/components/layouts/AdminLayout";
+import { HostLayout } from "@/components/layouts/HostLayout";
 
 function App() {
   const queryClient = new QueryClient();
@@ -55,23 +57,17 @@ function App() {
                 <Route path="/booking/:bookingReference" element={<ModifyBooking />} />
                 <Route path="/cancel/:bookingReference" element={<CancelBooking />} />
                 
-                {/* NEW: WiFi Portal route */}
+                {/* WiFi Portal route - standalone without layout */}
                 <Route path="/wifi-portal/:venueSlug" element={<WifiPortal />} />
 
-                {/* Protected venue admin routes */}
+                {/* Protected venue admin routes - wrapped with AdminLayout */}
                 <Route
                   path="/dashboard"
                   element={
                     <ProtectedRoute>
-                      <Dashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/host"
-                  element={
-                    <ProtectedRoute>
-                      <NewHostInterface />
+                      <AdminLayout>
+                        <Dashboard />
+                      </AdminLayout>
                     </ProtectedRoute>
                   }
                 />
@@ -79,7 +75,9 @@ function App() {
                   path="/guests"
                   element={
                     <ProtectedRoute>
-                      <Guests />
+                      <AdminLayout>
+                        <Guests />
+                      </AdminLayout>
                     </ProtectedRoute>
                   }
                 />
@@ -87,7 +85,9 @@ function App() {
                   path="/services"
                   element={
                     <ProtectedRoute>
-                      <Services />
+                      <AdminLayout>
+                        <Services />
+                      </AdminLayout>
                     </ProtectedRoute>
                   }
                 />
@@ -95,7 +95,9 @@ function App() {
                   path="/tables"
                   element={
                     <ProtectedRoute>
-                      <Tables />
+                      <AdminLayout>
+                        <Tables />
+                      </AdminLayout>
                     </ProtectedRoute>
                   }
                 />
@@ -103,7 +105,9 @@ function App() {
                   path="/reports"
                   element={
                     <ProtectedRoute>
-                      <Reports />
+                      <AdminLayout>
+                        <Reports />
+                      </AdminLayout>
                     </ProtectedRoute>
                   }
                 />
@@ -111,7 +115,21 @@ function App() {
                   path="/settings"
                   element={
                     <ProtectedRoute>
-                      <Settings />
+                      <AdminLayout>
+                        <Settings />
+                      </AdminLayout>
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Host Interface - uses specialized HostLayout for iPad optimization */}
+                <Route
+                  path="/host"
+                  element={
+                    <ProtectedRoute>
+                      <HostLayout>
+                        <NewHostInterface />
+                      </HostLayout>
                     </ProtectedRoute>
                   }
                 />
