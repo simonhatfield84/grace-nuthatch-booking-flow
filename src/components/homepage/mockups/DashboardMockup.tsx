@@ -1,108 +1,102 @@
-import React from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { KpiCard } from '@/components/dashboard/KpiCard';
-import { ServicePopularityChart, StatusBreakdownChart } from '@/components/dashboard/DashboardCharts';
-import { Calendar, Users, DollarSign, Table, AlertCircle, TrendingUp } from 'lucide-react';
-import { mockKpis, mockServicePopularity, mockStatusBreakdown } from '@/data/mockData';
+
+import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ServicePopularityChart, StatusBreakdownChart } from "@/components/dashboard/DashboardCharts";
 
 export const DashboardMockup = () => {
+  // Convert mock data to array format for charts
+  const mockServiceData = [
+    { name: "Dinner", bookings: 15 },
+    { name: "Afternoon Tea", bookings: 8 },
+    { name: "Brunch", bookings: 12 },
+    { name: "Private Event", bookings: 3 }
+  ];
+
+  const mockStatusData = [
+    { name: "confirmed", count: 23 },
+    { name: "seated", count: 8 },
+    { name: "finished", count: 15 },
+    { name: "cancelled", count: 2 }
+  ];
+
   return (
-    <Card className="w-full max-w-4xl mx-auto">
-      <CardHeader className="pb-3 sm:pb-6">
-        <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
-          <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />
-          <span className="hidden sm:inline">Dashboard - Business Analytics</span>
-          <span className="sm:hidden">Dashboard</span>
-        </CardTitle>
-        <CardDescription className="text-sm">
-          Real-time KPIs and business insights at a glance
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4 sm:space-y-6 p-3 sm:p-6">
-        {/* KPI Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4">
-          <KpiCard
-            title="Today's Bookings"
-            value={mockKpis.todayBookings}
-            description="Confirmed reservations"
-            icon={Calendar}
-            trend={{ value: 12, isPositive: true }}
-            color="text-grace-primary"
-          />
-          <KpiCard
-            title="Weekly Bookings"
-            value={mockKpis.weeklyBookings}
-            description="This week's total"
-            icon={Calendar}
-            trend={{ value: 8, isPositive: true }}
-            color="text-blue-600"
-          />
-          <KpiCard
-            title="Guest Database"
-            value={mockKpis.guestCount}
-            description="Total guests"
-            icon={Users}
-            trend={{ value: 45, isPositive: true }}
-            color="text-green-600"
-          />
-          <KpiCard
-            title="Revenue"
-            value={`£${mockKpis.revenue.toLocaleString()}`}
-            description="This week"
-            icon={DollarSign}
-            trend={{ value: 15, isPositive: true }}
-            color="text-emerald-600"
-          />
-          <KpiCard
-            title="Available Tables"
-            value={mockKpis.availableTables}
-            description="Right now"
-            icon={Table}
-            color="text-blue-500"
-          />
-          <KpiCard
-            title="Unallocated"
-            value={mockKpis.unallocatedBookings}
-            description="Need attention"
-            icon={AlertCircle}
-            color="text-amber-600"
-          />
-        </div>
-        
-        {/* Charts */}
-        <div className="grid gap-4 sm:gap-6">
-          <div className="sm:grid sm:grid-cols-2 sm:gap-6 space-y-4 sm:space-y-0">
-            <div className="scale-75 sm:scale-90 origin-center sm:origin-top-left overflow-hidden">
-              <ServicePopularityChart data={mockServicePopularity} />
-            </div>
-            <div className="scale-75 sm:scale-90 origin-center sm:origin-top-right overflow-hidden">
-              <StatusBreakdownChart data={mockStatusBreakdown} />
-            </div>
+    <div className="space-y-6 max-w-4xl">
+      {/* KPI Cards Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Today's Bookings</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-primary">28</div>
+            <p className="text-xs text-muted-foreground">↑ 12% from yesterday</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Guests</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-secondary">1,247</div>
+            <p className="text-xs text-muted-foreground">Total registered</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Tables</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-accent">18/24</div>
+            <p className="text-xs text-muted-foreground">75% utilization</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Revenue</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-primary">£2,340</div>
+            <p className="text-xs text-muted-foreground">This week</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <ServicePopularityChart data={mockServiceData} />
+        <StatusBreakdownChart data={mockStatusData} />
+      </div>
+
+      {/* Recent Activity */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Recent Bookings</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {[
+              { name: "Sarah Johnson", time: "19:30", guests: 4, service: "Dinner" },
+              { name: "Mike Wilson", time: "20:00", guests: 2, service: "Dinner" },
+              { name: "Emma Davis", time: "15:00", guests: 6, service: "Afternoon Tea" }
+            ].map((booking, index) => (
+              <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                <div>
+                  <p className="font-medium text-sm">{booking.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {booking.time} • {booking.guests} guests • {booking.service}
+                  </p>
+                </div>
+                <span className="px-2 py-1 rounded text-xs bg-primary/10 text-primary">
+                  Confirmed
+                </span>
+              </div>
+            ))}
           </div>
-        </div>
-        
-        {/* Quick Stats */}
-        <div className="border-t pt-3 sm:pt-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 text-center">
-            <div>
-              <div className="text-base sm:text-lg font-bold text-grace-primary">92%</div>
-              <div className="text-xs sm:text-sm text-muted-foreground">Occupancy</div>
-            </div>
-            <div>
-              <div className="text-base sm:text-lg font-bold text-green-600">4.8</div>
-              <div className="text-xs sm:text-sm text-muted-foreground">Avg Rating</div>
-            </div>
-            <div>
-              <div className="text-base sm:text-lg font-bold text-blue-600">5.2</div>
-              <div className="text-xs sm:text-sm text-muted-foreground">Avg Party</div>
-            </div>
-            <div>
-              <div className="text-base sm:text-lg font-bold text-purple-600">1.8h</div>
-              <div className="text-xs sm:text-sm text-muted-foreground">Avg Duration</div>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 };

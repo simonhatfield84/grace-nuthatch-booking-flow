@@ -5,7 +5,7 @@ import { useVenueBySlug } from '@/hooks/useVenueBySlug';
 import { WifiPortalFlow } from '@/components/wifi/WifiPortalFlow';
 import { Loader2 } from 'lucide-react';
 
-export const WifiPortal: React.FC = () => {
+const WifiPortal: React.FC = () => {
   const { venueSlug } = useParams<{ venueSlug: string }>();
   const { data: venue, isLoading } = useVenueBySlug(venueSlug || '');
   const [deviceFingerprint, setDeviceFingerprint] = useState<string>('');
@@ -62,3 +62,5 @@ export const WifiPortal: React.FC = () => {
     </div>
   );
 };
+
+export default WifiPortal;

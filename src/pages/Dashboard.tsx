@@ -29,6 +29,18 @@ const Dashboard = () => {
     .filter(booking => booking.status === 'confirmed')
     .slice(0, 5);
 
+  // Convert servicePopularity object to array format for charts
+  const servicePopularityArray = Object.entries(servicePopularity).map(([name, count]) => ({
+    name,
+    bookings: count
+  }));
+
+  // Convert statusBreakdown object to array format for charts  
+  const statusBreakdownArray = Object.entries(todaysBookings.statusBreakdown || {}).map(([status, count]) => ({
+    name: status,
+    count
+  }));
+
   console.log('📊 Dashboard rendering with data:', { 
     todaysBookings: todaysBookings.count, 
     guests: guests.total, 
@@ -99,10 +111,10 @@ const Dashboard = () => {
       {/* Charts and Alerts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
         <div className="lg:col-span-1">
-          <ServicePopularityChart data={servicePopularity} />
+          <ServicePopularityChart data={servicePopularityArray} />
         </div>
         <div className="lg:col-span-1">
-          <StatusBreakdownChart data={todaysBookings.statusBreakdown} />
+          <StatusBreakdownChart data={statusBreakdownArray} />
         </div>
         <div className="lg:col-span-1">
           <AlertsPanel 
