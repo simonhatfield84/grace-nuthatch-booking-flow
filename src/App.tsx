@@ -57,8 +57,8 @@ function App() {
                 <Route path="/booking/:bookingReference" element={<ModifyBooking />} />
                 <Route path="/cancel/:bookingReference" element={<CancelBooking />} />
                 
-                {/* WiFi Portal route - standalone without layout */}
-                <Route path="/wifi-portal/:venueSlug" element={<WifiPortal />} />
+                {/* WiFi Portal route - standalone without layout, hardcoded for nuthatch */}
+                <Route path="/wifi-portal" element={<WifiPortal />} />
 
                 {/* Protected venue admin routes - wrapped with AdminLayout */}
                 <Route
