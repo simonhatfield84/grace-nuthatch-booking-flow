@@ -52,3 +52,6 @@ verify_jwt = false
 
 [functions.payment-status-reconciliation]
 verify_jwt = false
+
+[functions.wifi-portal-signup]
+verify_jwt = false

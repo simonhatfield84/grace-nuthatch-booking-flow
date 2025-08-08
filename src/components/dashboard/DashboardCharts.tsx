@@ -1,122 +1,168 @@
+import React from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+import { useDashboardKPIs } from "@/hooks/useDashboardKPIs";
+import { useServices } from "@/hooks/useServices";
+import { useBookings } from "@/hooks/useBookings";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { WifiAnalyticsDashboard } from '@/components/wifi/WifiAnalyticsDashboard';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from "recharts";
+export const DashboardCharts = () => {
+  const { data: kpis, isLoading: kpisLoading } = useDashboardKPIs();
+  const { services, isLoading: servicesLoading } = useServices();
+  const { bookings, isLoading: bookingsLoading } = useBookings();
 
-interface ServicePopularityProps {
-  data: Record<string, number>;
-}
+  // Prepare service data for the chart
+  const serviceData = services?.map((service) => {
+    const bookingCount = bookings?.filter(
+      (booking) => booking.service_id === service.id
+    ).length;
+    return { name: service.name, bookings: bookingCount || 0 };
+  });
 
-export const ServicePopularityChart = ({ data }: ServicePopularityProps) => {
-  const chartData = Object.entries(data).map(([service, count]) => ({
-    service,
-    count,
-    fill: service === 'Dinner' ? '#D87C5A' : service === 'Afternoon Tea' ? '#E9A036' : '#3B82F6'
+  // Prepare booking source data for the chart
+  const bookingSourceData = [
+    { name: "Widget", bookings: kpis?.widget_bookings_count || 0 },
+    { name: "Manual", bookings: kpis?.manual_bookings_count || 0 },
+  ];
+
+  // Prepare trends data for the chart
+  const trendsData = kpis?.daily_revenue?.map((item) => ({
+    date: item.date,
+    revenue: item.revenue,
   }));
 
-  const chartConfig = {
-    count: {
-      label: "Bookings",
-    },
-  };
-
-  if (chartData.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Service Popularity</CardTitle>
-          <CardDescription>This week's bookings by service</CardDescription>
-        </CardHeader>
-        <CardContent className="flex items-center justify-center h-48 text-muted-foreground">
-          No data available
-        </CardContent>
-      </Card>
-    );
-  }
+  // Colors for the pie chart
+  const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042"];
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Service Popularity</CardTitle>
-        <CardDescription>This week's bookings by service</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <ChartContainer config={chartConfig} className="min-h-[12rem] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={chartData}
-                cx="50%"
-                cy="50%"
-                innerRadius={40}
-                outerRadius={80}
-                paddingAngle={2}
-                dataKey="count"
-              >
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.fill} />
-                ))}
-              </Pie>
-              <ChartTooltip content={<ChartTooltipContent />} />
-            </PieChart>
-          </ResponsiveContainer>
-        </ChartContainer>
-      </CardContent>
-    </Card>
-  );
-};
+    <div className="space-y-6">
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="services">Services</TabsTrigger>
+          <TabsTrigger value="trends">Trends</TabsTrigger>
+          <TabsTrigger value="wifi">WiFi Analytics</TabsTrigger>
+        </TabsList>
 
-interface StatusBreakdownProps {
-  data: Record<string, number>;
-}
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Booking Source Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Booking Source</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      dataKey="bookings"
+                      data={bookingSourceData}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      fill="#8884d8"
+                      label
+                    >
+                      {bookingSourceData?.map((entry, index) => (
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={COLORS[index % COLORS.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
 
-export const StatusBreakdownChart = ({ data }: StatusBreakdownProps) => {
-  const chartData = Object.entries(data).map(([status, count]) => ({
-    status: status.charAt(0).toUpperCase() + status.slice(1),
-    count,
-    fill: status === 'confirmed' ? '#D87C5A' : 
-          status === 'seated' ? '#22C55E' : 
-          status === 'finished' ? '#3B82F6' : '#EF4444'
-  }));
+            {/* Revenue by Service Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Bookings by Service</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={serviceData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="bookings" fill="#82ca9d" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
 
-  const chartConfig = {
-    count: {
-      label: "Bookings",
-    },
-  };
+        <TabsContent value="services" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Service Popularity</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {servicesLoading ? (
+                <p>Loading services...</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart data={serviceData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="bookings" fill="#82ca9d" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-  if (chartData.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Today's Status</CardTitle>
-          <CardDescription>Booking status breakdown</CardDescription>
-        </CardHeader>
-        <CardContent className="flex items-center justify-center h-48 text-muted-foreground">
-          No bookings today
-        </CardContent>
-      </Card>
-    );
-  }
+        <TabsContent value="trends" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Daily Revenue Trends</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {kpisLoading ? (
+                <p>Loading trends...</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart data={trendsData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="revenue" fill="#82ca9d" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Today's Status</CardTitle>
-        <CardDescription>Booking status breakdown</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <ChartContainer config={chartConfig} className="min-h-[12rem] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData}>
-              <XAxis dataKey="status" />
-              <YAxis />
-              <Bar dataKey="count" radius={4} />
-              <ChartTooltip content={<ChartTooltipContent />} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartContainer>
-      </CardContent>
-    </Card>
+        <TabsContent value="wifi" className="space-y-6">
+          <WifiAnalyticsDashboard />
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 };

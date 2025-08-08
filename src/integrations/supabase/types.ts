@@ -610,6 +610,7 @@ export type Database = {
       guests: {
         Row: {
           created_at: string | null
+          device_fingerprint: string | null
           email: string | null
           id: string
           import_last_visit_date: string | null
@@ -620,9 +621,12 @@ export type Database = {
           phone: string | null
           updated_at: string | null
           venue_id: string
+          wifi_last_connected: string | null
+          wifi_signup_source: boolean | null
         }
         Insert: {
           created_at?: string | null
+          device_fingerprint?: string | null
           email?: string | null
           id?: string
           import_last_visit_date?: string | null
@@ -633,9 +637,12 @@ export type Database = {
           phone?: string | null
           updated_at?: string | null
           venue_id: string
+          wifi_last_connected?: string | null
+          wifi_signup_source?: boolean | null
         }
         Update: {
           created_at?: string | null
+          device_fingerprint?: string | null
           email?: string | null
           id?: string
           import_last_visit_date?: string | null
@@ -646,6 +653,8 @@ export type Database = {
           phone?: string | null
           updated_at?: string | null
           venue_id?: string
+          wifi_last_connected?: string | null
+          wifi_signup_source?: boolean | null
         }
         Relationships: [
           {
@@ -1694,6 +1703,201 @@ export type Database = {
         }
         Relationships: []
       }
+      wifi_analytics: {
+        Row: {
+          connected_at: string
+          created_at: string
+          data_usage_mb: number | null
+          device_browser: string | null
+          device_fingerprint: string
+          device_os: string | null
+          device_type: string | null
+          guest_id: string | null
+          id: string
+          ip_address: unknown | null
+          mac_address: string | null
+          pages_viewed: number | null
+          session_duration_minutes: number | null
+          signup_completed: boolean | null
+          user_agent: string | null
+          venue_id: string
+        }
+        Insert: {
+          connected_at?: string
+          created_at?: string
+          data_usage_mb?: number | null
+          device_browser?: string | null
+          device_fingerprint: string
+          device_os?: string | null
+          device_type?: string | null
+          guest_id?: string | null
+          id?: string
+          ip_address?: unknown | null
+          mac_address?: string | null
+          pages_viewed?: number | null
+          session_duration_minutes?: number | null
+          signup_completed?: boolean | null
+          user_agent?: string | null
+          venue_id: string
+        }
+        Update: {
+          connected_at?: string
+          created_at?: string
+          data_usage_mb?: number | null
+          device_browser?: string | null
+          device_fingerprint?: string
+          device_os?: string | null
+          device_type?: string | null
+          guest_id?: string | null
+          id?: string
+          ip_address?: unknown | null
+          mac_address?: string | null
+          pages_viewed?: number | null
+          session_duration_minutes?: number | null
+          signup_completed?: boolean | null
+          user_agent?: string | null
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wifi_analytics_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wifi_analytics_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wifi_devices: {
+        Row: {
+          connection_count: number | null
+          created_at: string
+          device_browser: string | null
+          device_fingerprint: string
+          device_os: string | null
+          device_type: string | null
+          first_seen_at: string
+          guest_id: string | null
+          id: string
+          is_returning: boolean | null
+          last_seen_at: string
+          updated_at: string
+          venue_id: string
+        }
+        Insert: {
+          connection_count?: number | null
+          created_at?: string
+          device_browser?: string | null
+          device_fingerprint: string
+          device_os?: string | null
+          device_type?: string | null
+          first_seen_at?: string
+          guest_id?: string | null
+          id?: string
+          is_returning?: boolean | null
+          last_seen_at?: string
+          updated_at?: string
+          venue_id: string
+        }
+        Update: {
+          connection_count?: number | null
+          created_at?: string
+          device_browser?: string | null
+          device_fingerprint?: string
+          device_os?: string | null
+          device_type?: string | null
+          first_seen_at?: string
+          guest_id?: string | null
+          id?: string
+          is_returning?: boolean | null
+          last_seen_at?: string
+          updated_at?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wifi_devices_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wifi_devices_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wifi_sessions: {
+        Row: {
+          created_at: string
+          data_usage_mb: number | null
+          device_fingerprint: string
+          ended_at: string | null
+          expires_at: string
+          guest_id: string | null
+          id: string
+          is_active: boolean | null
+          session_token: string
+          started_at: string
+          updated_at: string
+          venue_id: string
+        }
+        Insert: {
+          created_at?: string
+          data_usage_mb?: number | null
+          device_fingerprint: string
+          ended_at?: string | null
+          expires_at?: string
+          guest_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          session_token: string
+          started_at?: string
+          updated_at?: string
+          venue_id: string
+        }
+        Update: {
+          created_at?: string
+          data_usage_mb?: number | null
+          device_fingerprint?: string
+          ended_at?: string | null
+          expires_at?: string
+          guest_id?: string | null
+          id?: string
+          is_active?: boolean | null
+          session_token?: string
+          started_at?: string
+          updated_at?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wifi_sessions_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "wifi_sessions_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       homepage_analytics_summary: {
@@ -1793,6 +1997,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      generate_wifi_session_token: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
       get_security_metrics: {
         Args: Record<PropertyKey, never>
         Returns: Json
@@ -1852,6 +2060,19 @@ export type Database = {
           p_venue_address: string
         }
         Returns: Json
+      }
+      track_wifi_connection: {
+        Args: {
+          p_venue_id: string
+          p_device_fingerprint: string
+          p_device_type?: string
+          p_device_os?: string
+          p_device_browser?: string
+          p_user_agent?: string
+          p_ip_address?: unknown
+          p_guest_id?: string
+        }
+        Returns: string
       }
       update_user_role: {
         Args: {
