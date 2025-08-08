@@ -1,14 +1,12 @@
 
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
 import { useVenueBySlug } from '@/hooks/useVenueBySlug';
 import { WifiPortalFlow } from '@/components/wifi/WifiPortalFlow';
 import { Loader2 } from 'lucide-react';
 
 const WifiPortal: React.FC = () => {
-  const { venueSlug } = useParams<{ venueSlug: string }>();
-  // Default to 'nuthatch' if no slug is provided (for The Nuthatch setup)
-  const { data: venue, isLoading } = useVenueBySlug(venueSlug || 'nuthatch');
+  // Hardcoded for The Nuthatch since route is now /wifi-portal/nuthatch
+  const { data: venue, isLoading } = useVenueBySlug('nuthatch');
   const [deviceFingerprint, setDeviceFingerprint] = useState<string>('');
 
   useEffect(() => {

@@ -1,3 +1,4 @@
+
 import React from "react";
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -50,14 +51,14 @@ function App() {
                 <Route path="/platform-auth" element={<PlatformAuth />} />
                 <Route path="/setup" element={<Setup />} />
                 
-                {/* Booking routes */}
-                <Route path="/book/:venueSlug" element={<BookingWidget />} />
-                <Route path="/book/:venueSlug/:serviceSlug" element={<BookingWidget />} />
+                {/* Booking routes - hardcoded for The Nuthatch */}
+                <Route path="/booking/nuthatch" element={<BookingWidget />} />
+                <Route path="/booking/nuthatch/:serviceSlug" element={<BookingWidget />} />
                 <Route path="/booking/:bookingReference" element={<ModifyBooking />} />
                 <Route path="/cancel/:bookingReference" element={<CancelBooking />} />
                 
-                {/* WiFi Portal route - standalone without layout */}
-                <Route path="/wifi-portal/:venueSlug" element={<WifiPortal />} />
+                {/* WiFi Portal route - hardcoded for The Nuthatch */}
+                <Route path="/wifi-portal/nuthatch" element={<WifiPortal />} />
 
                 {/* Protected venue admin routes - wrapped with AdminLayout */}
                 <Route
