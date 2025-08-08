@@ -1,10 +1,34 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { useUserProfile } from "./useUserProfile";
 
 export const useWifiAnalytics = (dateRange?: { from: Date; to: Date }) => {
-  const { data: profile } = useUserProfile();
+  // Get current user's session to get venue_id
+  const { data: session } = useQuery({
+    queryKey: ['auth-session'],
+    queryFn: async () => {
+      const { data } = await supabase.auth.getSession();
+      return data.session;
+    },
+  });
+
+  // Get venue_id from user profile
+  const { data: profile } = useQuery({
+    queryKey: ['user-venue', session?.user?.id],
+    queryFn: async () => {
+      if (!session?.user?.id) return null;
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('venue_id')
+        .eq('id', session.user.id)
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!session?.user?.id,
+  });
 
   return useQuery({
     queryKey: ['wifi-analytics', profile?.venue_id, dateRange],

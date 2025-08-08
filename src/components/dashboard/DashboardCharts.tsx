@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -13,36 +14,78 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { useDashboardKPIs } from "@/hooks/useDashboardKPIs";
+import { useDashboardData } from "@/hooks/useDashboardData";
 import { useServices } from "@/hooks/useServices";
 import { useBookings } from "@/hooks/useBookings";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { WifiAnalyticsDashboard } from '@/components/wifi/WifiAnalyticsDashboard';
 
+// Export these components for backward compatibility
+export const ServicePopularityChart = ({ data }: { data: any[] }) => (
+  <Card>
+    <CardHeader>
+      <CardTitle>Service Popularity</CardTitle>
+    </CardHeader>
+    <CardContent>
+      <ResponsiveContainer width="100%" height={200}>
+        <BarChart data={data}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="name" />
+          <YAxis />
+          <Tooltip />
+          <Bar dataKey="bookings" fill="#82ca9d" />
+        </BarChart>
+      </ResponsiveContainer>
+    </CardContent>
+  </Card>
+);
+
+export const StatusBreakdownChart = ({ data }: { data: any[] }) => (
+  <Card>
+    <CardHeader>
+      <CardTitle>Booking Status</CardTitle>
+    </CardHeader>
+    <CardContent>
+      <ResponsiveContainer width="100%" height={200}>
+        <PieChart>
+          <Pie
+            dataKey="count"
+            data={data}
+            cx="50%"
+            cy="50%"
+            outerRadius={60}
+            fill="#8884d8"
+          />
+          <Tooltip />
+        </PieChart>
+      </ResponsiveContainer>
+    </CardContent>
+  </Card>
+);
+
 export const DashboardCharts = () => {
-  const { data: kpis, isLoading: kpisLoading } = useDashboardKPIs();
-  const { services, isLoading: servicesLoading } = useServices();
+  const dashboardData = useDashboardData();
+  const { services, isServicesLoading } = useServices();
   const { bookings, isLoading: bookingsLoading } = useBookings();
 
   // Prepare service data for the chart
   const serviceData = services?.map((service) => {
     const bookingCount = bookings?.filter(
-      (booking) => booking.service_id === service.id
+      (booking) => booking.service === service.title
     ).length;
-    return { name: service.name, bookings: bookingCount || 0 };
+    return { name: service.title, bookings: bookingCount || 0 };
   });
 
   // Prepare booking source data for the chart
   const bookingSourceData = [
-    { name: "Widget", bookings: kpis?.widget_bookings_count || 0 },
-    { name: "Manual", bookings: kpis?.manual_bookings_count || 0 },
+    { name: "Widget", bookings: dashboardData?.todaysBookings?.count || 0 },
+    { name: "Manual", bookings: 0 },
   ];
 
   // Prepare trends data for the chart
-  const trendsData = kpis?.daily_revenue?.map((item) => ({
-    date: item.date,
-    revenue: item.revenue,
-  }));
+  const trendsData = dashboardData?.revenue ? [
+    { date: "This Week", revenue: dashboardData.revenue.weekly }
+  ] : [];
 
   // Colors for the pie chart
   const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042"];
@@ -117,7 +160,7 @@ export const DashboardCharts = () => {
               <CardTitle>Service Popularity</CardTitle>
             </CardHeader>
             <CardContent>
-              {servicesLoading ? (
+              {isServicesLoading ? (
                 <p>Loading services...</p>
               ) : (
                 <ResponsiveContainer width="100%" height={400}>
@@ -138,10 +181,10 @@ export const DashboardCharts = () => {
         <TabsContent value="trends" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Daily Revenue Trends</CardTitle>
+              <CardTitle>Revenue Trends</CardTitle>
             </CardHeader>
             <CardContent>
-              {kpisLoading ? (
+              {dashboardData.isLoading ? (
                 <p>Loading trends...</p>
               ) : (
                 <ResponsiveContainer width="100%" height={400}>

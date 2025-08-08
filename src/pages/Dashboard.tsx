@@ -4,7 +4,7 @@ import { Calendar, Users, Utensils, BarChart3, Plus, TrendingUp } from "lucide-r
 import { Link } from "react-router-dom";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { KpiCard } from "@/components/dashboard/KpiCard";
-import { ServicePopularityChart, StatusBreakdownChart } from "@/components/dashboard/DashboardCharts";
+import { DashboardCharts, ServicePopularityChart, StatusBreakdownChart } from "@/components/dashboard/DashboardCharts";
 import { AlertsPanel } from "@/components/dashboard/AlertsPanel";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -200,6 +200,9 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Enhanced Dashboard Charts */}
+      <DashboardCharts />
     </div>
   );
 };
