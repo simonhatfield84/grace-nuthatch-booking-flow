@@ -111,13 +111,13 @@ export const useWifiAnalytics = (dateRange?: { from: Date; to: Date }) => {
 
       return {
         total_connections: totalConnections,
-        unique_devices,
+        unique_devices: uniqueDevices,
         returning_visitors: returningVisitors,
         signup_conversion_rate: Math.round(signupConversionRate * 10) / 10,
         avg_session_duration: avgSessionDuration,
         device_types: deviceTypes,
-        hourly_connections,
-        recent_connections
+        hourly_connections: hourlyConnections,
+        recent_connections: recentConnections
       };
     },
     enabled: !!userVenue,

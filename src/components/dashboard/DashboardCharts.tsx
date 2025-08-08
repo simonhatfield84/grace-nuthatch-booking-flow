@@ -1,15 +1,46 @@
+
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Overview } from "@/components/dashboard/Overview"
 import { BookingChart } from "@/components/dashboard/BookingChart"
 import { RevenueChart } from "@/components/dashboard/RevenueChart"
+import { WifiAnalyticsDashboard } from '@/components/wifi/WifiAnalyticsDashboard';
 
 interface DashboardChartsProps {
   data: any;
 }
 
-import { WifiAnalyticsDashboard } from '@/components/wifi/WifiAnalyticsDashboard';
+// Export the missing chart components
+export function ServicePopularityChart({ data }: { data: any }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Service Popularity</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="h-64 flex items-center justify-center text-muted-foreground">
+          Service popularity chart coming soon...
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function StatusBreakdownChart({ data }: { data: any }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Status Breakdown</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="h-64 flex items-center justify-center text-muted-foreground">
+          Status breakdown chart coming soon...
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export function DashboardCharts({ data }: DashboardChartsProps) {
   const [activeTab, setActiveTab] = useState('overview');

@@ -125,8 +125,19 @@ export function WifiPortalFlow({ venue, sessionToken, deviceFingerprint }: WifiP
           // Check for duplicate guests
           const duplicates = await checkForDuplicates(stepData.email, stepData.phone);
           if (duplicates.length > 0) {
-            setExistingGuest(duplicates[0]);
-            await grantWifiAccess(duplicates[0]);
+            // Convert duplicate guest to proper Guest type
+            const duplicateGuest: Guest = {
+              id: duplicates[0].id,
+              name: duplicates[0].name,
+              email: duplicates[0].email,
+              phone: duplicates[0].phone,
+              opt_in_marketing: false,
+              notes: null,
+              created_at: duplicates[0].created_at,
+              updated_at: duplicates[0].created_at
+            };
+            setExistingGuest(duplicateGuest);
+            await grantWifiAccess(duplicateGuest);
             setCurrentStep('success');
           } else {
             setCurrentStep('terms');
