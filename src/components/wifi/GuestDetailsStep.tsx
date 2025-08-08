@@ -1,13 +1,12 @@
 
 import React, { useState } from 'react';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, User, Mail, Phone } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { WifiGuestData } from './WifiPortalFlow';
-import { useToast } from '@/hooks/use-toast';
 
 interface GuestDetailsStepProps {
   venue: any;
@@ -26,150 +25,153 @@ export const GuestDetailsStep: React.FC<GuestDetailsStepProps> = ({
   onNext,
   onBack
 }) => {
-  const [isLoading, setIsLoading] = useState(false);
-  const { toast } = useToast();
+  const [isValid, setIsValid] = useState(false);
 
-  const handleInputChange = (field: keyof WifiGuestData, value: any) => {
-    onGuestDataUpdate({ [field]: value });
+  const validateForm = () => {
+    const valid = guestData.name.trim().length > 0 && guestData.email.trim().length > 0;
+    setIsValid(valid);
+    return valid;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!guestData.name || !guestData.email) {
-      toast({
-        title: "Required fields missing",
-        description: "Please fill in your name and email address.",
-        variant: "destructive"
-      });
-      return;
-    }
+  React.useEffect(() => {
+    validateForm();
+  }, [guestData.name, guestData.email]);
 
-    // Email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(guestData.email)) {
-      toast({
-        title: "Invalid email",
-        description: "Please enter a valid email address.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      // Check for existing guests with same email/phone to prevent duplicates
-      // This will be handled in the backend, but we show a loading state
+  const handleNext = () => {
+    if (validateForm()) {
       onNext();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Something went wrong. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
     }
   };
 
   return (
-    <div className="container max-w-md mx-auto px-4 py-8">
-      <Card>
-        <CardHeader>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onBack}
-            className="w-fit mb-2"
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
-          </Button>
-          <h2 className="text-xl font-bold text-foreground">Guest Details</h2>
-          <p className="text-sm text-muted-foreground">
-            We need some basic information for WiFi access
-          </p>
-        </CardHeader>
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Nuthatch Header */}
+      <div className="bg-black text-white">
+        <div className="max-w-md mx-auto px-6 py-4">
+          <div className="flex items-center gap-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onBack}
+              className="text-white hover:bg-gray-800 p-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </Button>
+            <div className="text-center flex-1">
+              <img 
+                src="/lovable-uploads/0fac96e7-74c4-452d-841d-1d727bf769c7.png" 
+                alt="The Nuthatch" 
+                className="h-10 w-auto mx-auto mb-1" 
+              />
+              <h1 className="text-lg font-semibold">The Nuthatch</h1>
+            </div>
+            <div className="w-10"></div> {/* Spacer for centering */}
+          </div>
+        </div>
+      </div>
 
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name *</Label>
-              <div className="relative">
-                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+      {/* Progress Bar */}
+      <div className="bg-white border-b">
+        <div className="max-w-md mx-auto px-6 py-3">
+          <div className="flex items-center justify-center space-x-2">
+            <div className="w-8 h-1 bg-black rounded"></div>
+            <div className="w-8 h-1 bg-black rounded"></div>
+            <div className="w-8 h-1 bg-gray-300 rounded"></div>
+          </div>
+          <p className="text-center text-sm text-gray-600 mt-2">Step 2 of 3</p>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex items-center justify-center p-6">
+        <Card className="w-full max-w-md shadow-lg">
+          <CardHeader className="text-center">
+            <CardTitle className="text-xl font-bold text-gray-900">
+              Your Details
+            </CardTitle>
+            <p className="text-gray-600 text-sm">
+              We need a few details to get you connected
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Name *</Label>
                 <Input
                   id="name"
                   type="text"
-                  placeholder="Enter your full name"
                   value={guestData.name}
-                  onChange={(e) => handleInputChange('name', e.target.value)}
-                  className="pl-10"
+                  onChange={(e) => onGuestDataUpdate({ name: e.target.value })}
+                  placeholder="Enter your name"
+                  className="w-full"
                   required
                 />
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email Address *</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <div className="space-y-2">
+                <Label htmlFor="email">Email Address *</Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="Enter your email"
                   value={guestData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                  className="pl-10"
+                  onChange={(e) => onGuestDataUpdate({ email: e.target.value })}
+                  placeholder="Enter your email"
+                  className="w-full"
                   required
                 />
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number (Optional)</Label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone Number (Optional)</Label>
                 <Input
                   id="phone"
                   type="tel"
-                  placeholder="Enter your phone number"
                   value={guestData.phone}
-                  onChange={(e) => handleInputChange('phone', e.target.value)}
-                  className="pl-10"
+                  onChange={(e) => onGuestDataUpdate({ phone: e.target.value })}
+                  placeholder="Enter your phone number"
+                  className="w-full"
                 />
               </div>
             </div>
 
-            <div className="flex items-start space-x-2 p-4 bg-muted/50 rounded-lg">
+            <div className="flex items-start space-x-3">
               <Checkbox
                 id="marketing"
                 checked={guestData.opt_in_marketing}
-                onCheckedChange={(checked) => handleInputChange('opt_in_marketing', checked)}
+                onCheckedChange={(checked) => onGuestDataUpdate({ opt_in_marketing: !!checked })}
               />
               <div className="grid gap-1.5 leading-none">
                 <Label
                   htmlFor="marketing"
                   className="text-sm font-normal cursor-pointer"
                 >
-                  Send me updates and special offers
+                  I'd like to receive updates and offers from The Nuthatch
                 </Label>
-                <p className="text-xs text-muted-foreground">
-                  Get notified about events, promotions, and news from {venue.name}
+                <p className="text-xs text-gray-500">
+                  Optional - you can unsubscribe at any time
                 </p>
               </div>
             </div>
 
-            <Button
-              type="submit"
-              className="w-full"
-              size="lg"
-              disabled={isLoading}
+            <Button 
+              onClick={handleNext}
+              disabled={!isValid}
+              className="w-full bg-black hover:bg-gray-800 text-white py-6 text-lg font-medium disabled:bg-gray-300"
             >
-              {isLoading ? "Processing..." : "Continue"}
+              Continue
             </Button>
-          </form>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Footer */}
+      <div className="bg-white border-t border-gray-200 py-4">
+        <div className="max-w-md mx-auto px-6">
+          <p className="text-center text-xs text-gray-500">
+            Your information is secure and will not be shared with third parties
+          </p>
+        </div>
+      </div>
     </div>
   );
 };

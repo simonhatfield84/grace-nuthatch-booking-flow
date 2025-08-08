@@ -1,8 +1,8 @@
 
 import React from 'react';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Wifi, MapPin, Clock, Star } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Wifi } from 'lucide-react';
 
 interface WelcomeStepProps {
   venue: any;
@@ -11,58 +11,80 @@ interface WelcomeStepProps {
 
 export const WelcomeStep: React.FC<WelcomeStepProps> = ({ venue, onNext }) => {
   return (
-    <div className="container max-w-md mx-auto px-4 py-8">
-      <Card>
-        <CardHeader className="text-center pb-4">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center">
-              <Wifi className="w-8 h-8 text-primary-foreground" />
-            </div>
-          </div>
-          <h1 className="text-2xl font-bold text-foreground">Welcome to {venue.name}</h1>
-          <p className="text-muted-foreground">Free WiFi Access</p>
-        </CardHeader>
-
-        <CardContent className="space-y-6">
-          {venue.address && (
-            <div className="flex items-center gap-3 text-sm">
-              <MapPin className="w-4 h-4 text-muted-foreground" />
-              <span className="text-foreground">{venue.address}</span>
-            </div>
-          )}
-
-          <div className="bg-muted/50 rounded-lg p-4">
-            <h3 className="font-semibold text-foreground mb-3">What you get:</h3>
-            <ul className="space-y-2 text-sm text-muted-foreground">
-              <li className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
-                Free unlimited WiFi access
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
-                High-speed internet connection
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
-                Secure guest network
-              </li>
-              <li className="flex items-center gap-2">
-                <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
-                24-hour access token
-              </li>
-            </ul>
-          </div>
-
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Nuthatch Header */}
+      <div className="bg-black text-white">
+        <div className="max-w-md mx-auto px-6 py-6">
           <div className="text-center">
-            <p className="text-xs text-muted-foreground mb-4">
-              Quick signup required for security and analytics
-            </p>
-            <Button onClick={onNext} className="w-full" size="lg">
-              Get WiFi Access
-            </Button>
+            <img 
+              src="/lovable-uploads/0fac96e7-74c4-452d-841d-1d727bf769c7.png" 
+              alt="The Nuthatch" 
+              className="h-12 w-auto mx-auto mb-3" 
+            />
+            <h1 className="text-xl font-semibold">The Nuthatch</h1>
+            <p className="text-gray-300 text-sm mt-1">Free WiFi Access</p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex items-center justify-center p-6">
+        <Card className="w-full max-w-md shadow-lg">
+          <CardHeader className="text-center space-y-4">
+            <div className="mx-auto w-16 h-16 bg-black rounded-full flex items-center justify-center">
+              <Wifi className="w-8 h-8 text-white" />
+            </div>
+            <CardTitle className="text-2xl font-bold text-gray-900">
+              Welcome! Connect to our free WiFi
+            </CardTitle>
+            <p className="text-gray-600">
+              Get online in just a few quick steps. No passwords required.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-3 text-sm text-gray-600">
+              <div className="flex items-center gap-3">
+                <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                  <span className="text-green-600 font-semibold text-xs">1</span>
+                </div>
+                <span>Enter your details</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                  <span className="text-green-600 font-semibold text-xs">2</span>
+                </div>
+                <span>Accept our terms</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
+                  <span className="text-green-600 font-semibold text-xs">3</span>
+                </div>
+                <span>Start browsing!</span>
+              </div>
+            </div>
+            
+            <Button 
+              onClick={onNext} 
+              className="w-full bg-black hover:bg-gray-800 text-white py-6 text-lg font-medium"
+            >
+              Get Started
+            </Button>
+
+            <p className="text-xs text-gray-500 text-center">
+              By continuing, you agree to our terms of service and privacy policy
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Footer */}
+      <div className="bg-white border-t border-gray-200 py-4">
+        <div className="max-w-md mx-auto px-6">
+          <p className="text-center text-xs text-gray-500">
+            Powered by Grace Restaurant Management
+          </p>
+        </div>
+      </div>
     </div>
   );
 };

@@ -1,204 +1,204 @@
-
-import React from "react";
-import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
-import { ThemeProvider } from "@/components/theme-provider";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { AuthProvider } from "@/contexts/AuthContext";
-
-import HomePage from "@/pages/HomePage";
-import Auth from "@/pages/Auth";
-import PlatformAuth from "@/pages/PlatformAuth";
-import Setup from "@/pages/Setup";
-import Dashboard from "@/pages/Dashboard";
-import PlatformDashboard from "@/pages/PlatformDashboard";
-import PlatformUsers from "@/pages/PlatformUsers";
-import PlatformVenues from "@/pages/PlatformVenues";
-import PlatformSubscriptions from "@/pages/PlatformSubscriptions";
-import PlatformSupport from "@/pages/PlatformSupport";
-import PlatformSecurity from "@/pages/PlatformSecurity";
-import PlatformSettings from "@/pages/PlatformSettings";
-import NotFound from "@/pages/NotFound";
-import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-import { ThemeHandler } from "@/components/ThemeHandler";
-import { BounceTracker } from "@/components/homepage/BounceTracker";
-import Guests from "@/pages/Guests";
-import Services from "@/pages/Services";
-import Tables from "@/pages/Tables";
-import Reports from "@/pages/Reports";
-import Settings from "@/pages/Settings";
-import NewHostInterface from "@/pages/NewHostInterface";
-import BookingWidget from "@/pages/BookingWidget";
-import ModifyBooking from "@/pages/ModifyBooking";
-import CancelBooking from "@/pages/CancelBooking";
-import WifiPortal from "@/pages/WifiPortal";
-import { AdminLayout } from "@/components/layouts/AdminLayout";
-import { HostLayout } from "@/components/layouts/HostLayout";
+import React from 'react';
+import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
+import { Auth } from './pages/Auth';
+import { PlatformAuth } from './pages/PlatformAuth';
+import { Setup } from './pages/Setup';
+import { Dashboard } from './pages/Dashboard';
+import { Tables } from './pages/Tables';
+import { Services } from './pages/Services';
+import { Guests } from './pages/Guests';
+import { Reports } from './pages/Reports';
+import { Settings } from './pages/Settings';
+import { NotFound } from './pages/NotFound';
+import { BookingWidget } from './components/booking/BookingWidget';
+import { ModifyBooking } from './pages/booking/ModifyBooking';
+import { CancelBooking } from './pages/booking/CancelBooking';
+import { HomePage } from './pages/HomePage';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { SetupGuard } from './components/SetupGuard';
+import { AdminLayout } from './components/AdminLayout';
+import { PlatformAdminLayout } from './components/platform/PlatformAdminLayout';
+import { PlatformDashboard } from './pages/platform/PlatformDashboard';
+import { PlatformUsers } from './pages/platform/PlatformUsers';
+import { PlatformVenues } from './pages/platform/PlatformVenues';
+import { PlatformSubscriptions } from './pages/platform/PlatformSubscriptions';
+import { PlatformSettings } from './pages/platform/PlatformSettings';
+import { PlatformSecurity } from './pages/platform/PlatformSecurity';
+import { PlatformSupport } from './pages/platform/PlatformSupport';
+import { HostLayout } from './components/HostLayout';
+import { HostInterface } from './pages/HostInterface';
+import { NewHostInterface } from './pages/NewHostInterface';
+import { WifiPortal } from './pages/WifiPortal';
+import WifiSettings from "@/pages/WifiSettings";
 
 function App() {
-  const queryClient = new QueryClient();
-
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
-          <Router>
-            <div className="min-h-screen bg-background">
-              <ThemeHandler />
-              <BounceTracker />
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/auth" element={<Auth />} />
-                <Route path="/platform-auth" element={<PlatformAuth />} />
-                <Route path="/setup" element={<Setup />} />
-                
-                {/* Booking routes - hardcoded for The Nuthatch */}
-                <Route path="/booking/the-nuthatch" element={<BookingWidget />} />
-                <Route path="/booking/the-nuthatch/:serviceSlug" element={<BookingWidget />} />
-                <Route path="/booking/:bookingReference" element={<ModifyBooking />} />
-                <Route path="/cancel/:bookingReference" element={<CancelBooking />} />
-                
-                {/* WiFi Portal route - hardcoded for The Nuthatch */}
-                <Route path="/wifi-portal/the-nuthatch" element={<WifiPortal />} />
+    <div className="min-h-screen bg-background">
+      <Router>
+        <Routes>
+          {/* Public routes */}
+          <Route 
+            path="/" 
+            element={<HomePage />} 
+          />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/platform-auth" element={<PlatformAuth />} />
+          
+          {/* Setup route - check if setup is complete first */}
+          <Route 
+            path="/setup" 
+            element={
+              <SetupGuard>
+                <Setup />
+              </SetupGuard>
+            } 
+          />
+          
+          {/* Booking routes - hardcoded for The Nuthatch */}
+          <Route path="/booking/the-nuthatch" element={<BookingWidget />} />
+          <Route path="/booking/the-nuthatch/:serviceSlug" element={<BookingWidget />} />
+          <Route path="/booking/:bookingReference" element={<ModifyBooking />} />
+          <Route path="/cancel/:bookingReference" element={<CancelBooking />} />
+          
+          {/* WiFi Portal route - hardcoded for The Nuthatch */}
+          <Route path="/wifi-portal/the-nuthatch" element={<WifiPortal />} />
 
-                {/* Protected venue admin routes - wrapped with AdminLayout */}
-                <Route
-                  path="/dashboard"
-                  element={
-                    <ProtectedRoute>
-                      <AdminLayout>
-                        <Dashboard />
-                      </AdminLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/guests"
-                  element={
-                    <ProtectedRoute>
-                      <AdminLayout>
-                        <Guests />
-                      </AdminLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/services"
-                  element={
-                    <ProtectedRoute>
-                      <AdminLayout>
-                        <Services />
-                      </AdminLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/tables"
-                  element={
-                    <ProtectedRoute>
-                      <AdminLayout>
-                        <Tables />
-                      </AdminLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/reports"
-                  element={
-                    <ProtectedRoute>
-                      <AdminLayout>
-                        <Reports />
-                      </AdminLayout>
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/settings"
-                  element={
-                    <ProtectedRoute>
-                      <AdminLayout>
-                        <Settings />
-                      </AdminLayout>
-                    </ProtectedRoute>
-                  }
-                />
+          {/* Protected venue admin routes - wrapped with AdminLayout */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <Dashboard />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/host"
+            element={
+              <ProtectedRoute>
+                <HostLayout>
+                  <HostInterface />
+                </HostLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/new-host"
+            element={
+              <ProtectedRoute>
+                <HostLayout>
+                  <NewHostInterface />
+                </HostLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tables"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <Tables />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/services"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <Services />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/guests"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <Guests />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <Reports />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <Settings />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/wifi-settings"
+            element={
+              <ProtectedRoute>
+                <AdminLayout>
+                  <WifiSettings />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
 
-                {/* Host Interface - uses specialized HostLayout for iPad optimization */}
-                <Route
-                  path="/host"
-                  element={
-                    <ProtectedRoute>
-                      <HostLayout>
-                        <NewHostInterface />
-                      </HostLayout>
-                    </ProtectedRoute>
-                  }
-                />
+          {/* Platform admin routes */}
+          <Route
+            path="/platform/*"
+            element={
+              <ProtectedRoute requirePlatformAdmin={true}>
+                <PlatformAdminLayout>
+                  <Routes>
+                    <Route path="dashboard" element={<PlatformDashboard />} />
+                    <Route path="users" element={<PlatformUsers />} />
+                    <Route path="venues" element={<PlatformVenues />} />
+                    <Route path="subscriptions" element={<PlatformSubscriptions />} />
+                    <Route path="settings" element={<PlatformSettings />} />
+                    <Route path="security" element={<PlatformSecurity />} />
+                    <Route path="support" element={<PlatformSupport />} />
+                  </Routes>
+                </PlatformAdminLayout>
+              </ProtectedRoute>
+            }
+          />
 
-                {/* Platform admin routes */}
-                <Route
-                  path="/platform"
-                  element={
-                    <ProtectedRoute>
-                      <PlatformDashboard />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/platform/users"
-                  element={
-                    <ProtectedRoute>
-                      <PlatformUsers />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/platform/venues"
-                  element={
-                    <ProtectedRoute>
-                      <PlatformVenues />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/platform/subscriptions"
-                  element={
-                    <ProtectedRoute>
-                      <PlatformSubscriptions />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/platform/support"
-                  element={
-                    <ProtectedRoute>
-                      <PlatformSupport />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/platform/security"
-                  element={
-                    <ProtectedRoute>
-                      <PlatformSecurity />
-                    </ProtectedRoute>
-                  }
-                />
-                <Route
-                  path="/platform/settings"
-                  element={
-                    <ProtectedRoute>
-                      <PlatformSettings />
-                    </ProtectedRoute>
-                  }
-                />
+          {/* Catch all route */}
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Router>
+    </div>
+  );
+}
 
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </div>
-          </Router>
-        </ThemeProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+function SetupGuard({ children }: { children: React.ReactNode }) {
+  const location = useLocation();
+
+  // Check if the current path is /setup
+  const isSetupPath = location.pathname === '/setup';
+
+  // If we're already on the /setup page, just render the children
+  if (isSetupPath) {
+    return <>{children}</>;
+  }
+
+  // If we're not on the /setup page, redirect to it
+  return (
+    <ProtectedRoute redirectTo="/setup">
+      {children}
+    </ProtectedRoute>
   );
 }
 

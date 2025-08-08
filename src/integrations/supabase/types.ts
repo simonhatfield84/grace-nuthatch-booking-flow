@@ -1898,6 +1898,86 @@ export type Database = {
           },
         ]
       }
+      wifi_settings: {
+        Row: {
+          accent_color: string | null
+          auto_delete_sessions: boolean
+          created_at: string
+          custom_css: string | null
+          data_retention_days: number
+          enable_device_fingerprinting: boolean
+          font_family: string | null
+          id: string
+          is_enabled: boolean
+          logo_url: string | null
+          marketing_opt_in_default: boolean
+          network_name: string | null
+          primary_color: string | null
+          secondary_color: string | null
+          session_duration_hours: number
+          terms_content: string | null
+          terms_version: number
+          updated_at: string
+          venue_description: string | null
+          venue_id: string
+          welcome_message: string | null
+        }
+        Insert: {
+          accent_color?: string | null
+          auto_delete_sessions?: boolean
+          created_at?: string
+          custom_css?: string | null
+          data_retention_days?: number
+          enable_device_fingerprinting?: boolean
+          font_family?: string | null
+          id?: string
+          is_enabled?: boolean
+          logo_url?: string | null
+          marketing_opt_in_default?: boolean
+          network_name?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
+          session_duration_hours?: number
+          terms_content?: string | null
+          terms_version?: number
+          updated_at?: string
+          venue_description?: string | null
+          venue_id: string
+          welcome_message?: string | null
+        }
+        Update: {
+          accent_color?: string | null
+          auto_delete_sessions?: boolean
+          created_at?: string
+          custom_css?: string | null
+          data_retention_days?: number
+          enable_device_fingerprinting?: boolean
+          font_family?: string | null
+          id?: string
+          is_enabled?: boolean
+          logo_url?: string | null
+          marketing_opt_in_default?: boolean
+          network_name?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
+          session_duration_hours?: number
+          terms_content?: string | null
+          terms_version?: number
+          updated_at?: string
+          venue_description?: string | null
+          venue_id?: string
+          welcome_message?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wifi_settings_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: true
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       homepage_analytics_summary: {
@@ -1949,6 +2029,10 @@ export type Database = {
         Returns: boolean
       }
       create_default_email_templates: {
+        Args: { p_venue_id: string }
+        Returns: undefined
+      }
+      create_default_wifi_settings: {
         Args: { p_venue_id: string }
         Returns: undefined
       }
