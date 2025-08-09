@@ -12,14 +12,10 @@ interface WebhookEvent {
   id: string;
   stripe_event_id: string;
   event_type: string;
-  processing_status: string;
-  venue_id: string | null;
-  booking_id: number | null;
-  payment_intent_id: string | null;
-  amount_cents: number | null;
-  error_details: any;
+  event_data: any;
   processed_at: string | null;
   created_at: string;
+  test_mode: boolean;
 }
 
 export const WebhookEventsMonitor = () => {
@@ -41,14 +37,10 @@ export const WebhookEventsMonitor = () => {
           id,
           stripe_event_id,
           event_type,
-          processing_status,
-          venue_id,
-          booking_id,
-          payment_intent_id,
-          amount_cents,
-          error_details,
+          event_data,
           processed_at,
-          created_at
+          created_at,
+          test_mode
         `)
         .order('created_at', { ascending: false })
         .limit(50);
@@ -61,11 +53,11 @@ export const WebhookEventsMonitor = () => {
 
       setEvents(data || []);
 
-      // Calculate stats
+      // Calculate stats based on processed_at and event_data
       const total = data?.length || 0;
-      const success = data?.filter(e => e.processing_status === 'success').length || 0;
-      const failed = data?.filter(e => e.processing_status === 'failed').length || 0;
-      const processing = data?.filter(e => e.processing_status === 'processing').length || 0;
+      const success = data?.filter(e => e.processed_at !== null && !e.event_data?.error).length || 0;
+      const failed = data?.filter(e => e.event_data?.error || (e.processed_at === null && isOlderThan5Minutes(e.created_at))).length || 0;
+      const processing = data?.filter(e => e.processed_at === null && !isOlderThan5Minutes(e.created_at)).length || 0;
 
       setStats({ total, success, failed, processing });
     } catch (error) {
@@ -74,6 +66,12 @@ export const WebhookEventsMonitor = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const isOlderThan5Minutes = (createdAt: string) => {
+    const eventTime = new Date(createdAt).getTime();
+    const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+    return eventTime < fiveMinutesAgo;
   };
 
   useEffect(() => {
@@ -96,7 +94,15 @@ export const WebhookEventsMonitor = () => {
     };
   }, []);
 
-  const getStatusIcon = (status: string) => {
+  const getStatusFromEvent = (event: WebhookEvent) => {
+    if (event.event_data?.error) return 'failed';
+    if (event.processed_at) return 'success';
+    if (isOlderThan5Minutes(event.created_at)) return 'failed';
+    return 'processing';
+  };
+
+  const getStatusIcon = (event: WebhookEvent) => {
+    const status = getStatusFromEvent(event);
     switch (status) {
       case 'success':
         return <CheckCircle className="h-4 w-4 text-green-500" />;
@@ -109,15 +115,26 @@ export const WebhookEventsMonitor = () => {
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (event: WebhookEvent) => {
+    const status = getStatusFromEvent(event);
     const variant = status === 'success' ? 'default' : 
                    status === 'failed' ? 'destructive' : 'secondary';
     return <Badge variant={variant}>{status}</Badge>;
   };
 
-  const formatAmount = (amountCents: number | null) => {
-    if (!amountCents) return 'N/A';
-    return `£${(amountCents / 100).toFixed(2)}`;
+  const formatAmount = (eventData: any) => {
+    if (eventData?.data?.object?.amount) {
+      return `£${(eventData.data.object.amount / 100).toFixed(2)}`;
+    }
+    return 'N/A';
+  };
+
+  const getBookingInfo = (eventData: any) => {
+    const metadata = eventData?.data?.object?.metadata;
+    if (metadata?.booking_id) {
+      return `Booking: ${metadata.booking_id}`;
+    }
+    return null;
   };
 
   return (
@@ -203,22 +220,22 @@ export const WebhookEventsMonitor = () => {
                     className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50"
                   >
                     <div className="flex items-center gap-3">
-                      {getStatusIcon(event.processing_status)}
+                      {getStatusIcon(event)}
                       <div>
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{event.event_type}</span>
-                          {getStatusBadge(event.processing_status)}
+                          {getStatusBadge(event)}
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          {event.booking_id && <span>Booking: {event.booking_id} • </span>}
-                          {formatAmount(event.amount_cents)}
+                          {getBookingInfo(event.event_data) && <span>{getBookingInfo(event.event_data)} • </span>}
+                          {formatAmount(event.event_data)}
                           <span className="ml-2">
                             {new Date(event.created_at).toLocaleString()}
                           </span>
                         </div>
-                        {event.error_details && (
+                        {event.event_data?.error && (
                           <div className="text-xs text-red-600 mt-1">
-                            Error: {event.error_details.error || JSON.stringify(event.error_details)}
+                            Error: {event.event_data.error}
                           </div>
                         )}
                       </div>

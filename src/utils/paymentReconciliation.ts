@@ -71,16 +71,16 @@ export const reconcilePayment = async (data: PaymentReconciliationData) => {
       .insert({
         stripe_event_id: `manual_reconcile_${data.bookingId}_${Date.now()}`,
         event_type: 'manual_reconciliation',
-        processing_status: 'success',
-        booking_id: data.bookingId,
-        payment_intent_id: data.paymentIntentId,
-        amount_cents: data.amountCents,
-        processed_at: now,
-        raw_event_data: {
+        event_data: {
           manual_reconciliation: true,
           reconciled_by: 'admin_tool',
-          original_stripe_status: data.stripeStatus
-        }
+          original_stripe_status: data.stripeStatus,
+          booking_id: data.bookingId,
+          payment_intent_id: data.paymentIntentId,
+          amount_cents: data.amountCents
+        },
+        processed_at: now,
+        test_mode: false
       });
 
     // Log the manual reconciliation with enhanced details
@@ -128,7 +128,7 @@ export const reconcilePayment = async (data: PaymentReconciliationData) => {
   }
 };
 
-// Enhanced function to check payment status consistency with webhook events
+// Enhanced function to check payment status consistency
 export const checkPaymentConsistency = async (bookingId: number) => {
   try {
     // Get booking data
@@ -164,12 +164,12 @@ export const checkPaymentConsistency = async (bookingId: number) => {
       return { consistent: false, reason: 'missing_payment_record' };
     }
 
-    // Check webhook events for this booking
+    // Check webhook events for this booking (simplified query)
     const { data: webhookEvents } = await supabase
       .from('webhook_events')
-      .select('processing_status, event_type, created_at')
-      .eq('booking_id', bookingId)
-      .order('created_at', { ascending: false });
+      .select('event_type, event_data, created_at, processed_at')
+      .order('created_at', { ascending: false })
+      .limit(10); // Get recent events instead of filtering by booking_id
 
     // Check for consistency issues
     if (booking.status === 'confirmed' && paymentData.status !== 'succeeded') {
@@ -197,8 +197,8 @@ export const checkPaymentConsistency = async (bookingId: number) => {
       };
     }
 
-    // Check for failed webhook events
-    const failedEvents = webhookEvents?.filter(e => e.processing_status === 'failed') || [];
+    // Check for failed webhook events (based on event_data.error)
+    const failedEvents = webhookEvents?.filter(e => e.event_data?.error) || [];
     if (failedEvents.length > 0) {
       return {
         consistent: false,
