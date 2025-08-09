@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { Utensils, Clock, Users } from 'lucide-react';
 import { BookingService } from '../../services/BookingService';
+import { formatDateToYYYYMMDD } from '@/utils/dateUtils';
 
 interface ServiceStepProps {
   selectedService: any;
@@ -29,7 +30,7 @@ export function ServiceStep({
       const services = await BookingService.getAvailableServices(
         venueId,
         partySize,
-        selectedDate ? selectedDate.toISOString().split('T')[0] : undefined
+        selectedDate ? formatDateToYYYYMMDD(selectedDate) : undefined
       );
 
       return services;

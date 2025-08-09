@@ -1,8 +1,8 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { format, addDays, startOfDay } from "date-fns";
 import { Service, AvailabilitySlot } from "../types/booking";
 import { EnhancedAvailabilityService } from "@/services/enhancedAvailabilityService";
+import { parseYYYYMMDDDate, getShortDayName } from '@/utils/dateUtils';
 
 export class BookingService {
   private static cache = new Map<string, { data: any, timestamp: number }>();
@@ -156,10 +156,10 @@ export class BookingService {
         return allServices;
       }
 
-      // Convert date to day name for booking window checking
-      const selectedDate = new Date(date);
-      const dayName = this.getShortDayName(selectedDate);
-      console.log(`📅 Filtering services for date: ${date} (${dayName})`);
+      // Convert date to day name for booking window checking using timezone-safe parsing
+      const selectedDate = parseYYYYMMDDDate(date);
+      const dayName = getShortDayName(selectedDate);
+      console.log(`📅 Filtering services for date: ${date} (${dayName}) - timezone-safe conversion`);
 
       // Get all booking windows for this venue
       const { data: bookingWindows, error: windowsError } = await supabase
