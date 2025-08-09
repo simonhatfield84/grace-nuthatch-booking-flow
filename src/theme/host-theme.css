@@ -1,0 +1,116 @@
+
+/* Host-only theme — do not import outside /host routes */
+
+.host-app {
+  /* Host Color System */
+  --host-bg: #111315;
+  --host-card: #292C2D;
+  --host-surface: #292C2D;
+  --host-border: #676767;
+  --host-accent: #D87C5A;
+  --host-accent-contrast: #FFFFFF;
+  --host-text: #FFFFFF;
+  --host-muted: #676767;
+  --host-success: #CCF0DB;
+  --host-warning: #E9A036;
+  --host-danger: #E47272;
+  --host-sidebar: #111315;
+  --host-hover: #292C2D;
+
+  /* Host Typography */
+  --host-font-heading: 'Playfair Display', serif;
+  --host-font-body: 'Karla', sans-serif;
+  --host-font-mono: 'Inter', monospace;
+
+  /* Host Layout */
+  --host-container-padding: 1rem;
+  --host-sidebar-collapsed: 4rem;
+  --host-sidebar-expanded: 16rem;
+  --host-spacing-xs: 0.25rem;
+  --host-spacing-sm: 0.5rem;
+  --host-spacing-md: 1rem;
+  --host-spacing-lg: 1.5rem;
+  --host-spacing-xl: 2rem;
+  --host-border-radius-sm: 0.25rem;
+  --host-border-radius-md: 0.375rem;
+  --host-border-radius-lg: 0.5rem;
+
+  /* Force dark theme */
+  background-color: var(--host-bg) !important;
+  color: var(--host-text) !important;
+}
+
+/* Host-specific component overrides */
+.host-app * {
+  color: inherit;
+}
+
+.host-app .bg-background {
+  background-color: var(--host-bg) !important;
+}
+
+.host-app .bg-card {
+  background-color: var(--host-card) !important;
+  color: var(--host-text) !important;
+}
+
+.host-app .text-foreground {
+  color: var(--host-text) !important;
+}
+
+.host-app .text-muted-foreground {
+  color: var(--host-muted) !important;
+}
+
+.host-app .border {
+  border-color: var(--host-border) !important;
+}
+
+.host-app .grace-logo {
+  color: var(--host-text) !important;
+}
+
+/* Host utility classes */
+.host-app .host-bg {
+  background-color: var(--host-bg);
+}
+
+.host-app .host-card {
+  background-color: var(--host-card);
+}
+
+.host-app .host-text {
+  color: var(--host-text);
+}
+
+.host-app .host-muted {
+  color: var(--host-muted);
+}
+
+.host-app .host-border {
+  border-color: var(--host-border);
+}
+
+.host-app .host-hover:hover {
+  background-color: var(--host-hover);
+}
+
+/* Sidebar specific styling for host */
+.host-app [data-sidebar="sidebar"] {
+  background-color: var(--host-sidebar) !important;
+  border-color: var(--host-border) !important;
+}
+
+.host-app [data-sidebar="menu-button"] {
+  color: var(--host-muted);
+}
+
+.host-app [data-sidebar="menu-button"][data-active="true"] {
+  background-color: var(--host-card) !important;
+  color: var(--host-text) !important;
+}
+
+.host-app [data-sidebar="menu-button"]:hover {
+  background-color: var(--host-hover) !important;
+  color: var(--host-text) !important;
+}

@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -8,6 +7,7 @@ export default {
 		"./components/**/*.{ts,tsx}",
 		"./app/**/*.{ts,tsx}",
 		"./src/**/*.{ts,tsx}",
+		"./src/theme/**/*.{ts,tsx,css}",
 	],
 	prefix: "",
 	theme: {
@@ -138,5 +138,29 @@ export default {
 			}
 		}
 	},
-	plugins: [require("tailwindcss-animate")],
+	plugins: [
+		require("tailwindcss-animate"),
+		function({ addUtilities }) {
+			addUtilities({
+				'.host-bg': {
+					'background-color': 'var(--host-bg)',
+				},
+				'.host-card': {
+					'background-color': 'var(--host-card)',
+				},
+				'.host-text': {
+					'color': 'var(--host-text)',
+				},
+				'.host-muted': {
+					'color': 'var(--host-muted)',
+				},
+				'.host-border': {
+					'border-color': 'var(--host-border)',
+				},
+				'.host-hover:hover': {
+					'background-color': 'var(--host-hover)',
+				},
+			});
+		}
+	],
 } satisfies Config;
