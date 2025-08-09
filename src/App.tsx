@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,6 +9,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import RootRedirect from "@/components/auth/RootRedirect";
 import { StripeProvider } from "@/components/providers/StripeProvider";
 import { AdminLayout } from "@/components/layouts/AdminLayout";
+import { HostLayout } from "@/components/layouts/HostLayout";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Setup from "./pages/Setup";
@@ -122,7 +122,13 @@ function App() {
                         </AdminLayout>
                       </ProtectedRoute>
                     } />
-                    <Route path="/host" element={<ProtectedRoute><NewHostInterface /></ProtectedRoute>} />
+                    <Route path="/host" element={
+                      <ProtectedRoute>
+                        <HostLayout>
+                          <NewHostInterface />
+                        </HostLayout>
+                      </ProtectedRoute>
+                    } />
                     <Route path="/services" element={
                       <ProtectedRoute>
                         <AdminLayout>
