@@ -98,19 +98,19 @@ function App() {
                     } />
                     <Route path="/payment-success" element={<PaymentSuccess />} />
                     
-                    {/* Booking widget - public, needs Stripe */}
+                    {/* Booking widget - public, needs Stripe with public mode */}
                     <Route path="/booking" element={
-                      <StripeProvider>
+                      <StripeProvider usePublicMode={true} venueSlug="the-nuthatch">
                         <BookingWidget />
                       </StripeProvider>
                     } />
                     <Route path="/modify/:token" element={
-                      <StripeProvider>
+                      <StripeProvider usePublicMode={true} venueSlug="the-nuthatch">
                         <ModifyBooking />
                       </StripeProvider>
                     } />
                     <Route path="/cancel/:token" element={
-                      <StripeProvider>
+                      <StripeProvider usePublicMode={true} venueSlug="the-nuthatch">
                         <CancelBooking />
                       </StripeProvider>
                     } />
