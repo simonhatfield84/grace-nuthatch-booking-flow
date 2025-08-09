@@ -53,9 +53,6 @@ verify_jwt = true
 [functions.stripe-webhook-secure]
 verify_jwt = false
 
-[functions.wifi-portal-submit]
-verify_jwt = false
-
 [edge_runtime]
 enabled = true
 policy = "per_request"

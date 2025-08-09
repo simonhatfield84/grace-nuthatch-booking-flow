@@ -1902,7 +1902,6 @@ export type Database = {
         Row: {
           accent_color: string | null
           auto_delete_sessions: boolean
-          background_image_url: string | null
           created_at: string
           custom_css: string | null
           data_retention_days: number
@@ -1926,7 +1925,6 @@ export type Database = {
         Insert: {
           accent_color?: string | null
           auto_delete_sessions?: boolean
-          background_image_url?: string | null
           created_at?: string
           custom_css?: string | null
           data_retention_days?: number
@@ -1950,7 +1948,6 @@ export type Database = {
         Update: {
           accent_color?: string | null
           auto_delete_sessions?: boolean
-          background_image_url?: string | null
           created_at?: string
           custom_css?: string | null
           data_retention_days?: number
@@ -1976,87 +1973,6 @@ export type Database = {
             foreignKeyName: "wifi_settings_venue_id_fkey"
             columns: ["venue_id"]
             isOneToOne: true
-            referencedRelation: "venues"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      wifi_signups: {
-        Row: {
-          ap_mac: string | null
-          client_mac: string | null
-          connected_at: string | null
-          created_at: string | null
-          date_of_birth: string | null
-          email: string
-          full_name: string
-          guest_id: string | null
-          id: string
-          ip_address: unknown | null
-          marketing_consent: boolean
-          mobile_number: string
-          origin_url: string | null
-          radio_id: string | null
-          site: string | null
-          ssid_name: string | null
-          updated_at: string | null
-          user_agent: string | null
-          venue_id: string
-        }
-        Insert: {
-          ap_mac?: string | null
-          client_mac?: string | null
-          connected_at?: string | null
-          created_at?: string | null
-          date_of_birth?: string | null
-          email: string
-          full_name: string
-          guest_id?: string | null
-          id?: string
-          ip_address?: unknown | null
-          marketing_consent?: boolean
-          mobile_number: string
-          origin_url?: string | null
-          radio_id?: string | null
-          site?: string | null
-          ssid_name?: string | null
-          updated_at?: string | null
-          user_agent?: string | null
-          venue_id: string
-        }
-        Update: {
-          ap_mac?: string | null
-          client_mac?: string | null
-          connected_at?: string | null
-          created_at?: string | null
-          date_of_birth?: string | null
-          email?: string
-          full_name?: string
-          guest_id?: string | null
-          id?: string
-          ip_address?: unknown | null
-          marketing_consent?: boolean
-          mobile_number?: string
-          origin_url?: string | null
-          radio_id?: string | null
-          site?: string | null
-          ssid_name?: string | null
-          updated_at?: string | null
-          user_agent?: string | null
-          venue_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "wifi_signups_guest_id_fkey"
-            columns: ["guest_id"]
-            isOneToOne: false
-            referencedRelation: "guests"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "wifi_signups_venue_id_fkey"
-            columns: ["venue_id"]
-            isOneToOne: false
             referencedRelation: "venues"
             referencedColumns: ["id"]
           },
@@ -2180,25 +2096,6 @@ export type Database = {
       get_user_venue: {
         Args: { _user_id: string }
         Returns: string
-      }
-      handle_wifi_portal_submission: {
-        Args: {
-          p_venue_slug: string
-          p_full_name: string
-          p_email: string
-          p_mobile_number: string
-          p_date_of_birth?: string
-          p_marketing_consent?: boolean
-          p_client_mac?: string
-          p_ap_mac?: string
-          p_ssid_name?: string
-          p_radio_id?: string
-          p_site?: string
-          p_origin_url?: string
-          p_ip_address?: unknown
-          p_user_agent?: string
-        }
-        Returns: Json
       }
       has_role: {
         Args: {
