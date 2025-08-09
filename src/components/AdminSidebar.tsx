@@ -39,22 +39,17 @@ const AdminSidebar = ({ collapsed = false, onToggleCollapse, showUserProfile = t
 
   useEffect(() => {
     const handleResize = () => {
-      setIsMobile(window.innerWidth < 768); // Adjust the breakpoint as needed
+      setIsMobile(window.innerWidth < 768);
     };
 
-    // Set initial value
     handleResize();
-
-    // Add event listener
     window.addEventListener('resize', handleResize);
-
-    // Clean up event listener on unmount
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
   const sidebarItems = [
     { name: 'Dashboard', href: '/dashboard', icon: BarChart3 },
-    { name: 'Host View', href: '/host', icon: Calendar },
+    { name: 'Host View', href: '/new-host', icon: Calendar },
     { name: 'Tables', href: '/tables', icon: Grid3X3 },
     { name: 'Services', href: '/services', icon: Coffee },
     { name: 'Guests', href: '/guests', icon: Users },
@@ -64,10 +59,14 @@ const AdminSidebar = ({ collapsed = false, onToggleCollapse, showUserProfile = t
   ];
 
   return (
-    <div className={`flex flex-col h-full bg-secondary border-r transition-all duration-300 ${collapsed ? 'w-16' : 'w-64'}`}>
+    <div className={`flex flex-col h-full bg-sidebar-background border-r border-sidebar-border transition-all duration-300 ${collapsed ? 'w-16' : 'w-64'}`}>
       <div className="px-4 py-6">
-        <a href="/dashboard">
-          <img src="/logo.svg" alt="Logo" className="h-8" />
+        <a href="/dashboard" className="block">
+          {collapsed ? (
+            <div className="grace-logo text-2xl text-center">G</div>
+          ) : (
+            <div className="grace-logo text-2xl">grace</div>
+          )}
         </a>
       </div>
       <div className="flex-grow p-4">
@@ -77,10 +76,10 @@ const AdminSidebar = ({ collapsed = false, onToggleCollapse, showUserProfile = t
               <NavLink
                 to={item.href}
                 className={({ isActive }) =>
-                  `flex items-center space-x-2 p-2 rounded-md hover:bg-muted transition ${
+                  `flex items-center space-x-2 p-2 rounded-md hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition ${
                     isActive
-                      ? 'bg-muted font-semibold text-primary'
-                      : 'text-muted-foreground'
+                      ? 'bg-sidebar-accent font-semibold text-sidebar-primary'
+                      : 'text-sidebar-foreground'
                   }`
                 }
               >
@@ -92,7 +91,7 @@ const AdminSidebar = ({ collapsed = false, onToggleCollapse, showUserProfile = t
         </ul>
       </div>
       {showUserProfile && (
-        <div className="p-4 border-t">
+        <div className="p-4 border-t border-sidebar-border">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className={`w-full flex items-center ${collapsed ? 'justify-center' : 'justify-between'}`}>
@@ -110,15 +109,15 @@ const AdminSidebar = ({ collapsed = false, onToggleCollapse, showUserProfile = t
                       {isLoading ? (
                         <Skeleton className="h-4 w-24" />
                       ) : (
-                        <span className="text-sm font-medium">{profile?.displayName}</span>
+                        <span className="text-sm font-medium text-sidebar-foreground">{profile?.displayName}</span>
                       )}
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-xs text-sidebar-foreground/70">
                         {profile?.email}
                       </span>
                     </div>
                   )}
                 </div>
-                {!collapsed && <MoreHorizontal className="w-4 h-4 text-muted-foreground" />}
+                {!collapsed && <MoreHorizontal className="w-4 h-4 text-sidebar-foreground/70" />}
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
