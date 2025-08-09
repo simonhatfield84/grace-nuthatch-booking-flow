@@ -1,4 +1,3 @@
-
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PlatformSettingsState } from "@/types/platformSettings";
@@ -87,7 +86,7 @@ export const useUpdatePlatformSettingsV2 = () => {
   });
 };
 
-// Initialize The Nuthatch branding settings
+// Initialize The Nuthatch branding settings with production domain
 export const useInitializeNuthatchBranding = () => {
   const updateSettings = useUpdatePlatformSettingsV2();
   
@@ -98,7 +97,7 @@ export const useInitializeNuthatchBranding = () => {
         from_name: "The Nuthatch",
         from_email: "nuthatch@grace-os.co.uk",
         email_signature: "Best regards,\nThe Nuthatch Team",
-        app_domain: "https://wxyotttvyexxzeaewyga.lovable.app"
+        app_domain: "https://grace-os.co.uk"
       };
       
       await updateSettings.mutateAsync(nuthatchSettings);
