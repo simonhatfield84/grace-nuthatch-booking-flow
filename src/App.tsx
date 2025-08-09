@@ -9,6 +9,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import RootRedirect from "@/components/auth/RootRedirect";
 import { StripeProvider } from "@/components/providers/StripeProvider";
+import { AdminLayout } from "@/components/layouts/AdminLayout";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Setup from "./pages/Setup";
@@ -100,17 +101,59 @@ function App() {
                       <Route path="/platform/subscriptions" element={<ProtectedRoute><PlatformSubscriptions /></ProtectedRoute>} />
                       <Route path="/platform/support" element={<ProtectedRoute><PlatformSupport /></ProtectedRoute>} />
 
-                      {/* Protected routes */}
+                      {/* Admin routes with AdminLayout - these get the sidebar */}
                       <Route path="/" element={<RootRedirect />} />
                       <Route path="/setup" element={<Setup />} />
-                      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                      <Route path="/dashboard" element={
+                        <ProtectedRoute>
+                          <AdminLayout>
+                            <Dashboard />
+                          </AdminLayout>
+                        </ProtectedRoute>
+                      } />
                       <Route path="/host" element={<ProtectedRoute><NewHostInterface /></ProtectedRoute>} />
-                      <Route path="/services" element={<ProtectedRoute><Services /></ProtectedRoute>} />
-                      <Route path="/tables" element={<ProtectedRoute><Tables /></ProtectedRoute>} />
-                      <Route path="/guests" element={<ProtectedRoute><Guests /></ProtectedRoute>} />
-                      <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-                      <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-                      <Route path="/wifi" element={<ProtectedRoute><WiFi /></ProtectedRoute>} />
+                      <Route path="/services" element={
+                        <ProtectedRoute>
+                          <AdminLayout>
+                            <Services />
+                          </AdminLayout>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/tables" element={
+                        <ProtectedRoute>
+                          <AdminLayout>
+                            <Tables />
+                          </AdminLayout>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/guests" element={
+                        <ProtectedRoute>
+                          <AdminLayout>
+                            <Guests />
+                          </AdminLayout>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/settings" element={
+                        <ProtectedRoute>
+                          <AdminLayout>
+                            <Settings />
+                          </AdminLayout>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/reports" element={
+                        <ProtectedRoute>
+                          <AdminLayout>
+                            <Reports />
+                          </AdminLayout>
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/wifi" element={
+                        <ProtectedRoute>
+                          <AdminLayout>
+                            <WiFi />
+                          </AdminLayout>
+                        </ProtectedRoute>
+                      } />
                       
                       {/* 404 page */}
                       <Route path="*" element={<NotFound />} />
