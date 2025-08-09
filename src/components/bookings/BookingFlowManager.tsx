@@ -1,6 +1,3 @@
-// DEPRECATED — not used. Do not modify.
-// This component has been replaced by the canonical NuthatchBookingWidget from Friday 8 Aug 2025.
-// Use src/features/booking/components/NuthatchBookingWidget.tsx instead.
 
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
@@ -24,12 +21,7 @@ interface BookingFlowManagerProps {
   onStepChange?: (step: BookingStep) => void;
 }
 
-// DEPRECATED: Export a noop to prevent accidental usage
 export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManagerProps) => {
-  if (process.env.NODE_ENV === 'development') {
-    console.warn('⚠️ DEPRECATED: BookingFlowManager is deprecated. Use NuthatchBookingWidget instead.');
-  }
-  
   const [currentStep, setCurrentStep] = useState<BookingStep>('party');
   const [bookingData, setBookingData] = useState({
     partySize: 2, // Default party size

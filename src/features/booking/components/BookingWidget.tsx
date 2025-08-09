@@ -1,22 +1,23 @@
 
-
 import { BookingProvider } from '../contexts/BookingContext';
 import { useBookingFlow } from '../hooks/useBookingFlow';
-import { PartyDateStep } from './steps/PartyDateStep';
+import { PartyStep } from './steps/PartyStep';
+import { DateStep } from './steps/DateStep';
 import { TimeStep } from './steps/TimeStep';
 import { ServiceStep } from './steps/ServiceStep';
 import { GuestDetailsStep } from './steps/GuestDetailsStep';
 import { BookingConfirmation } from '@/components/bookings/BookingConfirmation';
 import { StepNavigation } from './shared/StepNavigation';
 import { ProgressIndicator } from './shared/ProgressIndicator';
-import { Loader2, Users, Clock, Utensils, User } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 interface BookingWidgetProps {
   venueSlug: string;
 }
 
 const STEP_TITLES = [
-  'Party & Date',
+  'Party Size',
+  'Select Date', 
   'Choose Time',
   'Select Service',
   'Your Details',
@@ -60,55 +61,25 @@ function BookingWidgetContent({ venueSlug }: BookingWidgetProps) {
     );
   }
 
-  const handlePartyDateContinue = (partySize: number, date: Date) => {
-    handlePartySelection(partySize);
-    handleDateSelection(date);
-  };
-
-  // Create proper step objects for ProgressIndicator
-  const steps = [
-    {
-      id: 'party-date',
-      name: 'Party & Date',
-      icon: Users,
-      isValid: bookingData.partySize > 0 && bookingData.date !== null,
-      isCompleted: bookingData.partySize > 0 && bookingData.date !== null && currentStep > 0
-    },
-    {
-      id: 'time',
-      name: 'Choose Time',
-      icon: Clock,
-      isValid: bookingData.time !== '',
-      isCompleted: bookingData.time !== '' && currentStep > 1
-    },
-    {
-      id: 'service',
-      name: 'Select Service',
-      icon: Utensils,
-      isValid: bookingData.service !== null,
-      isCompleted: bookingData.service !== null && currentStep > 2
-    },
-    {
-      id: 'details',
-      name: 'Your Details',
-      icon: User,
-      isValid: bookingData.guestDetails !== null,
-      isCompleted: bookingData.guestDetails !== null && currentStep > 3
-    }
-  ];
-
   const renderStep = () => {
     switch (currentStep) {
       case 0:
         return (
-          <PartyDateStep
-            initialPartySize={bookingData.partySize}
-            selectedDate={bookingData.date}
-            onContinue={handlePartyDateContinue}
-            venueId={venue.id}
+          <PartyStep
+            initialSize={bookingData.partySize}
+            onContinue={handlePartySelection}
           />
         );
       case 1:
+        return (
+          <DateStep
+            selectedDate={bookingData.date}
+            onDateSelect={handleDateSelection}
+            partySize={bookingData.partySize}
+            venueId={venue.id}
+          />
+        );
+      case 2:
         return (
           <TimeStep
             selectedTime={bookingData.time}
@@ -118,7 +89,7 @@ function BookingWidgetContent({ venueSlug }: BookingWidgetProps) {
             venueId={venue.id}
           />
         );
-      case 2:
+      case 3:
         return (
           <ServiceStep
             selectedService={bookingData.service}
@@ -128,7 +99,7 @@ function BookingWidgetContent({ venueSlug }: BookingWidgetProps) {
             venueId={venue.id}
           />
         );
-      case 3:
+      case 4:
         return (
           <GuestDetailsStep
             onNext={handleGuestDetails}
@@ -140,7 +111,7 @@ function BookingWidgetContent({ venueSlug }: BookingWidgetProps) {
             venueSlug={venueSlug}
           />
         );
-      case 4:
+      case 5:
         return (
           <BookingConfirmation
             bookingData={{
@@ -158,9 +129,9 @@ function BookingWidgetContent({ venueSlug }: BookingWidgetProps) {
 
   return (
     <div className="max-w-md mx-auto">
-      {currentStep !== 4 && (
+      {currentStep !== 5 && (
         <ProgressIndicator 
-          steps={steps}
+          steps={[]}
           currentStep={currentStep} 
         />
       )}
@@ -169,7 +140,7 @@ function BookingWidgetContent({ venueSlug }: BookingWidgetProps) {
         currentStep={currentStep}
         totalSteps={STEP_TITLES.length}
         onBack={goBack}
-        showBack={currentStep > 0 && currentStep !== 4}
+        showBack={currentStep > 0 && currentStep !== 5}
       />
       
       {renderStep()}
@@ -188,4 +159,3 @@ export function BookingWidget({ venueSlug }: BookingWidgetProps) {
     </BookingProvider>
   );
 }
-
