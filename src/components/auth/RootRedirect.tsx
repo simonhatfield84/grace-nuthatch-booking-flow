@@ -7,7 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
 import HomePage from '@/pages/HomePage';
 
-export default function RootRedirect() {
+function RootRedirect() {
   const { user, loading: authLoading } = useAuth();
 
   console.log('🔄 RootRedirect - User:', user?.email, 'Loading:', authLoading);
@@ -83,3 +83,5 @@ export default function RootRedirect() {
   console.log('🏠 Unknown user type, showing homepage');
   return <HomePage />;
 }
+
+export default RootRedirect;
