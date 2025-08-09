@@ -870,6 +870,102 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_documents: {
+        Row: {
+          content_md: string | null
+          created_at: string
+          file_size: number | null
+          id: string
+          last_modified: string
+          path: string
+          sha: string
+          title: string
+          type: string
+        }
+        Insert: {
+          content_md?: string | null
+          created_at?: string
+          file_size?: number | null
+          id?: string
+          last_modified: string
+          path: string
+          sha: string
+          title: string
+          type?: string
+        }
+        Update: {
+          content_md?: string | null
+          created_at?: string
+          file_size?: number | null
+          id?: string
+          last_modified?: string
+          path?: string
+          sha?: string
+          title?: string
+          type?: string
+        }
+        Relationships: []
+      }
+      platform_logs: {
+        Row: {
+          content_text: string | null
+          created_at: string
+          error_details: Json | null
+          id: string
+          last_modified: string | null
+          metadata: Json | null
+          path: string | null
+          severity: string | null
+          sha: string | null
+          type: string
+        }
+        Insert: {
+          content_text?: string | null
+          created_at?: string
+          error_details?: Json | null
+          id?: string
+          last_modified?: string | null
+          metadata?: Json | null
+          path?: string | null
+          severity?: string | null
+          sha?: string | null
+          type: string
+        }
+        Update: {
+          content_text?: string | null
+          created_at?: string
+          error_details?: Json | null
+          id?: string
+          last_modified?: string | null
+          metadata?: Json | null
+          path?: string | null
+          severity?: string | null
+          sha?: string | null
+          type?: string
+        }
+        Relationships: []
+      }
+      platform_metadata: {
+        Row: {
+          created_at: string
+          id: string
+          key: string
+          value_json: Json
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          key: string
+          value_json: Json
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          key?: string
+          value_json?: Json
+        }
+        Relationships: []
+      }
       platform_metrics: {
         Row: {
           active_venues: number | null
