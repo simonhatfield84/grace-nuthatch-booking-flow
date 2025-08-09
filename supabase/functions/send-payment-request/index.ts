@@ -61,6 +61,25 @@ serve(async (req) => {
     // Generate payment intent ID
     const paymentIntentId = `pi_${booking_id}_${Date.now()}`
 
+    // Create booking payment record BEFORE sending email
+    const { data: paymentRecord, error: paymentError } = await supabaseClient
+      .from('booking_payments')
+      .insert({
+        booking_id: booking_id,
+        amount_cents: amount_cents,
+        stripe_payment_intent_id: paymentIntentId,
+        status: 'pending'
+      })
+      .select()
+      .single()
+
+    if (paymentError) {
+      console.error('❌ Error creating payment record:', paymentError)
+      throw new Error('Failed to create payment record')
+    }
+
+    console.log('💰 Payment record created:', paymentRecord)
+
     // Get venue info for branding
     const { data: venue, error: venueError } = await supabaseClient
       .from('venues')
@@ -91,10 +110,10 @@ serve(async (req) => {
       return acc
     }, {} as Record<string, string>) || {}
 
-    // Use The Nuthatch branding instead of Grace OS
+    // Use The Nuthatch branding
     const fromEmail = settings.from_email || 'nuthatch@grace-os.co.uk'
-    const fromName = 'The Nuthatch' // Changed from Grace OS
-    const emailSignature = 'Best regards,\nThe Nuthatch Team' // Changed from Grace OS
+    const fromName = 'The Nuthatch'
+    const emailSignature = 'Best regards,\nThe Nuthatch Team'
     const appDomain = settings.app_domain || 'https://wxyotttvyexxzeaewyga.lovable.app'
 
     // Format booking details
