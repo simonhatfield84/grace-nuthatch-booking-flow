@@ -9,12 +9,6 @@ export interface PaymentReconciliationData {
   stripeStatus: string;
 }
 
-// Extended type to include processed_at field that exists in DB but not in generated types
-interface ExtendedPayment {
-  status: string;
-  processed_at: string | null;
-}
-
 export const reconcilePayment = async (data: PaymentReconciliationData) => {
   try {
     console.log('🔧 Starting manual payment reconciliation for booking:', data.bookingId);
@@ -153,7 +147,7 @@ export const checkPaymentConsistency = async (bookingId: number) => {
       return { consistent: false, reason: 'missing_booking_record' };
     }
 
-    // Query payment data with proper error handling and type assertion
+    // Query payment data with proper error handling
     const { data: paymentData, error: paymentError } = await supabase
       .from('booking_payments')
       .select('status, processed_at')
@@ -177,11 +171,8 @@ export const checkPaymentConsistency = async (bookingId: number) => {
       .eq('booking_id', bookingId)
       .order('created_at', { ascending: false });
 
-    // Type assertion to tell TypeScript that processed_at exists
-    const payment = paymentData as ExtendedPayment;
-
     // Check for consistency issues
-    if (booking.status === 'confirmed' && payment.status !== 'succeeded') {
+    if (booking.status === 'confirmed' && paymentData.status !== 'succeeded') {
       return { 
         consistent: false, 
         reason: 'booking_confirmed_payment_not_succeeded',
@@ -189,7 +180,7 @@ export const checkPaymentConsistency = async (bookingId: number) => {
       };
     }
 
-    if (payment.status === 'succeeded' && booking.status !== 'confirmed') {
+    if (paymentData.status === 'succeeded' && booking.status !== 'confirmed') {
       return { 
         consistent: false, 
         reason: 'payment_succeeded_booking_not_confirmed',
@@ -198,7 +189,7 @@ export const checkPaymentConsistency = async (bookingId: number) => {
     }
 
     // Check processed_at timestamp if payment is succeeded
-    if (payment.status === 'succeeded' && !payment.processed_at) {
+    if (paymentData.status === 'succeeded' && !paymentData.processed_at) {
       return { 
         consistent: false, 
         reason: 'missing_processed_timestamp',

@@ -37,7 +37,19 @@ export const WebhookEventsMonitor = () => {
     try {
       const { data, error } = await supabase
         .from('webhook_events')
-        .select('*')
+        .select(`
+          id,
+          stripe_event_id,
+          event_type,
+          processing_status,
+          venue_id,
+          booking_id,
+          payment_intent_id,
+          amount_cents,
+          error_details,
+          processed_at,
+          created_at
+        `)
         .order('created_at', { ascending: false })
         .limit(50);
 
