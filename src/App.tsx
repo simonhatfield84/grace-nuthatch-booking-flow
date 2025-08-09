@@ -72,94 +72,104 @@ function App() {
           </WifiPublicLayout>
         } />
         
-        {/* All other routes - full provider stack */}
+        {/* All other routes - full provider stack but selective Stripe usage */}
         <Route path="/*" element={
           <QueryClientProvider client={queryClient}>
             <TooltipProvider>
               <Toaster />
               <Sonner />
               <AuthProvider>
-                <StripeProvider>
-                  <ErrorBoundary>
-                    <Routes>
-                      {/* Public routes */}
-                      <Route path="/homepage" element={<HomePage />} />
-                      <Route path="/auth" element={<Auth />} />
-                      
-                      {/* Booking widget - public, static route for single venue */}
-                      <Route path="/booking" element={<BookingWidget />} />
-                      <Route path="/modify/:token" element={<ModifyBooking />} />
-                      <Route path="/cancel/:token" element={<CancelBooking />} />
+                <ErrorBoundary>
+                  <Routes>
+                    {/* Public routes */}
+                    <Route path="/homepage" element={<HomePage />} />
+                    <Route path="/auth" element={<Auth />} />
+                    
+                    {/* Booking widget - public, needs Stripe */}
+                    <Route path="/booking" element={
+                      <StripeProvider>
+                        <BookingWidget />
+                      </StripeProvider>
+                    } />
+                    <Route path="/modify/:token" element={
+                      <StripeProvider>
+                        <ModifyBooking />
+                      </StripeProvider>
+                    } />
+                    <Route path="/cancel/:token" element={
+                      <StripeProvider>
+                        <CancelBooking />
+                      </StripeProvider>
+                    } />
 
-                      {/* Platform admin routes */}
-                      <Route path="/platform/auth" element={<PlatformAuth />} />
-                      <Route path="/platform/dashboard" element={<ProtectedRoute><PlatformDashboard /></ProtectedRoute>} />
-                      <Route path="/platform/venues" element={<ProtectedRoute><PlatformVenues /></ProtectedRoute>} />
-                      <Route path="/platform/users" element={<ProtectedRoute><PlatformUsers /></ProtectedRoute>} />
-                      <Route path="/platform/settings" element={<ProtectedRoute><PlatformSettings /></ProtectedRoute>} />
-                      <Route path="/platform/security" element={<ProtectedRoute><PlatformSecurity /></ProtectedRoute>} />
-                      <Route path="/platform/subscriptions" element={<ProtectedRoute><PlatformSubscriptions /></ProtectedRoute>} />
-                      <Route path="/platform/support" element={<ProtectedRoute><PlatformSupport /></ProtectedRoute>} />
+                    {/* Platform admin routes */}
+                    <Route path="/platform/auth" element={<PlatformAuth />} />
+                    <Route path="/platform/dashboard" element={<ProtectedRoute><PlatformDashboard /></ProtectedRoute>} />
+                    <Route path="/platform/venues" element={<ProtectedRoute><PlatformVenues /></ProtectedRoute>} />
+                    <Route path="/platform/users" element={<ProtectedRoute><PlatformUsers /></ProtectedRoute>} />
+                    <Route path="/platform/settings" element={<ProtectedRoute><PlatformSettings /></ProtectedRoute>} />
+                    <Route path="/platform/security" element={<ProtectedRoute><PlatformSecurity /></ProtectedRoute>} />
+                    <Route path="/platform/subscriptions" element={<ProtectedRoute><PlatformSubscriptions /></ProtectedRoute>} />
+                    <Route path="/platform/support" element={<ProtectedRoute><PlatformSupport /></ProtectedRoute>} />
 
-                      {/* Admin routes with AdminLayout - these get the sidebar */}
-                      <Route path="/" element={<RootRedirect />} />
-                      <Route path="/setup" element={<Setup />} />
-                      <Route path="/dashboard" element={
-                        <ProtectedRoute>
-                          <AdminLayout>
-                            <Dashboard />
-                          </AdminLayout>
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/host" element={<ProtectedRoute><NewHostInterface /></ProtectedRoute>} />
-                      <Route path="/services" element={
-                        <ProtectedRoute>
-                          <AdminLayout>
-                            <Services />
-                          </AdminLayout>
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/tables" element={
-                        <ProtectedRoute>
-                          <AdminLayout>
-                            <Tables />
-                          </AdminLayout>
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/guests" element={
-                        <ProtectedRoute>
-                          <AdminLayout>
-                            <Guests />
-                          </AdminLayout>
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/settings" element={
-                        <ProtectedRoute>
-                          <AdminLayout>
-                            <Settings />
-                          </AdminLayout>
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/reports" element={
-                        <ProtectedRoute>
-                          <AdminLayout>
-                            <Reports />
-                          </AdminLayout>
-                        </ProtectedRoute>
-                      } />
-                      <Route path="/wifi" element={
-                        <ProtectedRoute>
-                          <AdminLayout>
-                            <WiFi />
-                          </AdminLayout>
-                        </ProtectedRoute>
-                      } />
-                      
-                      {/* 404 page */}
-                      <Route path="*" element={<NotFound />} />
-                    </Routes>
-                  </ErrorBoundary>
-                </StripeProvider>
+                    {/* Admin routes with AdminLayout - NO STRIPE PROVIDER */}
+                    <Route path="/" element={<RootRedirect />} />
+                    <Route path="/setup" element={<Setup />} />
+                    <Route path="/dashboard" element={
+                      <ProtectedRoute>
+                        <AdminLayout>
+                          <Dashboard />
+                        </AdminLayout>
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/host" element={<ProtectedRoute><NewHostInterface /></ProtectedRoute>} />
+                    <Route path="/services" element={
+                      <ProtectedRoute>
+                        <AdminLayout>
+                          <Services />
+                        </AdminLayout>
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/tables" element={
+                      <ProtectedRoute>
+                        <AdminLayout>
+                          <Tables />
+                        </AdminLayout>
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/guests" element={
+                      <ProtectedRoute>
+                        <AdminLayout>
+                          <Guests />
+                        </AdminLayout>
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/settings" element={
+                      <ProtectedRoute>
+                        <AdminLayout>
+                          <Settings />
+                        </AdminLayout>
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/reports" element={
+                      <ProtectedRoute>
+                        <AdminLayout>
+                          <Reports />
+                        </AdminLayout>
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/wifi" element={
+                      <ProtectedRoute>
+                        <AdminLayout>
+                          <WiFi />
+                        </AdminLayout>
+                      </ProtectedRoute>
+                    } />
+                    
+                    {/* 404 page */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </ErrorBoundary>
               </AuthProvider>
             </TooltipProvider>
           </QueryClientProvider>
