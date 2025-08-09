@@ -8,6 +8,8 @@ interface UserProfile {
   first_name: string | null;
   last_name: string | null;
   displayName: string;
+  full_name?: string;
+  avatar_url?: string;
 }
 
 export const useUserProfile = (userId?: string) => {
@@ -31,19 +33,27 @@ export const useUserProfile = (userId?: string) => {
       
       // Create display name with fallback logic
       let displayName = '';
+      let full_name = '';
+      
       if (data.first_name && data.last_name) {
         displayName = `${data.first_name} ${data.last_name}`;
+        full_name = displayName;
       } else if (data.first_name) {
         displayName = data.first_name;
+        full_name = data.first_name;
       } else if (data.last_name) {
         displayName = data.last_name;
+        full_name = data.last_name;
       } else {
         displayName = data.email;
+        full_name = data.email;
       }
       
       return {
         ...data,
-        displayName
+        displayName,
+        full_name,
+        avatar_url: undefined // No avatar URL available in this simple profile
       };
     },
     enabled: !!userId,

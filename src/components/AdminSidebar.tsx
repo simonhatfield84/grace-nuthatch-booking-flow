@@ -1,3 +1,4 @@
+
 import {
   BarChart3,
   Calendar,
@@ -9,7 +10,7 @@ import {
   Wifi,
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { useEffect, useState } from 'react';
 import {
   DropdownMenu,
@@ -20,14 +21,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useUserProfile } from '@/hooks/useUserProfile';
+import { useCurrentUserProfile } from '@/hooks/useUserProfile';
 import { Skeleton } from "@/components/ui/skeleton"
 import { MoreHorizontal } from "lucide-react"
 
-export const AdminSidebar = () => {
+const AdminSidebar = () => {
   const location = useLocation();
   const { signOut } = useAuth();
-  const { data: profile, isLoading } = useUserProfile();
+  const { data: profile, isLoading } = useCurrentUserProfile();
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -93,15 +94,15 @@ export const AdminSidebar = () => {
                   <Skeleton className="h-8 w-8 rounded-full" />
                 ) : (
                   <Avatar>
-                    <AvatarImage src={profile?.avatar_url || ""} />
-                    <AvatarFallback>{profile?.full_name?.charAt(0)}</AvatarFallback>
+                    <AvatarImage src="" />
+                    <AvatarFallback>{profile?.displayName?.charAt(0)}</AvatarFallback>
                   </Avatar>
                 )}
                 <div className="flex flex-col items-start">
                   {isLoading ? (
                     <Skeleton className="h-4 w-24" />
                   ) : (
-                    <span className="text-sm font-medium">{profile?.full_name}</span>
+                    <span className="text-sm font-medium">{profile?.displayName}</span>
                   )}
                   <span className="text-xs text-muted-foreground">
                     {profile?.email}
@@ -121,3 +122,5 @@ export const AdminSidebar = () => {
     </div>
   );
 };
+
+export default AdminSidebar;
