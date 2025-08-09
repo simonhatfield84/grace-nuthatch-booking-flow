@@ -86,3 +86,28 @@ export const useUpdatePlatformSettingsV2 = () => {
     },
   });
 };
+
+// Initialize The Nuthatch branding settings
+export const useInitializeNuthatchBranding = () => {
+  const updateSettings = useUpdatePlatformSettingsV2();
+  
+  return useMutation({
+    mutationFn: async () => {
+      const nuthatchSettings = {
+        platform_name: "The Nuthatch",
+        from_name: "The Nuthatch",
+        from_email: "nuthatch@grace-os.co.uk",
+        email_signature: "Best regards,\nThe Nuthatch Team",
+        app_domain: "https://wxyotttvyexxzeaewyga.lovable.app"
+      };
+      
+      await updateSettings.mutateAsync(nuthatchSettings);
+    },
+    onSuccess: () => {
+      console.log('✅ The Nuthatch branding initialized successfully');
+    },
+    onError: (error) => {
+      console.error('❌ Failed to initialize The Nuthatch branding:', error);
+    }
+  });
+};
