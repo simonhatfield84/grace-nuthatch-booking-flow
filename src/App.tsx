@@ -160,23 +160,21 @@ function App() {
 
             {/* Platform admin routes */}
             <Route
-              path="/platform/*"
+              path="/platform"
               element={
                 <ProtectedRoute>
-                  <PlatformAdminLayout>
-                    <Routes>
-                      <Route path="dashboard" element={<PlatformDashboard />} />
-                      <Route path="users" element={<PlatformUsers />} />
-                      <Route path="venues" element={<PlatformVenues />} />
-                      <Route path="subscriptions" element={<PlatformSubscriptions />} />
-                      <Route path="settings" element={<PlatformSettings />} />
-                      <Route path="security" element={<PlatformSecurity />} />
-                      <Route path="support" element={<PlatformSupport />} />
-                    </Routes>
-                  </PlatformAdminLayout>
+                  <PlatformAdminLayout />
                 </ProtectedRoute>
               }
-            />
+            >
+              <Route path="dashboard" element={<PlatformDashboard />} />
+              <Route path="users" element={<PlatformUsers />} />
+              <Route path="venues" element={<PlatformVenues />} />
+              <Route path="subscriptions" element={<PlatformSubscriptions />} />
+              <Route path="settings" element={<PlatformSettings />} />
+              <Route path="security" element={<PlatformSecurity />} />
+              <Route path="support" element={<PlatformSupport />} />
+            </Route>
 
             {/* Catch all route */}
             <Route path="*" element={<NotFound />} />
