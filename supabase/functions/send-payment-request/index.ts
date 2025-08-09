@@ -1,14 +1,10 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
-
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -16,230 +12,213 @@ serve(async (req) => {
   }
 
   try {
+    const { booking_id, amount_cents, venue_id, custom_message } = await req.json()
+
+    console.log('📧 Processing payment request:', {
+      booking_id,
+      amount_cents,
+      venue_id,
+      custom_message
+    })
+
+    // Initialize Supabase client
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    const { booking_id, venue_id, amount_cents, custom_message } = await req.json()
-
-    console.log('Processing payment request:', { booking_id, venue_id, amount_cents });
-
-    // Get booking details
+    // Fetch booking data
     const { data: booking, error: bookingError } = await supabaseClient
       .from('bookings')
-      .select('*')
+      .select('id, guest_name, email, booking_date, booking_time, party_size, service, booking_reference')
       .eq('id', booking_id)
       .single()
 
     if (bookingError || !booking) {
+      console.error('❌ Error fetching booking:', bookingError)
       throw new Error('Booking not found')
     }
 
-    // Get venue details
+    console.log('🎫 Booking info:', booking)
+
+    // Generate payment intent ID
+    const paymentIntentId = `pi_${booking_id}_${Date.now()}`
+
+    // Get venue info for branding and app domain
     const { data: venue, error: venueError } = await supabaseClient
       .from('venues')
-      .select('name, email')
+      .select('name, slug')
       .eq('id', venue_id)
       .single()
 
     if (venueError || !venue) {
+      console.error('❌ Error fetching venue:', venueError)
       throw new Error('Venue not found')
     }
 
-    // Create Stripe payment intent
-    const { data: paymentIntent, error: stripeError } = await supabaseClient.functions.invoke(
-      'create-payment-intent',
-      {
-        body: {
-          bookingId: booking_id,
-          amount: amount_cents,
-          currency: 'gbp',
-          description: `Payment for booking ${booking.booking_reference || `BK-${booking_id}`}`,
-          metadata: {
-            venue_id: venue_id,
-            guest_email: booking.email
-          }
-        }
-      }
-    )
+    console.log('🏢 Venue info:', venue)
 
-    if (stripeError || !paymentIntent) {
-      throw new Error('Failed to create payment intent')
-    }
-
-    // Create payment request record
-    const paymentLink = `https://wxyotttvyexxzeaewyga.supabase.co/payment/${paymentIntent.payment_intent_id}`
-    
-    const { error: requestError } = await supabaseClient
-      .from('payment_requests')
-      .insert([{
-        booking_id,
-        venue_id,
-        amount_cents,
-        payment_link: paymentLink,
-        status: 'pending'
-      }])
-
-    if (requestError) {
-      throw new Error('Failed to create payment request record')
-    }
-
-    // Get venue email settings
-    const { data: venueSettings } = await supabaseClient
-      .from('venue_settings')
-      .select('setting_key, setting_value')
-      .eq('venue_id', venue_id)
-      .in('setting_key', ['from_email', 'from_name', 'email_signature']);
-
-    const venueEmailSettings: Record<string, string> = {};
-    venueSettings?.forEach(setting => {
-      try {
-        const parsedValue = typeof setting.setting_value === 'string' 
-          ? JSON.parse(setting.setting_value) 
-          : setting.setting_value;
-        venueEmailSettings[setting.setting_key] = String(parsedValue || '');
-      } catch {
-        venueEmailSettings[setting.setting_key] = String(setting.setting_value || '');
-      }
-    });
-
-    // Get platform settings for fallback
-    const { data: platformSettings } = await supabaseClient
+    // Get platform settings for email configuration and app domain
+    const { data: platformSettings, error: settingsError } = await supabaseClient
       .from('platform_settings')
       .select('setting_key, setting_value')
-      .in('setting_key', ['from_email', 'from_name']);
+      .in('setting_key', ['from_email', 'from_name', 'email_signature', 'app_domain'])
 
-    const platformEmailSettings: Record<string, string> = {};
-    platformSettings?.forEach(setting => {
-      try {
-        const parsedValue = typeof setting.setting_value === 'string' 
-          ? JSON.parse(setting.setting_value) 
-          : setting.setting_value;
-        platformEmailSettings[setting.setting_key] = String(parsedValue || '');
-      } catch {
-        platformEmailSettings[setting.setting_key] = String(setting.setting_value || '');
-      }
-    });
+    if (settingsError) {
+      console.error('❌ Error fetching platform settings:', settingsError)
+    }
 
-    // Set from address
-    const fromEmail = venueEmailSettings.from_email || platformEmailSettings.from_email || 'nuthatch@grace-os.co.uk';
-    const fromName = venueEmailSettings.from_name || venue.name || platformEmailSettings.from_name || 'Grace OS';
-    const fromAddress = `${fromName} <${fromEmail}>`;
+    // Convert settings to object
+    const settings = platformSettings?.reduce((acc, setting) => {
+      acc[setting.setting_key] = JSON.parse(setting.setting_value)
+      return acc
+    }, {} as Record<string, string>) || {}
 
-    // Format booking date and time
-    const bookingDate = new Date(booking.booking_date).toLocaleDateString('en-US', {
+    // Use default values if settings not found
+    const fromEmail = settings.from_email || 'nuthatch@grace-os.co.uk'
+    const fromName = settings.from_name || 'Grace OS'
+    const emailSignature = settings.email_signature || 'Best regards,\nThe Nuthatch Team'
+    const appDomain = settings.app_domain || 'https://wxyotttvyexxzeaewyga.lovable.app'
+
+    // Format booking details
+    const formattedDate = new Date(booking.booking_date).toLocaleDateString('en-GB', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
       day: 'numeric'
-    });
+    })
 
-    const formatTime = (timeString: string): string => {
-      if (!timeString) return '';
-      const timeParts = timeString.split(':');
-      const hours = parseInt(timeParts[0]);
-      const minutes = timeParts[1] || '00';
-      
-      if (hours === 0) {
-        return `12:${minutes} AM`;
-      } else if (hours < 12) {
-        return `${hours}:${minutes} AM`;
-      } else if (hours === 12) {
-        return `12:${minutes} PM`;
-      } else {
-        return `${hours - 12}:${minutes} PM`;
-      }
-    };
+    const formattedTime = booking.booking_time
+    const formattedAmount = (amount_cents / 100).toFixed(2)
 
-    const bookingTime = formatTime(booking.booking_time);
-    const paymentAmount = `£${(amount_cents / 100).toFixed(2)}`;
-    const emailSignature = venueEmailSettings.email_signature || `Best regards,\n${venue.name} Team`;
+    // Create payment link pointing to our React app
+    const paymentLink = `${appDomain}/payment/${paymentIntentId}`
+    
+    console.log('💳 Payment link created:', paymentLink)
 
-    // Create email content
-    const subject = `Payment Request - ${venue.name} Booking`;
-    const html = `
+    // Create branded HTML email template matching the booking confirmation style
+    const subject = `Payment Required - ${venue.name}`
+    const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="text-align: center; margin-bottom: 30px;">
-          <h2 style="color: #000; margin: 20px 0;">${venue.name}</h2>
-          <p style="color: #666; margin: 5px 0;">Payment Request</p>
+          <img src="${appDomain}/lovable-uploads/0fac96e7-74c4-452d-841d-1d727bf769c7.png" alt="The Nuthatch" style="height: 60px; width: auto; margin: 20px 0;" />
+          <p style="color: #64748b; margin: 5px 0;">Payment Request</p>
         </div>
-        
-        <div style="background: #f8f9fa; padding: 30px; border-radius: 8px;">
-          <h2 style="color: #000; margin-top: 0;">Payment Required</h2>
+        <div style="background: #f8fafc; padding: 30px; border-radius: 8px;">
+          <h2 style="color: #1e293b; margin-top: 0;">Payment Required for Your Booking</h2>
           <p>Dear ${booking.guest_name},</p>
-          <p>A payment is required to secure your booking at ${venue.name}.</p>
+          <p>To secure your booking at ${venue.name}, please complete your payment of <strong>£${formattedAmount}</strong>.</p>
           
-          <div style="background: white; padding: 20px; border-radius: 5px; margin: 20px 0; border: 1px solid #ddd;">
-            <h3 style="margin-top: 0; color: #000;">Booking Details</h3>
-            <p><strong>Reference:</strong> ${booking.booking_reference || `BK-${booking.id}`}</p>
-            <p><strong>Service:</strong> ${booking.service || 'Dinner'}</p>
-            <p><strong>Date:</strong> ${bookingDate}</p>
-            <p><strong>Time:</strong> ${bookingTime}</p>
-            <p><strong>Party Size:</strong> ${booking.party_size} ${booking.party_size === 1 ? 'guest' : 'guests'}</p>
-            <p><strong>Amount Due:</strong> ${paymentAmount}</p>
-          </div>
+          ${custom_message ? `<div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <p style="margin: 0; color: #856404;"><strong>Personal Message:</strong></p>
+            <p style="margin: 5px 0 0 0; color: #856404;">${custom_message}</p>
+          </div>` : ''}
           
-          ${custom_message ? `
-          <div style="background: #e3f2fd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #2196f3;">
-            <p style="margin: 0; font-style: italic;">${custom_message}</p>
+          <div style="background: white; padding: 20px; border-radius: 5px; margin: 20px 0;">
+            <h3 style="margin-top: 0; color: #000000;">Booking Details</h3>
+            <p><strong>Reference:</strong> ${booking.booking_reference}</p>
+            <p><strong>Date:</strong> ${formattedDate}</p>
+            <p><strong>Time:</strong> ${formattedTime}</p>
+            <p><strong>Party Size:</strong> ${booking.party_size} guests</p>
+            <p><strong>Service:</strong> ${booking.service}</p>
+            <p><strong>Venue:</strong> ${venue.name}</p>
+            <p><strong>Amount Due:</strong> £${formattedAmount}</p>
           </div>
-          ` : ''}
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${paymentLink}" style="background: #000; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; font-weight: bold;">Pay Now</a>
+            <a href="${paymentLink}" style="background: #8B4513; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-size: 16px; font-weight: bold; display: inline-block;">Complete Payment</a>
           </div>
           
-          <p style="color: #666; font-size: 12px; margin-top: 30px;">
-            This payment request will expire in 24 hours. Please complete your payment to secure your booking.
+          <p style="color: #64748b; font-size: 14px; margin-top: 30px;">
+            <strong>Important:</strong> This payment request will expire in 24 hours. If you have any questions or need assistance, please contact us directly.
           </p>
+          
+          <p>We look forward to welcoming you!</p>
         </div>
-        
-        <div style="text-align: center; color: #666; font-size: 12px; margin-top: 30px;">
-          <p style="white-space: pre-line;">${emailSignature}</p>
+        <div style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 30px;">
+          <p>${emailSignature}</p>
           <p style="margin-top: 20px; font-size: 10px; color: #999;">Powered by Grace</p>
         </div>
       </div>
-    `;
+    `
 
-    console.log('Sending payment request email to:', booking.email);
-
-    // Send email directly using Resend
-    const emailResponse = await resend.emails.send({
-      from: fromAddress,
-      to: [booking.email],
-      subject,
-      html,
-    });
-
-    console.log('Email response:', emailResponse);
-
-    if (emailResponse.error) {
-      console.error('Email sending failed:', emailResponse.error);
-      throw new Error(`Failed to send payment request email: ${emailResponse.error.message}`);
+    // Send email directly via Resend
+    const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
+    if (!RESEND_API_KEY) {
+      console.error('❌ RESEND_API_KEY not configured')
+      throw new Error('Email service not configured')
     }
 
-    // Update booking status to pending_payment
-    await supabaseClient
-      .from('bookings')
-      .update({ status: 'pending_payment' })
-      .eq('id', booking_id)
+    console.log('📤 Sending payment request email via Resend:', {
+      from: `${fromName} <${fromEmail}>`,
+      to: booking.email,
+      subject
+    })
+
+    const resendResponse = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: `${fromName} <${fromEmail}>`,
+        to: [booking.email],
+        subject,
+        html: htmlContent,
+      }),
+    })
+
+    const responseText = await resendResponse.text()
+    console.log('📬 Resend response status:', resendResponse.status)
+    console.log('📬 Resend response:', responseText)
+
+    if (!resendResponse.ok) {
+      console.error('❌ Resend API error:', {
+        status: resendResponse.status,
+        response: responseText
+      })
+      
+      // Try to parse error details
+      let errorDetails = 'Unknown Resend error'
+      try {
+        const errorData = JSON.parse(responseText)
+        errorDetails = errorData.message || JSON.stringify(errorData)
+      } catch (e) {
+        errorDetails = responseText || `HTTP ${resendResponse.status}`
+      }
+      
+      throw new Error(`Resend API error: ${errorDetails}`)
+    }
+
+    const resendResult = JSON.parse(responseText)
+    console.log('✅ Payment request email sent successfully:', resendResult.id)
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        payment_intent_id: paymentIntent.payment_intent_id,
+        message: 'Payment request sent successfully',
         payment_link: paymentLink,
-        email_id: emailResponse.data?.id
+        resend_id: resendResult.id
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
     )
 
   } catch (error) {
-    console.error('Error:', error)
+    console.error('❌ Send payment request error:', error)
+    
     return new Response(
-      JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ 
+        success: false, 
+        error: error.message || 'Failed to send payment request',
+        details: error.toString()
+      }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
     )
   }
 })

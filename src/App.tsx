@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -30,6 +29,8 @@ import WifiPortal from "./pages/WifiPortal";
 import WifiPortalSuccess from "./pages/WifiPortalSuccess";
 import HomePage from "./pages/HomePage";
 import NotFound from "./pages/NotFound";
+import PaymentPage from "./pages/PaymentPage";
+import PaymentSuccess from "./pages/PaymentSuccess";
 
 // Platform admin routes
 import PlatformAuth from "./pages/PlatformAuth";
@@ -87,6 +88,12 @@ function App() {
                     {/* Public routes */}
                     <Route path="/homepage" element={<HomePage />} />
                     <Route path="/auth" element={<Auth />} />
+                    
+                    {/* Payment routes - public, needs Stripe */}
+                    <Route path="/payment/:paymentIntentId" element={
+                      <PaymentPage />
+                    } />
+                    <Route path="/payment-success" element={<PaymentSuccess />} />
                     
                     {/* Booking widget - public, needs Stripe */}
                     <Route path="/booking" element={
