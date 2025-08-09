@@ -37,14 +37,7 @@ export const WifiSettings = () => {
         throw error;
       }
       
-      return data || {
-        network_name: '',
-        welcome_message: 'Welcome! Connect to our free WiFi',
-        venue_description: '',
-        terms_content: 'By accessing our WiFi network, you agree to use it responsibly and in accordance with applicable laws. We collect basic device information for network security and analytics.',
-        session_duration_hours: 24,
-        is_enabled: false
-      };
+      return data;
     },
   });
 
@@ -239,7 +232,7 @@ export const WifiSettings = () => {
 
         <div className="flex items-center justify-between pt-4 border-t">
           <p className="text-sm text-muted-foreground">
-            {settings && settings.created_at && 
+            {settings?.created_at && 
               `Last saved: ${new Date(settings.created_at).toLocaleString()}`
             }
           </p>
