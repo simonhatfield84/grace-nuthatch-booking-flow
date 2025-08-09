@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -13,9 +12,11 @@ interface WebhookConfigurationProps {
 
 export const WebhookConfiguration = ({ environment = 'test' }: WebhookConfigurationProps) => {
   const getWebhookUrl = (env: 'test' | 'live') => {
-    // Both test and live webhooks use the Supabase domain
-    // Edge Functions are always hosted on Supabase infrastructure
-    return 'https://wxyotttvyexxzeaewyga.supabase.co/functions/v1/stripe-webhook-secure';
+    // Use secure webhook endpoint
+    const baseUrl = env === 'live' 
+      ? 'https://grace-os.co.uk'  
+      : 'https://wxyotttvyexxzeaewyga.supabase.co';
+    return `${baseUrl}/functions/v1/stripe-webhook-secure`;
   };
 
   const copyToClipboard = (text: string, label: string) => {

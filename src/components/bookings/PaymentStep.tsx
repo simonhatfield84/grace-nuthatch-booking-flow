@@ -1,12 +1,10 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CreditCard, AlertCircle, RefreshCw } from "lucide-react";
+import { CreditCard, AlertCircle } from "lucide-react";
 import { PaymentForm } from "@/components/payments/PaymentForm";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 
 interface PaymentStepProps {
   amount: number;
@@ -25,79 +23,6 @@ export const PaymentStep = ({
   onPaymentError,
   onSkip
 }: PaymentStepProps) => {
-  const [isCheckingStatus, setIsCheckingStatus] = useState(false);
-  const [showRetryMessage, setShowRetryMessage] = useState(false);
-
-  // Auto-check payment status every 5 seconds if we have a booking ID
-  useEffect(() => {
-    if (!bookingId) return;
-
-    const checkPaymentStatus = async () => {
-      try {
-        const { data: booking } = await supabase
-          .from('bookings')
-          .select('status')
-          .eq('id', bookingId)
-          .single();
-
-        if (booking?.status === 'confirmed') {
-          console.log('✅ Payment confirmed via auto-check for booking:', bookingId);
-          onPaymentSuccess();
-          return;
-        }
-
-        // Show retry message after 30 seconds
-        setTimeout(() => setShowRetryMessage(true), 30000);
-      } catch (error) {
-        console.error('Error checking payment status:', error);
-      }
-    };
-
-    // Check immediately, then every 5 seconds
-    checkPaymentStatus();
-    const interval = setInterval(checkPaymentStatus, 5000);
-
-    return () => clearInterval(interval);
-  }, [bookingId, onPaymentSuccess]);
-
-  const handleManualStatusCheck = async () => {
-    if (!bookingId) return;
-
-    setIsCheckingStatus(true);
-    try {
-      console.log('🔍 Manually checking payment status for booking:', bookingId);
-
-      const { data: booking } = await supabase
-        .from('bookings')
-        .select('status')
-        .eq('id', bookingId)
-        .single();
-
-      const { data: payment } = await supabase
-        .from('booking_payments')
-        .select('status, processed_at')
-        .eq('booking_id', bookingId)
-        .single();
-
-      console.log('📋 Booking status:', booking?.status, 'Payment status:', payment?.status);
-
-      if (booking?.status === 'confirmed' && payment?.status === 'succeeded') {
-        toast.success('Payment confirmed!');
-        onPaymentSuccess();
-      } else if (payment?.status === 'failed') {
-        toast.error('Payment failed. Please try again.');
-        onPaymentError('Payment failed');
-      } else {
-        toast.info('Payment is still processing. Please wait a moment...');
-      }
-    } catch (error) {
-      console.error('Error checking payment status:', error);
-      toast.error('Error checking payment status');
-    } finally {
-      setIsCheckingStatus(false);
-    }
-  };
-
   return (
     <Card className="w-full max-w-2xl mx-auto bg-white dark:bg-gray-900">
       <CardHeader className="bg-gray-50 dark:bg-gray-800 border-b">
@@ -122,40 +47,10 @@ export const PaymentStep = ({
           </div>
         </div>
 
-        {showRetryMessage && (
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              <div className="flex flex-col gap-2">
-                <p>Payment processing is taking longer than usual. This can happen due to payment verification delays.</p>
-                <Button 
-                  onClick={handleManualStatusCheck}
-                  disabled={isCheckingStatus}
-                  variant="outline" 
-                  size="sm"
-                  className="w-fit"
-                >
-                  {isCheckingStatus ? (
-                    <>
-                      <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                      Checking...
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="h-3 w-3 mr-1" />
-                      Check Payment Status
-                    </>
-                  )}
-                </Button>
-              </div>
-            </AlertDescription>
-          </Alert>
-        )}
-
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
-            Your payment will be processed securely through Stripe. The booking will be confirmed automatically once payment is verified.
+            This is a simplified payment interface. In production, this would integrate with Stripe Elements for secure card processing.
           </AlertDescription>
         </Alert>
 

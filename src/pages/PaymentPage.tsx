@@ -35,20 +35,17 @@ export default function PaymentPage() {
 
   useEffect(() => {
     if (!paymentIntentId) {
-      console.error('❌ No payment intent ID in URL');
-      setError("Invalid payment link - missing payment intent ID");
+      setError("Invalid payment link");
       setLoading(false);
       return;
     }
 
-    console.log('🔍 Loading payment data for intent:', paymentIntentId);
     loadPaymentData();
   }, [paymentIntentId]);
 
   const loadPaymentData = async () => {
     try {
       setLoading(true);
-      console.log('📊 Querying booking_payments for payment intent:', paymentIntentId);
       
       // Get payment details from booking_payments table
       const { data: paymentRecord, error: paymentError } = await supabase
@@ -64,21 +61,11 @@ export default function PaymentPage() {
         .eq('status', 'pending')
         .single();
 
-      console.log('💳 Payment query result:', { paymentRecord, paymentError });
-
-      if (paymentError) {
-        console.error('❌ Payment query error:', paymentError);
-        throw new Error(`Payment request not found or already processed: ${paymentError.message}`);
-      }
-
-      if (!paymentRecord) {
+      if (paymentError || !paymentRecord) {
         throw new Error('Payment request not found or already processed');
       }
 
-      console.log('✅ Found payment record:', paymentRecord);
-
       // Get booking details
-      console.log('📊 Querying bookings for booking ID:', paymentRecord.booking_id);
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
         .select(`
@@ -94,21 +81,11 @@ export default function PaymentPage() {
         .eq('id', paymentRecord.booking_id)
         .single();
 
-      console.log('🎫 Booking query result:', { booking, bookingError });
-
-      if (bookingError) {
-        console.error('❌ Booking query error:', bookingError);
-        throw new Error(`Booking details not found: ${bookingError.message}`);
-      }
-
-      if (!booking) {
+      if (bookingError || !booking) {
         throw new Error('Booking details not found');
       }
 
-      console.log('✅ Found booking:', booking);
-
       // Get client secret from Stripe
-      console.log('💳 Creating Stripe payment intent for existing payment:', paymentIntentId);
       const { data: stripeData, error: stripeError } = await supabase.functions.invoke('create-payment-intent', {
         body: {
           bookingId: booking.id,
@@ -119,18 +96,9 @@ export default function PaymentPage() {
         }
       });
 
-      console.log('🔧 Stripe function result:', { stripeData, stripeError });
-
-      if (stripeError) {
-        console.error('❌ Stripe function error:', stripeError);
-        throw new Error(`Failed to initialize payment: ${stripeError.message}`);
+      if (stripeError || !stripeData?.client_secret) {
+        throw new Error('Failed to initialize payment');
       }
-
-      if (!stripeData?.client_secret) {
-        throw new Error('Failed to initialize payment - no client secret returned');
-      }
-
-      console.log('✅ Payment setup complete, client secret received');
 
       setPaymentData({
         booking: {
@@ -149,9 +117,8 @@ export default function PaymentPage() {
       });
 
     } catch (err) {
-      console.error('💥 Error loading payment data:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load payment information';
-      setError(errorMessage);
+      console.error('Error loading payment data:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load payment information');
     } finally {
       setLoading(false);
     }
@@ -199,11 +166,6 @@ export default function PaymentPage() {
             <Alert variant="destructive">
               <AlertDescription>{error || 'Payment information unavailable'}</AlertDescription>
             </Alert>
-            <div className="mt-4 text-sm text-gray-600">
-              <p><strong>Debug info:</strong></p>
-              <p>Payment Intent ID: {paymentIntentId}</p>
-              <p>Please check the browser console for detailed logs.</p>
-            </div>
           </CardContent>
         </Card>
       </div>

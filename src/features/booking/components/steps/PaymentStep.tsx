@@ -78,41 +78,14 @@ export function PaymentStep({ amount, paymentRequired, onSuccess, bookingId, des
     console.log('🔍 Verifying payment status for booking:', bookingId);
 
     try {
-      // First check if booking is already confirmed (primary indicator)
-      const { data: bookingData, error: bookingError } = await supabase
-        .from('bookings')
-        .select('status')
-        .eq('id', bookingId)
-        .single();
-
-      if (bookingError) {
-        console.error('Error checking booking status:', bookingError);
-        throw new Error('Failed to verify booking status');
-      }
-
-      console.log('📋 Booking status:', bookingData?.status);
-
-      // If booking is confirmed, payment was successful
-      if (bookingData?.status === 'confirmed') {
-        console.log('✅ Booking is confirmed, payment successful');
-        setPaymentCompleted(true);
-        toast.success('Payment completed successfully!');
-        
-        // Auto-proceed after a short delay
-        setTimeout(() => {
-          onSuccess();
-        }, 2000);
-        return;
-      }
-
-      // Check payment status in our database as secondary verification
+      // Check payment status in our database
       const { data: paymentData, error: paymentError } = await supabase
         .from('booking_payments')
         .select('status, stripe_payment_intent_id')
         .eq('booking_id', bookingId)
         .single();
 
-      if (paymentError && paymentError.code !== 'PGRST116') {
+      if (paymentError) {
         console.error('Error checking payment status:', paymentError);
         throw new Error('Failed to verify payment status');
       }
@@ -120,9 +93,6 @@ export function PaymentStep({ amount, paymentRequired, onSuccess, bookingId, des
       console.log('💰 Payment status:', paymentData);
 
       if (paymentData?.status === 'succeeded') {
-        // Payment record exists and is succeeded, but booking might not be updated yet
-        console.log('💰 Payment succeeded, updating booking status');
-        
         // Update booking status to confirmed
         const { error: bookingUpdateError } = await supabase
           .from('bookings')
@@ -143,36 +113,6 @@ export function PaymentStep({ amount, paymentRequired, onSuccess, bookingId, des
         setTimeout(() => {
           onSuccess();
         }, 2000);
-      } else if (!paymentData) {
-        // No payment record found, try manual reconciliation
-        console.log('🔧 No payment record found, attempting reconciliation');
-        
-        try {
-          const { data: reconcileData } = await supabase.functions.invoke('reconcile-payment', {
-            body: { bookingId }
-          });
-
-          if (reconcileData?.success) {
-            console.log('✅ Manual reconciliation successful');
-            setPaymentCompleted(true);
-            toast.success('Payment completed successfully!');
-            
-            setTimeout(() => {
-              onSuccess();
-            }, 2000);
-          } else {
-            throw new Error('Reconciliation failed');
-          }
-        } catch (reconcileError) {
-          console.error('Reconciliation failed:', reconcileError);
-          // Payment might still be processing, show message
-          toast.info('Payment is being processed. Please wait...');
-          
-          // Retry verification after a delay
-          setTimeout(() => {
-            verifyPaymentStatus();
-          }, 5000);
-        }
       } else {
         // Payment might still be processing, show message
         toast.info('Payment is being processed. Please wait...');

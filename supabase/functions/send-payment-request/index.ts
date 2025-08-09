@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -6,22 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
-
-// Safe function to parse settings values that might be JSON or plain text
-const safeParseSettingValue = (value: any): string => {
-  if (typeof value !== 'string') {
-    return String(value);
-  }
-  
-  // Try to parse as JSON first
-  try {
-    const parsed = JSON.parse(value);
-    return String(parsed);
-  } catch {
-    // If JSON parsing fails, return the raw string value
-    return value;
-  }
-};
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -61,26 +44,7 @@ serve(async (req) => {
     // Generate payment intent ID
     const paymentIntentId = `pi_${booking_id}_${Date.now()}`
 
-    // Create booking payment record BEFORE sending email
-    const { data: paymentRecord, error: paymentError } = await supabaseClient
-      .from('booking_payments')
-      .insert({
-        booking_id: booking_id,
-        amount_cents: amount_cents,
-        stripe_payment_intent_id: paymentIntentId,
-        status: 'pending'
-      })
-      .select()
-      .single()
-
-    if (paymentError) {
-      console.error('❌ Error creating payment record:', paymentError)
-      throw new Error('Failed to create payment record')
-    }
-
-    console.log('💰 Payment record created:', paymentRecord)
-
-    // Get venue info for branding
+    // Get venue info for branding and app domain
     const { data: venue, error: venueError } = await supabaseClient
       .from('venues')
       .select('name, slug')
@@ -94,7 +58,7 @@ serve(async (req) => {
 
     console.log('🏢 Venue info:', venue)
 
-    // Get platform settings for email configuration
+    // Get platform settings for email configuration and app domain
     const { data: platformSettings, error: settingsError } = await supabaseClient
       .from('platform_settings')
       .select('setting_key, setting_value')
@@ -104,16 +68,16 @@ serve(async (req) => {
       console.error('❌ Error fetching platform settings:', settingsError)
     }
 
-    // Convert settings to object using safe parsing
+    // Convert settings to object
     const settings = platformSettings?.reduce((acc, setting) => {
-      acc[setting.setting_key] = safeParseSettingValue(setting.setting_value);
+      acc[setting.setting_key] = JSON.parse(setting.setting_value)
       return acc
     }, {} as Record<string, string>) || {}
 
-    // Use The Nuthatch branding
+    // Use default values if settings not found
     const fromEmail = settings.from_email || 'nuthatch@grace-os.co.uk'
-    const fromName = 'The Nuthatch'
-    const emailSignature = 'Best regards,\nThe Nuthatch Team'
+    const fromName = settings.from_name || 'Grace OS'
+    const emailSignature = settings.email_signature || 'Best regards,\nThe Nuthatch Team'
     const appDomain = settings.app_domain || 'https://wxyotttvyexxzeaewyga.lovable.app'
 
     // Format booking details
@@ -132,97 +96,53 @@ serve(async (req) => {
     
     console.log('💳 Payment link created:', paymentLink)
 
-    // Create The Nuthatch branded HTML email template matching the booking confirmation
+    // Create branded HTML email template matching the booking confirmation style
     const subject = `Payment Required - ${venue.name}`
     const htmlContent = `
-      <div style="font-family: 'Book Antiqua', 'Palatino Linotype', Palatino, serif; max-width: 600px; margin: 0 auto; background-color: #f8f6f0;">
-        <!-- Header with logo and branding -->
-        <div style="text-align: center; padding: 40px 20px; background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%);">
-          <img src="${appDomain}/lovable-uploads/0fac96e7-74c4-452d-841d-1d727bf769c7.png" alt="The Nuthatch" style="height: 80px; width: auto; margin-bottom: 20px;" />
-          <h1 style="color: #f8f6f0; font-size: 24px; margin: 0; font-weight: normal; letter-spacing: 1px;">Payment Required</h1>
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="text-align: center; margin-bottom: 30px;">
+          <img src="${appDomain}/lovable-uploads/0fac96e7-74c4-452d-841d-1d727bf769c7.png" alt="The Nuthatch" style="height: 60px; width: auto; margin: 20px 0;" />
+          <p style="color: #64748b; margin: 5px 0;">Payment Request</p>
         </div>
-        
-        <!-- Main content -->
-        <div style="background: #f8f6f0; padding: 40px 30px;">
-          <div style="background: white; padding: 35px; border-radius: 12px; box-shadow: 0 4px 6px rgba(139, 69, 19, 0.1);">
-            <h2 style="color: #8B4513; margin-top: 0; font-size: 28px; font-weight: normal; text-align: center; margin-bottom: 25px;">Your Booking Awaits Payment</h2>
-            
-            <p style="font-size: 16px; line-height: 1.6; color: #5D4037; margin-bottom: 20px;">Dear ${booking.guest_name},</p>
-            
-            <p style="font-size: 16px; line-height: 1.6; color: #5D4037; margin-bottom: 25px;">Your reservation at <strong>The Nuthatch</strong> requires payment confirmation. Please complete your payment of <strong style="color: #8B4513;">£${formattedAmount}</strong> to secure your table.</p>
-            
-            ${custom_message ? `
-            <div style="background: #fff8e1; border-left: 4px solid #8B4513; padding: 20px; margin: 25px 0; border-radius: 4px;">
-              <h4 style="color: #8B4513; margin: 0 0 10px 0; font-size: 16px;">Personal Message from The Nuthatch:</h4>
-              <p style="margin: 0; color: #5D4037; font-style: italic; line-height: 1.5;">"${custom_message}"</p>
-            </div>
-            ` : ''}
-            
-            <!-- Booking Details Card -->
-            <div style="background: #f8f6f0; padding: 25px; border-radius: 8px; margin: 30px 0; border: 1px solid #e8d5b7;">
-              <h3 style="margin-top: 0; color: #8B4513; font-size: 20px; margin-bottom: 20px; text-align: center;">Reservation Details</h3>
-              <div style="display: table; width: 100%;">
-                <div style="display: table-row;">
-                  <div style="display: table-cell; padding: 8px 0; font-weight: bold; color: #5D4037; width: 40%;">Reference:</div>
-                  <div style="display: table-cell; padding: 8px 0; color: #5D4037;">${booking.booking_reference}</div>
-                </div>
-                <div style="display: table-row;">
-                  <div style="display: table-cell; padding: 8px 0; font-weight: bold; color: #5D4037; width: 40%;">Date:</div>
-                  <div style="display: table-cell; padding: 8px 0; color: #5D4037;">${formattedDate}</div>
-                </div>
-                <div style="display: table-row;">
-                  <div style="display: table-cell; padding: 8px 0; font-weight: bold; color: #5D4037; width: 40%;">Time:</div>
-                  <div style="display: table-cell; padding: 8px 0; color: #5D4037;">${formattedTime}</div>
-                </div>
-                <div style="display: table-row;">
-                  <div style="display: table-cell; padding: 8px 0; font-weight: bold; color: #5D4037; width: 40%;">Party Size:</div>
-                  <div style="display: table-cell; padding: 8px 0; color: #5D4037;">${booking.party_size} guests</div>
-                </div>
-                <div style="display: table-row;">
-                  <div style="display: table-cell; padding: 8px 0; font-weight: bold; color: #5D4037; width: 40%;">Service:</div>
-                  <div style="display: table-cell; padding: 8px 0; color: #5D4037;">${booking.service}</div>
-                </div>
-                <div style="display: table-row;">
-                  <div style="display: table-cell; padding: 12px 0; font-weight: bold; color: #8B4513; width: 40%; font-size: 18px;">Amount Due:</div>
-                  <div style="display: table-cell; padding: 12px 0; color: #8B4513; font-size: 18px; font-weight: bold;">£${formattedAmount}</div>
-                </div>
-              </div>
-            </div>
-            
-            <!-- Payment CTA -->
-            <div style="text-align: center; margin: 35px 0;">
-              <a href="${paymentLink}" style="background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%); color: white; padding: 18px 40px; text-decoration: none; border-radius: 8px; font-size: 18px; font-weight: bold; display: inline-block; box-shadow: 0 4px 8px rgba(139, 69, 19, 0.3); transition: transform 0.2s;">
-                Complete Payment Securely
-              </a>
-            </div>
-            
-            <!-- Important notice -->
-            <div style="background: #fff3cd; border: 1px solid #8B4513; padding: 20px; border-radius: 8px; margin: 30px 0;">
-              <p style="margin: 0; color: #8B4513; font-weight: bold; text-align: center; font-size: 14px;">
-                ⏰ Payment window expires in 24 hours
-              </p>
-              <p style="margin: 10px 0 0 0; color: #5D4037; text-align: center; font-size: 14px;">
-                Complete payment to guarantee your table at The Nuthatch
-              </p>
-            </div>
-            
-            <p style="font-size: 16px; line-height: 1.6; color: #5D4037; margin-top: 30px;">We're excited to welcome you to The Nuthatch and provide you with an exceptional dining experience!</p>
+        <div style="background: #f8fafc; padding: 30px; border-radius: 8px;">
+          <h2 style="color: #1e293b; margin-top: 0;">Payment Required for Your Booking</h2>
+          <p>Dear ${booking.guest_name},</p>
+          <p>To secure your booking at ${venue.name}, please complete your payment of <strong>£${formattedAmount}</strong>.</p>
+          
+          ${custom_message ? `<div style="background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+            <p style="margin: 0; color: #856404;"><strong>Personal Message:</strong></p>
+            <p style="margin: 5px 0 0 0; color: #856404;">${custom_message}</p>
+          </div>` : ''}
+          
+          <div style="background: white; padding: 20px; border-radius: 5px; margin: 20px 0;">
+            <h3 style="margin-top: 0; color: #000000;">Booking Details</h3>
+            <p><strong>Reference:</strong> ${booking.booking_reference}</p>
+            <p><strong>Date:</strong> ${formattedDate}</p>
+            <p><strong>Time:</strong> ${formattedTime}</p>
+            <p><strong>Party Size:</strong> ${booking.party_size} guests</p>
+            <p><strong>Service:</strong> ${booking.service}</p>
+            <p><strong>Venue:</strong> ${venue.name}</p>
+            <p><strong>Amount Due:</strong> £${formattedAmount}</p>
           </div>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${paymentLink}" style="background: #8B4513; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; font-size: 16px; font-weight: bold; display: inline-block;">Complete Payment</a>
+          </div>
+          
+          <p style="color: #64748b; font-size: 14px; margin-top: 30px;">
+            <strong>Important:</strong> This payment request will expire in 24 hours. If you have any questions or need assistance, please contact us directly.
+          </p>
+          
+          <p>We look forward to welcoming you!</p>
         </div>
-        
-        <!-- Footer -->
-        <div style="background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%); padding: 30px; text-align: center;">
-          <div style="color: #f8f6f0; font-size: 14px; line-height: 1.6; margin-bottom: 15px;">
-            <p style="margin: 0;">${emailSignature}</p>
-          </div>
-          <div style="color: #e8d5b7; font-size: 11px;">
-            <p style="margin: 0;">Powered by Grace</p>
-          </div>
+        <div style="text-align: center; color: #94a3b8; font-size: 12px; margin-top: 30px;">
+          <p>${emailSignature}</p>
+          <p style="margin-top: 20px; font-size: 10px; color: #999;">Powered by Grace</p>
         </div>
       </div>
     `
 
-    // Send email via Resend
+    // Send email directly via Resend
     const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
     if (!RESEND_API_KEY) {
       console.error('❌ RESEND_API_KEY not configured')

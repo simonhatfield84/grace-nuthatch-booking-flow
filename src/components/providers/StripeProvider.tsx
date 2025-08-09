@@ -14,54 +14,24 @@ interface StripeProviderProps {
 }
 
 export const StripeProvider = ({ children, venueId, venueSlug, usePublicMode = false }: StripeProviderProps) => {
-  // Safely check if we're in an auth context
+  // Check if we're in an auth context - if not, force public mode
   let hasAuth = true;
-  let authUser = null;
-  
   try {
-    authUser = useAuth();
-    hasAuth = true;
+    useAuth();
   } catch (error) {
-    console.log('🔍 No auth context available, using public mode');
     hasAuth = false;
   }
   
   const shouldUsePublicMode = usePublicMode || !hasAuth;
   
-  console.log('🔧 StripeProvider config:', {
-    hasAuth,
-    shouldUsePublicMode,
-    venueId,
-    venueSlug,
-    usePublicMode
-  });
-  
   // Use public hook for unauthenticated users, authenticated hook for admin users
-  const authenticatedStripe = hasAuth ? useStripePublishableKey() : { 
-    publishableKey: null, 
-    isTestMode: true, 
-    isActive: false, 
-    isLoading: false 
-  };
-  
+  const authenticatedStripe = hasAuth ? useStripePublishableKey() : { publishableKey: null, isTestMode: true, isActive: false, isLoading: false };
   const publicStripe = usePublicStripeSettings({ venueId, venueSlug });
   
   const { publishableKey, isTestMode, isActive, isLoading } = shouldUsePublicMode ? publicStripe : authenticatedStripe;
 
-  console.log('💳 Stripe settings result:', {
-    publishableKey: publishableKey ? '***configured***' : 'null',
-    isTestMode,
-    isActive,
-    isLoading,
-    mode: shouldUsePublicMode ? 'public' : 'authenticated'
-  });
-
   const stripePromise = useMemo(() => {
-    if (!publishableKey) {
-      console.log('❌ No publishable key available');
-      return null;
-    }
-    console.log('✅ Loading Stripe with key');
+    if (!publishableKey) return null;
     return loadStripe(publishableKey);
   }, [publishableKey]);
 
@@ -102,7 +72,6 @@ export const StripeProvider = ({ children, venueId, venueSlug, usePublicMode = f
 
   // Show loading state
   if (isLoading) {
-    console.log('⏳ Stripe provider is loading...');
     return (
       <div className="flex items-center justify-center p-4">
         <div className="text-sm text-muted-foreground">Loading payment system...</div>
@@ -112,19 +81,13 @@ export const StripeProvider = ({ children, venueId, venueSlug, usePublicMode = f
 
   // Show error state if Stripe is not configured
   if (!isActive || !stripePromise) {
-    console.log('❌ Stripe not configured:', { isActive, hasStripePromise: !!stripePromise });
     return (
       <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-800">
         <strong>Payment system unavailable:</strong> Stripe is not configured for this venue.
-        <div className="mt-2 text-xs opacity-75">
-          Debug: isActive={String(isActive)}, hasStripePromise={String(!!stripePromise)}, mode={shouldUsePublicMode ? 'public' : 'authenticated'}
-        </div>
       </div>
     );
   }
 
-  console.log('✅ Stripe provider ready');
-  
   return (
     <Elements stripe={stripePromise} options={options}>
       {isTestMode && (
