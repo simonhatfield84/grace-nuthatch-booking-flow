@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { X, Users, Clock, Phone, Mail, MapPin, FileText, Calendar, Hash, Edit, Save, Plus, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Booking } from "@/features/booking/types/booking";
 import { BookingAuditTrail } from "./BookingAuditTrail";
 import { PaymentManagementPanel } from "@/components/host/PaymentManagementPanel";
@@ -45,6 +45,18 @@ export const BookingDetailsPanel = ({
   const { toast } = useToast();
 
   if (!booking) return null;
+
+  // Callback to refresh the entire booking data
+  const handleFullBookingUpdate = useCallback(() => {
+    onBookingUpdate();
+  }, [onBookingUpdate]);
+
+  // Callback specifically for payment updates
+  const handlePaymentUpdate = useCallback(() => {
+    // This ensures the payment panel refreshes its data
+    // The parent component will also be notified
+    onBookingUpdate();
+  }, [onBookingUpdate]);
 
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
@@ -479,6 +491,7 @@ export const BookingDetailsPanel = ({
                     status: booking.status,
                     created_at: booking.created_at
                   }}
+                  onPaymentUpdate={handlePaymentUpdate}
                 />
               </div>
             </div>
@@ -576,7 +589,7 @@ export const BookingDetailsPanel = ({
         open={enhancedCancelOpen}
         onOpenChange={setEnhancedCancelOpen}
         booking={booking}
-        onBookingUpdate={onBookingUpdate}
+        onBookingUpdate={handleFullBookingUpdate}
       />
 
       {/* Independent Refund Dialog */}
@@ -588,7 +601,7 @@ export const BookingDetailsPanel = ({
           booking={booking}
           onRefundProcessed={() => {
             setRefundDialogOpen(false);
-            onBookingUpdate();
+            handleFullBookingUpdate();
           }}
         />
       )}

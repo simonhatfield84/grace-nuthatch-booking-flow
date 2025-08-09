@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,21 +22,17 @@ interface PaymentManagementPanelProps {
     status: string;
     created_at: string;
   };
+  onPaymentUpdate?: () => void;
 }
 
-export const PaymentManagementPanel = ({ booking }: PaymentManagementPanelProps) => {
+export const PaymentManagementPanel = ({ booking, onPaymentUpdate }: PaymentManagementPanelProps) => {
   const [paymentData, setPaymentData] = useState<any>(null);
   const [paymentRequestDialogOpen, setPaymentRequestDialogOpen] = useState(false);
   const [refundDialogOpen, setRefundDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [paymentRequest, setPaymentRequest] = useState<any>(null);
 
-  useEffect(() => {
-    loadPaymentData();
-    loadPaymentRequest();
-  }, [booking.id]);
-
-  const loadPaymentData = async () => {
+  const loadPaymentData = useCallback(async () => {
     try {
       // Load payment data from existing booking_payments table
       const { data: payment } = await supabase
@@ -45,12 +42,17 @@ export const PaymentManagementPanel = ({ booking }: PaymentManagementPanelProps)
         .maybeSingle();
 
       setPaymentData(payment);
+      
+      // Trigger parent update if callback provided
+      if (onPaymentUpdate) {
+        onPaymentUpdate();
+      }
     } catch (error) {
       console.error('Error loading payment data:', error);
     }
-  };
+  }, [booking.id, onPaymentUpdate]);
 
-  const loadPaymentRequest = async () => {
+  const loadPaymentRequest = useCallback(async () => {
     try {
       // Load payment request data
       const { data: request } = await supabase
@@ -65,7 +67,12 @@ export const PaymentManagementPanel = ({ booking }: PaymentManagementPanelProps)
     } catch (error) {
       console.error('Error loading payment request:', error);
     }
-  };
+  }, [booking.id]);
+
+  useEffect(() => {
+    loadPaymentData();
+    loadPaymentRequest();
+  }, [loadPaymentData, loadPaymentRequest]);
 
   const handleSkipPayment = async () => {
     setIsLoading(true);
@@ -99,6 +106,11 @@ export const PaymentManagementPanel = ({ booking }: PaymentManagementPanelProps)
       setIsLoading(false);
     }
   };
+
+  const handleRefundProcessed = useCallback(() => {
+    loadPaymentData();
+    setRefundDialogOpen(false);
+  }, [loadPaymentData]);
 
   const getPaymentStatusBadge = () => {
     if (!paymentData) {
@@ -188,6 +200,9 @@ export const PaymentManagementPanel = ({ booking }: PaymentManagementPanelProps)
                   {paymentData.refund_reason && (
                     <p>Reason: {paymentData.refund_reason}</p>
                   )}
+                  <div className="mt-2 text-xs">
+                    <p>Refundable: {formatAmount((paymentData.amount_cents || 0) - (paymentData.refund_amount_cents || 0))}</p>
+                  </div>
                 </div>
               </div>
             )}
@@ -240,7 +255,7 @@ export const PaymentManagementPanel = ({ booking }: PaymentManagementPanelProps)
             onOpenChange={setRefundDialogOpen}
             payment={paymentData}
             booking={booking}
-            onRefundProcessed={loadPaymentData}
+            onRefundProcessed={handleRefundProcessed}
           />
         )}
       </CardContent>

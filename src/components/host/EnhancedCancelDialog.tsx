@@ -90,11 +90,15 @@ export const EnhancedCancelDialog = ({
 
       // Process refund if requested and payment exists
       if (paymentData && (cancelType === 'full-refund' || cancelType === 'partial-refund')) {
+        // Calculate remaining refundable amount
+        const alreadyRefunded = paymentData.refund_amount_cents || 0;
+        const remainingRefundable = paymentData.amount_cents - alreadyRefunded;
+        
         const refundAmount = cancelType === 'full-refund' 
-          ? paymentData.amount_cents 
+          ? remainingRefundable // Refund only the remaining amount
           : Math.round(parseFloat(partialAmount) * 100);
 
-        if (refundAmount > 0 && refundAmount <= paymentData.amount_cents) {
+        if (refundAmount > 0 && refundAmount <= remainingRefundable) {
           const { error: refundError } = await supabase.functions.invoke('process-refund', {
             body: {
               payment_id: paymentData.id,
@@ -142,7 +146,11 @@ export const EnhancedCancelDialog = ({
   };
 
   const formatAmount = (pence: number) => `£${(pence / 100).toFixed(2)}`;
-  const maxRefundAmount = paymentData ? paymentData.amount_cents / 100 : 0;
+  
+  // Calculate remaining refundable amount
+  const alreadyRefunded = paymentData?.refund_amount_cents || 0;
+  const remainingRefundable = paymentData ? paymentData.amount_cents - alreadyRefunded : 0;
+  const maxRefundAmount = remainingRefundable / 100;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -161,14 +169,24 @@ export const EnhancedCancelDialog = ({
             </p>
             
             {paymentData && (
-              <div className="flex items-center gap-2 text-sm text-[#CCF0DB]">
-                <CreditCard className="h-4 w-4" />
-                <span>Payment: {formatAmount(paymentData.amount_cents)}</span>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-[#CCF0DB]">
+                  <CreditCard className="h-4 w-4" />
+                  <span>Original Payment: {formatAmount(paymentData.amount_cents)}</span>
+                </div>
+                {alreadyRefunded > 0 && (
+                  <div className="text-sm text-[#F1C8D0]">
+                    <span>Already Refunded: {formatAmount(alreadyRefunded)}</span>
+                  </div>
+                )}
+                <div className="text-sm text-[#CCF0DB] font-medium">
+                  <span>Available for Refund: {formatAmount(remainingRefundable)}</span>
+                </div>
               </div>
             )}
           </div>
 
-          {paymentData ? (
+          {paymentData && remainingRefundable > 0 ? (
             <div>
               <Label className="text-white font-inter mb-3 block">Cancellation Options</Label>
               <RadioGroup value={cancelType} onValueChange={(value: any) => setCancelType(value)}>
@@ -181,7 +199,7 @@ export const EnhancedCancelDialog = ({
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="full-refund" id="full-refund" className="border-[#676767] text-white" />
                   <Label htmlFor="full-refund" className="text-white font-inter text-sm">
-                    Cancel with full refund ({formatAmount(paymentData.amount_cents)})
+                    Cancel with full refund ({formatAmount(remainingRefundable)})
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
@@ -209,6 +227,10 @@ export const EnhancedCancelDialog = ({
                   />
                 </div>
               )}
+            </div>
+          ) : paymentData ? (
+            <div className="text-sm text-[#676767] font-inter">
+              No refund available - payment has already been fully refunded.
             </div>
           ) : (
             <div className="text-sm text-[#676767] font-inter">
