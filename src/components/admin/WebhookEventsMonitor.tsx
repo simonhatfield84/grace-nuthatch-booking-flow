@@ -13,7 +13,7 @@ interface WebhookEvent {
   stripe_event_id: string;
   event_type: string;
   processing_status: string;
-  venue_id: string;
+  venue_id: string | null;
   booking_id: number | null;
   payment_intent_id: string | null;
   amount_cents: number | null;
