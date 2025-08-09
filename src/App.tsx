@@ -3,9 +3,9 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
-import { AuthContextProvider } from "@/contexts/AuthContext";
-import ErrorBoundary from "@/components/ErrorBoundary";
-import ProtectedRoute from "@/components/auth/ProtectedRoute";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 
 // Import pages
 import HomePage from "@/pages/HomePage";
@@ -24,8 +24,8 @@ import BookingWidget from "@/pages/BookingWidget";
 import ModifyBooking from "@/pages/ModifyBooking";
 import CancelBooking from "@/pages/CancelBooking";
 import NotFound from "@/pages/NotFound";
-import WifiPortal from "@/pages/WifiPortal";
-import WifiPortalSuccess from "@/pages/WifiPortalSuccess";
+import { WifiPortal } from "@/pages/WifiPortal";
+import { WifiPortalSuccess } from "@/pages/WifiPortalSuccess";
 
 // Platform admin pages
 import PlatformDashboard from "@/pages/PlatformDashboard";
@@ -49,7 +49,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="light" storageKey="ui-theme">
-        <AuthContextProvider>
+        <AuthProvider>
           <Toaster />
           <ErrorBoundary>
             <Router>
@@ -199,7 +199,7 @@ function App() {
               </Routes>
             </Router>
           </ErrorBoundary>
-        </AuthContextProvider>
+        </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );
