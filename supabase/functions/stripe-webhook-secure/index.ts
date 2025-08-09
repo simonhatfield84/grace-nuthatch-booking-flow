@@ -20,7 +20,7 @@ serve(async (req) => {
   
   if (!signature) {
     console.error('❌ Missing Stripe signature')
-    return new Response('Missing signature', { status: 400 })
+    return new Response('Missing signature', { status: 200 }) // Return 200 to stop retries
   }
 
   try {
@@ -31,14 +31,25 @@ serve(async (req) => {
     )
 
     // Parse the webhook event first to get basic info
-    let event: any
+    let eventData: any
     let venueId: string | null = null
     
     try {
-      // Try to parse event to extract venue info
-      const eventData = JSON.parse(body)
+      eventData = JSON.parse(body)
       console.log('📋 Processing webhook event:', eventData.type, 'for object:', eventData.data?.object?.id)
       
+      // Check for idempotency - if we've already processed this event, return success
+      const { data: existingEvent } = await supabaseClient
+        .from('webhook_events')
+        .select('id, processing_status')
+        .eq('stripe_event_id', eventData.id)
+        .single()
+
+      if (existingEvent) {
+        console.log('ℹ️ Event already processed:', eventData.id, 'status:', existingEvent.processing_status)
+        return new Response('Event already processed', { headers: corsHeaders })
+      }
+
       // Get venue_id from payment intent metadata (primary source)
       if (eventData.data?.object?.metadata?.venue_id) {
         venueId = eventData.data.object.metadata.venue_id
@@ -65,20 +76,23 @@ serve(async (req) => {
           console.log('✅ Found venue_id from booking lookup:', venueId)
         } else {
           console.error('❌ Failed to lookup venue_id from booking:', bookingError)
-          throw new Error(`Could not determine venue for booking ${bookingId}`)
+          await logWebhookEvent(supabaseClient, eventData, null, 'failed', { error: 'Could not determine venue for booking', bookingId })
+          return new Response('Could not determine venue', { status: 200 })
         }
       } else {
         console.error('❌ No venue_id or booking_id found in event metadata')
         console.log('📋 Event data structure:', JSON.stringify(eventData.data?.object?.metadata, null, 2))
-        throw new Error('Cannot determine venue for webhook event - missing metadata')
+        await logWebhookEvent(supabaseClient, eventData, null, 'failed', { error: 'Missing metadata' })
+        return new Response('Missing metadata', { status: 200 })
       }
     } catch (parseError) {
       console.error('❌ Error parsing webhook event:', parseError)
-      throw new Error('Invalid webhook event format')
+      return new Response('Invalid event format', { status: 400 })
     }
 
     if (!venueId) {
-      throw new Error('Could not determine venue_id from webhook event')
+      await logWebhookEvent(supabaseClient, eventData, null, 'failed', { error: 'Could not determine venue_id' })
+      return new Response('Could not determine venue', { status: 200 })
     }
 
     // Get venue's webhook secret and settings
@@ -90,7 +104,8 @@ serve(async (req) => {
 
     if (settingsError || !stripeSettings) {
       console.error('❌ Error fetching venue Stripe settings:', settingsError)
-      throw new Error('Venue Stripe settings not found')
+      await logWebhookEvent(supabaseClient, eventData, venueId, 'failed', { error: 'Venue Stripe settings not found' })
+      return new Response('Venue settings not found', { status: 200 })
     }
 
     // Select the correct webhook secret based on test mode
@@ -101,7 +116,8 @@ serve(async (req) => {
     if (!webhookSecret) {
       const keyType = stripeSettings.test_mode ? 'test' : 'live'
       console.error(`❌ Missing ${keyType} webhook secret for venue:`, venueId)
-      throw new Error(`${keyType} webhook secret not configured`)
+      await logWebhookEvent(supabaseClient, eventData, venueId, 'failed', { error: `${keyType} webhook secret not configured` })
+      return new Response('Webhook secret not configured', { status: 200 })
     }
 
     // Get the correct Stripe secret key
@@ -112,40 +128,53 @@ serve(async (req) => {
     if (!stripeKey) {
       const keyType = stripeSettings.test_mode ? 'STRIPE_TEST_SECRET_KEY' : 'STRIPE_SECRET_KEY'
       console.error(`❌ Missing ${keyType} environment variable`)
-      throw new Error(`${keyType} not configured`)
+      await logWebhookEvent(supabaseClient, eventData, venueId, 'failed', { error: `${keyType} not configured` })
+      return new Response('Stripe key not configured', { status: 200 })
     }
 
     // Initialize Stripe with the correct key
     const stripe = new Stripe(stripeKey, { apiVersion: '2023-10-16' })
 
-    // Verify the webhook signature
+    // Verify the webhook signature (CRITICAL FIX: Use async version)
+    let event: any
     try {
-      event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
+      event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret)
       console.log('✅ Webhook signature verified successfully')
     } catch (err) {
       console.error('❌ Webhook signature verification failed:', err.message)
-      return new Response('Invalid signature', { status: 400 })
+      await logWebhookEvent(supabaseClient, eventData, venueId, 'failed', { error: 'Signature verification failed', details: err.message })
+      return new Response('Invalid signature', { status: 200 }) // Return 200 to stop retries
     }
+
+    // Log the webhook event as processing
+    await logWebhookEvent(supabaseClient, event, venueId, 'processing')
 
     // Process the webhook event
-    switch (event.type) {
-      case 'payment_intent.succeeded':
-        await handlePaymentSuccess(event.data.object, supabaseClient)
-        break
-      
-      case 'payment_intent.payment_failed':
-        await handlePaymentFailed(event.data.object, supabaseClient)
-        break
+    try {
+      switch (event.type) {
+        case 'payment_intent.succeeded':
+          await handlePaymentSuccess(event.data.object, supabaseClient, venueId)
+          break
         
-      default:
-        console.log(`ℹ️ Unhandled webhook event type: ${event.type}`)
+        case 'payment_intent.payment_failed':
+          await handlePaymentFailed(event.data.object, supabaseClient, venueId)
+          break
+          
+        default:
+          console.log(`ℹ️ Unhandled webhook event type: ${event.type}`)
+      }
+
+      // Update webhook event as successful
+      await updateWebhookEventStatus(supabaseClient, event.id, 'success')
+      console.log('✅ Webhook processed successfully')
+
+      return new Response('ok', { headers: corsHeaders })
+
+    } catch (processingError) {
+      console.error('❌ Error processing webhook event:', processingError)
+      await updateWebhookEventStatus(supabaseClient, event.id, 'failed', { error: processingError.message })
+      return new Response('Processing error', { status: 200 }) // Return 200 to stop retries
     }
-
-    // Log successful webhook processing
-    await logWebhookEvent(supabaseClient, event, venueId, 'success')
-    console.log('✅ Webhook processed successfully')
-
-    return new Response('ok', { headers: corsHeaders })
 
   } catch (error) {
     console.error('💥 Webhook error:', error)
@@ -153,13 +182,13 @@ serve(async (req) => {
     return new Response(JSON.stringify({ 
       error: error.message 
     }), {
-      status: 400,
+      status: 200, // Return 200 to stop retries
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     })
   }
 })
 
-async function handlePaymentSuccess(paymentIntent: any, supabaseClient: any) {
+async function handlePaymentSuccess(paymentIntent: any, supabaseClient: any, venueId: string) {
   // Get booking_id from payment intent metadata or charge metadata
   const bookingId = paymentIntent.metadata.booking_id || 
                    paymentIntent.charges?.data?.[0]?.metadata?.booking_id
@@ -172,6 +201,9 @@ async function handlePaymentSuccess(paymentIntent: any, supabaseClient: any) {
   console.log('💰 Processing payment success:', paymentIntent.id, 'for booking:', bookingId)
 
   try {
+    // Start transaction-like operation
+    const now = new Date().toISOString()
+
     // Check if payment record already exists
     const { data: existingPayment } = await supabaseClient
       .from('booking_payments')
@@ -190,13 +222,15 @@ async function handlePaymentSuccess(paymentIntent: any, supabaseClient: any) {
         .from('booking_payments')
         .update({
           status: 'succeeded',
-          processed_at: new Date().toISOString(),
-          payment_method_type: paymentIntent.charges?.data?.[0]?.payment_method_details?.type || 'unknown'
+          processed_at: now,
+          payment_method_type: paymentIntent.charges?.data?.[0]?.payment_method_details?.type || 'unknown',
+          updated_at: now
         })
         .eq('id', existingPayment.id)
 
       if (paymentError) {
         console.error('❌ Error updating payment record:', paymentError)
+        throw paymentError
       } else {
         console.log('✅ Updated existing payment record to succeeded')
       }
@@ -209,12 +243,15 @@ async function handlePaymentSuccess(paymentIntent: any, supabaseClient: any) {
           stripe_payment_intent_id: paymentIntent.id,
           amount_cents: paymentIntent.amount,
           status: 'succeeded',
-          processed_at: new Date().toISOString(),
-          payment_method_type: paymentIntent.charges?.data?.[0]?.payment_method_details?.type || 'card'
+          processed_at: now,
+          payment_method_type: paymentIntent.charges?.data?.[0]?.payment_method_details?.type || 'card',
+          created_at: now,
+          updated_at: now
         })
 
       if (paymentError) {
         console.error('❌ Error creating payment record:', paymentError)
+        throw paymentError
       } else {
         console.log('✅ Created new payment record')
       }
@@ -232,12 +269,13 @@ async function handlePaymentSuccess(paymentIntent: any, supabaseClient: any) {
         .from('bookings')
         .update({ 
           status: 'confirmed',
-          updated_at: new Date().toISOString()
+          updated_at: now
         })
         .eq('id', bookingId)
 
       if (bookingError) {
         console.error('❌ Error updating booking status:', bookingError)
+        throw bookingError
       } else {
         console.log('✅ Updated booking status to confirmed for booking:', bookingId)
       }
@@ -256,7 +294,7 @@ async function handlePaymentSuccess(paymentIntent: any, supabaseClient: any) {
   }
 }
 
-async function handlePaymentFailed(paymentIntent: any, supabaseClient: any) {
+async function handlePaymentFailed(paymentIntent: any, supabaseClient: any, venueId: string) {
   const bookingId = paymentIntent.metadata.booking_id || 
                    paymentIntent.charges?.data?.[0]?.metadata?.booking_id
 
@@ -268,6 +306,8 @@ async function handlePaymentFailed(paymentIntent: any, supabaseClient: any) {
   console.log('💳 Processing payment failure:', paymentIntent.id, 'for booking:', bookingId)
 
   try {
+    const now = new Date().toISOString()
+
     // Update or create payment record
     const { error: paymentError } = await supabaseClient
       .from('booking_payments')
@@ -277,14 +317,17 @@ async function handlePaymentFailed(paymentIntent: any, supabaseClient: any) {
         amount_cents: paymentIntent.amount,
         status: 'failed',
         failure_reason: paymentIntent.last_payment_error?.message || 'Payment failed',
-        processed_at: new Date().toISOString(),
-        payment_method_type: 'card'
+        processed_at: now,
+        payment_method_type: 'card',
+        created_at: now,
+        updated_at: now
       }, {
         onConflict: 'stripe_payment_intent_id'
       })
 
     if (paymentError) {
       console.error('❌ Error updating payment record:', paymentError)
+      throw paymentError
     }
 
     // Update booking status to cancelled
@@ -292,12 +335,13 @@ async function handlePaymentFailed(paymentIntent: any, supabaseClient: any) {
       .from('bookings')
       .update({ 
         status: 'cancelled',
-        updated_at: new Date().toISOString()
+        updated_at: now
       })
       .eq('id', bookingId)
 
     if (bookingError) {
       console.error('❌ Error updating booking status:', bookingError)
+      throw bookingError
     }
 
     console.log('💳 Payment failure processing complete:', paymentIntent.id)
@@ -354,12 +398,46 @@ async function sendBookingConfirmationEmail(bookingId: number, supabaseClient: a
   }
 }
 
-async function logWebhookEvent(supabaseClient: any, event: any, venueId: string, status: string) {
+async function logWebhookEvent(supabaseClient: any, event: any, venueId: string | null, status: string, errorDetails?: any) {
   try {
-    // This would typically log to a webhook events table
-    // For now, we'll just log to console
-    console.log('✅ Webhook event logged:', event.id, 'status:', status)
+    const bookingId = event.data?.object?.metadata?.booking_id || 
+                     event.data?.object?.charges?.data?.[0]?.metadata?.booking_id
+
+    await supabaseClient
+      .from('webhook_events')
+      .insert({
+        stripe_event_id: event.id,
+        event_type: event.type,
+        processing_status: status,
+        venue_id: venueId,
+        booking_id: bookingId ? parseInt(bookingId) : null,
+        payment_intent_id: event.data?.object?.id,
+        amount_cents: event.data?.object?.amount,
+        error_details: errorDetails || null,
+        raw_event_data: event,
+        processed_at: status === 'success' ? new Date().toISOString() : null
+      })
+
+    console.log('📝 Webhook event logged:', event.id, 'status:', status)
   } catch (error) {
     console.error('❌ Error logging webhook event:', error)
+  }
+}
+
+async function updateWebhookEventStatus(supabaseClient: any, eventId: string, status: string, errorDetails?: any) {
+  try {
+    await supabaseClient
+      .from('webhook_events')
+      .update({
+        processing_status: status,
+        error_details: errorDetails || null,
+        processed_at: status === 'success' ? new Date().toISOString() : null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('stripe_event_id', eventId)
+
+    console.log('📝 Updated webhook event status:', eventId, 'to:', status)
+  } catch (error) {
+    console.error('❌ Error updating webhook event status:', error)
   }
 }
