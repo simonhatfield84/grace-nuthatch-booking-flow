@@ -110,13 +110,11 @@ serve(async (req) => {
       return acc
     }, {} as Record<string, string>) || {}
 
-    // Use production domain and The Nuthatch branding
+    // Use The Nuthatch branding
     const fromEmail = settings.from_email || 'nuthatch@grace-os.co.uk'
     const fromName = 'The Nuthatch'
     const emailSignature = 'Best regards,\nThe Nuthatch Team'
-    const appDomain = settings.app_domain || 'https://grace-os.co.uk'
-
-    console.log('🌐 Using app domain:', appDomain)
+    const appDomain = settings.app_domain || 'https://wxyotttvyexxzeaewyga.lovable.app'
 
     // Format booking details
     const formattedDate = new Date(booking.booking_date).toLocaleDateString('en-GB', {
@@ -129,20 +127,18 @@ serve(async (req) => {
     const formattedTime = booking.booking_time
     const formattedAmount = (amount_cents / 100).toFixed(2)
 
-    // Create payment link pointing to production domain
+    // Create payment link pointing to our React app
     const paymentLink = `${appDomain}/payment/${paymentIntentId}`
     
     console.log('💳 Payment link created:', paymentLink)
 
-    // Create The Nuthatch branded HTML email template with production logo URL
+    // Create The Nuthatch branded HTML email template matching the booking confirmation
     const subject = `Payment Required - ${venue.name}`
-    const logoUrl = `${appDomain}/lovable-uploads/0fac96e7-74c4-452d-841d-1d727bf769c7.png`
-    
     const htmlContent = `
       <div style="font-family: 'Book Antiqua', 'Palatino Linotype', Palatino, serif; max-width: 600px; margin: 0 auto; background-color: #f8f6f0;">
         <!-- Header with logo and branding -->
         <div style="text-align: center; padding: 40px 20px; background: linear-gradient(135deg, #8B4513 0%, #A0522D 100%);">
-          <img src="${logoUrl}" alt="The Nuthatch" style="height: 80px; width: auto; margin-bottom: 20px;" />
+          <img src="${appDomain}/lovable-uploads/0fac96e7-74c4-452d-841d-1d727bf769c7.png" alt="The Nuthatch" style="height: 80px; width: auto; margin-bottom: 20px;" />
           <h1 style="color: #f8f6f0; font-size: 24px; margin: 0; font-weight: normal; letter-spacing: 1px;">Payment Required</h1>
         </div>
         
@@ -236,8 +232,7 @@ serve(async (req) => {
     console.log('📤 Sending payment request email via Resend:', {
       from: `${fromName} <${fromEmail}>`,
       to: booking.email,
-      subject,
-      app_domain: appDomain
+      subject
     })
 
     const resendResponse = await fetch('https://api.resend.com/emails', {

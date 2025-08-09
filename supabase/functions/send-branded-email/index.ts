@@ -32,7 +32,7 @@ serve(async (req) => {
     const { data: platformSettings, error: settingsError } = await supabaseClient
       .from('platform_settings')
       .select('setting_key, setting_value')
-      .in('setting_key', ['from_email', 'from_name', 'email_signature', 'app_domain'])
+      .in('setting_key', ['from_email', 'from_name', 'email_signature'])
 
     if (settingsError) {
       console.error('❌ Error fetching platform settings:', settingsError)
@@ -40,21 +40,14 @@ serve(async (req) => {
 
     // Convert settings to object
     const settings = platformSettings?.reduce((acc, setting) => {
-      try {
-        acc[setting.setting_key] = JSON.parse(setting.setting_value)
-      } catch {
-        acc[setting.setting_key] = setting.setting_value
-      }
+      acc[setting.setting_key] = JSON.parse(setting.setting_value)
       return acc
     }, {} as Record<string, string>) || {}
 
-    // Use production domain and default values if settings not found
+    // Use default values if settings not found
     const fromEmail = settings.from_email || 'nuthatch@grace-os.co.uk'
-    const fromName = settings.from_name || 'The Nuthatch'
+    const fromName = settings.from_name || 'Grace OS'
     const emailSignature = settings.email_signature || 'Best regards,\nThe Nuthatch Team'
-    const appDomain = settings.app_domain || 'https://grace-os.co.uk'
-
-    console.log('🌐 Using app domain:', appDomain)
 
     // Get venue info for branding
     const { data: venue } = await supabaseClient
@@ -72,14 +65,11 @@ serve(async (req) => {
     if (template === 'booking_confirmation') {
       subject = `Booking Confirmation - ${venueName}`
       
-      // Use production domain for logo
-      const logoUrl = `${appDomain}/lovable-uploads/0fac96e7-74c4-452d-841d-1d727bf769c7.png`
-      
       // Create booking confirmation HTML
       htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <div style="text-align: center; margin-bottom: 30px;">
-            <img src="${logoUrl}" alt="The Nuthatch" style="height: 60px; width: auto; margin: 20px 0;" />
+            <img src="/lovable-uploads/0fac96e7-74c4-452d-841d-1d727bf769c7.png" alt="The Nuthatch" style="height: 60px; width: auto; margin: 20px 0;" />
             <p style="color: #64748b; margin: 5px 0;">Booking Confirmation</p>
           </div>
           <div style="background: #f8fafc; padding: 30px; border-radius: 8px;">
@@ -114,8 +104,7 @@ serve(async (req) => {
     console.log('📤 Sending email via Resend:', {
       from: `${fromName} <${fromEmail}>`,
       to,
-      subject,
-      app_domain: appDomain
+      subject
     })
 
     const resendResponse = await fetch('https://api.resend.com/emails', {
