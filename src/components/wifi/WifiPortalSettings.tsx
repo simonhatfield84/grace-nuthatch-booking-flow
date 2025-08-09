@@ -43,7 +43,7 @@ export const WifiPortalSettings = () => {
 
   const [formData, setFormData] = useState<WifiSettingsData>({
     network_name: '',
-    welcome_message: 'Welcome! Connect to our free WiFi',
+    welcome_message: 'Welcome to The Nuthatch Guest WiFi',
     venue_description: '',
     terms_content: 'By accessing our WiFi network, you agree to use it responsibly and in accordance with applicable laws. We collect basic device information for network security and analytics.',
     session_duration_hours: 24,
@@ -55,7 +55,7 @@ export const WifiPortalSettings = () => {
     if (settings) {
       setFormData({
         network_name: settings.network_name || '',
-        welcome_message: settings.welcome_message || 'Welcome! Connect to our free WiFi',
+        welcome_message: settings.welcome_message || 'Welcome to The Nuthatch Guest WiFi',
         venue_description: settings.venue_description || '',
         terms_content: settings.terms_content || 'By accessing our WiFi network, you agree to use it responsibly and in accordance with applicable laws. We collect basic device information for network security and analytics.',
         session_duration_hours: settings.session_duration_hours || 24,
@@ -142,7 +142,7 @@ export const WifiPortalSettings = () => {
           WiFi Portal Configuration
         </CardTitle>
         <CardDescription>
-          Configure your venue's WiFi portal settings. Portal access will be available once your TP-Link EAP225 hardware arrives.
+          Configure your venue's WiFi portal settings. Portal is accessible at <strong>/wifiportal/nuthatch</strong>
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -179,7 +179,7 @@ export const WifiPortalSettings = () => {
             id="welcome_message"
             value={formData.welcome_message}
             onChange={(e) => handleInputChange('welcome_message', e.target.value)}
-            placeholder="Enter a welcome message for your guests"
+            placeholder="Welcome to The Nuthatch Guest WiFi"
             rows={3}
           />
           <p className="text-sm text-muted-foreground">
@@ -228,6 +228,42 @@ export const WifiPortalSettings = () => {
           <p className="text-sm text-muted-foreground">
             Legal terms that guests must agree to before connecting
           </p>
+        </div>
+
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <h4 className="font-medium text-blue-800 mb-2">Portal URLs</h4>
+          <div className="space-y-2 text-sm">
+            <div>
+              <span className="font-medium">WiFi Portal:</span>{' '}
+              <a 
+                href="/wifiportal/nuthatch" 
+                target="_blank" 
+                className="text-blue-600 hover:underline"
+              >
+                /wifiportal/nuthatch
+              </a>
+            </div>
+            <div>
+              <span className="font-medium">Success Page:</span>{' '}
+              <a 
+                href="/wifiportal/success/nuthatch" 
+                target="_blank" 
+                className="text-blue-600 hover:underline"
+              >
+                /wifiportal/success/nuthatch
+              </a>
+            </div>
+            <div>
+              <span className="font-medium">Debug Mode:</span>{' '}
+              <a 
+                href="/wifiportal/nuthatch?debug=true" 
+                target="_blank" 
+                className="text-blue-600 hover:underline"
+              >
+                /wifiportal/nuthatch?debug=true
+              </a>
+            </div>
+          </div>
         </div>
 
         <div className="flex items-center justify-between pt-4 border-t">
