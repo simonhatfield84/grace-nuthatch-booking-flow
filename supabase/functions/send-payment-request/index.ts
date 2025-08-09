@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -110,11 +109,11 @@ serve(async (req) => {
       return acc
     }, {} as Record<string, string>) || {}
 
-    // Use The Nuthatch branding
+    // Use The Nuthatch branding with production domain
     const fromEmail = settings.from_email || 'nuthatch@grace-os.co.uk'
     const fromName = 'The Nuthatch'
     const emailSignature = 'Best regards,\nThe Nuthatch Team'
-    const appDomain = settings.app_domain || 'https://wxyotttvyexxzeaewyga.lovable.app'
+    const appDomain = settings.app_domain || 'https://grace-os.co.uk'
 
     // Format booking details
     const formattedDate = new Date(booking.booking_date).toLocaleDateString('en-GB', {
