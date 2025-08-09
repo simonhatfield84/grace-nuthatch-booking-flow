@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import Stripe from 'https://esm.sh/stripe@14.21.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -49,6 +50,10 @@ serve(async (req) => {
       throw new Error('Can only refund successful payments');
     }
 
+    if (!payment.stripe_payment_intent_id) {
+      throw new Error('Payment missing Stripe payment intent ID');
+    }
+
     // Validate refund amount
     if (refund_amount_cents > payment.amount_cents) {
       throw new Error('Refund amount cannot exceed original payment');
@@ -61,6 +66,28 @@ serve(async (req) => {
         throw new Error('Total refund amount would exceed original payment');
       }
     }
+
+    // Get Stripe settings for this venue
+    console.log('🔑 Retrieving Stripe configuration for venue:', venue_id);
+    const { data: stripeKeys, error: stripeError } = await supabase.functions.invoke('get-stripe-keys', {
+      body: {
+        venue_id: venue_id,
+        environment: 'test', // TODO: Make this dynamic based on venue settings
+        key_type: 'secret'
+      }
+    });
+
+    if (stripeError || !stripeKeys?.secret_key) {
+      console.error('Failed to retrieve Stripe keys:', stripeError);
+      throw new Error('Stripe configuration not available for this venue');
+    }
+
+    // Initialize Stripe with the venue's secret key
+    const stripe = new Stripe(stripeKeys.secret_key, {
+      apiVersion: '2023-10-16',
+    });
+
+    console.log('💳 Creating Stripe refund for payment intent:', payment.stripe_payment_intent_id);
 
     // Determine refund status based on amount
     const totalRefundAfter = (payment.refund_amount_cents || 0) + refund_amount_cents;
@@ -82,11 +109,23 @@ serve(async (req) => {
       throw processingError;
     }
 
-    // Create Stripe refund (simplified for demo - in production, use actual Stripe API)
-    const stripe_refund_id = `re_${crypto.randomUUID().slice(0, 24)}`;
-
     try {
-      // Update payment record with refund information
+      // Create actual Stripe refund
+      const refund = await stripe.refunds.create({
+        payment_intent: payment.stripe_payment_intent_id,
+        amount: refund_amount_cents,
+        reason: 'requested_by_customer',
+        metadata: {
+          booking_id: booking_id.toString(),
+          venue_id: venue_id,
+          refund_reason: refund_reason,
+          processed_by: 'grace_system'
+        }
+      });
+
+      console.log('✅ Stripe refund created successfully:', refund.id);
+
+      // Update payment record with actual refund information
       const { error: updateError } = await supabase
         .from('booking_payments')
         .update({
@@ -94,7 +133,7 @@ serve(async (req) => {
           refund_status: refundStatus,
           refund_reason,
           refunded_at: new Date().toISOString(),
-          stripe_refund_id,
+          stripe_refund_id: refund.id, // Use actual Stripe refund ID
           updated_at: new Date().toISOString()
         })
         .eq('id', payment_id);
@@ -114,7 +153,7 @@ serve(async (req) => {
           field_name: 'refund_amount',
           old_value: ((payment.refund_amount_cents || 0) / 100).toString(),
           new_value: (totalRefundAfter / 100).toString(),
-          notes: `Refund processed: £${(refund_amount_cents / 100).toFixed(2)} - Reason: ${refund_reason} - Status: ${refundStatus}`
+          notes: `Stripe refund processed: £${(refund_amount_cents / 100).toFixed(2)} - Reason: ${refund_reason} - Status: ${refundStatus} - Stripe ID: ${refund.id}`
         }]);
 
       // If full refund and booking is confirmed, update booking status
@@ -130,15 +169,18 @@ serve(async (req) => {
       return new Response(
         JSON.stringify({ 
           success: true, 
-          refund_id: stripe_refund_id,
+          refund_id: refund.id, // Return actual Stripe refund ID
           amount_refunded: refund_amount_cents,
-          refund_status: refundStatus
+          refund_status: refundStatus,
+          stripe_refund_status: refund.status
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
 
-    } catch (error) {
-      // Set failed status if something goes wrong
+    } catch (stripeError) {
+      console.error('❌ Stripe refund creation failed:', stripeError);
+      
+      // Set failed status if Stripe refund fails
       await supabase
         .from('booking_payments')
         .update({
@@ -147,7 +189,19 @@ serve(async (req) => {
         })
         .eq('id', payment_id);
       
-      throw error;
+      // Provide more specific error messages based on Stripe error type
+      let errorMessage = 'Stripe refund failed';
+      if (stripeError.code === 'charge_already_refunded') {
+        errorMessage = 'This payment has already been fully refunded';
+      } else if (stripeError.code === 'amount_too_large') {
+        errorMessage = 'Refund amount exceeds available balance';
+      } else if (stripeError.code === 'payment_intent_not_found') {
+        errorMessage = 'Original payment not found in Stripe';
+      } else if (stripeError.message) {
+        errorMessage = `Stripe error: ${stripeError.message}`;
+      }
+      
+      throw new Error(errorMessage);
     }
 
   } catch (error) {
