@@ -1,8 +1,7 @@
 
 import { BookingProvider } from '../contexts/BookingContext';
 import { useBookingFlow } from '../hooks/useBookingFlow';
-import { PartyStep } from './steps/PartyStep';
-import { DateStep } from './steps/DateStep';
+import { PartyDateStep } from './steps/PartyDateStep';
 import { TimeStep } from './steps/TimeStep';
 import { ServiceStep } from './steps/ServiceStep';
 import { GuestDetailsStep } from './steps/GuestDetailsStep';
@@ -16,8 +15,7 @@ interface BookingWidgetProps {
 }
 
 const STEP_TITLES = [
-  'Party Size',
-  'Select Date', 
+  'Party & Date',
   'Choose Time',
   'Select Service',
   'Your Details',
@@ -61,25 +59,23 @@ function BookingWidgetContent({ venueSlug }: BookingWidgetProps) {
     );
   }
 
+  const handlePartyDateContinue = (partySize: number, date: Date) => {
+    handlePartySelection(partySize);
+    handleDateSelection(date);
+  };
+
   const renderStep = () => {
     switch (currentStep) {
       case 0:
         return (
-          <PartyStep
-            initialSize={bookingData.partySize}
-            onContinue={handlePartySelection}
-          />
-        );
-      case 1:
-        return (
-          <DateStep
+          <PartyDateStep
+            initialPartySize={bookingData.partySize}
             selectedDate={bookingData.date}
-            onDateSelect={handleDateSelection}
-            partySize={bookingData.partySize}
+            onContinue={handlePartyDateContinue}
             venueId={venue.id}
           />
         );
-      case 2:
+      case 1:
         return (
           <TimeStep
             selectedTime={bookingData.time}
@@ -89,7 +85,7 @@ function BookingWidgetContent({ venueSlug }: BookingWidgetProps) {
             venueId={venue.id}
           />
         );
-      case 3:
+      case 2:
         return (
           <ServiceStep
             selectedService={bookingData.service}
@@ -99,7 +95,7 @@ function BookingWidgetContent({ venueSlug }: BookingWidgetProps) {
             venueId={venue.id}
           />
         );
-      case 4:
+      case 3:
         return (
           <GuestDetailsStep
             onNext={handleGuestDetails}
@@ -111,7 +107,7 @@ function BookingWidgetContent({ venueSlug }: BookingWidgetProps) {
             venueSlug={venueSlug}
           />
         );
-      case 5:
+      case 4:
         return (
           <BookingConfirmation
             bookingData={{
@@ -129,9 +125,9 @@ function BookingWidgetContent({ venueSlug }: BookingWidgetProps) {
 
   return (
     <div className="max-w-md mx-auto">
-      {currentStep !== 5 && (
+      {currentStep !== 4 && (
         <ProgressIndicator 
-          steps={[]}
+          steps={STEP_TITLES}
           currentStep={currentStep} 
         />
       )}
@@ -140,7 +136,7 @@ function BookingWidgetContent({ venueSlug }: BookingWidgetProps) {
         currentStep={currentStep}
         totalSteps={STEP_TITLES.length}
         onBack={goBack}
-        showBack={currentStep > 0 && currentStep !== 5}
+        showBack={currentStep > 0 && currentStep !== 4}
       />
       
       {renderStep()}

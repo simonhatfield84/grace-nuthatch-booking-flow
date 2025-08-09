@@ -9,11 +9,12 @@ export function useBookingFlow(venueSlug: string) {
 
   const handlePartySelection = (partySize: number) => {
     updateBookingData({ partySize });
-    nextStep();
+    // Don't auto-advance, PartyDateStep handles both party size and date
   };
 
   const handleDateSelection = async (date: Date) => {
     updateBookingData({ date });
+    // Move to time selection (step 1) after both party and date are selected
     nextStep();
   };
 
@@ -35,8 +36,8 @@ export function useBookingFlow(venueSlug: string) {
       bookingId
     });
     
-    // Always go to confirmation step (step 5) after guest details/payment is complete
-    goToStep(5);
+    // Always go to confirmation step (step 4) after guest details/payment is complete
+    goToStep(4);
   };
 
   return {
