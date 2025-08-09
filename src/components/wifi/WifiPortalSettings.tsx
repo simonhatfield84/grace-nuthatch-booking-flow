@@ -20,7 +20,7 @@ interface WifiSettingsData {
   is_enabled: boolean;
 }
 
-export const WifiSettings = () => {
+export const WifiPortalSettings = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isSaving, setIsSaving] = useState(false);
@@ -88,7 +88,7 @@ export const WifiSettings = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['wifi-settings'] });
       toast({
-        title: "WiFi settings saved",
+        title: "WiFi portal settings saved",
         description: "Your WiFi portal settings have been updated successfully.",
       });
       setIsSaving(false);
@@ -97,7 +97,7 @@ export const WifiSettings = () => {
       console.error('Error saving WiFi settings:', error);
       toast({
         title: "Error",
-        description: "Failed to save WiFi settings. Please try again.",
+        description: "Failed to save WiFi portal settings. Please try again.",
         variant: "destructive",
       });
       setIsSaving(false);
@@ -122,7 +122,7 @@ export const WifiSettings = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Wifi className="h-5 w-5" />
-            WiFi Portal Settings
+            WiFi Portal Configuration
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -139,7 +139,7 @@ export const WifiSettings = () => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Wifi className="h-5 w-5" />
-          WiFi Portal Settings
+          WiFi Portal Configuration
         </CardTitle>
         <CardDescription>
           Configure your venue's WiFi portal settings. Portal access will be available once your TP-Link EAP225 hardware arrives.

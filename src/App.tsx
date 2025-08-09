@@ -13,6 +13,7 @@ import Settings from "@/pages/Settings";
 import Guests from "@/pages/Guests";
 import Services from "@/pages/Services";
 import Reports from "@/pages/Reports";
+import WiFi from "@/pages/WiFi";
 import Auth from "@/pages/Auth";
 import Setup from "@/pages/Setup";
 import BookingWidgetPage from "@/pages/BookingWidget";
@@ -91,6 +92,13 @@ function App() {
                   <ProtectedRoute>
                     <AdminLayout>
                       <Services />
+                    </AdminLayout>
+                  </ProtectedRoute>
+                } />
+                <Route path="/wifi" element={
+                  <ProtectedRoute>
+                    <AdminLayout>
+                      <WiFi />
                     </AdminLayout>
                   </ProtectedRoute>
                 } />

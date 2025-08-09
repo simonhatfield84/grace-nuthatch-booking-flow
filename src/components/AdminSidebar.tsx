@@ -38,7 +38,7 @@ const navigation = [
   { name: 'Host Interface', href: '/host', icon: Calendar },
   { name: 'Tables', href: '/tables', icon: MapPin },
   { name: 'Services', href: '/services', icon: ChefHat },
-  { name: 'WiFi', href: '/settings?tab=wifi', icon: Wifi },
+  { name: 'WiFi', href: '/wifi', icon: Wifi },
   { name: 'Guests', href: '/guests', icon: UserCheck },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
   { name: 'Settings', href: '/settings', icon: Settings },
