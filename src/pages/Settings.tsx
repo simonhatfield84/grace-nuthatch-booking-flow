@@ -7,9 +7,14 @@ import { DefaultTermsSettings } from "@/components/settings/DefaultTermsSettings
 import { TagManagement } from "@/components/settings/TagManagement";
 import { EmailSettingsPanel } from "@/components/settings/EmailSettingsPanel";
 import { EmailTemplatesList } from "@/components/settings/EmailTemplateEditor";
-import { Settings as SettingsIcon, Clock, CreditCard, FileText, Tags, Mail } from "lucide-react";
+import { WifiSettings } from "@/components/settings/WifiSettings";
+import { Settings as SettingsIcon, Clock, CreditCard, FileText, Tags, Mail, Wifi } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 
 const Settings = () => {
+  const [searchParams] = useSearchParams();
+  const defaultTab = searchParams.get('tab') || 'hours';
+
   return (
     <div className="space-y-6">
       <div>
@@ -17,8 +22,8 @@ const Settings = () => {
         <p className="text-muted-foreground">Manage your venue settings and preferences</p>
       </div>
 
-      <Tabs defaultValue="hours" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+      <Tabs defaultValue={defaultTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="hours" className="flex items-center gap-2">
             <Clock className="h-4 w-4" />
             <span className="hidden sm:inline">Hours</span>
@@ -34,6 +39,10 @@ const Settings = () => {
           <TabsTrigger value="tags" className="flex items-center gap-2">
             <Tags className="h-4 w-4" />
             <span className="hidden sm:inline">Tags</span>
+          </TabsTrigger>
+          <TabsTrigger value="wifi" className="flex items-center gap-2">
+            <Wifi className="h-4 w-4" />
+            <span className="hidden sm:inline">WiFi</span>
           </TabsTrigger>
           <TabsTrigger value="email" className="flex items-center gap-2">
             <Mail className="h-4 w-4" />
@@ -55,6 +64,10 @@ const Settings = () => {
 
         <TabsContent value="tags">
           <TagManagement />
+        </TabsContent>
+
+        <TabsContent value="wifi">
+          <WifiSettings />
         </TabsContent>
 
         <TabsContent value="email">
