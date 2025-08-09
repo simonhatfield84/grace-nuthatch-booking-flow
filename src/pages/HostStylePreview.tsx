@@ -1,4 +1,3 @@
-
 // Host-only theme — do not import outside /host routes
 
 import React, { useState } from 'react';
@@ -8,11 +7,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Textarea } from '@/components/ui/textarea';
 import { HOST_TOKENS } from '@/theme/host-tokens';
-import { CheckCircle, AlertCircle, XCircle, Info } from 'lucide-react';
+import { CheckCircle, AlertCircle, XCircle, Info, Copy, Download, ExternalLink } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 export default function HostStylePreview() {
   const [showTokens, setShowTokens] = useState(false);
+  const [showExportTokens, setShowExportTokens] = useState(false);
+  const { toast } = useToast();
 
   const AlertTypes = [
     { type: 'success', icon: CheckCircle, title: 'Success Alert', message: 'This is a success message' },
@@ -20,6 +23,53 @@ export default function HostStylePreview() {
     { type: 'danger', icon: XCircle, title: 'Error Alert', message: 'This is an error message' },
     { type: 'info', icon: Info, title: 'Info Alert', message: 'This is an informational message' },
   ];
+
+  const copyToClipboard = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({
+        title: "Copied to clipboard",
+        description: `${label} copied successfully.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Copy failed", 
+        description: "Could not copy to clipboard.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const downloadTokens = async (filename: string) => {
+    try {
+      const response = await fetch(`/${filename}`);
+      if (response.ok) {
+        const data = await response.text();
+        const blob = new Blob([data], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        toast({
+          title: "Download started",
+          description: `${filename} is being downloaded.`,
+        });
+      } else {
+        throw new Error('File not found');
+      }
+    } catch (error) {
+      toast({
+        title: "Download failed",
+        description: `Could not download ${filename}. Run 'npm run build' to generate tokens.`,
+        variant: "destructive",
+      });
+    }
+  };
 
   return (
     <HostLayout>
@@ -30,14 +80,109 @@ export default function HostStylePreview() {
             <h1 className="text-3xl font-bold host-text">Host Style Preview</h1>
             <p className="host-muted mt-2">Regression guard for Host interface styling</p>
           </div>
-          <Button 
-            onClick={() => setShowTokens(!showTokens)}
-            variant="outline"
-            className="host-border host-text"
-          >
-            {showTokens ? 'Hide' : 'Show'} Design Tokens
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              onClick={() => setShowExportTokens(!showExportTokens)}
+              variant="outline"
+              className="host-border host-text"
+            >
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Export Tokens
+            </Button>
+            <Button 
+              onClick={() => setShowTokens(!showTokens)}
+              variant="outline"
+              className="host-border host-text"
+            >
+              {showTokens ? 'Hide' : 'Show'} Design Tokens
+            </Button>
+          </div>
         </div>
+
+        {/* Export Tokens Panel */}
+        {showExportTokens && (
+          <Card className="host-card host-border">
+            <CardHeader>
+              <CardTitle className="host-text flex items-center gap-2">
+                <Download className="h-5 w-5" />
+                Design Token Export
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="host-muted text-sm">
+                Export design tokens for design handover, documentation, or external design tools.
+              </p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Card className="host-card host-border">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="host-text text-lg">Complete Design Tokens</CardTitle>
+                    <p className="host-muted text-sm">All colors, typography, layout, and spacing tokens</p>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => downloadTokens('host-design-tokens.json')}
+                        size="sm"
+                        variant="outline"
+                        className="host-border host-text"
+                      >
+                        <Download className="h-3 w-3 mr-1" />
+                        Download JSON
+                      </Button>
+                      <Button
+                        onClick={() => copyToClipboard(JSON.stringify(HOST_TOKENS, null, 2), 'Design tokens')}
+                        size="sm"
+                        variant="outline"
+                        className="host-border host-text"
+                      >
+                        <Copy className="h-3 w-3 mr-1" />
+                        Copy
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="host-card host-border">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="host-text text-lg">Typography Scale</CardTitle>
+                    <p className="host-muted text-sm">Font sizes, weights, and line heights for all text elements</p>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => downloadTokens('host-typography-scale.json')}
+                        size="sm"
+                        variant="outline"
+                        className="host-border host-text"
+                      >
+                        <Download className="h-3 w-3 mr-1" />
+                        Download JSON
+                      </Button>
+                      <Button
+                        onClick={() => copyToClipboard(JSON.stringify(HOST_TOKENS.typography, null, 2), 'Typography scale')}
+                        size="sm"
+                        variant="outline"
+                        className="host-border host-text"
+                      >
+                        <Copy className="h-3 w-3 mr-1" />
+                        Copy
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Alert className="host-border">
+                <Info className="h-4 w-4" />
+                <AlertDescription className="host-text">
+                  <strong>Usage:</strong> Import these tokens into Figma, Sketch, or other design tools. 
+                  CSS custom properties are included for developer handover.
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Design Tokens Panel */}
         {showTokens && (
@@ -54,8 +199,10 @@ export default function HostStylePreview() {
                     {Object.entries(HOST_TOKENS.colors).map(([key, value]) => (
                       <div key={key} className="flex items-center gap-2">
                         <div 
-                          className="w-4 h-4 rounded border"
+                          className="w-4 h-4 rounded border cursor-pointer"
                           style={{ backgroundColor: value, borderColor: HOST_TOKENS.colors.border }}
+                          onClick={() => copyToClipboard(value, `Color ${key}`)}
+                          title="Click to copy"
                         />
                         <span className="host-muted">{key}:</span>
                         <span className="host-text font-mono text-xs">{value}</span>
@@ -76,6 +223,10 @@ export default function HostStylePreview() {
                       <span className="host-muted">Body:</span>
                       <span className="host-text ml-2 font-mono text-xs">{HOST_TOKENS.typography.fontFamilies.body}</span>
                     </div>
+                    <div>
+                      <span className="host-muted">Mono:</span>
+                      <span className="host-text ml-2 font-mono text-xs">{HOST_TOKENS.typography.fontFamilies.mono}</span>
+                    </div>
                   </div>
                 </div>
 
@@ -90,6 +241,10 @@ export default function HostStylePreview() {
                     <div>
                       <span className="host-muted">Sidebar Expanded:</span>
                       <span className="host-text ml-2 font-mono text-xs">{HOST_TOKENS.layout.sidebarWidth.expanded}</span>
+                    </div>
+                    <div>
+                      <span className="host-muted">Container Padding:</span>
+                      <span className="host-text ml-2 font-mono text-xs">{HOST_TOKENS.layout.containerPadding}</span>
                     </div>
                   </div>
                 </div>
@@ -183,8 +338,10 @@ export default function HostStylePreview() {
               {Object.entries(HOST_TOKENS.colors).map(([name, value]) => (
                 <div key={name} className="text-center">
                   <div 
-                    className="w-full h-16 rounded-lg border mb-2"
+                    className="w-full h-16 rounded-lg border mb-2 cursor-pointer transition-transform hover:scale-105"
                     style={{ backgroundColor: value, borderColor: HOST_TOKENS.colors.border }}
+                    onClick={() => copyToClipboard(value, `Color ${name}`)}
+                    title="Click to copy color value"
                   />
                   <p className="host-text text-sm font-medium">{name}</p>
                   <p className="host-muted text-xs font-mono">{value}</p>
@@ -224,6 +381,10 @@ export default function HostStylePreview() {
               <div className="flex items-center gap-2">
                 <CheckCircle className="h-4 w-4 text-green-400" />
                 <span className="host-text">Theme: Isolated from global changes</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-green-400" />
+                <span className="host-text">Design tokens: Exportable and documented</span>
               </div>
             </div>
           </CardContent>
