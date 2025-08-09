@@ -64,7 +64,7 @@ export const EnhancedCancelDialog = ({
   const handleCancel = async () => {
     setIsLoading(true);
     try {
-      // First, cancel the booking
+      // First, cancel the booking - THIS WAS MISSING THE PROPER UPDATE
       const { error: bookingError } = await supabase
         .from('bookings')
         .update({ 
@@ -73,10 +73,15 @@ export const EnhancedCancelDialog = ({
         })
         .eq('id', booking.id);
 
-      if (bookingError) throw bookingError;
+      if (bookingError) {
+        console.error('Booking update error:', bookingError);
+        throw bookingError;
+      }
+
+      console.log('Booking status updated to cancelled successfully');
 
       // Log the cancellation in booking audit
-      await supabase
+      const { error: auditError } = await supabase
         .from('booking_audit')
         .insert([{
           booking_id: booking.id,
@@ -87,6 +92,11 @@ export const EnhancedCancelDialog = ({
           new_value: 'cancelled',
           notes: comment ? `Cancelled with comment: ${comment}` : 'Booking cancelled'
         }]);
+
+      if (auditError) {
+        console.error('Audit log error:', auditError);
+        // Don't throw here - audit failure shouldn't stop the cancellation
+      }
 
       // Process refund if requested and payment exists
       if (paymentData && (cancelType === 'full-refund' || cancelType === 'partial-refund')) {
@@ -99,6 +109,13 @@ export const EnhancedCancelDialog = ({
           : Math.round(parseFloat(partialAmount) * 100);
 
         if (refundAmount > 0 && refundAmount <= remainingRefundable) {
+          console.log('Processing refund:', {
+            payment_id: paymentData.id,
+            refund_amount_cents: refundAmount,
+            booking_id: booking.id,
+            venue_id: booking.venue_id
+          });
+
           const { error: refundError } = await supabase.functions.invoke('process-refund', {
             body: {
               payment_id: paymentData.id,
@@ -113,16 +130,27 @@ export const EnhancedCancelDialog = ({
           if (refundError) {
             console.error('Refund processing error:', refundError);
             toast({
-              title: "Partial Success",
-              description: "Booking cancelled but refund failed. Please process refund manually.",
+              title: "Booking Cancelled",
+              description: "Booking cancelled successfully, but refund failed. Please process refund manually.",
               variant: "destructive"
             });
           } else {
             toast({
               title: "Booking Cancelled & Refunded",
-              description: `£${(refundAmount / 100).toFixed(2)} refund processed successfully`,
+              description: `Booking cancelled and £${(refundAmount / 100).toFixed(2)} refund processed successfully`,
             });
           }
+        } else if (refundAmount <= 0) {
+          toast({
+            title: "Booking Cancelled",
+            description: "Booking cancelled successfully. No refund amount specified.",
+          });
+        } else {
+          toast({
+            title: "Booking Cancelled",
+            description: "Booking cancelled successfully, but refund amount exceeds available balance.",
+            variant: "destructive"
+          });
         }
       } else {
         toast({
@@ -137,7 +165,7 @@ export const EnhancedCancelDialog = ({
       console.error('Error cancelling booking:', error);
       toast({
         title: "Error",
-        description: "Failed to cancel booking",
+        description: "Failed to cancel booking. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -257,6 +285,7 @@ export const EnhancedCancelDialog = ({
               onClick={() => onOpenChange(false)} 
               variant="outline" 
               className="flex-1 bg-[#676767]/20 text-white border-[#676767]/30 hover:bg-[#676767]/30 rounded-xl font-inter"
+              disabled={isLoading}
             >
               Keep Booking
             </Button>
