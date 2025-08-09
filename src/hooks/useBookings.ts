@@ -243,8 +243,12 @@ export const useBookings = (date?: string) => {
       
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Invalidate all booking-related queries
       queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      // Invalidate the specific booking audit trail
+      queryClient.invalidateQueries({ queryKey: ['booking-audit', data.id] });
+      // Invalidate general booking audit queries
       queryClient.invalidateQueries({ queryKey: ['booking-audit'] });
     },
     onError: (error: any) => {

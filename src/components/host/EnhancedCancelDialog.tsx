@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -9,6 +8,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { AlertTriangle, CreditCard } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface EnhancedCancelDialogProps {
   open: boolean;
@@ -34,6 +34,7 @@ export const EnhancedCancelDialog = ({
   const [comment, setComment] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     if (open) {
@@ -158,6 +159,11 @@ export const EnhancedCancelDialog = ({
           description: "Booking has been cancelled successfully",
         });
       }
+
+      // Manually invalidate React Query cache to ensure UI updates immediately
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['booking-audit', booking.id] });
+      queryClient.invalidateQueries({ queryKey: ['booking-audit'] });
 
       onBookingUpdate();
       onOpenChange(false);

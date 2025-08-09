@@ -46,10 +46,16 @@ export const BookingDetailsPanel = ({
 
   if (!booking) return null;
 
-  // Callback to refresh the entire booking data
-  const handleFullBookingUpdate = useCallback(() => {
+  // Callback to refresh the entire booking data with immediate cache invalidation
+  const handleFullBookingUpdate = useCallback(async () => {
+    // Force immediate refresh by invalidating queries first
+    const queryClient = await import('@tanstack/react-query').then(mod => mod.useQueryClient)();
+    queryClient.invalidateQueries({ queryKey: ['bookings'] });
+    queryClient.invalidateQueries({ queryKey: ['booking-audit', booking.id] });
+    
+    // Then call the parent callback
     onBookingUpdate();
-  }, [onBookingUpdate]);
+  }, [onBookingUpdate, booking.id]);
 
   // Callback specifically for payment updates
   const handlePaymentUpdate = useCallback(() => {
