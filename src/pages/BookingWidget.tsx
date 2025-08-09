@@ -1,11 +1,17 @@
 
-import { BookingWidget } from "@/features/booking/components/BookingWidget";
+import { BookingFlowManager } from "@/components/bookings/BookingFlowManager";
 
 const BookingWidgetPage = () => {
-  // Hard-coded for The Nuthatch - using the original clean BookingWidget
+  // Hard-coded for The Nuthatch - using the original BookingFlowManager
   const venueSlug = 'the-nuthatch';
   
-  return <BookingWidget venueSlug={venueSlug} />;
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-8">
+        <BookingFlowManager venueSlug={venueSlug} />
+      </div>
+    </div>
+  );
 };
 
 export default BookingWidgetPage;
