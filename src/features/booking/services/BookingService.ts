@@ -125,7 +125,10 @@ export class BookingService {
     date?: string
   ): Promise<Service[]> {
     try {
-      const { data: services, error } = await supabase
+      console.log(`🔍 BookingService.getAvailableServices called with:`, { venueId, partySize, date });
+
+      // First get all active, online bookable services for the party size
+      const { data: allServices, error: servicesError } = await supabase
         .from('services')
         .select('*')
         .eq('active', true)
@@ -134,13 +137,102 @@ export class BookingService {
         .gte('max_guests', partySize)
         .order('title');
 
-      if (error) throw error;
+      if (servicesError) {
+        console.error('Error fetching services:', servicesError);
+        return [];
+      }
 
-      return services || [];
+      if (!allServices?.length) {
+        console.log('📋 No services found for party size:', partySize);
+        return [];
+      }
+
+      console.log(`📋 Found ${allServices.length} services suitable for ${partySize} guests:`, 
+        allServices.map(s => s.title));
+
+      // If no date provided, return all suitable services (backward compatibility)
+      if (!date) {
+        console.log('📅 No date provided, returning all suitable services');
+        return allServices;
+      }
+
+      // Convert date to day name for booking window checking
+      const selectedDate = new Date(date);
+      const dayName = this.getShortDayName(selectedDate);
+      console.log(`📅 Filtering services for date: ${date} (${dayName})`);
+
+      // Get all booking windows for this venue
+      const { data: bookingWindows, error: windowsError } = await supabase
+        .from('booking_windows')
+        .select('*')
+        .eq('venue_id', venueId);
+
+      if (windowsError) {
+        console.error('Error fetching booking windows:', windowsError);
+        return allServices; // Fallback to all services if can't check windows
+      }
+
+      if (!bookingWindows?.length) {
+        console.log('⚠️ No booking windows found, returning all services');
+        return allServices;
+      }
+
+      console.log(`🪟 Found ${bookingWindows.length} booking windows for venue`);
+
+      // Filter services based on booking windows
+      const availableServices = allServices.filter(service => {
+        const serviceWindows = bookingWindows.filter(window => window.service_id === service.id);
+        
+        if (serviceWindows.length === 0) {
+          console.log(`❌ Service "${service.title}" has no booking windows`);
+          return false;
+        }
+
+        // Check if any window covers the selected date
+        const hasAvailableWindow = serviceWindows.some(window => {
+          const windowAvailable = this.isServiceAvailableOnDate(window, date, dayName);
+          console.log(`🪟 Window for "${service.title}": days=${JSON.stringify(window.days)}, available=${windowAvailable}`);
+          return windowAvailable;
+        });
+
+        console.log(`${hasAvailableWindow ? '✅' : '❌'} Service "${service.title}" ${hasAvailableWindow ? 'IS' : 'IS NOT'} available on ${date}`);
+        return hasAvailableWindow;
+      });
+
+      console.log(`🎯 Final result: ${availableServices.length} services available on ${date}:`, 
+        availableServices.map(s => s.title));
+
+      return availableServices;
     } catch (error) {
       console.error('Error fetching services:', error);
       return [];
     }
+  }
+
+  // Helper function to check if a service is available on a specific date
+  private static isServiceAvailableOnDate(window: any, date: string, dayName: string): boolean {
+    // Check if the day is included in the booking window
+    if (!window.days.includes(dayName)) {
+      return false;
+    }
+
+    // Check date range (start_date and end_date)
+    if (!this.isDateInWindow(date, window.start_date, window.end_date)) {
+      return false;
+    }
+
+    // Check blackout periods
+    if (this.isDateBlackedOut(date, window.blackout_periods)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  // Helper function to convert Date to short day name
+  private static getShortDayName(date: Date): string {
+    const days = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+    return days[date.getDay()];
   }
 
   // Private helper methods
