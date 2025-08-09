@@ -114,6 +114,7 @@ serve(async (req) => {
     }
 
     // Create a PaymentIntent with the order amount and currency
+    // CRITICAL FIX: Include both booking_id AND venue_id in metadata
     const paymentIntent = await stripe.paymentIntents.create({
       amount: amount,
       currency: currency,
@@ -123,6 +124,7 @@ serve(async (req) => {
       description: description,
       metadata: {
         booking_id: bookingId,
+        venue_id: booking.venue_id  // ADDED: Include venue_id for webhook processing
       }
     })
 
@@ -130,7 +132,8 @@ serve(async (req) => {
       id: paymentIntent.id,
       amount: paymentIntent.amount,
       currency: paymentIntent.currency,
-      test_mode: stripeSettings.test_mode
+      test_mode: stripeSettings.test_mode,
+      metadata: paymentIntent.metadata
     })
 
     return new Response(
