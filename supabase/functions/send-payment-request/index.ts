@@ -42,15 +42,19 @@ serve(async (req) => {
       throw new Error('Venue not found')
     }
 
-    // Create Stripe payment intent
+    // Create Stripe payment intent with corrected parameter names
     const { data: paymentIntent, error: stripeError } = await supabaseClient.functions.invoke(
       'create-payment-intent',
       {
         body: {
-          booking_id,
-          amount_cents,
-          venue_id,
-          guest_email: booking.email
+          bookingId: booking_id,  // Changed from booking_id
+          amount: amount_cents,   // Changed from amount_cents  
+          currency: 'gbp',
+          description: `Payment for booking ${booking.booking_reference || `BK-${booking_id}`}`,
+          metadata: {
+            venue_id: venue_id,
+            guest_email: booking.email
+          }
         }
       }
     )
@@ -60,7 +64,7 @@ serve(async (req) => {
     }
 
     // Create payment request record
-    const paymentLink = `https://wxyotttvyexxzeaewyga.supabase.co/payment/${paymentIntent.id}`
+    const paymentLink = `https://wxyotttvyexxzeaewyga.supabase.co/payment/${paymentIntent.payment_intent_id}`
     
     const { error: requestError } = await supabaseClient
       .from('payment_requests')
@@ -155,7 +159,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        payment_intent_id: paymentIntent.id,
+        payment_intent_id: paymentIntent.payment_intent_id,
         payment_link: paymentLink
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
