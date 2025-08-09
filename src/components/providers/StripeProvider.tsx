@@ -4,6 +4,7 @@ import { Elements } from '@stripe/react-stripe-js';
 import { ReactNode, useMemo } from 'react';
 import { useStripePublishableKey } from '@/hooks/useStripePublishableKey';
 import { usePublicStripeSettings } from '@/hooks/usePublicStripeSettings';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface StripeProviderProps {
   children: ReactNode;
@@ -13,11 +14,21 @@ interface StripeProviderProps {
 }
 
 export const StripeProvider = ({ children, venueId, venueSlug, usePublicMode = false }: StripeProviderProps) => {
+  // Check if we're in an auth context - if not, force public mode
+  let hasAuth = true;
+  try {
+    useAuth();
+  } catch (error) {
+    hasAuth = false;
+  }
+  
+  const shouldUsePublicMode = usePublicMode || !hasAuth;
+  
   // Use public hook for unauthenticated users, authenticated hook for admin users
-  const authenticatedStripe = useStripePublishableKey();
+  const authenticatedStripe = hasAuth ? useStripePublishableKey() : { publishableKey: null, isTestMode: true, isActive: false, isLoading: false };
   const publicStripe = usePublicStripeSettings({ venueId, venueSlug });
   
-  const { publishableKey, isTestMode, isActive, isLoading } = usePublicMode ? publicStripe : authenticatedStripe;
+  const { publishableKey, isTestMode, isActive, isLoading } = shouldUsePublicMode ? publicStripe : authenticatedStripe;
 
   const stripePromise = useMemo(() => {
     if (!publishableKey) return null;

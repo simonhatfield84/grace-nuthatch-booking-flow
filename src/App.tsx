@@ -40,61 +40,89 @@ import PlatformSupport from "./pages/PlatformSupport";
 
 const queryClient = new QueryClient();
 
-function App() {
+// Minimal layout for public WiFi routes that don't need Auth or Stripe
+function WifiPublicLayout({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
-      <StripeProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <AuthProvider>
-              <ErrorBoundary>
-                <Routes>
-                  {/* Public routes */}
-                  <Route path="/homepage" element={<HomePage />} />
-                  <Route path="/auth" element={<Auth />} />
-                  
-                  {/* WiFi Portal routes - public access */}
-                  <Route path="/wifiportal/nuthatch" element={<WifiPortal />} />
-                  <Route path="/wifiportal/success/nuthatch" element={<WifiPortalSuccess />} />
-                  
-                  {/* Booking widget - public, static route for single venue */}
-                  <Route path="/booking" element={<BookingWidget />} />
-                  <Route path="/modify/:token" element={<ModifyBooking />} />
-                  <Route path="/cancel/:token" element={<CancelBooking />} />
-
-                  {/* Platform admin routes */}
-                  <Route path="/platform/auth" element={<PlatformAuth />} />
-                  <Route path="/platform/dashboard" element={<ProtectedRoute><PlatformDashboard /></ProtectedRoute>} />
-                  <Route path="/platform/venues" element={<ProtectedRoute><PlatformVenues /></ProtectedRoute>} />
-                  <Route path="/platform/users" element={<ProtectedRoute><PlatformUsers /></ProtectedRoute>} />
-                  <Route path="/platform/settings" element={<ProtectedRoute><PlatformSettings /></ProtectedRoute>} />
-                  <Route path="/platform/security" element={<ProtectedRoute><PlatformSecurity /></ProtectedRoute>} />
-                  <Route path="/platform/subscriptions" element={<ProtectedRoute><PlatformSubscriptions /></ProtectedRoute>} />
-                  <Route path="/platform/support" element={<ProtectedRoute><PlatformSupport /></ProtectedRoute>} />
-
-                  {/* Protected routes */}
-                  <Route path="/" element={<RootRedirect />} />
-                  <Route path="/setup" element={<Setup />} />
-                  <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-                  <Route path="/host" element={<ProtectedRoute><NewHostInterface /></ProtectedRoute>} />
-                  <Route path="/services" element={<ProtectedRoute><Services /></ProtectedRoute>} />
-                  <Route path="/tables" element={<ProtectedRoute><Tables /></ProtectedRoute>} />
-                  <Route path="/guests" element={<ProtectedRoute><Guests /></ProtectedRoute>} />
-                  <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-                  <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-                  <Route path="/wifi" element={<ProtectedRoute><WiFi /></ProtectedRoute>} />
-                  
-                  {/* 404 page */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </ErrorBoundary>
-            </AuthProvider>
-          </BrowserRouter>
-        </TooltipProvider>
-      </StripeProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
+      </TooltipProvider>
     </QueryClientProvider>
+  );
+}
+
+function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* WiFi Portal routes - minimal providers, no auth needed */}
+        <Route path="/wifiportal/nuthatch" element={
+          <WifiPublicLayout>
+            <WifiPortal />
+          </WifiPublicLayout>
+        } />
+        <Route path="/wifiportal/success/nuthatch" element={
+          <WifiPublicLayout>
+            <WifiPortalSuccess />
+          </WifiPublicLayout>
+        } />
+        
+        {/* All other routes - full provider stack */}
+        <Route path="/*" element={
+          <QueryClientProvider client={queryClient}>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <AuthProvider>
+                <StripeProvider>
+                  <ErrorBoundary>
+                    <Routes>
+                      {/* Public routes */}
+                      <Route path="/homepage" element={<HomePage />} />
+                      <Route path="/auth" element={<Auth />} />
+                      
+                      {/* Booking widget - public, static route for single venue */}
+                      <Route path="/booking" element={<BookingWidget />} />
+                      <Route path="/modify/:token" element={<ModifyBooking />} />
+                      <Route path="/cancel/:token" element={<CancelBooking />} />
+
+                      {/* Platform admin routes */}
+                      <Route path="/platform/auth" element={<PlatformAuth />} />
+                      <Route path="/platform/dashboard" element={<ProtectedRoute><PlatformDashboard /></ProtectedRoute>} />
+                      <Route path="/platform/venues" element={<ProtectedRoute><PlatformVenues /></ProtectedRoute>} />
+                      <Route path="/platform/users" element={<ProtectedRoute><PlatformUsers /></ProtectedRoute>} />
+                      <Route path="/platform/settings" element={<ProtectedRoute><PlatformSettings /></ProtectedRoute>} />
+                      <Route path="/platform/security" element={<ProtectedRoute><PlatformSecurity /></ProtectedRoute>} />
+                      <Route path="/platform/subscriptions" element={<ProtectedRoute><PlatformSubscriptions /></ProtectedRoute>} />
+                      <Route path="/platform/support" element={<ProtectedRoute><PlatformSupport /></ProtectedRoute>} />
+
+                      {/* Protected routes */}
+                      <Route path="/" element={<RootRedirect />} />
+                      <Route path="/setup" element={<Setup />} />
+                      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                      <Route path="/host" element={<ProtectedRoute><NewHostInterface /></ProtectedRoute>} />
+                      <Route path="/services" element={<ProtectedRoute><Services /></ProtectedRoute>} />
+                      <Route path="/tables" element={<ProtectedRoute><Tables /></ProtectedRoute>} />
+                      <Route path="/guests" element={<ProtectedRoute><Guests /></ProtectedRoute>} />
+                      <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+                      <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+                      <Route path="/wifi" element={<ProtectedRoute><WiFi /></ProtectedRoute>} />
+                      
+                      {/* 404 page */}
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </ErrorBoundary>
+                </StripeProvider>
+              </AuthProvider>
+            </TooltipProvider>
+          </QueryClientProvider>
+        } />
+      </Routes>
+    </BrowserRouter>
   );
 }
 
