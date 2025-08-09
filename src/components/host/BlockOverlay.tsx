@@ -15,7 +15,7 @@ export const BlockOverlay = ({ selectedDate, venueHours, tableId }: BlockOverlay
   if (!venueHours) return null;
 
   const calculateLeftPixels = (blockStartTime: string) => {
-    // Generate the same time slots as in OptimizedTimeGrid using venue hours
+    // Generate the same time slots as in NewTimeGrid using venue hours
     const timeSlots: string[] = [];
     const [startHour, startMin] = venueHours.start_time.split(':').map(Number);
     const [endHour, endMin] = venueHours.end_time.split(':').map(Number);
@@ -36,7 +36,7 @@ export const BlockOverlay = ({ selectedDate, venueHours, tableId }: BlockOverlay
     }
 
     const startIndex = timeSlots.findIndex(slot => slot === blockStartTime);
-    return startIndex * 60; // 60px per slot (matching OptimizedTimeGrid)
+    return startIndex * 60; // 60px per slot (matching NewTimeGrid)
   };
 
   const calculateWidthPixels = (startTime: string, endTime: string) => {
@@ -47,7 +47,7 @@ export const BlockOverlay = ({ selectedDate, venueHours, tableId }: BlockOverlay
     const endTotalMin = endHour * 60 + endMin;
     const durationMin = endTotalMin - startTotalMin;
     
-    // Each 15-minute slot is 60px wide (matching OptimizedTimeGrid)
+    // Each 15-minute slot is 60px wide (matching NewTimeGrid)
     return (durationMin / 15) * 60;
   };
 

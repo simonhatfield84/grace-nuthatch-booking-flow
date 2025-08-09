@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -5,7 +6,7 @@ import { Clock, Users, Link } from 'lucide-react';
 import { mockHostBookings, mockEnhancedTables, mockSections } from '@/data/mockData';
 
 export const HostScreenMockup = () => {
-  // Generate 15-minute intervals like real OptimizedTimeGrid
+  // Generate 15-minute intervals like real NewTimeGrid
   const timeSlots = ['18:00', '18:15', '18:30', '18:45', '19:00', '19:15', '19:30', '19:45', '20:00', '20:15', '20:30', '20:45'];
   
   const getStatusColor = (status: string) => {
@@ -38,7 +39,7 @@ export const HostScreenMockup = () => {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-0 p-3 sm:p-6">
-        {/* Time Grid in OptimizedTimeGrid style */}
+        {/* Time Grid in NewTimeGrid style */}
         <div className="relative bg-background rounded-lg border overflow-hidden">
           {/* Time Headers */}
           <div className="sticky top-0 z-20 bg-muted/50 border-b">
