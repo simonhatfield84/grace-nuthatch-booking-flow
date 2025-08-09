@@ -39,13 +39,19 @@ serve(async (req) => {
       const eventData = JSON.parse(body)
       console.log('📋 Processing webhook event:', eventData.type, 'for object:', eventData.data?.object?.id)
       
-      // Try to get venue_id from payment intent metadata
+      // Get venue_id from payment intent metadata (primary source)
       if (eventData.data?.object?.metadata?.venue_id) {
         venueId = eventData.data.object.metadata.venue_id
         console.log('🎯 Found venue from payment intent metadata:', venueId)
-      } else if (eventData.data?.object?.metadata?.booking_id) {
-        // FALLBACK: Look up venue_id from booking_id if not in metadata
-        const bookingId = eventData.data.object.metadata.booking_id
+      }
+      // Also check charge metadata as fallback
+      else if (eventData.data?.object?.charges?.data?.[0]?.metadata?.venue_id) {
+        venueId = eventData.data.object.charges.data[0].metadata.venue_id
+        console.log('🎯 Found venue from charge metadata:', venueId)
+      }
+      // Final fallback: lookup from booking_id
+      else if (eventData.data?.object?.metadata?.booking_id || eventData.data?.object?.charges?.data?.[0]?.metadata?.booking_id) {
+        const bookingId = eventData.data.object.metadata?.booking_id || eventData.data.object.charges.data[0].metadata.booking_id
         console.log('🔍 venue_id missing from metadata, looking up from booking_id:', bookingId)
         
         const { data: booking, error: bookingError } = await supabaseClient
@@ -63,11 +69,16 @@ serve(async (req) => {
         }
       } else {
         console.error('❌ No venue_id or booking_id found in event metadata')
-        throw new Error('Cannot determine venue for webhook event')
+        console.log('📋 Event data structure:', JSON.stringify(eventData.data?.object?.metadata, null, 2))
+        throw new Error('Cannot determine venue for webhook event - missing metadata')
       }
     } catch (parseError) {
       console.error('❌ Error parsing webhook event:', parseError)
       throw new Error('Invalid webhook event format')
+    }
+
+    if (!venueId) {
+      throw new Error('Could not determine venue_id from webhook event')
     }
 
     // Get venue's webhook secret and settings
@@ -110,6 +121,7 @@ serve(async (req) => {
     // Verify the webhook signature
     try {
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret)
+      console.log('✅ Webhook signature verified successfully')
     } catch (err) {
       console.error('❌ Webhook signature verification failed:', err.message)
       return new Response('Invalid signature', { status: 400 })
@@ -148,39 +160,89 @@ serve(async (req) => {
 })
 
 async function handlePaymentSuccess(paymentIntent: any, supabaseClient: any) {
-  const bookingId = paymentIntent.metadata.booking_id
+  // Get booking_id from payment intent metadata or charge metadata
+  const bookingId = paymentIntent.metadata.booking_id || 
+                   paymentIntent.charges?.data?.[0]?.metadata?.booking_id
+
+  if (!bookingId) {
+    console.error('❌ No booking_id found in payment intent or charge metadata')
+    return
+  }
+
   console.log('💰 Processing payment success:', paymentIntent.id, 'for booking:', bookingId)
 
   try {
-    // Update payment record
-    const { error: paymentError } = await supabaseClient
+    // Check if payment record already exists
+    const { data: existingPayment } = await supabaseClient
       .from('booking_payments')
-      .update({
-        status: 'succeeded',
-        processed_at: new Date().toISOString(),
-        payment_method_type: paymentIntent.charges?.data?.[0]?.payment_method_details?.type || 'unknown'
-      })
+      .select('id, status')
       .eq('stripe_payment_intent_id', paymentIntent.id)
+      .single()
 
-    if (paymentError) {
-      console.error('❌ Error updating payment record:', paymentError)
-    } else {
-      console.log('✅ Updated booking payment status to succeeded')
+    if (existingPayment && existingPayment.status === 'succeeded') {
+      console.log('ℹ️ Payment already processed successfully:', paymentIntent.id)
+      return
     }
 
-    // Update booking status to confirmed
-    const { error: bookingError } = await supabaseClient
-      .from('bookings')
-      .update({ 
-        status: 'confirmed',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', bookingId)
+    // Create or update payment record
+    if (existingPayment) {
+      const { error: paymentError } = await supabaseClient
+        .from('booking_payments')
+        .update({
+          status: 'succeeded',
+          processed_at: new Date().toISOString(),
+          payment_method_type: paymentIntent.charges?.data?.[0]?.payment_method_details?.type || 'unknown'
+        })
+        .eq('id', existingPayment.id)
 
-    if (bookingError) {
-      console.error('❌ Error updating booking status:', bookingError)
+      if (paymentError) {
+        console.error('❌ Error updating payment record:', paymentError)
+      } else {
+        console.log('✅ Updated existing payment record to succeeded')
+      }
     } else {
-      console.log('✅ Updated booking status to confirmed for booking:', bookingId)
+      // Create new payment record
+      const { error: paymentError } = await supabaseClient
+        .from('booking_payments')
+        .insert({
+          booking_id: parseInt(bookingId),
+          stripe_payment_intent_id: paymentIntent.id,
+          amount_cents: paymentIntent.amount,
+          status: 'succeeded',
+          processed_at: new Date().toISOString(),
+          payment_method_type: paymentIntent.charges?.data?.[0]?.payment_method_details?.type || 'card'
+        })
+
+      if (paymentError) {
+        console.error('❌ Error creating payment record:', paymentError)
+      } else {
+        console.log('✅ Created new payment record')
+      }
+    }
+
+    // Update booking status to confirmed if not already
+    const { data: booking } = await supabaseClient
+      .from('bookings')
+      .select('status')
+      .eq('id', bookingId)
+      .single()
+
+    if (booking && booking.status !== 'confirmed') {
+      const { error: bookingError } = await supabaseClient
+        .from('bookings')
+        .update({ 
+          status: 'confirmed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', bookingId)
+
+      if (bookingError) {
+        console.error('❌ Error updating booking status:', bookingError)
+      } else {
+        console.log('✅ Updated booking status to confirmed for booking:', bookingId)
+      }
+    } else {
+      console.log('ℹ️ Booking already confirmed:', bookingId)
     }
 
     // Send confirmation email
@@ -195,19 +257,31 @@ async function handlePaymentSuccess(paymentIntent: any, supabaseClient: any) {
 }
 
 async function handlePaymentFailed(paymentIntent: any, supabaseClient: any) {
-  const bookingId = paymentIntent.metadata.booking_id
+  const bookingId = paymentIntent.metadata.booking_id || 
+                   paymentIntent.charges?.data?.[0]?.metadata?.booking_id
+
+  if (!bookingId) {
+    console.error('❌ No booking_id found in payment intent metadata')
+    return
+  }
+
   console.log('💳 Processing payment failure:', paymentIntent.id, 'for booking:', bookingId)
 
   try {
-    // Update payment record
+    // Update or create payment record
     const { error: paymentError } = await supabaseClient
       .from('booking_payments')
-      .update({
+      .upsert({
+        booking_id: parseInt(bookingId),
+        stripe_payment_intent_id: paymentIntent.id,
+        amount_cents: paymentIntent.amount,
         status: 'failed',
         failure_reason: paymentIntent.last_payment_error?.message || 'Payment failed',
-        processed_at: new Date().toISOString()
+        processed_at: new Date().toISOString(),
+        payment_method_type: 'card'
+      }, {
+        onConflict: 'stripe_payment_intent_id'
       })
-      .eq('stripe_payment_intent_id', paymentIntent.id)
 
     if (paymentError) {
       console.error('❌ Error updating payment record:', paymentError)
@@ -284,7 +358,7 @@ async function logWebhookEvent(supabaseClient: any, event: any, venueId: string,
   try {
     // This would typically log to a webhook events table
     // For now, we'll just log to console
-    console.log('✅ Webhook event logged:', event.id)
+    console.log('✅ Webhook event logged:', event.id, 'status:', status)
   } catch (error) {
     console.error('❌ Error logging webhook event:', error)
   }
