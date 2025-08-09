@@ -23,7 +23,6 @@ import Guests from "./pages/Guests";
 import Settings from "./pages/Settings";
 import Reports from "./pages/Reports";
 import WiFi from "./pages/WiFi";
-import BookingWidget from "./pages/BookingWidget";
 import ModifyBooking from "./pages/ModifyBooking";
 import CancelBooking from "./pages/CancelBooking";
 import WifiPortal from "./pages/WifiPortal";
@@ -32,6 +31,9 @@ import HomePage from "./pages/HomePage";
 import NotFound from "./pages/NotFound";
 import PaymentPage from "./pages/PaymentPage";
 import PaymentSuccess from "./pages/PaymentSuccess";
+
+// Import the correct Friday 8th August widget
+import { NuthatchBookingWidget } from "@/features/booking/components/NuthatchBookingWidget";
 
 // Platform admin routes
 import PlatformAuth from "./pages/PlatformAuth";
@@ -61,6 +63,17 @@ function WifiPublicLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
+// Development banner to show which widget version is active
+function DevBanner() {
+  if (process.env.NODE_ENV !== 'development') return null;
+  
+  return (
+    <div className="fixed top-0 left-0 right-0 bg-yellow-500 text-black text-xs p-1 text-center z-50">
+      BOOKING WIDGET: NuthatchBookingWidget (Friday 8 Aug canonical version)
+    </div>
+  );
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -85,6 +98,7 @@ function App() {
               <Sonner />
               <AuthProvider>
                 <ErrorBoundary>
+                  <DevBanner />
                   <Routes>
                     {/* Public routes */}
                     <Route path="/homepage" element={<HomePage />} />
@@ -98,10 +112,10 @@ function App() {
                     } />
                     <Route path="/payment-success" element={<PaymentSuccess />} />
                     
-                    {/* Booking widget - public, needs Stripe with public mode - using clean BookingFlowManager */}
+                    {/* Booking widget - CANONICAL Friday 8 Aug version */}
                     <Route path="/booking" element={
                       <StripeProvider usePublicMode={true} venueSlug="the-nuthatch">
-                        <BookingWidget />
+                        <NuthatchBookingWidget />
                       </StripeProvider>
                     } />
                     <Route path="/modify/:token" element={
