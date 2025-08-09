@@ -1,3 +1,4 @@
+
 export interface PlatformSetting {
   id: string;
   setting_key: string;
@@ -36,7 +37,6 @@ export interface PlatformSettingsState {
   grace_period_days: number;
   auto_suspend_overdue: boolean;
   send_payment_reminders: boolean;
-  app_domain: string;
 }
 
 export interface PlatformAdmin {
