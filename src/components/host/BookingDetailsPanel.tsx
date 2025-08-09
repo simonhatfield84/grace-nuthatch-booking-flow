@@ -1,4 +1,3 @@
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,16 +7,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Users, Clock, Phone, Mail, MapPin, FileText, Calendar, Hash, Edit, Save, Plus } from "lucide-react";
+import { X, Users, Clock, Phone, Mail, MapPin, FileText, Calendar, Hash, Edit, Save, Plus, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 import { useState } from "react";
 import { Booking } from "@/features/booking/types/booking";
 import { BookingAuditTrail } from "./BookingAuditTrail";
-import { PaymentStatus } from "@/components/payments/PaymentStatus";
+import { PaymentManagementPanel } from "@/components/host/PaymentManagementPanel";
+import { RefundDialog } from "./RefundDialog";
+import { EnhancedCancelDialog } from "./EnhancedCancelDialog";
 import { useTables } from "@/hooks/useTables";
 import { useServices } from "@/hooks/useServices";
 import { useToast } from "@/hooks/use-toast";
 import { useBookings } from "@/hooks/useBookings";
+import { supabase } from "@/integrations/supabase/client";
 
 interface BookingDetailsPanelProps {
   booking: Booking | null;
@@ -34,6 +36,9 @@ export const BookingDetailsPanel = ({
 }: BookingDetailsPanelProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Booking>>({});
+  const [enhancedCancelOpen, setEnhancedCancelOpen] = useState(false);
+  const [refundDialogOpen, setRefundDialogOpen] = useState(false);
+  const [paymentData, setPaymentData] = useState<any>(null);
   const { tables } = useTables();
   const { services } = useServices();
   const { updateBooking } = useBookings();
@@ -61,6 +66,58 @@ export const BookingDetailsPanel = ({
   };
 
   const statusOptions = ['confirmed', 'seated', 'finished', 'cancelled', 'late', 'no-show'];
+
+  const handleStatusClick = async (newStatus: string) => {
+    if (newStatus === 'cancelled') {
+      // Check if payment exists first
+      try {
+        const { data: payment } = await supabase
+          .from('booking_payments')
+          .select('*')
+          .eq('booking_id', booking.id)
+          .eq('status', 'succeeded')
+          .maybeSingle();
+
+        setPaymentData(payment);
+        setEnhancedCancelOpen(true);
+      } catch (error) {
+        console.error('Error checking payment:', error);
+        // Fallback to regular status change if payment check fails
+        onStatusChange(booking, newStatus);
+      }
+    } else {
+      onStatusChange(booking, newStatus);
+    }
+  };
+
+  const loadPaymentForRefund = async () => {
+    try {
+      const { data: payment } = await supabase
+        .from('booking_payments')
+        .select('*')
+        .eq('booking_id', booking.id)
+        .eq('status', 'succeeded')
+        .maybeSingle();
+
+      if (payment) {
+        setPaymentData(payment);
+        setRefundDialogOpen(true);
+      } else {
+        toast({
+          title: "No Payment Found",
+          description: "This booking has no successful payment to refund",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error loading payment for refund:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load payment information",
+        variant: "destructive"
+      });
+    }
+  };
 
   const getAvailableTables = () => {
     return tables.filter(table => table.seats >= booking.party_size);
@@ -409,7 +466,20 @@ export const BookingDetailsPanel = ({
                 Payment Information
               </h3>
               <div className="bg-[#111315] p-4 rounded-xl border border-[#676767]/20">
-                <PaymentStatus bookingId={booking.id} />
+                <PaymentManagementPanel 
+                  booking={{
+                    id: booking.id,
+                    guest_name: booking.guest_name,
+                    email: booking.email || '',
+                    party_size: booking.party_size,
+                    service: booking.service || 'Dinner',
+                    venue_id: booking.venue_id,
+                    booking_date: booking.booking_date,
+                    booking_time: booking.booking_time,
+                    status: booking.status,
+                    created_at: booking.created_at
+                  }}
+                />
               </div>
             </div>
 
@@ -419,9 +489,24 @@ export const BookingDetailsPanel = ({
             <div>
               <h3 className="font-medium text-sm mb-3 text-white font-inter">Status & Quick Actions</h3>
               <div className="space-y-3 bg-[#111315] p-4 rounded-xl border border-[#676767]/20">
-                <Badge className={`${getStatusColor(booking.status)} font-inter`}>
-                  {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-                </Badge>
+                <div className="flex items-center justify-between">
+                  <Badge className={`${getStatusColor(booking.status)} font-inter`}>
+                    {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                  </Badge>
+                  
+                  {/* Independent Refund Button */}
+                  {booking.status !== 'cancelled' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={loadPaymentForRefund}
+                      className="bg-[#676767]/20 text-white border-[#676767]/30 hover:bg-[#676767]/30 rounded-xl font-inter"
+                    >
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                      Refund
+                    </Button>
+                  )}
+                </div>
                 
                 <div className="grid grid-cols-2 gap-2">
                   {statusOptions.map((status) => (
@@ -429,7 +514,7 @@ export const BookingDetailsPanel = ({
                       key={status}
                       size="sm"
                       variant={booking.status === status ? "default" : "outline"}
-                      onClick={() => onStatusChange(booking, status)}
+                      onClick={() => handleStatusClick(status)}
                       className={`text-xs font-inter rounded-xl ${
                         booking.status === status 
                           ? 'bg-[#CCF0DB] text-[#111315]' 
@@ -485,6 +570,28 @@ export const BookingDetailsPanel = ({
           </div>
         </ScrollArea>
       </CardContent>
+
+      {/* Enhanced Cancel Dialog */}
+      <EnhancedCancelDialog
+        open={enhancedCancelOpen}
+        onOpenChange={setEnhancedCancelOpen}
+        booking={booking}
+        onBookingUpdate={onBookingUpdate}
+      />
+
+      {/* Independent Refund Dialog */}
+      {paymentData && (
+        <RefundDialog
+          open={refundDialogOpen}
+          onOpenChange={setRefundDialogOpen}
+          payment={paymentData}
+          booking={booking}
+          onRefundProcessed={() => {
+            setRefundDialogOpen(false);
+            onBookingUpdate();
+          }}
+        />
+      )}
     </Card>
   );
 };
