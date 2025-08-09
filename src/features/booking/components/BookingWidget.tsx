@@ -1,4 +1,5 @@
 
+
 import { BookingProvider } from '../contexts/BookingContext';
 import { useBookingFlow } from '../hooks/useBookingFlow';
 import { PartyDateStep } from './steps/PartyDateStep';
@@ -8,7 +9,7 @@ import { GuestDetailsStep } from './steps/GuestDetailsStep';
 import { BookingConfirmation } from '@/components/bookings/BookingConfirmation';
 import { StepNavigation } from './shared/StepNavigation';
 import { ProgressIndicator } from './shared/ProgressIndicator';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Users, Clock, Utensils, User } from 'lucide-react';
 
 interface BookingWidgetProps {
   venueSlug: string;
@@ -63,6 +64,38 @@ function BookingWidgetContent({ venueSlug }: BookingWidgetProps) {
     handlePartySelection(partySize);
     handleDateSelection(date);
   };
+
+  // Create proper step objects for ProgressIndicator
+  const steps = [
+    {
+      id: 'party-date',
+      name: 'Party & Date',
+      icon: Users,
+      isValid: bookingData.partySize > 0 && bookingData.date !== null,
+      isCompleted: bookingData.partySize > 0 && bookingData.date !== null && currentStep > 0
+    },
+    {
+      id: 'time',
+      name: 'Choose Time',
+      icon: Clock,
+      isValid: bookingData.time !== '',
+      isCompleted: bookingData.time !== '' && currentStep > 1
+    },
+    {
+      id: 'service',
+      name: 'Select Service',
+      icon: Utensils,
+      isValid: bookingData.service !== null,
+      isCompleted: bookingData.service !== null && currentStep > 2
+    },
+    {
+      id: 'details',
+      name: 'Your Details',
+      icon: User,
+      isValid: bookingData.guestDetails !== null,
+      isCompleted: bookingData.guestDetails !== null && currentStep > 3
+    }
+  ];
 
   const renderStep = () => {
     switch (currentStep) {
@@ -127,7 +160,7 @@ function BookingWidgetContent({ venueSlug }: BookingWidgetProps) {
     <div className="max-w-md mx-auto">
       {currentStep !== 4 && (
         <ProgressIndicator 
-          steps={STEP_TITLES}
+          steps={steps}
           currentStep={currentStep} 
         />
       )}
@@ -155,3 +188,4 @@ export function BookingWidget({ venueSlug }: BookingWidgetProps) {
     </BookingProvider>
   );
 }
+
