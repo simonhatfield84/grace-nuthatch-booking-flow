@@ -8,45 +8,18 @@ import {
   Settings,
   Users,
   Wifi,
+  Menu,
+  X,
 } from 'lucide-react';
-import { NavLink, useLocation } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { useEffect, useState } from 'react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useCurrentUserProfile } from '@/hooks/useUserProfile';
-import { Skeleton } from "@/components/ui/skeleton"
-import { MoreHorizontal } from "lucide-react"
+import { NavLink } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
 
 interface AdminSidebarProps {
   collapsed?: boolean;
   onToggleCollapse?: () => void;
-  showUserProfile?: boolean;
 }
 
-const AdminSidebar = ({ collapsed = false, onToggleCollapse, showUserProfile = true }: AdminSidebarProps) => {
-  const location = useLocation();
-  const { signOut } = useAuth();
-  const { data: profile, isLoading } = useCurrentUserProfile();
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
+const AdminSidebar = ({ collapsed = false, onToggleCollapse }: AdminSidebarProps) => {
   const sidebarItems = [
     { name: 'Dashboard', href: '/dashboard', icon: BarChart3 },
     { name: 'Host View', href: '/new-host', icon: Calendar },
@@ -59,8 +32,8 @@ const AdminSidebar = ({ collapsed = false, onToggleCollapse, showUserProfile = t
   ];
 
   return (
-    <div className={`flex flex-col h-full bg-sidebar-background border-r border-sidebar-border transition-all duration-300 ${collapsed ? 'w-16' : 'w-64'}`}>
-      <div className="px-4 py-6">
+    <div className={`fixed left-0 top-0 h-full bg-sidebar-background border-r border-sidebar-border transition-all duration-300 z-10 ${collapsed ? 'w-16' : 'w-64'}`}>
+      <div className="flex items-center justify-between px-4 py-6">
         <a href="/dashboard" className="block">
           {collapsed ? (
             <div className="grace-logo text-2xl text-center">G</div>
@@ -68,7 +41,18 @@ const AdminSidebar = ({ collapsed = false, onToggleCollapse, showUserProfile = t
             <div className="grace-logo text-2xl">grace</div>
           )}
         </a>
+        {onToggleCollapse && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onToggleCollapse}
+            className="p-1"
+          >
+            {collapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
+          </Button>
+        )}
       </div>
+      
       <div className="flex-grow p-4">
         <ul className="space-y-2">
           {sidebarItems.map((item) => (
@@ -90,44 +74,6 @@ const AdminSidebar = ({ collapsed = false, onToggleCollapse, showUserProfile = t
           ))}
         </ul>
       </div>
-      {showUserProfile && (
-        <div className="p-4 border-t border-sidebar-border">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className={`w-full flex items-center ${collapsed ? 'justify-center' : 'justify-between'}`}>
-                <div className="flex items-center space-x-2">
-                  {isLoading ? (
-                    <Skeleton className="h-8 w-8 rounded-full" />
-                  ) : (
-                    <Avatar>
-                      <AvatarImage src="" />
-                      <AvatarFallback>{profile?.displayName?.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                  )}
-                  {!collapsed && (
-                    <div className="flex flex-col items-start">
-                      {isLoading ? (
-                        <Skeleton className="h-4 w-24" />
-                      ) : (
-                        <span className="text-sm font-medium text-sidebar-foreground">{profile?.displayName}</span>
-                      )}
-                      <span className="text-xs text-sidebar-foreground/70">
-                        {profile?.email}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                {!collapsed && <MoreHorizontal className="w-4 h-4 text-sidebar-foreground/70" />}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => signOut()}>Logout</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      )}
     </div>
   );
 };

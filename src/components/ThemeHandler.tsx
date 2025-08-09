@@ -16,8 +16,8 @@ export function ThemeHandler() {
       root.removeAttribute('data-theme');
       body.removeAttribute('data-theme');
 
-      // Determine theme based on route
-      const isHostRoute = location.pathname.includes('/host');
+      // Determine theme based on route - include both /host and /new-host for host routes
+      const isHostRoute = location.pathname.includes('/host') || location.pathname.includes('/new-host');
       const theme = isHostRoute ? 'dark' : 'light';
       
       // Apply theme
@@ -48,8 +48,8 @@ export function ThemeHandler() {
     } catch (error) {
       console.error('❌ Theme Handler Error:', error);
       // Fallback to basic styling if theme handler fails
-      const fallbackBg = location.pathname.includes('/host') ? '#111315' : '#F4EAE0';
-      const fallbackColor = location.pathname.includes('/host') ? '#FFFFFF' : '#2E2E2E';
+      const fallbackBg = location.pathname.includes('/host') || location.pathname.includes('/new-host') ? '#111315' : '#F4EAE0';
+      const fallbackColor = location.pathname.includes('/host') || location.pathname.includes('/new-host') ? '#FFFFFF' : '#2E2E2E';
       
       document.documentElement.style.backgroundColor = fallbackBg;
       document.documentElement.style.color = fallbackColor;
