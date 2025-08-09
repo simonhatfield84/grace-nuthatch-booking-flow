@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -81,10 +82,16 @@ function App() {
                       <Route path="/wifi-success" element={<WifiPortalSuccess />} />
                       
                       {/* Booking widget routes - public but needs Stripe */}
-                      <StripeProvider>
-                        <Route path="/book/:venueSlug" element={<BookingWidget />} />
-                        <Route path="/book/:venueSlug/:serviceSlug" element={<BookingWidget />} />
-                      </StripeProvider>
+                      <Route path="/book/:venueSlug" element={
+                        <StripeProvider>
+                          <BookingWidget />
+                        </StripeProvider>
+                      } />
+                      <Route path="/book/:venueSlug/:serviceSlug" element={
+                        <StripeProvider>
+                          <BookingWidget />
+                        </StripeProvider>
+                      } />
                       
                       {/* Public booking management routes */}
                       <Route path="/modify/:token" element={<ModifyBooking />} />
