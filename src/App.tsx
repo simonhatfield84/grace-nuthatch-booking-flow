@@ -59,8 +59,8 @@ function App() {
                   <Route path="/wifiportal/nuthatch" element={<WifiPortal />} />
                   <Route path="/wifiportal/success/nuthatch" element={<WifiPortalSuccess />} />
                   
-                  {/* Booking widget - public */}
-                  <Route path="/booking/:slug" element={<BookingWidget />} />
+                  {/* Booking widget - public, static route for single venue */}
+                  <Route path="/booking" element={<BookingWidget />} />
                   <Route path="/modify/:token" element={<ModifyBooking />} />
                   <Route path="/cancel/:token" element={<CancelBooking />} />
 
