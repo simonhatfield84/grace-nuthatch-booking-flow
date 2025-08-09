@@ -73,11 +73,21 @@ export const WifiSettings = () => {
 
   const saveMutation = useMutation({
     mutationFn: async (data: WifiSettingsData) => {
+      // Get current user's venue ID
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('venue_id')
+        .single();
+      
+      if (!profile?.venue_id) {
+        throw new Error('No venue found for user');
+      }
+
       const { error } = await supabase
         .from('wifi_settings')
         .upsert({
-          ...data,
-          updated_at: new Date().toISOString()
+          venue_id: profile.venue_id,
+          ...data
         });
       
       if (error) throw error;
@@ -229,8 +239,8 @@ export const WifiSettings = () => {
 
         <div className="flex items-center justify-between pt-4 border-t">
           <p className="text-sm text-muted-foreground">
-            {settings?.updated_at && 
-              `Last saved: ${new Date(settings.updated_at).toLocaleString()}`
+            {settings && settings.created_at && 
+              `Last saved: ${new Date(settings.created_at).toLocaleString()}`
             }
           </p>
           <Button onClick={handleSave} disabled={isSaving}>
