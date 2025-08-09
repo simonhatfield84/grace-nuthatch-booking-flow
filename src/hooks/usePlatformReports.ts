@@ -39,51 +39,31 @@ export const usePlatformDocuments = (filters: ReportsFilters = {}) => {
   return useQuery({
     queryKey: ['platform-documents', filters],
     queryFn: async () => {
-      // Use raw SQL query to bypass TypeScript type checking
-      let sql = `
-        SELECT * FROM platform_documents 
-        WHERE 1=1
-      `;
-      const params: any[] = [];
+      // Use direct query with type assertion
+      let query = (supabase as any)
+        .from('platform_documents')
+        .select('*')
+        .order('last_modified', { ascending: false });
 
       if (filters.search) {
-        sql += ` AND (title ILIKE $${params.length + 1} OR path ILIKE $${params.length + 2} OR content_md ILIKE $${params.length + 3})`;
-        params.push(`%${filters.search}%`, `%${filters.search}%`, `%${filters.search}%`);
+        query = query.or(`title.ilike.%${filters.search}%,path.ilike.%${filters.search}%,content_md.ilike.%${filters.search}%`);
       }
 
       if (filters.type) {
-        sql += ` AND type = $${params.length + 1}`;
-        params.push(filters.type);
+        query = query.eq('type', filters.type);
       }
 
       if (filters.dateFrom) {
-        sql += ` AND created_at >= $${params.length + 1}`;
-        params.push(filters.dateFrom);
+        query = query.gte('created_at', filters.dateFrom);
       }
 
       if (filters.dateTo) {
-        sql += ` AND created_at <= $${params.length + 1}`;
-        params.push(filters.dateTo);
+        query = query.lte('created_at', filters.dateTo);
       }
 
-      sql += ` ORDER BY last_modified DESC`;
+      const { data, error } = await query;
 
-      const { data, error } = await supabase.rpc('exec_sql', { 
-        sql_query: sql,
-        sql_params: params 
-      }).single();
-
-      if (error) {
-        // Fallback to direct query if RPC doesn't work
-        const { data: fallbackData, error: fallbackError } = await (supabase as any)
-          .from('platform_documents')
-          .select('*')
-          .order('last_modified', { ascending: false });
-
-        if (fallbackError) throw fallbackError;
-        return fallbackData as PlatformDocument[];
-      }
-
+      if (error) throw error;
       return data as PlatformDocument[];
     },
   });
