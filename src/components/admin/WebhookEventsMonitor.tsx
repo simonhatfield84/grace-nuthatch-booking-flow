@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { RefreshCw, AlertTriangle, CheckCircle, Clock } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { isErrorEventData, hasBookingMetadata, hasAmountData } from "@/utils/typeGuards";
 
 interface WebhookEvent {
   id: string;
@@ -53,11 +53,11 @@ export const WebhookEventsMonitor = () => {
 
       setEvents(data || []);
 
-      // Calculate stats based on processed_at and event_data
+      // Calculate stats based on processed_at and event_data using type guards
       const total = data?.length || 0;
-      const success = data?.filter(e => e.processed_at !== null && !e.event_data?.error).length || 0;
-      const failed = data?.filter(e => e.event_data?.error || (e.processed_at === null && isOlderThan5Minutes(e.created_at))).length || 0;
-      const processing = data?.filter(e => e.processed_at === null && !isOlderThan5Minutes(e.created_at)).length || 0;
+      const success = data?.filter(e => e.processed_at !== null && !isErrorEventData(e.event_data)).length || 0;
+      const failed = data?.filter(e => isErrorEventData(e.event_data) || (e.processed_at === null && isOlderThan5Minutes(e.created_at))).length || 0;
+      const processing = data?.filter(e => e.processed_at === null && !isOlderThan5Minutes(e.created_at) && !isErrorEventData(e.event_data)).length || 0;
 
       setStats({ total, success, failed, processing });
     } catch (error) {
@@ -95,7 +95,7 @@ export const WebhookEventsMonitor = () => {
   }, []);
 
   const getStatusFromEvent = (event: WebhookEvent) => {
-    if (event.event_data?.error) return 'failed';
+    if (isErrorEventData(event.event_data)) return 'failed';
     if (event.processed_at) return 'success';
     if (isOlderThan5Minutes(event.created_at)) return 'failed';
     return 'processing';
@@ -123,16 +123,15 @@ export const WebhookEventsMonitor = () => {
   };
 
   const formatAmount = (eventData: any) => {
-    if (eventData?.data?.object?.amount) {
+    if (hasAmountData(eventData)) {
       return `£${(eventData.data.object.amount / 100).toFixed(2)}`;
     }
     return 'N/A';
   };
 
   const getBookingInfo = (eventData: any) => {
-    const metadata = eventData?.data?.object?.metadata;
-    if (metadata?.booking_id) {
-      return `Booking: ${metadata.booking_id}`;
+    if (hasBookingMetadata(eventData)) {
+      return `Booking: ${eventData.data.object.metadata.booking_id}`;
     }
     return null;
   };
@@ -233,7 +232,7 @@ export const WebhookEventsMonitor = () => {
                             {new Date(event.created_at).toLocaleString()}
                           </span>
                         </div>
-                        {event.event_data?.error && (
+                        {isErrorEventData(event.event_data) && (
                           <div className="text-xs text-red-600 mt-1">
                             Error: {event.event_data.error}
                           </div>

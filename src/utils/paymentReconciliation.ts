@@ -1,6 +1,6 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { isErrorEventData } from "./typeGuards";
 
 export interface PaymentReconciliationData {
   bookingId: number;
@@ -128,7 +128,7 @@ export const reconcilePayment = async (data: PaymentReconciliationData) => {
   }
 };
 
-// Enhanced function to check payment status consistency
+// Enhanced function to check payment consistency
 export const checkPaymentConsistency = async (bookingId: number) => {
   try {
     // Get booking data
@@ -197,8 +197,8 @@ export const checkPaymentConsistency = async (bookingId: number) => {
       };
     }
 
-    // Check for failed webhook events (based on event_data.error)
-    const failedEvents = webhookEvents?.filter(e => e.event_data?.error) || [];
+    // Check for failed webhook events using type guard
+    const failedEvents = webhookEvents?.filter(e => isErrorEventData(e.event_data)) || [];
     if (failedEvents.length > 0) {
       return {
         consistent: false,
