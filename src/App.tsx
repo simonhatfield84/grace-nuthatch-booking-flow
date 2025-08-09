@@ -98,7 +98,7 @@ function App() {
                     } />
                     <Route path="/payment-success" element={<PaymentSuccess />} />
                     
-                    {/* Booking widget - public, needs Stripe with public mode */}
+                    {/* Booking widget - public, needs Stripe with public mode - using clean BookingFlowManager */}
                     <Route path="/booking" element={
                       <StripeProvider usePublicMode={true} venueSlug="the-nuthatch">
                         <BookingWidget />
