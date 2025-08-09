@@ -7,7 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
-import { RootRedirect } from "@/components/auth/RootRedirect";
+import RootRedirect from "@/components/auth/RootRedirect";
 import { StripeProvider } from "@/components/providers/StripeProvider";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -66,7 +66,7 @@ function App() {
 
                   {/* Platform admin routes */}
                   <Route path="/platform/auth" element={<PlatformAuth />} />
-                  <Route path="/platform" element={<ProtectedRoute><PlatformDashboard /></ProtectedRoute>} />
+                  <Route path="/platform/dashboard" element={<ProtectedRoute><PlatformDashboard /></ProtectedRoute>} />
                   <Route path="/platform/venues" element={<ProtectedRoute><PlatformVenues /></ProtectedRoute>} />
                   <Route path="/platform/users" element={<ProtectedRoute><PlatformUsers /></ProtectedRoute>} />
                   <Route path="/platform/settings" element={<ProtectedRoute><PlatformSettings /></ProtectedRoute>} />
