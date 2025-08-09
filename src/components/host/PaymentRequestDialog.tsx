@@ -70,24 +70,33 @@ export const PaymentRequestDialog = ({ open, onOpenChange, booking }: PaymentReq
         return;
       }
 
-      console.log('Sending payment request:', {
-        bookingId: booking.id,
-        amount,
-        guestEmail: booking.email,
-        customMessage
+      console.log('Sending payment request with corrected parameters:', {
+        booking_id: booking.id,
+        amount_cents: amount,
+        venue_id: booking.venue_id,
+        custom_message: customMessage
       });
 
-      const { error } = await supabase.functions.invoke('send-payment-request', {
+      const { data, error } = await supabase.functions.invoke('send-payment-request', {
         body: {
           booking_id: booking.id,
           amount_cents: amount,
-          guest_email: booking.email,
-          custom_message: customMessage,
-          venue_id: booking.venue_id
+          venue_id: booking.venue_id,
+          custom_message: customMessage
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Edge function error:', error);
+        throw new Error(error.message || 'Failed to send payment request');
+      }
+
+      if (!data.success) {
+        console.error('Payment request failed:', data.error);
+        throw new Error(data.error || 'Payment request failed');
+      }
+
+      console.log('Payment request sent successfully:', data);
 
       // Update booking status to pending payment
       const { error: updateError } = await supabase
@@ -95,14 +104,18 @@ export const PaymentRequestDialog = ({ open, onOpenChange, booking }: PaymentReq
         .update({ status: 'pending_payment' })
         .eq('id', booking.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('Error updating booking status:', updateError);
+        throw updateError;
+      }
 
       toast.success('Payment request sent successfully!');
       onOpenChange(false);
 
     } catch (error) {
       console.error('Error sending payment request:', error);
-      toast.error('Failed to send payment request');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to send payment request';
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
