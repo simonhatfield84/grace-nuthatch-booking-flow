@@ -54,55 +54,101 @@ serve(async (req) => {
       throw new Error('Refund amount cannot exceed original payment');
     }
 
-    // Create Stripe refund (simplified for demo - in production, use actual Stripe API)
-    const stripe_refund_id = `re_${crypto.randomUUID().slice(0, 24)}`;
+    // Check for existing refunds
+    if (payment.refund_amount_cents > 0) {
+      const totalRefund = payment.refund_amount_cents + refund_amount_cents;
+      if (totalRefund > payment.amount_cents) {
+        throw new Error('Total refund amount would exceed original payment');
+      }
+    }
 
-    // Update payment record with refund information
-    const { error: updateError } = await supabase
+    // Determine refund status based on amount
+    const totalRefundAfter = (payment.refund_amount_cents || 0) + refund_amount_cents;
+    const refundStatus = totalRefundAfter >= payment.amount_cents ? 'full' : 'partial';
+
+    console.log('🔄 Determined refund status:', refundStatus);
+
+    // Set processing status first
+    const { error: processingError } = await supabase
       .from('booking_payments')
       .update({
-        refund_amount_cents,
-        refund_status: 'processed',
-        refund_reason,
-        refunded_at: new Date().toISOString(),
-        stripe_refund_id,
+        refund_status: 'processing',
         updated_at: new Date().toISOString()
       })
       .eq('id', payment_id);
 
-    if (updateError) throw updateError;
-
-    // Log refund in booking audit
-    await supabase
-      .from('booking_audit')
-      .insert([{
-        booking_id,
-        venue_id,
-        change_type: 'refund_processed',
-        field_name: 'refund_amount',
-        old_value: '0',
-        new_value: (refund_amount_cents / 100).toString(),
-        notes: `Refund processed: £${(refund_amount_cents / 100).toFixed(2)} - Reason: ${refund_reason}`
-      }]);
-
-    // If full refund and booking is confirmed, update booking status
-    if (refund_amount_cents === payment.amount_cents) {
-      await supabase
-        .from('bookings')
-        .update({ status: 'cancelled' })
-        .eq('id', booking_id);
+    if (processingError) {
+      console.error('Error setting processing status:', processingError);
+      throw processingError;
     }
 
-    console.log('✅ Refund processed successfully');
+    // Create Stripe refund (simplified for demo - in production, use actual Stripe API)
+    const stripe_refund_id = `re_${crypto.randomUUID().slice(0, 24)}`;
 
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        refund_id: stripe_refund_id,
-        amount_refunded: refund_amount_cents 
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    try {
+      // Update payment record with refund information
+      const { error: updateError } = await supabase
+        .from('booking_payments')
+        .update({
+          refund_amount_cents: totalRefundAfter,
+          refund_status: refundStatus,
+          refund_reason,
+          refunded_at: new Date().toISOString(),
+          stripe_refund_id,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', payment_id);
+
+      if (updateError) {
+        console.error('Error updating payment with refund:', updateError);
+        throw updateError;
+      }
+
+      // Log refund in booking audit
+      await supabase
+        .from('booking_audit')
+        .insert([{
+          booking_id,
+          venue_id,
+          change_type: 'refund_processed',
+          field_name: 'refund_amount',
+          old_value: ((payment.refund_amount_cents || 0) / 100).toString(),
+          new_value: (totalRefundAfter / 100).toString(),
+          notes: `Refund processed: £${(refund_amount_cents / 100).toFixed(2)} - Reason: ${refund_reason} - Status: ${refundStatus}`
+        }]);
+
+      // If full refund and booking is confirmed, update booking status
+      if (refundStatus === 'full') {
+        await supabase
+          .from('bookings')
+          .update({ status: 'cancelled' })
+          .eq('id', booking_id);
+      }
+
+      console.log('✅ Refund processed successfully');
+
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          refund_id: stripe_refund_id,
+          amount_refunded: refund_amount_cents,
+          refund_status: refundStatus
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+
+    } catch (error) {
+      // Set failed status if something goes wrong
+      await supabase
+        .from('booking_payments')
+        .update({
+          refund_status: 'failed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', payment_id);
+      
+      throw error;
+    }
 
   } catch (error) {
     console.error('❌ Error processing refund:', error);
