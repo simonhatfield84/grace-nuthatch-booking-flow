@@ -102,27 +102,13 @@ function BookingWidgetContent({ venueSlug }: BookingWidgetProps) {
       case 4:
         return (
           <GuestDetailsStep
-            value={bookingData.guestDetails ? {
-              name: bookingData.guestDetails.name,
-              email: bookingData.guestDetails.email,
-              phone: bookingData.guestDetails.phone || '',
-              notes: bookingData.guestDetails.notes || '',
-              marketingOptIn: bookingData.guestDetails.marketingOptIn,
-              termsAccepted: bookingData.guestDetails.termsAccepted
-            } : {
-              name: '',
-              email: '',
-              phone: '',
-              notes: '',
-              marketingOptIn: false,
-              termsAccepted: false
+            onNext={handleGuestDetails}
+            onBack={goBack}
+            bookingData={{
+              ...bookingData,
+              venue,
             }}
-            service={bookingData.service}
-            venue={venue}
-            partySize={bookingData.partySize}
-            date={bookingData.date}
-            time={bookingData.time}
-            onChange={handleGuestDetails}
+            venueSlug={venueSlug}
           />
         );
       case 5:
