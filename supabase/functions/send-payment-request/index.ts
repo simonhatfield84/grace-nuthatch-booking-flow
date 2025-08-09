@@ -1,3 +1,4 @@
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
@@ -5,6 +6,22 @@ const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+
+// Safe function to parse settings values that might be JSON or plain text
+const safeParseSettingValue = (value: any): string => {
+  if (typeof value !== 'string') {
+    return String(value);
+  }
+  
+  // Try to parse as JSON first
+  try {
+    const parsed = JSON.parse(value);
+    return String(parsed);
+  } catch {
+    // If JSON parsing fails, return the raw string value
+    return value;
+  }
+};
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -68,9 +85,9 @@ serve(async (req) => {
       console.error('❌ Error fetching platform settings:', settingsError)
     }
 
-    // Convert settings to object
+    // Convert settings to object using safe parsing
     const settings = platformSettings?.reduce((acc, setting) => {
-      acc[setting.setting_key] = JSON.parse(setting.setting_value)
+      acc[setting.setting_key] = safeParseSettingValue(setting.setting_value);
       return acc
     }, {} as Record<string, string>) || {}
 
