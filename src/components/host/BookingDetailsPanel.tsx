@@ -20,6 +20,7 @@ import { useServices } from "@/hooks/useServices";
 import { useToast } from "@/hooks/use-toast";
 import { useBookings } from "@/hooks/useBookings";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface BookingDetailsPanelProps {
   booking: Booking | null;
@@ -43,19 +44,19 @@ export const BookingDetailsPanel = ({
   const { services } = useServices();
   const { updateBooking } = useBookings();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   if (!booking) return null;
 
   // Callback to refresh the entire booking data with immediate cache invalidation
-  const handleFullBookingUpdate = useCallback(async () => {
+  const handleFullBookingUpdate = useCallback(() => {
     // Force immediate refresh by invalidating queries first
-    const queryClient = await import('@tanstack/react-query').then(mod => mod.useQueryClient)();
     queryClient.invalidateQueries({ queryKey: ['bookings'] });
     queryClient.invalidateQueries({ queryKey: ['booking-audit', booking.id] });
     
     // Then call the parent callback
     onBookingUpdate();
-  }, [onBookingUpdate, booking.id]);
+  }, [onBookingUpdate, booking.id, queryClient]);
 
   // Callback specifically for payment updates
   const handlePaymentUpdate = useCallback(() => {
