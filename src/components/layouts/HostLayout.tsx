@@ -10,15 +10,16 @@ export function HostLayout({ children }: HostLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true); // Collapsed by default for iPad
 
   return (
-    <div className="flex h-screen bg-background text-foreground">
+    <div className="dark host-app flex h-screen bg-host-blackest-dark text-white">
       <AdminSidebar 
         collapsed={sidebarCollapsed} 
         onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
-        showUserProfile={true} // Move user profile into sidebar
+        showUserProfile={true}
+        isHostMode={true}
       />
       <div className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ${sidebarCollapsed ? 'ml-16' : 'ml-64'}`}>
         {/* No header - maximizing space for iPad */}
-        <main className="flex-1 overflow-auto p-4 bg-background text-foreground">
+        <main className="flex-1 overflow-auto p-4 bg-host-blackest-dark text-white">
           {children}
         </main>
       </div>

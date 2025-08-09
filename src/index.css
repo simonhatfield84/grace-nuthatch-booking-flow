@@ -143,6 +143,38 @@
   .grace-brand {
     color: hsl(var(--primary));
   }
+
+  /* Host-specific styling overrides */
+  .host-app {
+    background-color: #111315 !important;
+    color: #FFFFFF !important;
+  }
+
+  .host-app * {
+    color: inherit;
+  }
+
+  .host-app .bg-background {
+    background-color: #111315 !important;
+  }
+
+  .host-app .bg-card {
+    background-color: #292C2D !important;
+    color: #FFFFFF !important;
+  }
+
+  .host-app .text-foreground {
+    color: #FFFFFF !important;
+  }
+
+  .host-app .text-muted-foreground {
+    color: #676767 !important;
+  }
+
+  /* Ensure host sidebar styling */
+  .host-app .grace-logo {
+    color: #FFFFFF !important;
+  }
 }
 
 /* iPad Safari Specific Fixes */

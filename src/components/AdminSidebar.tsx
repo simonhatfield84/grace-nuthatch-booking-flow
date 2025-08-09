@@ -47,15 +47,24 @@ const navigation = [
 interface AdminSidebarProps {
   collapsed?: boolean;
   onToggleCollapse?: () => void;
-  showUserProfile?: boolean; // New prop for host interface
+  showUserProfile?: boolean;
+  isHostMode?: boolean;
 }
 
-const AdminSidebar = ({ collapsed = false, onToggleCollapse, showUserProfile = false }: AdminSidebarProps) => {
+const AdminSidebar = ({ collapsed = false, onToggleCollapse, showUserProfile = false, isHostMode = false }: AdminSidebarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Determine if we're in host mode from props or location
+  const inHostMode = isHostMode || location.pathname.startsWith('/host');
+  
+  // Apply host-specific styling
+  const sidebarBgClass = inHostMode ? 'bg-host-blackest-dark' : 'bg-background';
+  const sidebarTextClass = inHostMode ? 'text-white' : 'text-foreground';
+  const sidebarBorderClass = inHostMode ? 'border-host-mid-gray' : 'border-border';
 
   const handleLogout = async () => {
     try {
@@ -88,8 +97,8 @@ const AdminSidebar = ({ collapsed = false, onToggleCollapse, showUserProfile = f
   const SidebarContent = () => (
     <>
       {/* Logo */}
-      <div className={`flex items-center justify-between p-3 border-b ${collapsed ? 'px-2' : ''}`}>
-        {!collapsed && <div className="grace-logo text-xl font-bold">grace</div>}
+      <div className={`flex items-center justify-between p-3 border-b ${sidebarBorderClass} ${collapsed ? 'px-2' : ''}`}>
+        {!collapsed && <div className={`grace-logo text-xl font-bold ${inHostMode ? 'text-white' : 'text-primary'}`}>grace</div>}
         <Button
           variant="ghost"
           size="sm"
@@ -105,6 +114,10 @@ const AdminSidebar = ({ collapsed = false, onToggleCollapse, showUserProfile = f
         <nav className={`space-y-1 ${collapsed ? 'px-2' : 'px-3'}`}>
           {navigation.map((item) => {
             const Icon = item.icon;
+            const activeStyles = isActive(item.href)
+              ? (inHostMode ? 'bg-host-dark-gray text-white' : 'bg-primary text-primary-foreground')
+              : (inHostMode ? 'text-host-mid-gray hover:text-white hover:bg-host-dark-gray' : 'text-muted-foreground hover:text-foreground hover:bg-muted');
+              
             return (
               <Link
                 key={item.name}
@@ -112,9 +125,7 @@ const AdminSidebar = ({ collapsed = false, onToggleCollapse, showUserProfile = f
                 onClick={() => setIsMobileMenuOpen(false)}
                 className={cn(
                   'flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
-                  isActive(item.href)
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+                  activeStyles,
                   collapsed && 'justify-center px-2'
                 )}
                 title={collapsed ? item.name : undefined}
@@ -129,13 +140,13 @@ const AdminSidebar = ({ collapsed = false, onToggleCollapse, showUserProfile = f
 
       {/* User Profile Section - only show if showUserProfile is true */}
       {showUserProfile && (
-        <div className={`p-3 border-t ${collapsed ? 'px-2' : ''}`}>
+        <div className={`p-3 border-t ${sidebarBorderClass} ${collapsed ? 'px-2' : ''}`}>
           {collapsed ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="w-full h-10 p-0">
                   <Avatar className="h-6 w-6">
-                    <AvatarFallback className="text-xs">
+                    <AvatarFallback className={`text-xs ${inHostMode ? 'bg-host-dark-gray text-white' : ''}`}>
                       {user?.email?.charAt(0).toUpperCase() || 'U'}
                     </AvatarFallback>
                   </Avatar>
@@ -155,17 +166,17 @@ const AdminSidebar = ({ collapsed = false, onToggleCollapse, showUserProfile = f
             </DropdownMenu>
           ) : (
             <div className="space-y-2">
-              <div className="flex items-center gap-2 p-2 bg-muted rounded-md">
+              <div className={`flex items-center gap-2 p-2 rounded-md ${inHostMode ? 'bg-host-dark-gray' : 'bg-muted'}`}>
                 <Avatar className="h-6 w-6">
-                  <AvatarFallback className="text-xs">
+                  <AvatarFallback className={`text-xs ${inHostMode ? 'bg-host-mid-gray text-white' : ''}`}>
                     {user?.email?.charAt(0).toUpperCase() || 'U'}
                   </AvatarFallback>
                 </Avatar>
-                <span className="text-xs truncate flex-1">{user?.email}</span>
+                <span className={`text-xs truncate flex-1 ${inHostMode ? 'text-white' : ''}`}>{user?.email}</span>
               </div>
               <div className="flex gap-1">
                 <ChangePasswordDialog />
-                <Button variant="ghost" size="sm" onClick={handleLogout} className="flex-1 text-xs">
+                <Button variant="ghost" size="sm" onClick={handleLogout} className={`flex-1 text-xs ${inHostMode ? 'text-white hover:bg-host-dark-gray' : ''}`}>
                   <LogOut className="h-3 w-3 mr-1" />
                   Sign out
                 </Button>
@@ -176,12 +187,12 @@ const AdminSidebar = ({ collapsed = false, onToggleCollapse, showUserProfile = f
       )}
 
       {/* Collapse Toggle */}
-      <div className={`p-3 border-t ${collapsed ? 'px-2' : ''}`}>
+      <div className={`p-3 border-t ${sidebarBorderClass} ${collapsed ? 'px-2' : ''}`}>
         <Button
           variant="ghost"
           size="sm"
           onClick={onToggleCollapse}
-          className={`w-full ${collapsed ? 'px-2' : 'justify-start'}`}
+          className={`w-full ${collapsed ? 'px-2' : 'justify-start'} ${inHostMode ? 'text-white hover:bg-host-dark-gray' : ''}`}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {collapsed ? (
@@ -197,8 +208,8 @@ const AdminSidebar = ({ collapsed = false, onToggleCollapse, showUserProfile = f
 
       {/* Footer */}
       {!collapsed && (
-        <div className="p-3 border-t">
-          <p className="text-xs text-muted-foreground">
+        <div className={`p-3 border-t ${sidebarBorderClass}`}>
+          <p className={`text-xs ${inHostMode ? 'text-host-mid-gray' : 'text-muted-foreground'}`}>
             Grace OS • Venue Management
           </p>
         </div>
@@ -222,14 +233,14 @@ const AdminSidebar = ({ collapsed = false, onToggleCollapse, showUserProfile = f
       {isMobileMenuOpen && (
         <div className="lg:hidden fixed inset-0 z-40 flex">
           <div className="fixed inset-0 bg-black/20" onClick={() => setIsMobileMenuOpen(false)} />
-          <div className="relative flex w-64 flex-col bg-background border-r">
+          <div className={`relative flex w-64 flex-col ${sidebarBgClass} ${sidebarTextClass} border-r ${sidebarBorderClass}`}>
             <SidebarContent />
           </div>
         </div>
       )}
 
       {/* Desktop sidebar */}
-      <div className={`hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 bg-background border-r transition-all duration-300 z-30 ${collapsed ? 'lg:w-16' : 'lg:w-64'}`}>
+      <div className={`hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 ${sidebarBgClass} ${sidebarTextClass} border-r ${sidebarBorderClass} transition-all duration-300 z-30 ${collapsed ? 'lg:w-16' : 'lg:w-64'}`}>
         <SidebarContent />
       </div>
     </>
