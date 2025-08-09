@@ -4,7 +4,7 @@ import { Calendar, Users, Utensils, BarChart3, Plus, TrendingUp } from "lucide-r
 import { Link } from "react-router-dom";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { KpiCard } from "@/components/dashboard/KpiCard";
-import { DashboardCharts, ServicePopularityChart, StatusBreakdownChart } from "@/components/dashboard/DashboardCharts";
+import { ServicePopularityChart, StatusBreakdownChart } from "@/components/dashboard/DashboardCharts";
 import { AlertsPanel } from "@/components/dashboard/AlertsPanel";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -28,18 +28,6 @@ const Dashboard = () => {
   const recentBookings = todaysBookings.bookings
     .filter(booking => booking.status === 'confirmed')
     .slice(0, 5);
-
-  // Convert servicePopularity object to array format for charts
-  const servicePopularityArray = Object.entries(servicePopularity).map(([name, count]) => ({
-    name,
-    bookings: count
-  }));
-
-  // Convert statusBreakdown object to array format for charts  
-  const statusBreakdownArray = Object.entries(todaysBookings.statusBreakdown || {}).map(([status, count]) => ({
-    name: status,
-    count
-  }));
 
   console.log('📊 Dashboard rendering with data:', { 
     todaysBookings: todaysBookings.count, 
@@ -111,10 +99,10 @@ const Dashboard = () => {
       {/* Charts and Alerts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
         <div className="lg:col-span-1">
-          <ServicePopularityChart data={servicePopularityArray} />
+          <ServicePopularityChart data={servicePopularity} />
         </div>
         <div className="lg:col-span-1">
-          <StatusBreakdownChart data={statusBreakdownArray} />
+          <StatusBreakdownChart data={todaysBookings.statusBreakdown} />
         </div>
         <div className="lg:col-span-1">
           <AlertsPanel 
@@ -212,9 +200,6 @@ const Dashboard = () => {
           </CardContent>
         </Card>
       </div>
-
-      {/* Enhanced Dashboard Charts */}
-      <DashboardCharts />
     </div>
   );
 };

@@ -1,3 +1,4 @@
+
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -12,13 +13,11 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { ChangePasswordDialog } from "@/components/auth/ChangePasswordDialog";
-import { useCurrentUserProfile } from "@/hooks/useUserProfile";
 
 export function PlatformHeader() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { data: userProfile } = useCurrentUserProfile();
 
   const handleLogout = async () => {
     try {
@@ -50,7 +49,7 @@ export function PlatformHeader() {
           <Button variant="ghost" className="relative h-8 w-8 rounded-full">
             <Avatar className="h-8 w-8">
               <AvatarFallback className="bg-orange-600 text-white">
-                {userProfile?.displayName?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
+                {user?.email?.charAt(0).toUpperCase() || 'U'}
               </AvatarFallback>
             </Avatar>
           </Button>
@@ -58,7 +57,7 @@ export function PlatformHeader() {
         <DropdownMenuContent className="w-56" align="end">
           <DropdownMenuItem disabled className="font-normal">
             <User className="mr-2 h-4 w-4" />
-            {userProfile?.displayName || user?.email}
+            {user?.email}
           </DropdownMenuItem>
           <ChangePasswordDialog />
           <DropdownMenuItem onClick={handleLogout}>

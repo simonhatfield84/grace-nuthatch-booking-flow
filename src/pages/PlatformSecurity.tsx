@@ -1,17 +1,14 @@
+
 import SecurityMonitoringDashboard from "@/components/security/SecurityMonitoringDashboard";
 import SecurityAlertsPanel from "@/components/security/SecurityAlertsPanel";
 import { SecurityAlertsBanner } from "@/components/security/SecurityAlertsBanner";
-import { SecurityHardeningStatus } from "@/components/security/SecurityHardeningStatus";
-import { SessionSecurityManager } from "@/components/security/SessionSecurityManager";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useSystemHealth } from "@/hooks/useSystemHealth";
-import { useEnhancedSecurity } from "@/hooks/useEnhancedSecurity";
 import { Shield, Server, Database, Mail, CreditCard, AlertTriangle, CheckCircle, Clock } from "lucide-react";
 
 export default function PlatformSecurity() {
   const { data: healthStatus, isLoading: healthLoading } = useSystemHealth();
-  const { metrics, getCurrentThreatLevel } = useEnhancedSecurity();
 
   const getHealthIcon = (status: string) => {
     switch (status) {
@@ -39,24 +36,8 @@ export default function PlatformSecurity() {
     }
   };
 
-  const getThreatLevelColor = (level: 'low' | 'medium' | 'high') => {
-    switch (level) {
-      case 'low':
-        return 'bg-green-100 text-green-800 border-green-200';
-      case 'medium':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'high':
-        return 'bg-red-100 text-red-800 border-red-200';
-    }
-  };
-
-  const currentThreatLevel = getCurrentThreatLevel();
-
   return (
     <div className="space-y-6">
-      {/* Session Security Manager */}
-      <SessionSecurityManager />
-
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Platform Security</h1>
@@ -64,62 +45,14 @@ export default function PlatformSecurity() {
             Enhanced security monitoring with threat detection and audit trails
           </p>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-green-600" />
-            <span className="text-sm font-medium text-green-600">Enhanced Protection Active</span>
-          </div>
-          <Badge className={getThreatLevelColor(currentThreatLevel)}>
-            <AlertTriangle className="h-3 w-3 mr-1" />
-            Threat Level: {currentThreatLevel.toUpperCase()}
-          </Badge>
+        <div className="flex items-center gap-2">
+          <Shield className="h-5 w-5 text-green-600" />
+          <span className="text-sm font-medium text-green-600">Enhanced Protection Active</span>
         </div>
       </div>
 
       {/* Security Alerts Banner */}
       <SecurityAlertsBanner />
-
-      {/* Security Hardening Status */}
-      <SecurityHardeningStatus />
-
-      {/* Security Metrics Overview */}
-      {metrics && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5" />
-              24-Hour Security Metrics
-            </CardTitle>
-            <CardDescription>
-              Real-time security event statistics and threat indicators
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-              <div className="p-4 rounded-lg border bg-card">
-                <div className="text-2xl font-bold text-red-600">{metrics.failed_logins_24h}</div>
-                <div className="text-sm text-muted-foreground">Failed Logins</div>
-              </div>
-              <div className="p-4 rounded-lg border bg-card">
-                <div className="text-2xl font-bold text-orange-600">{metrics.blocked_attempts_24h}</div>
-                <div className="text-sm text-muted-foreground">Blocked Attempts</div>
-              </div>
-              <div className="p-4 rounded-lg border bg-card">
-                <div className="text-2xl font-bold text-red-600">{metrics.high_threat_events_24h}</div>
-                <div className="text-sm text-muted-foreground">High Threat Events</div>
-              </div>
-              <div className="p-4 rounded-lg border bg-card">
-                <div className="text-2xl font-bold text-yellow-600">{metrics.role_violations_24h}</div>
-                <div className="text-sm text-muted-foreground">Role Violations</div>
-              </div>
-              <div className="p-4 rounded-lg border bg-card">
-                <div className="text-2xl font-bold text-purple-600">{metrics.unique_threat_actors_24h}</div>
-                <div className="text-sm text-muted-foreground">Threat Actors</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* System Health Overview */}
       <Card>

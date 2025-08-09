@@ -1,7 +1,7 @@
 
 export const developmentStats = {
   startDate: new Date('2025-07-03'),
-  totalCommands: 1049, // Updated from 923 to 1049
+  totalCommands: 923, // Updated from 793 to 923
   aiCostPerCommand: 0.18,
   simonHourlyRate: 19,
   minutesPerCommand: 3,
