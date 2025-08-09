@@ -18,9 +18,9 @@ export const SetupGuard = ({ children }: SetupGuardProps) => {
     return <>{children}</>;
   }
 
-  // If we're not on the /setup page, redirect to it
+  // If we're not on the /setup page, use ProtectedRoute
   return (
-    <ProtectedRoute redirectTo="/setup">
+    <ProtectedRoute>
       {children}
     </ProtectedRoute>
   );

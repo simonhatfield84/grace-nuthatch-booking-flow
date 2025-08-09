@@ -25,7 +25,13 @@ import { useCurrentUserProfile } from '@/hooks/useUserProfile';
 import { Skeleton } from "@/components/ui/skeleton"
 import { MoreHorizontal } from "lucide-react"
 
-const AdminSidebar = () => {
+interface AdminSidebarProps {
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
+  showUserProfile?: boolean;
+}
+
+const AdminSidebar = ({ collapsed = false, onToggleCollapse, showUserProfile = true }: AdminSidebarProps) => {
   const location = useLocation();
   const { signOut } = useAuth();
   const { data: profile, isLoading } = useCurrentUserProfile();
@@ -58,7 +64,7 @@ const AdminSidebar = () => {
   ];
 
   return (
-    <div className="flex flex-col h-full bg-secondary border-r">
+    <div className={`flex flex-col h-full bg-secondary border-r transition-all duration-300 ${collapsed ? 'w-16' : 'w-64'}`}>
       <div className="px-4 py-6">
         <a href="/dashboard">
           <img src="/logo.svg" alt="Logo" className="h-8" />
@@ -79,46 +85,50 @@ const AdminSidebar = () => {
                 }
               >
                 <item.icon className="w-4 h-4" />
-                <span>{item.name}</span>
+                {!collapsed && <span>{item.name}</span>}
               </NavLink>
             </li>
           ))}
         </ul>
       </div>
-      <div className="p-4 border-t">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className="w-full flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                {isLoading ? (
-                  <Skeleton className="h-8 w-8 rounded-full" />
-                ) : (
-                  <Avatar>
-                    <AvatarImage src="" />
-                    <AvatarFallback>{profile?.displayName?.charAt(0)}</AvatarFallback>
-                  </Avatar>
-                )}
-                <div className="flex flex-col items-start">
+      {showUserProfile && (
+        <div className="p-4 border-t">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className={`w-full flex items-center ${collapsed ? 'justify-center' : 'justify-between'}`}>
+                <div className="flex items-center space-x-2">
                   {isLoading ? (
-                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-8 w-8 rounded-full" />
                   ) : (
-                    <span className="text-sm font-medium">{profile?.displayName}</span>
+                    <Avatar>
+                      <AvatarImage src="" />
+                      <AvatarFallback>{profile?.displayName?.charAt(0)}</AvatarFallback>
+                    </Avatar>
                   )}
-                  <span className="text-xs text-muted-foreground">
-                    {profile?.email}
-                  </span>
+                  {!collapsed && (
+                    <div className="flex flex-col items-start">
+                      {isLoading ? (
+                        <Skeleton className="h-4 w-24" />
+                      ) : (
+                        <span className="text-sm font-medium">{profile?.displayName}</span>
+                      )}
+                      <span className="text-xs text-muted-foreground">
+                        {profile?.email}
+                      </span>
+                    </div>
+                  )}
                 </div>
-              </div>
-              <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>My Account</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => signOut()}>Logout</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+                {!collapsed && <MoreHorizontal className="w-4 h-4 text-muted-foreground" />}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => signOut()}>Logout</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      )}
     </div>
   );
 };

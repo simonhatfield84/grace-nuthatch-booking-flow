@@ -79,6 +79,7 @@ export const WifiTermsEditor = ({ settings, venueId }: WifiTermsEditorProps) => 
         </CardHeader>
         <CardContent className="space-y-4">
           <RichTextEditor
+            label="Terms & Conditions"
             value={termsContent}
             onChange={setTermsContent}
             placeholder="Enter your terms and conditions..."

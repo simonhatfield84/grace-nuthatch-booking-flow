@@ -17,8 +17,8 @@ import CancelBooking from './pages/CancelBooking';
 import HomePage from './pages/HomePage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { SetupGuard } from './components/SetupGuard';
-import AdminLayout from './components/layouts/AdminLayout';
-import PlatformAdminLayout from './components/layouts/PlatformAdminLayout';
+import { AdminLayout } from './components/layouts/AdminLayout';
+import { PlatformAdminLayout } from './components/layouts/PlatformAdminLayout';
 import PlatformDashboard from './pages/PlatformDashboard';
 import PlatformUsers from './pages/PlatformUsers';
 import PlatformVenues from './pages/PlatformVenues';
@@ -26,7 +26,7 @@ import PlatformSubscriptions from './pages/PlatformSubscriptions';
 import PlatformSettings from './pages/PlatformSettings';
 import PlatformSecurity from './pages/PlatformSecurity';
 import PlatformSupport from './pages/PlatformSupport';
-import HostLayout from './components/layouts/HostLayout';
+import { HostLayout } from './components/layouts/HostLayout';
 import HostInterface from './pages/HostInterface';
 import NewHostInterface from './pages/NewHostInterface';
 import WifiPortal from './pages/WifiPortal';
@@ -56,8 +56,8 @@ function App() {
           />
           
           {/* Booking routes - hardcoded for The Nuthatch */}
-          <Route path="/booking/the-nuthatch" element={<BookingWidget />} />
-          <Route path="/booking/the-nuthatch/:serviceSlug" element={<BookingWidget />} />
+          <Route path="/booking/the-nuthatch" element={<BookingWidget venueSlug="the-nuthatch" />} />
+          <Route path="/booking/the-nuthatch/:serviceSlug" element={<BookingWidget venueSlug="the-nuthatch" />} />
           <Route path="/booking/:bookingReference" element={<ModifyBooking />} />
           <Route path="/cancel/:bookingReference" element={<CancelBooking />} />
           
@@ -160,7 +160,7 @@ function App() {
           <Route
             path="/platform/*"
             element={
-              <ProtectedRoute requirePlatformAdmin={true}>
+              <ProtectedRoute>
                 <PlatformAdminLayout>
                   <Routes>
                     <Route path="dashboard" element={<PlatformDashboard />} />
@@ -181,25 +181,6 @@ function App() {
         </Routes>
       </Router>
     </div>
-  );
-}
-
-function SetupGuard({ children }: { children: React.ReactNode }) {
-  const location = useLocation();
-
-  // Check if the current path is /setup
-  const isSetupPath = location.pathname === '/setup';
-
-  // If we're already on the /setup page, just render the children
-  if (isSetupPath) {
-    return <>{children}</>;
-  }
-
-  // If we're not on the /setup page, redirect to it
-  return (
-    <ProtectedRoute redirectTo="/setup">
-      {children}
-    </ProtectedRoute>
   );
 }
 
