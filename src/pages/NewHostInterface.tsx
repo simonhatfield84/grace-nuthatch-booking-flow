@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -270,17 +269,17 @@ const NewHostInterface = () => {
   const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
 
   return (
-    <div className="space-y-4 bg-background text-foreground">
+    <div className="space-y-4 bg-[#111315] text-white">
       {/* Compact Header */}
-      <div className="bg-card border border-border rounded-lg p-3 shadow-sm">
+      <div className="bg-[#292C2D] border border-[#676767]/20 rounded-lg p-3 shadow-sm">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3 text-muted-foreground">
+            <div className="flex items-center gap-3 text-[#676767]">
               <div className="flex items-center gap-2">
-                <span className="text-lg font-medium text-foreground">
+                <span className="text-lg font-medium text-white">
                   {format(selectedDate, 'EEEE, MMMM do, yyyy')}
                 </span>
-                {isToday && <span className="ml-2 text-xs bg-primary text-primary-foreground px-2 py-1 rounded-full font-medium">TODAY</span>}
+                {isToday && <span className="ml-2 text-xs bg-[#CCF0DB] text-black px-2 py-1 rounded-full font-medium">TODAY</span>}
               </div>
             </div>
           </div>
@@ -292,12 +291,12 @@ const NewHostInterface = () => {
               bookingDates={bookingDates}
             />
 
-            <div className="flex items-center gap-1 bg-muted p-1 rounded-lg">
+            <div className="flex items-center gap-1 bg-[#111315] p-1 rounded-lg">
               <Button 
                 variant={viewMode === 'grid' ? 'default' : 'ghost'} 
                 size="sm"
                 onClick={() => setViewMode('grid')}
-                className="h-8 text-sm px-3"
+                className="h-8 text-sm px-3 bg-[#CCF0DB] text-black hover:bg-[#CCF0DB]/80"
               >
                 <Grid className="h-4 w-4 mr-1" />
                 Grid
@@ -306,7 +305,7 @@ const NewHostInterface = () => {
                 variant={viewMode === 'list' ? 'default' : 'ghost'} 
                 size="sm"
                 onClick={() => setViewMode('list')}
-                className="h-8 text-sm px-3"
+                className="h-8 text-sm px-3 text-[#676767] hover:bg-[#292C2D]"
               >
                 <List className="h-4 w-4 mr-1" />
                 List
@@ -317,7 +316,7 @@ const NewHostInterface = () => {
               onClick={() => navigate('/dashboard')} 
               variant="outline"
               size="sm"
-              className="text-sm h-8 px-3"
+              className="text-sm h-8 px-3 border-[#676767] text-white hover:bg-[#292C2D]"
             >
               <BarChart3 className="h-4 w-4 mr-1" />
               Dashboard
@@ -327,7 +326,7 @@ const NewHostInterface = () => {
               onClick={() => setFullBookingDialogOpen(true)} 
               variant="outline"
               size="sm"
-              className="text-sm h-8 px-3"
+              className="text-sm h-8 px-3 border-[#676767] text-white hover:bg-[#292C2D]"
             >
               <PlusCircle className="h-4 w-4 mr-1" />
               New Booking
@@ -337,7 +336,7 @@ const NewHostInterface = () => {
               onClick={() => setBlockDialogOpen(true)} 
               variant="outline"
               size="sm"
-              className="text-sm h-8 px-3"
+              className="text-sm h-8 px-3 border-[#676767] text-white hover:bg-[#292C2D]"
             >
               <Ban className="h-4 w-4 mr-1" />
               Block
@@ -347,31 +346,31 @@ const NewHostInterface = () => {
       </div>
 
       {/* Compact Statistics Bar - Covers instead of bookings */}
-      <div className="bg-card border border-border rounded-lg p-3 shadow-sm">
+      <div className="bg-[#292C2D] border border-[#676767]/20 rounded-lg p-3 shadow-sm">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-6 text-muted-foreground">
+          <div className="flex items-center gap-6 text-[#676767]">
             <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-primary" />
-              <span className="text-foreground font-medium">{remainingCovers} remaining</span>
+              <Clock className="h-4 w-4 text-[#CCF0DB]" />
+              <span className="text-white font-medium">{remainingCovers} remaining</span>
               {remainingParties.length > 0 && (
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-[#676767]">
                   ({remainingParties.join(', ')}{remainingParties.length === 2 ? ' + others' : ''} yet to be seated)
                 </span>
               )}
             </div>
             <div className="flex items-center gap-2">
               <Users className="h-4 w-4 text-green-600" />
-              <span className="text-foreground font-medium">{seatedCovers} seated</span>
+              <span className="text-white font-medium">{seatedCovers} seated</span>
             </div>
             <div className="flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
-              <span className="text-foreground font-medium">{finishedCovers} finished</span>
+              <CheckCircle className="h-4 w-4 text-[#676767]" />
+              <span className="text-white font-medium">{finishedCovers} finished</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-muted-foreground">{totalCovers} total covers today</span>
+              <span className="text-[#676767]">{totalCovers} total covers today</span>
             </div>
           </div>
-          <div className="text-sm font-medium text-foreground">Tables</div>
+          <div className="text-sm font-medium text-white">Tables</div>
         </div>
       </div>
 

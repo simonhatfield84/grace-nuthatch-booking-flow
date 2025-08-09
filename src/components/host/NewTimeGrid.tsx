@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -204,12 +203,12 @@ export const NewTimeGrid = ({
     <DragDropProvider onBookingDrag={onBookingDrag || (() => {})}>
       <div 
         ref={gridContainerRef} 
-        className="h-full flex flex-col bg-card rounded-lg overflow-hidden border shadow-sm"
+        className="h-full flex flex-col bg-[#292C2D] rounded-lg overflow-hidden border border-[#676767]/20 shadow-sm"
       >
         {/* Time slots header */}
-        <div className="flex bg-muted border-b" style={{ height: '48px' }}>
+        <div className="flex bg-[#111315] border-b border-[#676767]/20" style={{ height: '48px' }}>
           <div 
-            className="bg-muted border-r flex items-center justify-center"
+            className="bg-[#111315] border-r border-[#676767]/20 flex items-center justify-center"
             style={{ width: TABLE_LABEL_WIDTH, minWidth: TABLE_LABEL_WIDTH }}
           />
           
@@ -218,7 +217,7 @@ export const NewTimeGrid = ({
             ref={scrollContainerRef}
           >
             <div 
-              className="flex bg-muted"
+              className="flex bg-[#111315]"
               style={{ width: timeSlots.length * SLOT_WIDTH, minWidth: timeSlots.length * SLOT_WIDTH }}
             >
               {timeSlots.map((slot) => {
@@ -226,11 +225,11 @@ export const NewTimeGrid = ({
                 return (
                   <div 
                     key={`header-${slot}`}
-                    className="bg-muted border-r border-border/50 p-2 text-center flex items-center justify-center"
+                    className="bg-[#111315] border-r border-[#676767]/20 p-2 text-center flex items-center justify-center"
                     style={{ width: SLOT_WIDTH, minWidth: SLOT_WIDTH }}
                   >
                     {isKeyHour && (
-                      <span className="text-xs font-medium text-foreground/90">{slot}</span>
+                      <span className="text-xs font-medium text-white">{slot}</span>
                     )}
                   </div>
                 );
@@ -242,14 +241,14 @@ export const NewTimeGrid = ({
         {/* Main content area - no vertical scroll, fixed height */}
         <div className="flex-1 flex overflow-hidden">
           <div 
-            className="bg-muted border-r overflow-hidden"
+            className="bg-[#111315] border-r border-[#676767]/20 overflow-hidden"
             style={{ width: TABLE_LABEL_WIDTH, minWidth: TABLE_LABEL_WIDTH }}
           >
             {tablesBySection.map((section) => (
               <div key={section.id}>
                 {/* Section Header */}
                 <div 
-                  className="bg-muted border-b border-border/50 py-3 px-4 flex items-center justify-center" 
+                  className="bg-[#111315] border-b border-[#676767]/20 py-3 px-4 flex items-center justify-center" 
                   style={{ height: `${rowHeight}px` }}
                 >
                   <div className="flex items-center justify-center gap-3 w-full">
@@ -257,8 +256,8 @@ export const NewTimeGrid = ({
                       className="w-4 h-4 rounded-full flex-shrink-0 shadow-sm" 
                       style={{ backgroundColor: section.color }}
                     />
-                    <span className="text-sm font-semibold text-foreground truncate">{section.name}</span>
-                    <Badge className="text-xs bg-background/50 text-foreground px-2 py-1 flex-shrink-0 border-0 rounded-full">
+                    <span className="text-sm font-semibold text-white truncate">{section.name}</span>
+                    <Badge className="text-xs bg-[#292C2D] text-white px-2 py-1 flex-shrink-0 border-0 rounded-full">
                       {section.tables.length}
                     </Badge>
                   </div>
@@ -268,12 +267,12 @@ export const NewTimeGrid = ({
                 {section.tables.map((table) => (
                   <div 
                     key={table.id} 
-                    className="border-b border-border/50 p-4 bg-background hover:bg-muted/50 transition-all duration-200 flex items-center justify-center text-center rounded-lg mx-2 my-1 shadow-sm"
+                    className="border-b border-[#676767]/20 p-4 bg-[#111315] hover:bg-[#292C2D]/50 transition-all duration-200 flex items-center justify-center text-center rounded-lg mx-2 my-1 shadow-sm"
                     style={{ height: `${rowHeight}px` }}
                   >
                     <div className="flex items-center justify-center gap-2">
-                      <span className="text-sm font-medium text-foreground">{table.label}</span>
-                      <span className="text-xs text-muted-foreground">({table.seats})</span>
+                      <span className="text-sm font-medium text-white">{table.label}</span>
+                      <span className="text-xs text-[#676767]">({table.seats})</span>
                     </div>
                   </div>
                 ))}
@@ -294,13 +293,13 @@ export const NewTimeGrid = ({
                 <div key={section.id}>
                   {/* Section header row */}
                   <div 
-                    className="bg-muted border-b border-border/50 flex"
+                    className="bg-[#111315] border-b border-[#676767]/20 flex"
                     style={{ height: `${rowHeight}px` }}
                   >
                     {timeSlots.map((slot) => (
                       <div 
                         key={`section-${section.id}-${slot}`}
-                        className="border-r border-border/50"
+                        className="border-r border-[#676767]/20"
                         style={{ width: SLOT_WIDTH, minWidth: SLOT_WIDTH }}
                       />
                     ))}
@@ -310,7 +309,7 @@ export const NewTimeGrid = ({
                   {section.tables.map((table) => (
                     <div 
                       key={table.id} 
-                      className="relative flex border-b border-border/50 bg-background hover:bg-muted/30 transition-all duration-200 mx-2 my-1 rounded-lg shadow-sm"
+                      className="relative flex border-b border-[#676767]/20 bg-[#111315] hover:bg-[#292C2D]/30 transition-all duration-200 mx-2 my-1 rounded-lg shadow-sm"
                       style={{ height: `${rowHeight}px` }}
                     >
                       {/* Time slot cells with integrated drag and drop */}
