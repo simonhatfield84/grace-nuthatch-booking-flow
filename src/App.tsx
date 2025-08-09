@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,6 +10,7 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import RootRedirect from "@/components/auth/RootRedirect";
 import { StripeProvider } from "@/components/providers/StripeProvider";
 import { AdminLayout } from "@/components/layouts/AdminLayout";
+import { PlatformAdminLayout } from "@/components/layouts/PlatformAdminLayout";
 import { HostLayout } from "@/components/layouts/HostLayout";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -34,6 +36,7 @@ import PlatformAuth from "./pages/PlatformAuth";
 import PlatformDashboard from "./pages/PlatformDashboard";
 import PlatformVenues from "./pages/PlatformVenues";
 import PlatformUsers from "./pages/PlatformUsers";
+import PlatformReports from "./pages/PlatformReports";
 import PlatformSettings from "./pages/PlatformSettings";
 import PlatformSecurity from "./pages/PlatformSecurity";
 import PlatformSubscriptions from "./pages/PlatformSubscriptions";
@@ -104,13 +107,20 @@ function App() {
 
                     {/* Platform admin routes */}
                     <Route path="/platform/auth" element={<PlatformAuth />} />
-                    <Route path="/platform/dashboard" element={<ProtectedRoute><PlatformDashboard /></ProtectedRoute>} />
-                    <Route path="/platform/venues" element={<ProtectedRoute><PlatformVenues /></ProtectedRoute>} />
-                    <Route path="/platform/users" element={<ProtectedRoute><PlatformUsers /></ProtectedRoute>} />
-                    <Route path="/platform/settings" element={<ProtectedRoute><PlatformSettings /></ProtectedRoute>} />
-                    <Route path="/platform/security" element={<ProtectedRoute><PlatformSecurity /></ProtectedRoute>} />
-                    <Route path="/platform/subscriptions" element={<ProtectedRoute><PlatformSubscriptions /></ProtectedRoute>} />
-                    <Route path="/platform/support" element={<ProtectedRoute><PlatformSupport /></ProtectedRoute>} />
+                    <Route path="/platform/*" element={
+                      <ProtectedRoute>
+                        <PlatformAdminLayout />
+                      </ProtectedRoute>
+                    }>
+                      <Route path="dashboard" element={<PlatformDashboard />} />
+                      <Route path="venues" element={<PlatformVenues />} />
+                      <Route path="users" element={<PlatformUsers />} />
+                      <Route path="reports" element={<PlatformReports />} />
+                      <Route path="settings" element={<PlatformSettings />} />
+                      <Route path="security" element={<PlatformSecurity />} />
+                      <Route path="subscriptions" element={<PlatformSubscriptions />} />
+                      <Route path="support" element={<PlatformSupport />} />
+                    </Route>
 
                     {/* Admin routes with AdminLayout - NO STRIPE PROVIDER */}
                     <Route path="/" element={<RootRedirect />} />
