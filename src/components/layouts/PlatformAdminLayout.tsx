@@ -17,7 +17,8 @@ import {
   LogOut,
   Menu,
   X,
-  FileText
+  FileText,
+  Palette
 } from "lucide-react";
 
 export const PlatformAdminLayout = () => {
@@ -48,6 +49,7 @@ export const PlatformAdminLayout = () => {
     { icon: FileText, label: "Reports", path: "/platform/reports" },
     { icon: Shield, label: "Security", path: "/platform/security" },
     { icon: CreditCard, label: "Subscriptions", path: "/platform/subscriptions" },
+    { icon: Palette, label: "Style Export", path: "/platform/style-export-preview" },
     { icon: Settings, label: "Settings", path: "/platform/settings" },
     { icon: HelpCircle, label: "Support", path: "/platform/support" },
   ];
