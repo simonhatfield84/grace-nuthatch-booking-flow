@@ -1,10 +1,11 @@
+
 import { BookingProvider } from '../contexts/BookingContext';
 import { useBookingFlow } from '../hooks/useBookingFlow';
 import { PartyStep } from './steps/PartyStep';
 import { DateStep } from './steps/DateStep';
 import { TimeStep } from './steps/TimeStep';
 import { ServiceStep } from './steps/ServiceStep';
-import GuestDetailsStep from './steps/GuestDetailsStep';
+import { GuestDetailsStep } from './steps/GuestDetailsStep';
 import { BookingConfirmation } from '@/components/bookings/BookingConfirmation';
 import { StepNavigation } from './shared/StepNavigation';
 import { ProgressIndicator } from './shared/ProgressIndicator';

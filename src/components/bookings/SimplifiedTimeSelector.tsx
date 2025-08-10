@@ -1,4 +1,3 @@
-
 // 🚨 DEPRECATED: This component is not used by the canonical NuthatchBookingWidget
 // NuthatchBookingWidget uses its own TimeStep component
 // This file will be removed in a future cleanup
@@ -12,7 +11,7 @@ import { Calendar } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
-import { AvailabilityService } from "@/services/core/AvailabilityService";
+import { OptimizedAvailabilityService } from "@/services/optimizedAvailabilityService";
 
 interface SimplifiedTimeSelectorProps {
   selectedDate: Date | null;
@@ -40,13 +39,12 @@ export const SimplifiedTimeSelector = ({
 
       const formattedDate = format(selectedDate, 'yyyy-MM-dd');
       try {
-        const timeSlots = await AvailabilityService.getAvailableTimeSlots(
+        const times = await OptimizedAvailabilityService.getAvailableTimeSlots(
           venueId,
           formattedDate,
-          partySize
+          partySize,
+          selectedService?.duration_minutes || 120 // Use service duration or default to 2 hours
         );
-        // Extract just the time strings from the time slot objects
-        const times = timeSlots.filter(slot => slot.available).map(slot => slot.time);
         setAvailableTimes(times);
       } catch (error) {
         console.error("Error fetching available times:", error);
