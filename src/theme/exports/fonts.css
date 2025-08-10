@@ -1,0 +1,84 @@
+
+/* Grace OS Reservations Typography System */
+/* Import this file to load all fonts used in the Grace OS design system */
+
+/* Google Fonts Import */
+@import url("https://fonts.googleapis.com/css2?family=Playfair+Display:wght@300;400;500;600;700&family=Lato:wght@300;400;500;600;700&family=Markazi+Text:wght@400;500;600;700&family=Poppins:wght@300;400;500;600;700&family=Karla:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap");
+
+/* Font Face Declarations with Fallbacks */
+
+/* Playfair Display - Primary headings (serif) */
+@font-face {
+  font-family: 'Grace Heading';
+  src: local('Playfair Display'), local('Times New Roman'), serif;
+  font-display: swap;
+}
+
+/* Karla - Body text (sans-serif) */
+@font-face {
+  font-family: 'Grace Body';
+  src: local('Karla'), local('Arial'), sans-serif;
+  font-display: swap;
+}
+
+/* Poppins - Subheadings (sans-serif) */
+@font-face {
+  font-family: 'Grace Subheading';
+  src: local('Poppins'), local('Helvetica'), sans-serif;
+  font-display: swap;
+}
+
+/* Markazi Text - Brand/Logo text (serif) */
+@font-face {
+  font-family: 'Grace Brand';
+  src: local('Markazi Text'), local('Georgia'), serif;
+  font-display: swap;
+}
+
+/* Inter - Modern UI text (sans-serif) */
+@font-face {
+  font-family: 'Grace Modern';
+  src: local('Inter'), local('system-ui'), sans-serif;
+  font-display: swap;
+}
+
+/* Lato - Alternative body text (sans-serif) */
+@font-face {
+  font-family: 'Grace Elegant';
+  src: local('Lato'), local('Calibri'), sans-serif;
+  font-display: swap;
+}
+
+/* Font Stack Definitions */
+:root {
+  --font-grace-heading: 'Playfair Display', 'Grace Heading', 'Times New Roman', serif;
+  --font-grace-body: 'Karla', 'Grace Body', 'Arial', sans-serif;
+  --font-grace-subheading: 'Poppins', 'Grace Subheading', 'Helvetica', sans-serif;
+  --font-grace-brand: 'Markazi Text', 'Grace Brand', 'Georgia', serif;
+  --font-grace-modern: 'Inter', 'Grace Modern', 'system-ui', sans-serif;
+  --font-grace-elegant: 'Lato', 'Grace Elegant', 'Calibri', sans-serif;
+}
+
+/* Font Performance Optimizations */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    font-display: block;
+  }
+}
+
+/* Font Loading Strategy */
+.font-loading {
+  font-display: optional;
+}
+
+.font-loaded {
+  font-display: swap;
+}
+
+/* Typography Utility Classes */
+.font-grace-heading { font-family: var(--font-grace-heading); }
+.font-grace-body { font-family: var(--font-grace-body); }
+.font-grace-subheading { font-family: var(--font-grace-subheading); }
+.font-grace-brand { font-family: var(--font-grace-brand); }
+.font-grace-modern { font-family: var(--font-grace-modern); }
+.font-grace-elegant { font-family: var(--font-grace-elegant); }

@@ -1,0 +1,171 @@
+
+/* Grace OS Reservations Design System CSS Variables */
+/* Import this file in your project to use Grace OS theming */
+
+:root {
+  /* Light theme colors (admin/reservations routes) */
+  --background: 32 27% 94%; /* #F4EAE0 - Soft Sand */
+  --foreground: 0 0% 18%; /* #2E2E2E - Charcoal Grey */
+
+  --card: 0 0% 100%; /* #FFFFFF - Pure White */
+  --card-foreground: 0 0% 18%; /* #2E2E2E - Charcoal Grey */
+
+  --popover: 0 0% 100%; /* #FFFFFF - Pure White */
+  --popover-foreground: 0 0% 18%; /* #2E2E2E - Charcoal Grey */
+
+  --primary: 16 53% 60%; /* #D87C5A - Warm Terracotta */
+  --primary-foreground: 0 0% 100%; /* #FFFFFF - Pure White */
+
+  --secondary: 43 75% 56%; /* #E9A036 - Muted Gold */
+  --secondary-foreground: 0 0% 18%; /* #2E2E2E - Charcoal Grey */
+
+  --muted: 31 39% 85%; /* #E6D5C7 - Lighter sand */
+  --muted-foreground: 0 0% 45%; /* #737373 - Mid grey */
+
+  --accent: 16 53% 60%; /* #D87C5A - Warm Terracotta */
+  --accent-foreground: 0 0% 100%; /* #FFFFFF - Pure White */
+
+  --destructive: 0 84% 60%; /* #DC2626 - Red */
+  --destructive-foreground: 0 0% 100%; /* #FFFFFF - Pure White */
+
+  --border: 33 20% 77%; /* #D1C4B8 - Light brown */
+  --input: 33 20% 77%; /* #D1C4B8 - Light brown */
+  --ring: 16 53% 60%; /* #D87C5A - Warm Terracotta */
+
+  --radius: 0.5rem;
+
+  /* Sidebar colors */
+  --sidebar-background: 0 0% 100%;
+  --sidebar-foreground: 0 0% 18%;
+  --sidebar-primary: 16 53% 60%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 0 0% 94%;
+  --sidebar-accent-foreground: 0 0% 18%;
+  --sidebar-border: 33 20% 77%;
+  --sidebar-ring: 16 53% 60%;
+
+  /* Grace OS Brand Color Variables */
+  --grace-primary: #D87C5A;      /* Warm Terracotta */
+  --grace-secondary: #005F56;    /* Deep Teal */
+  --grace-background: #F4EAE0;   /* Soft Sand */
+  --grace-accent: #E9A036;       /* Muted Gold */
+  --grace-dark: #2E2E2E;         /* Charcoal Grey */
+  --grace-light: #FFFFFF;        /* Pure White */
+}
+
+/* Dark theme with host interface colors */
+.dark {
+  --background: 214 13% 8%; /* #111315 host-blackest-dark */
+  --foreground: 0 0% 100%; /* #FFFFFF */
+
+  --card: 214 6% 16%; /* #292C2D host-dark-gray */
+  --card-foreground: 0 0% 100%; /* #FFFFFF */
+
+  --popover: 214 6% 16%; /* #292C2D */
+  --popover-foreground: 0 0% 100%; /* #FFFFFF */
+
+  --primary: 16 53% 60%; /* #D87C5A - keep brand color */
+  --primary-foreground: 0 0% 100%; /* #FFFFFF */
+
+  --secondary: 43 75% 56%; /* #E9A036 - keep brand color */
+  --secondary-foreground: 0 0% 100%; /* #FFFFFF */
+
+  --muted: 214 6% 16%; /* #292C2D */
+  --muted-foreground: 0 0% 40%; /* #676767 host-mid-gray */
+
+  --accent: 214 6% 16%; /* #292C2D */
+  --accent-foreground: 0 0% 100%; /* #FFFFFF */
+
+  --destructive: 0 84% 60%; /* #DC2626 */
+  --destructive-foreground: 0 0% 100%; /* #FFFFFF */
+
+  --border: 0 0% 40%; /* #676767 host-mid-gray */
+  --input: 214 6% 16%; /* #292C2D */
+  --ring: 16 53% 60%; /* #D87C5A */
+
+  --sidebar-background: 214 13% 8%;
+  --sidebar-foreground: 0 0% 100%;
+  --sidebar-primary: 16 53% 60%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 214 6% 16%;
+  --sidebar-accent-foreground: 0 0% 100%;
+  --sidebar-border: 0 0% 40%;
+  --sidebar-ring: 16 53% 60%;
+}
+
+/* Base styling */
+html, body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: 'Karla', sans-serif;
+  min-height: 100vh;
+}
+
+/* Typography system */
+h1 {
+  font-family: 'Playfair Display', serif;
+  font-weight: 600;
+}
+
+h2, h3, h4, h5, h6 {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 500;
+}
+
+/* Grace branding classes */
+.grace-logo {
+  font-family: 'Markazi Text', serif;
+  color: hsl(var(--primary));
+  font-weight: 700;
+}
+
+.grace-brand {
+  color: hsl(var(--primary));
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground));
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary));
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Utility classes */
+.bg-grace-primary { background-color: var(--grace-primary); }
+.bg-grace-secondary { background-color: var(--grace-secondary); }
+.bg-grace-background { background-color: var(--grace-background); }
+.bg-grace-accent { background-color: var(--grace-accent); }
+.bg-grace-dark { background-color: var(--grace-dark); }
+.bg-grace-light { background-color: var(--grace-light); }
+
+.text-grace-primary { color: var(--grace-primary); }
+.text-grace-secondary { color: var(--grace-secondary); }
+.text-grace-accent { color: var(--grace-accent); }
+.text-grace-dark { color: var(--grace-dark); }
+.text-grace-light { color: var(--grace-light); }
+
+.border-grace-primary { border-color: var(--grace-primary); }
+.border-grace-secondary { border-color: var(--grace-secondary); }
+.border-grace-accent { border-color: var(--grace-accent); }

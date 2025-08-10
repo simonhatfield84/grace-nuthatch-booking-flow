@@ -1,114 +1,67 @@
-// 🚨 DEPRECATED: This component is not used by the canonical NuthatchBookingWidget
-// NuthatchBookingWidget uses its own TimeStep component
-// This file will be removed in a future cleanup
 
-console.warn('⚠️ DEPRECATED: SimplifiedTimeSelector is not used by NuthatchBookingWidget.');
-
-import { useState, useEffect } from "react";
-import { format, isSameDay } from "date-fns";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { cn } from "@/lib/utils";
-import { OptimizedAvailabilityService } from "@/services/optimizedAvailabilityService";
+import React from 'react';
+import { Button } from '@/components/ui/button';
+import { AvailabilityService } from '@/services/core/AvailabilityService';
+import { format } from 'date-fns';
 
 interface SimplifiedTimeSelectorProps {
   selectedDate: Date | null;
   selectedTime: string;
   onTimeSelect: (time: string) => void;
-  selectedService: any;
   partySize: number;
   venueId: string;
 }
 
-export const SimplifiedTimeSelector = ({
+export function SimplifiedTimeSelector({
   selectedDate,
   selectedTime,
   onTimeSelect,
-  selectedService,
   partySize,
   venueId
-}: SimplifiedTimeSelectorProps) => {
-  const [open, setOpen] = useState(false);
-  const [availableTimes, setAvailableTimes] = useState<string[]>([]);
+}: SimplifiedTimeSelectorProps) {
+  const [timeSlots, setTimeSlots] = React.useState<string[]>([]);
+  const [loading, setLoading] = React.useState(false);
 
-  useEffect(() => {
-    const fetchAvailableTimes = async () => {
-      if (!selectedDate) return;
+  React.useEffect(() => {
+    if (!selectedDate || !venueId) return;
 
-      const formattedDate = format(selectedDate, 'yyyy-MM-dd');
+    const fetchTimeSlots = async () => {
+      setLoading(true);
       try {
-        const times = await OptimizedAvailabilityService.getAvailableTimeSlots(
-          venueId,
-          formattedDate,
-          partySize,
-          selectedService?.duration_minutes || 120 // Use service duration or default to 2 hours
-        );
-        setAvailableTimes(times);
+        const dateStr = format(selectedDate, 'yyyy-MM-dd');
+        const slots = await AvailabilityService.getAvailableTimeSlots(venueId, dateStr, partySize);
+        setTimeSlots(slots.map(slot => slot.time));
       } catch (error) {
-        console.error("Error fetching available times:", error);
-        setAvailableTimes([]);
+        console.error('Error fetching time slots:', error);
+        setTimeSlots([]);
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchAvailableTimes();
-  }, [selectedDate, partySize, selectedService, venueId]);
+    fetchTimeSlots();
+  }, [selectedDate, venueId, partySize]);
 
-  const handleTimeSelect = (time: string) => {
-    onTimeSelect(time);
-    setOpen(false);
-  };
+  if (loading) {
+    return <div className="text-sm text-muted-foreground">Loading available times...</div>;
+  }
+
+  if (timeSlots.length === 0) {
+    return <div className="text-sm text-muted-foreground">No times available for this date</div>;
+  }
 
   return (
-    <div>
-      <h2 className="text-lg font-semibold mb-4">Select Time</h2>
-
-      {/* Date Display and Selector */}
-      <div className="mb-4">
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              variant={"outline"}
-              className={cn(
-                "w-[240px] justify-start text-left font-normal",
-                !selectedDate && "text-muted-foreground"
-              )}
-            >
-              <Calendar className="mr-2 h-4 w-4" />
-              {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-auto p-0" align="start">
-            <CalendarComponent
-              mode="single"
-              selected={selectedDate}
-              onSelect={() => {}} // Date is already selected in parent
-              disabled={(date) =>
-                date < new Date()
-              }
-              initialFocus
-            />
-          </PopoverContent>
-        </Popover>
-      </div>
-
-      {/* Time Slot Buttons */}
-      <div className="grid grid-cols-3 gap-2">
-        {availableTimes.length > 0 ? (
-          availableTimes.map((time) => (
-            <Button
-              key={time}
-              variant={selectedTime === time ? "default" : "outline"}
-              onClick={() => handleTimeSelect(time)}
-            >
-              {time}
-            </Button>
-          ))
-        ) : (
-          <p>No times available for the selected date and party size.</p>
-        )}
-      </div>
+    <div className="grid grid-cols-3 gap-2">
+      {timeSlots.map((time) => (
+        <Button
+          key={time}
+          variant={selectedTime === time ? "default" : "outline"}
+          size="sm"
+          onClick={() => onTimeSelect(time)}
+        >
+          {time}
+        </Button>
+      ))}
     </div>
   );
-};
+}
