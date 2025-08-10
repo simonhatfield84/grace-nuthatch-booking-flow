@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -84,14 +85,22 @@ const GuestDetailsStep = ({
 
         if (error) {
           console.error('Error fetching venue data:', error);
-          toast.error('Failed to load venue information. Please refresh.');
+          toast({
+            title: "Error",
+            description: "Failed to load venue information. Please refresh.",
+            variant: "destructive"
+          });
           return;
         }
 
         setVenueData({ id: data.id });
       } catch (error) {
         console.error('Error fetching venue data:', error);
-        toast.error('Failed to load venue information. Please refresh.');
+        toast({
+          title: "Error", 
+          description: "Failed to load venue information. Please refresh.",
+          variant: "destructive"
+        });
       }
     };
 
@@ -213,7 +222,11 @@ const GuestDetailsStep = ({
       }
 
       setPaymentError(userErrorMessage);
-      toast.error(userErrorMessage);
+      toast({
+        title: "Payment Error",
+        description: userErrorMessage,
+        variant: "destructive"
+      });
     } finally {
       setPaymentInProgress(false);
     }
@@ -239,7 +252,11 @@ const GuestDetailsStep = ({
     } catch (error: any) {
       console.error('Error in submit:', error);
       setPaymentError(error.message || 'An unexpected error occurred.');
-      toast.error(error.message || 'An unexpected error occurred.');
+      toast({
+        title: "Error",
+        description: error.message || 'An unexpected error occurred.',
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }

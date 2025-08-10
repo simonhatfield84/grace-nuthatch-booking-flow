@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { ChevronRight, Clock, Users, Calendar, CreditCard, Check, ArrowLeft } from "lucide-react";
 import { format } from "date-fns";
@@ -10,7 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { PartyDateStep } from "./steps/PartyDateStep";
 import { ServiceStep } from "./steps/ServiceStep";
 import { TimeStep } from "./steps/TimeStep";
-import { GuestDetailsStep } from "./steps/GuestDetailsStep";
+import GuestDetailsStep from "./steps/GuestDetailsStep";
 import { PaymentStep } from "./steps/PaymentStep";
 import { ConfirmationStep } from "./steps/ConfirmationStep";
 import { NuthatchHeader } from "./shared/NuthatchHeader";
