@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DesignSystemBundleService, BundleFile } from '@/services/designSystemBundleService';
-import { Download, Copy, FileText, CheckCircle, Package } from 'lucide-react';
+import { Copy, FileText, CheckCircle, Package, FolderPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export function DesignSystemBundleDownload() {
@@ -13,44 +13,23 @@ export function DesignSystemBundleDownload() {
   const [bundleFiles, setBundleFiles] = useState<BundleFile[]>([]);
   const { toast } = useToast();
 
-  const handleCreateBundle = async () => {
+  const handleGenerateFiles = async () => {
     setIsCreating(true);
     try {
       const files = await DesignSystemBundleService.createBundle();
       setBundleFiles(files);
       toast({
-        title: "Bundle Created",
-        description: "Design system bundle is ready for download",
+        title: "Files Generated",
+        description: "Design system files are ready to copy",
       });
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to create bundle",
+        description: "Failed to generate files",
         variant: "destructive",
       });
     } finally {
       setIsCreating(false);
-    }
-  };
-
-  const handleDownloadBundle = async () => {
-    if (bundleFiles.length === 0) {
-      await handleCreateBundle();
-      return;
-    }
-
-    try {
-      await DesignSystemBundleService.downloadBundle(bundleFiles);
-      toast({
-        title: "Download Started",
-        description: "Grace OS design system bundle is downloading",
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to download bundle",
-        variant: "destructive",
-      });
     }
   };
 
@@ -81,44 +60,33 @@ export function DesignSystemBundleDownload() {
 
   return (
     <div className="space-y-6">
-      {/* Download Actions */}
+      {/* Generate Files Section */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
-            Export Design System Bundle
+            Export Design System Files
           </CardTitle>
           <CardDescription>
-            Create and download a complete design system package for use in new Lovable projects
+            Generate individual files to manually create in your new Lovable project
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-3">
             <Button 
-              onClick={handleDownloadBundle}
+              onClick={handleGenerateFiles}
               disabled={isCreating}
               className="flex items-center gap-2"
             >
-              <Download className="h-4 w-4" />
-              {isCreating ? 'Creating Bundle...' : 'Download Bundle'}
+              <FileText className="h-4 w-4" />
+              {isCreating ? 'Generating Files...' : 'Generate Files'}
             </Button>
-            {bundleFiles.length === 0 && (
-              <Button 
-                onClick={handleCreateBundle}
-                variant="outline"
-                disabled={isCreating}
-                className="flex items-center gap-2"
-              >
-                <FileText className="h-4 w-4" />
-                Preview Files
-              </Button>
-            )}
           </div>
           
           {bundleFiles.length > 0 && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <CheckCircle className="h-4 w-4 text-green-500" />
-              Bundle ready • {bundleFiles.length} files • Ready for upload to Lovable
+              {bundleFiles.length} files ready • Copy each file content to your new project
             </div>
           )}
         </CardContent>
@@ -127,33 +95,38 @@ export function DesignSystemBundleDownload() {
       {/* Usage Instructions */}
       <Card>
         <CardHeader>
-          <CardTitle>How to Use This Bundle</CardTitle>
+          <CardTitle>How to Transfer to New Lovable Project</CardTitle>
           <CardDescription>
-            Step-by-step guide to integrate Grace OS design system into a new Lovable project
+            Step-by-step guide to manually create files in Lovable Dev Mode
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="upload" className="w-full">
+          <Tabs defaultValue="create" className="w-full">
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="upload">1. Upload</TabsTrigger>
+              <TabsTrigger value="create">1. Create Files</TabsTrigger>
               <TabsTrigger value="integrate">2. Integrate</TabsTrigger>
               <TabsTrigger value="use">3. Use</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="upload" className="space-y-4">
+            <TabsContent value="create" className="space-y-4">
               <div className="space-y-3">
-                <h4 className="font-semibold">Upload Bundle to New Project</h4>
-                <ol className="list-decimal list-inside space-y-2 text-sm">
-                  <li>Download the bundle file above</li>
-                  <li>In your new Lovable project, go to Dev Mode</li>
-                  <li>Extract and upload these files to the correct locations:
-                    <ul className="ml-6 mt-2 space-y-1 list-disc list-inside">
-                      <li><code>theme/</code> folder → <code>src/theme/</code></li>
-                      <li><code>tokens.json</code> → project root</li>
-                      <li><code>tailwind.extend.json</code> → project root</li>
-                    </ul>
-                  </li>
-                </ol>
+                <h4 className="font-semibold flex items-center gap-2">
+                  <FolderPlus className="h-4 w-4" />
+                  Create Files in Dev Mode
+                </h4>
+                <div className="space-y-3 text-sm bg-muted p-4 rounded-lg">
+                  <p className="font-medium">In your new Lovable project:</p>
+                  <ol className="list-decimal list-inside space-y-2">
+                    <li>Click the <strong>Dev Mode</strong> toggle in the top left</li>
+                    <li>For each file shown below, click <strong>+ Create File</strong></li>
+                    <li>Enter the exact file path (e.g., <code>src/theme/tokens.ts</code>)</li>
+                    <li>Copy and paste the file content using the Copy buttons</li>
+                    <li>Save the file</li>
+                  </ol>
+                  <div className="mt-3 p-3 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800">
+                    <strong>Important:</strong> Create folders as needed. If <code>src/theme/</code> doesn't exist, create it first.
+                  </div>
+                </div>
               </div>
             </TabsContent>
 
@@ -225,43 +198,77 @@ export function DesignSystemBundleDownload() {
         </CardContent>
       </Card>
 
-      {/* File Preview */}
+      {/* File Contents Display */}
       {bundleFiles.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Bundle Contents</CardTitle>
+            <CardTitle>Files to Create</CardTitle>
             <CardDescription>
-              Preview of files included in the design system bundle
+              Copy each file content and create in your new Lovable project
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-3">
+            <div className="space-y-6">
               {bundleFiles.map((file) => (
-                <div key={file.path} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <span className="text-lg">{getFileIcon(file.type)}</span>
-                    <div>
-                      <p className="font-medium text-sm">{file.path}</p>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-xs">
-                          {file.type}
-                        </Badge>
-                        <span className="text-xs text-muted-foreground">
-                          {(file.content.length / 1024).toFixed(1)}KB
-                        </span>
+                <div key={file.path} className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg">{getFileIcon(file.type)}</span>
+                      <div>
+                        <p className="font-medium text-sm">{file.path}</p>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs">
+                            {file.type}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {(file.content.length / 1024).toFixed(1)}KB
+                          </span>
+                        </div>
                       </div>
                     </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => copyToClipboard(file.content, file.path)}
+                    >
+                      <Copy className="h-3 w-3 mr-1" />
+                      Copy Content
+                    </Button>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => copyToClipboard(file.content, file.path)}
-                  >
-                    <Copy className="h-3 w-3 mr-1" />
-                    Copy
-                  </Button>
+                  
+                  <div className="bg-muted rounded-md p-3 max-h-96 overflow-y-auto">
+                    <pre className="text-xs whitespace-pre-wrap font-mono">
+                      {file.content}
+                    </pre>
+                  </div>
                 </div>
               ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Folder Structure Guide */}
+      {bundleFiles.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Required Folder Structure</CardTitle>
+            <CardDescription>
+              Create these folders in your new project before adding files
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="bg-muted p-4 rounded-lg font-mono text-sm">
+              <div>your-project/</div>
+              <div>├── src/</div>
+              <div>│&nbsp;&nbsp;&nbsp;└── theme/</div>
+              <div>│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── tokens.ts</div>
+              <div>│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├── grace-theme.css</div>
+              <div>│&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── fonts.css</div>
+              <div>├── tokens.json</div>
+              <div>├── tailwind.extend.json</div>
+              <div>├── README.md</div>
+              <div>└── INTEGRATION.md</div>
             </div>
           </CardContent>
         </Card>
