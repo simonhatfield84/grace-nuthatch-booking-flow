@@ -14,8 +14,6 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, AlertCircle } from "lucide-react";
 import { calculateEnhancedPaymentAmount } from "@/utils/enhancedPaymentCalculation";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { usePaymentErrorHandling } from "@/hooks/usePaymentErrorHandling";
-import { useBookingCreation } from "@/hooks/booking/useBookingCreation";
 
 const guestFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -81,7 +79,6 @@ const GuestDetailsStep = (props: GuestDetailsStepProps) => {
   const [paymentCalculation, setPaymentCalculation] = useState<any>(null);
   const [termsAndConditions, setTermsAndConditions] = useState('');
   const { toast } = useToast();
-  const { createBooking, isCreating } = useBookingCreation();
 
   const [paymentInProgress, setPaymentInProgress] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
@@ -179,7 +176,97 @@ const GuestDetailsStep = (props: GuestDetailsStepProps) => {
     }
   }, [normalizedService, normalizedPartySize, venueData]);
 
-  const initiatePayment = async (formData: GuestFormData) => {
+  const createOrUpdateGuest = async (guestDetails: any, venueId: string) => {
+    // Check if guest exists by email or phone
+    const { data: existingGuest } = await supabase
+      .from('guests')
+      .select('*')
+      .eq('venue_id', venueId)
+      .or(`email.eq.${guestDetails.email},phone.eq.${guestDetails.phone || ''}`)
+      .maybeSingle();
+
+    let guestId: string;
+
+    if (existingGuest) {
+      // Update existing guest
+      const { data: updatedGuest, error } = await supabase
+        .from('guests')
+        .update({
+          name: guestDetails.name,
+          phone: guestDetails.phone || null,
+          notes: guestDetails.notes || null,
+          opt_in_marketing: guestDetails.marketingOptIn,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existingGuest.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      guestId = updatedGuest.id;
+    } else {
+      // Create new guest
+      const { data: newGuest, error } = await supabase
+        .from('guests')
+        .insert({
+          name: guestDetails.name,
+          email: guestDetails.email,
+          phone: guestDetails.phone || null,
+          notes: guestDetails.notes || null,
+          opt_in_marketing: guestDetails.marketingOptIn,
+          venue_id: venueId,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      guestId = newGuest.id;
+    }
+
+    return guestId;
+  };
+
+  const generateBookingReference = () => {
+    const year = new Date().getFullYear();
+    const random = Math.floor(Math.random() * 1000000);
+    return `BK-${year}-${random.toString().padStart(6, '0')}`;
+  };
+
+  const createBooking = async (data: GuestFormData, venueId: string) => {
+    // Create or update guest
+    const guestId = await createOrUpdateGuest(data, venueId);
+
+    // Calculate end time (default 2 hours for now)
+    const bookingDateTime = new Date(`${normalizedDate}T${normalizedTime}`);
+    const endTime = new Date(bookingDateTime.getTime() + (2 * 60 * 60 * 1000));
+
+    // Create the booking
+    const { data: booking, error: bookingError } = await supabase
+      .from('bookings')
+      .insert({
+        guest_name: data.name,
+        email: data.email,
+        phone: data.phone || null,
+        party_size: normalizedPartySize,
+        booking_date: normalizedDate,
+        booking_time: normalizedTime,
+        service: normalizedService || 'Dinner',
+        notes: data.notes || null,
+        status: 'confirmed',
+        duration_minutes: 120,
+        end_time: endTime.toTimeString().split(' ')[0],
+        venue_id: venueId,
+        booking_reference: generateBookingReference(),
+      })
+      .select()
+      .single();
+
+    if (bookingError) throw bookingError;
+
+    return booking;
+  };
+
+  const initiatePayment = async (formData: GuestFormData, bookingId: number) => {
     if (!venueData?.id || !paymentCalculation) {
       console.error('Missing venue data or payment calculation');
       setPaymentError('Venue information not available. Please refresh and try again.');
@@ -190,11 +277,11 @@ const GuestDetailsStep = (props: GuestDetailsStepProps) => {
     setPaymentError(null);
 
     try {
-      console.log('Initiating payment with venue:', venueData.id);
+      console.log('Initiating payment with venue:', venueData.id, 'booking:', bookingId);
       
       const { data, error } = await supabase.functions.invoke('create-payment-intent', {
         body: {
-          bookingId: null,
+          bookingId: bookingId,
           amount: paymentCalculation.amount,
           currency: 'gbp',
           description: paymentCalculation.description,
@@ -233,7 +320,7 @@ const GuestDetailsStep = (props: GuestDetailsStepProps) => {
       )) {
         console.log(`Retrying payment initiation (attempt ${retryCount + 1}/${maxRetries + 1})`);
         setRetryCount(prev => prev + 1);
-        setTimeout(() => initiatePayment(formData), 1000 * (retryCount + 1));
+        setTimeout(() => initiatePayment(formData, bookingId), 1000 * (retryCount + 1));
         return;
       }
 
@@ -268,22 +355,17 @@ const GuestDetailsStep = (props: GuestDetailsStepProps) => {
         throw new Error('Venue information not available. Please refresh.');
       }
 
+      // Always create the booking first
+      const booking = await createBooking(data, venueData.id);
+
       if (paymentCalculation?.shouldCharge) {
-        // Payment required - initiate payment flow
-        await initiatePayment(data);
+        // Payment required - initiate payment flow with booking ID
+        await initiatePayment(data, booking.id);
       } else {
-        // No payment required - create booking directly
-        const bookingDate = date || new Date(normalizedDate);
-        
-        const booking = await createBooking({
-          guestDetails: data,
-          bookingData: {
-            date: bookingDate,
-            time: normalizedTime,
-            partySize: normalizedPartySize,
-            service: { title: normalizedService }
-          },
-          venueId: venueData.id
+        // No payment required - complete booking
+        toast({
+          title: "Booking confirmed",
+          description: "Your reservation has been successfully created.",
         });
 
         // Call the appropriate callback based on the component usage
@@ -443,7 +525,8 @@ const GuestDetailsStep = (props: GuestDetailsStepProps) => {
                         setPaymentError(null);
                         setRetryCount(prev => prev + 1);
                         const currentFormData = form.getValues();
-                        initiatePayment(currentFormData);
+                        // We need the booking ID for retry, but we'll need to recreate it
+                        handleSubmit(currentFormData);
                       }}
                       disabled={paymentInProgress}
                     >
@@ -465,12 +548,12 @@ const GuestDetailsStep = (props: GuestDetailsStepProps) => {
             <Button 
               type="submit" 
               className="w-full" 
-              disabled={isLoading || paymentInProgress || isCreating}
+              disabled={isLoading || paymentInProgress}
             >
-              {isLoading || paymentInProgress || isCreating ? (
+              {isLoading || paymentInProgress ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {paymentInProgress ? 'Initializing Payment...' : isCreating ? 'Creating Booking...' : 'Saving...'}
+                  {paymentInProgress ? 'Initializing Payment...' : 'Creating Booking...'}
                 </>
               ) : paymentCalculation?.shouldCharge ? (
                 'Continue to Payment'
