@@ -1,3 +1,8 @@
+// 🚨 DEPRECATED: This component is not used by the canonical NuthatchBookingWidget
+// NuthatchBookingWidget has integrated payment handling in GuestDetailsStep
+// This file will be removed in a future cleanup
+
+console.warn('⚠️ DEPRECATED: PaymentStep is not used by NuthatchBookingWidget (payments integrated in GuestDetailsStep).');
 
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";

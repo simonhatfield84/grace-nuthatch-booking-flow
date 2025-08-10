@@ -1,3 +1,8 @@
+// 🚨 DEPRECATED: This component is not used by the canonical NuthatchBookingWidget
+// NuthatchBookingWidget uses its own PartyDateStep component
+// This file will be removed in a future cleanup
+
+console.warn('⚠️ DEPRECATED: DateSelectorWithAvailability is not used by NuthatchBookingWidget.');
 
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";

@@ -1,3 +1,8 @@
+// 🚨 DEPRECATED: This component is not used by the canonical NuthatchBookingWidget
+// NuthatchBookingWidget uses its own ConfirmationStep component
+// This file will be removed in a future cleanup
+
+console.warn('⚠️ DEPRECATED: BookingConfirmation is not used by NuthatchBookingWidget.');
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

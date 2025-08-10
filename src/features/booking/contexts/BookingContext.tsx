@@ -1,3 +1,8 @@
+// 🚨 DEPRECATED: This context is not used by the canonical NuthatchBookingWidget
+// The NuthatchBookingWidget manages its own state internally
+// This file will be removed in a future cleanup
+
+console.warn('⚠️ DEPRECATED: BookingContext is not used by NuthatchBookingWidget and will be removed.');
 
 import React, { createContext, useContext, useReducer, ReactNode } from 'react';
 import { BookingData, BookingStep } from '../types/booking';

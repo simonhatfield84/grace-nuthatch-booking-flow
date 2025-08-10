@@ -1,3 +1,8 @@
+// 🚨 DEPRECATED: This component is not used by the canonical NuthatchBookingWidget
+// NuthatchBookingWidget uses its own GuestDetailsStep component
+// This file will be removed in a future cleanup
+
+console.warn('⚠️ DEPRECATED: GuestDetailsForm is not used by NuthatchBookingWidget.');
 
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";

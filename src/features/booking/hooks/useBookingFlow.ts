@@ -1,3 +1,8 @@
+// 🚨 DEPRECATED: This hook is not used by the canonical NuthatchBookingWidget
+// The NuthatchBookingWidget manages its own booking flow internally
+// This file will be removed in a future cleanup
+
+console.warn('⚠️ DEPRECATED: useBookingFlow hook is not used by NuthatchBookingWidget and will be removed.');
 
 import { useBookingContext } from '../contexts/BookingContext';
 import { BookingService } from '../services/BookingService';

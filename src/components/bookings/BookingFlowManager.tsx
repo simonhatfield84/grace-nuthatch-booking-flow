@@ -1,3 +1,8 @@
+// 🚨 DEPRECATED: This component is redundant and should not be used
+// Use src/features/booking/components/NuthatchBookingWidget.tsx instead
+// This file will be removed in a future cleanup
+
+console.warn('⚠️ DEPRECATED: BookingFlowManager is deprecated. Use NuthatchBookingWidget instead.');
 
 import { useState, useEffect } from "react";
 import { format } from "date-fns";

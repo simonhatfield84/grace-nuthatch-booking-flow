@@ -1,3 +1,8 @@
+// 🚨 DEPRECATED: This component is not used by the canonical NuthatchBookingWidget
+// NuthatchBookingWidget uses its own ServiceStep component
+// This file will be removed in a future cleanup
+
+console.warn('⚠️ DEPRECATED: ServiceSelector is not used by NuthatchBookingWidget.');
 
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
