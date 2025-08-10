@@ -379,16 +379,21 @@ export default function PlatformStyleExportPreview() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {Object.entries(GRACE_TOKENS.colors).slice(0, 6).map(([name, value]) => (
-                <div key={name} className="text-center">
-                  <div 
-                    className="w-full h-16 rounded-lg border mb-2"
-                    style={{ backgroundColor: value }}
-                  />
-                  <p className="text-foreground text-sm font-medium capitalize">{name}</p>
-                  <p className="text-muted-foreground text-xs font-mono">{value}</p>
-                </div>
-              ))}
+              {Object.entries(GRACE_TOKENS.colors).slice(0, 6).map(([name, value]) => {
+                if (typeof value === 'string') {
+                  return (
+                    <div key={name} className="text-center">
+                      <div 
+                        className="w-full h-16 rounded-lg border mb-2"
+                        style={{ backgroundColor: value }}
+                      />
+                      <p className="text-foreground text-sm font-medium capitalize">{name}</p>
+                      <p className="text-muted-foreground text-xs font-mono">{value}</p>
+                    </div>
+                  );
+                }
+                return null;
+              })}
             </div>
           </CardContent>
         </Card>

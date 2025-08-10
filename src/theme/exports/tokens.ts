@@ -1,4 +1,3 @@
-
 // Grace OS Reservations Design System Tokens
 // Extracted from src/index.css and tailwind.config.ts
 
@@ -13,7 +12,7 @@ export const GRACE_TOKENS = {
     light: '#FFFFFF',        // Pure White
 
     // Semantic Colors (Light Theme)
-    light: {
+    lightTheme: {
       background: 'hsl(32, 27%, 94%)',         // #F4EAE0
       foreground: 'hsl(0, 0%, 18%)',          // #2E2E2E
       card: 'hsl(0, 0%, 100%)',               // #FFFFFF
@@ -36,7 +35,7 @@ export const GRACE_TOKENS = {
     },
 
     // Dark Theme (Host Interface)
-    dark: {
+    darkTheme: {
       background: 'hsl(214, 13%, 8%)',        // #111315
       foreground: 'hsl(0, 0%, 100%)',         // #FFFFFF
       card: 'hsl(214, 6%, 16%)',              // #292C2D

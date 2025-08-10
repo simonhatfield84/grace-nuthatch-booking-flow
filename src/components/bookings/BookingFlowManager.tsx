@@ -1,3 +1,4 @@
+
 // 🚨 DEPRECATED: This component is redundant and should not be used
 // Use src/features/booking/components/NuthatchBookingWidget.tsx instead
 // This file will be removed in a future cleanup
@@ -148,7 +149,6 @@ export const BookingFlowManager = ({ venueSlug, onStepChange }: BookingFlowManag
               updateBookingData({ time });
               handleStepChange('service');
             }}
-            selectedService={bookingData.service}
             partySize={bookingData.partySize}
             venueId={venue.id}
           />
