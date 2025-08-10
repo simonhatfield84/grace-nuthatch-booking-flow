@@ -42,6 +42,7 @@ import PlatformSettings from "./pages/PlatformSettings";
 import PlatformSecurity from "./pages/PlatformSecurity";
 import PlatformSubscriptions from "./pages/PlatformSubscriptions";
 import PlatformSupport from "./pages/PlatformSupport";
+import PlatformStyleExportPreview from "./pages/PlatformStyleExportPreview";
 
 const queryClient = new QueryClient();
 
@@ -127,6 +128,7 @@ function App() {
                       <Route path="security" element={<PlatformSecurity />} />
                       <Route path="subscriptions" element={<PlatformSubscriptions />} />
                       <Route path="support" element={<PlatformSupport />} />
+                      <Route path="style-export-preview" element={<PlatformStyleExportPreview />} />
                     </Route>
 
                     {/* Admin routes with AdminLayout - NO STRIPE PROVIDER */}
