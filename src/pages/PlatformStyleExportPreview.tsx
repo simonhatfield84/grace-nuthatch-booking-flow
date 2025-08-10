@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -10,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { GRACE_TOKENS } from '@/theme/exports/tokens';
 import { CheckCircle, AlertCircle, XCircle, Info, Download, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { DesignSystemBundleDownload } from '@/components/platform/DesignSystemBundleDownload';
 
 // Import Grace theme CSS for this preview
 import '@/theme/exports/grace-theme.css';
@@ -54,7 +54,7 @@ export default function PlatformStyleExportPreview() {
         <div>
           <h1 className="text-3xl font-bold text-foreground">Grace OS Style Export Preview</h1>
           <p className="text-muted-foreground mt-2">
-            Design system export verification and token showcase
+            Design system export verification and bundle download
           </p>
         </div>
         <div className="flex gap-2">
@@ -70,6 +70,9 @@ export default function PlatformStyleExportPreview() {
           </Button>
         </div>
       </div>
+
+      {/* Bundle Download Section */}
+      <DesignSystemBundleDownload />
 
       {/* Export Files Status */}
       <Card>
