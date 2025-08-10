@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -14,6 +15,7 @@ import { Loader2, AlertCircle } from "lucide-react";
 import { calculateEnhancedPaymentAmount } from "@/utils/enhancedPaymentCalculation";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { usePaymentErrorHandling } from "@/hooks/usePaymentErrorHandling";
+import { useBookingCreation } from "@/hooks/booking/useBookingCreation";
 
 const guestFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -29,6 +31,16 @@ const guestFormSchema = z.object({
 type GuestFormData = z.infer<typeof guestFormSchema>;
 
 interface GuestDetailsStepProps {
+  // Props from BookingWidget
+  value?: GuestFormData | null;
+  service?: any;
+  venue?: any;
+  partySize?: number;
+  date?: Date;
+  time?: string;
+  onChange?: (guestDetails: any, paymentRequired: any, paymentAmount: any, bookingId?: any) => void;
+  
+  // Props from NuthatchBookingWidget  
   bookingData?: {
     date: string;
     time: string;
@@ -39,14 +51,6 @@ interface GuestDetailsStepProps {
   onGuestDetailsChange?: (guestDetails: GuestFormData) => void;
   onNext?: () => void;
   venueSlug?: string;
-  
-  value?: GuestFormData | null;
-  service?: any;
-  venue?: any;
-  partySize?: number;
-  date?: Date;
-  time?: string;
-  onChange?: (guestDetails: any, paymentRequired: any, paymentAmount: any, bookingId?: any) => void;
 }
 
 const GuestDetailsStep = (props: GuestDetailsStepProps) => {
@@ -65,6 +69,7 @@ const GuestDetailsStep = (props: GuestDetailsStepProps) => {
     onChange
   } = props;
 
+  // Normalize props from different sources
   const normalizedGuestDetails = guestDetails || value;
   const normalizedService = bookingData?.service || service;
   const normalizedVenue = venue;
@@ -76,6 +81,7 @@ const GuestDetailsStep = (props: GuestDetailsStepProps) => {
   const [paymentCalculation, setPaymentCalculation] = useState<any>(null);
   const [termsAndConditions, setTermsAndConditions] = useState('');
   const { toast } = useToast();
+  const { createBooking, isCreating } = useBookingCreation();
 
   const [paymentInProgress, setPaymentInProgress] = useState(false);
   const [paymentError, setPaymentError] = useState<string | null>(null);
@@ -263,13 +269,29 @@ const GuestDetailsStep = (props: GuestDetailsStepProps) => {
       }
 
       if (paymentCalculation?.shouldCharge) {
-        initiatePayment(data);
+        // Payment required - initiate payment flow
+        await initiatePayment(data);
       } else {
+        // No payment required - create booking directly
+        const bookingDate = date || new Date(normalizedDate);
+        
+        const booking = await createBooking({
+          guestDetails: data,
+          bookingData: {
+            date: bookingDate,
+            time: normalizedTime,
+            partySize: normalizedPartySize,
+            service: { title: normalizedService }
+          },
+          venueId: venueData.id
+        });
+
+        // Call the appropriate callback based on the component usage
         if (onGuestDetailsChange && onNext) {
           onGuestDetailsChange(data);
           onNext();
         } else if (onChange) {
-          onChange(data, false, 0);
+          onChange(data, false, 0, booking.id);
         }
       }
     } catch (error: any) {
@@ -408,29 +430,29 @@ const GuestDetailsStep = (props: GuestDetailsStepProps) => {
               </div>
             )}
 
-        {paymentError && (
-          <Alert variant="destructive" className="mb-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription className="flex items-center justify-between">
-              <span>{paymentError}</span>
-              {retryCount < maxRetries && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => {
-                    setPaymentError(null);
-                    setRetryCount(prev => prev + 1);
-                    const currentFormData = form.getValues();
-                    initiatePayment(currentFormData);
-                  }}
-                  disabled={paymentInProgress}
-                >
-                  Retry
-                </Button>
-              )}
-            </AlertDescription>
-          </Alert>
-        )}
+            {paymentError && (
+              <Alert variant="destructive" className="mb-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="flex items-center justify-between">
+                  <span>{paymentError}</span>
+                  {retryCount < maxRetries && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => {
+                        setPaymentError(null);
+                        setRetryCount(prev => prev + 1);
+                        const currentFormData = form.getValues();
+                        initiatePayment(currentFormData);
+                      }}
+                      disabled={paymentInProgress}
+                    >
+                      Retry
+                    </Button>
+                  )}
+                </AlertDescription>
+              </Alert>
+            )}
 
             {paymentCalculation?.shouldCharge && (
               <div className="p-4 bg-blue-50 rounded-lg">
@@ -440,22 +462,22 @@ const GuestDetailsStep = (props: GuestDetailsStepProps) => {
               </div>
             )}
 
-        <Button 
-          type="submit" 
-          className="w-full" 
-          disabled={isLoading || paymentInProgress}
-        >
-          {isLoading || paymentInProgress ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              {paymentInProgress ? 'Initializing Payment...' : 'Saving...'}
-            </>
-          ) : paymentCalculation?.shouldCharge ? (
-            'Continue to Payment'
-          ) : (
-            'Complete Booking'
-          )}
-        </Button>
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={isLoading || paymentInProgress || isCreating}
+            >
+              {isLoading || paymentInProgress || isCreating ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {paymentInProgress ? 'Initializing Payment...' : isCreating ? 'Creating Booking...' : 'Saving...'}
+                </>
+              ) : paymentCalculation?.shouldCharge ? (
+                'Continue to Payment'
+              ) : (
+                'Complete Booking'
+              )}
+            </Button>
           </form>
         </Form>
       </CardContent>
