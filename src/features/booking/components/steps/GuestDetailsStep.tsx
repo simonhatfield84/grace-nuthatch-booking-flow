@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -30,25 +29,49 @@ const guestFormSchema = z.object({
 type GuestFormData = z.infer<typeof guestFormSchema>;
 
 interface GuestDetailsStepProps {
-  bookingData: {
+  bookingData?: {
     date: string;
     time: string;
     partySize: number;
     service: string;
   };
-  guestDetails: GuestFormData | null;
-  onGuestDetailsChange: (guestDetails: GuestFormData) => void;
-  onNext: () => void;
-  venueSlug: string;
+  guestDetails?: GuestFormData | null;
+  onGuestDetailsChange?: (guestDetails: GuestFormData) => void;
+  onNext?: () => void;
+  venueSlug?: string;
+  
+  value?: GuestFormData | null;
+  service?: any;
+  venue?: any;
+  partySize?: number;
+  date?: Date;
+  time?: string;
+  onChange?: (guestDetails: any, paymentRequired: any, paymentAmount: any, bookingId?: any) => void;
 }
 
-const GuestDetailsStep = ({ 
-  bookingData, 
-  guestDetails, 
-  onGuestDetailsChange, 
-  onNext, 
-  venueSlug 
-}: GuestDetailsStepProps) => {
+const GuestDetailsStep = (props: GuestDetailsStepProps) => {
+  const {
+    bookingData,
+    guestDetails,
+    onGuestDetailsChange,
+    onNext,
+    venueSlug,
+    value,
+    service,
+    venue,
+    partySize,
+    date,
+    time,
+    onChange
+  } = props;
+
+  const normalizedGuestDetails = guestDetails || value;
+  const normalizedService = bookingData?.service || service;
+  const normalizedVenue = venue;
+  const normalizedPartySize = bookingData?.partySize || partySize || 2;
+  const normalizedDate = bookingData?.date || (date ? date.toISOString().split('T')[0] : '');
+  const normalizedTime = bookingData?.time || time || '';
+
   const [isLoading, setIsLoading] = useState(false);
   const [paymentCalculation, setPaymentCalculation] = useState<any>(null);
   const [termsAndConditions, setTermsAndConditions] = useState('');
@@ -61,7 +84,7 @@ const GuestDetailsStep = ({
 
   const form = useForm<GuestFormData>({
     resolver: zodResolver(guestFormSchema),
-    defaultValues: guestDetails || {
+    defaultValues: normalizedGuestDetails || {
       name: "",
       email: "",
       phone: "",
@@ -77,23 +100,30 @@ const GuestDetailsStep = ({
   useEffect(() => {
     const fetchVenueData = async () => {
       try {
-        const { data, error } = await supabase
-          .from('venues')
-          .select('id')
-          .eq('slug', venueSlug)
-          .single();
-
-        if (error) {
-          console.error('Error fetching venue data:', error);
-          toast({
-            title: "Error",
-            description: "Failed to load venue information. Please refresh.",
-            variant: "destructive"
-          });
+        if (normalizedVenue?.id) {
+          setVenueData({ id: normalizedVenue.id });
           return;
         }
 
-        setVenueData({ id: data.id });
+        if (venueSlug) {
+          const { data, error } = await supabase
+            .from('venues')
+            .select('id')
+            .eq('slug', venueSlug)
+            .single();
+
+          if (error) {
+            console.error('Error fetching venue data:', error);
+            toast({
+              title: "Error",
+              description: "Failed to load venue information. Please refresh.",
+              variant: "destructive"
+            });
+            return;
+          }
+
+          setVenueData({ id: data.id });
+        }
       } catch (error) {
         console.error('Error fetching venue data:', error);
         toast({
@@ -104,33 +134,28 @@ const GuestDetailsStep = ({
       }
     };
 
-    if (venueSlug) {
-      fetchVenueData();
-    }
-  }, [venueSlug, toast]);
+    fetchVenueData();
+  }, [venueSlug, normalizedVenue, toast]);
 
   useEffect(() => {
     const checkPaymentAndTerms = async () => {
       if (!venueData?.id) return;
 
       try {
-        // Get service details including terms
-        const { data: service } = await supabase
+        const { data: serviceData } = await supabase
           .from('services')
           .select('*')
-          .eq('title', bookingData.service)
+          .eq('title', normalizedService)
           .single();
 
-        if (service) {
-          // Set terms - use service terms or default terms
-          const serviceTerms = service.terms_and_conditions;
+        if (serviceData) {
+          const serviceTerms = serviceData.terms_and_conditions;
           const defaultTerms = localStorage.getItem('standardTerms') || '';
           setTermsAndConditions(serviceTerms || defaultTerms);
 
-          // Calculate payment requirement
           const calculation = await calculateEnhancedPaymentAmount(
-            service.id,
-            bookingData.partySize,
+            serviceData.id,
+            normalizedPartySize,
             venueData.id
           );
 
@@ -138,7 +163,6 @@ const GuestDetailsStep = ({
         }
       } catch (error) {
         console.error('Error checking payment requirements and terms:', error);
-        // Set default terms if service lookup fails
         const defaultTerms = localStorage.getItem('standardTerms') || '';
         setTermsAndConditions(defaultTerms);
       }
@@ -147,7 +171,7 @@ const GuestDetailsStep = ({
     if (venueData) {
       checkPaymentAndTerms();
     }
-  }, [bookingData.service, bookingData.partySize, venueData]);
+  }, [normalizedService, normalizedPartySize, venueData]);
 
   const initiatePayment = async (formData: GuestFormData) => {
     if (!venueData?.id || !paymentCalculation) {
@@ -164,11 +188,11 @@ const GuestDetailsStep = ({
       
       const { data, error } = await supabase.functions.invoke('create-payment-intent', {
         body: {
-          bookingId: null, // Will be set after booking creation
+          bookingId: null,
           amount: paymentCalculation.amount,
           currency: 'gbp',
           description: paymentCalculation.description,
-          venue_id: venueData.id // Pass venue_id to the edge function
+          venue_id: venueData.id
         }
       });
 
@@ -189,7 +213,6 @@ const GuestDetailsStep = ({
 
       console.log('Payment intent created successfully');
       
-      // Navigate to payment page with client secret
       const paymentUrl = `/payment/${data.payment_intent_id}`;
       window.location.href = paymentUrl;
 
@@ -197,7 +220,6 @@ const GuestDetailsStep = ({
       console.error('Payment initiation error:', error);
       const errorMessage = error.message || 'Failed to initialize payment';
       
-      // Implement retry logic for certain types of errors
       if (retryCount < maxRetries && (
         errorMessage.includes('network') || 
         errorMessage.includes('timeout') ||
@@ -205,11 +227,10 @@ const GuestDetailsStep = ({
       )) {
         console.log(`Retrying payment initiation (attempt ${retryCount + 1}/${maxRetries + 1})`);
         setRetryCount(prev => prev + 1);
-        setTimeout(() => initiatePayment(formData), 1000 * (retryCount + 1)); // Exponential backoff
+        setTimeout(() => initiatePayment(formData), 1000 * (retryCount + 1));
         return;
       }
 
-      // Set user-friendly error message
       let userErrorMessage = errorMessage;
       if (errorMessage.includes('not configured')) {
         userErrorMessage = 'Payment system is not configured for this venue. Please contact support.';
@@ -237,7 +258,6 @@ const GuestDetailsStep = ({
     setPaymentError(null);
 
     try {
-      // Validate venue data and payment calculation
       if (!venueData?.id) {
         throw new Error('Venue information not available. Please refresh.');
       }
@@ -245,9 +265,12 @@ const GuestDetailsStep = ({
       if (paymentCalculation?.shouldCharge) {
         initiatePayment(data);
       } else {
-        // No payment required - proceed to next step
-        onGuestDetailsChange(data);
-        onNext();
+        if (onGuestDetailsChange && onNext) {
+          onGuestDetailsChange(data);
+          onNext();
+        } else if (onChange) {
+          onChange(data, false, 0);
+        }
       }
     } catch (error: any) {
       console.error('Error in submit:', error);
@@ -385,7 +408,6 @@ const GuestDetailsStep = ({
               </div>
             )}
 
-        {/* Enhanced error display */}
         {paymentError && (
           <Alert variant="destructive" className="mb-4">
             <AlertCircle className="h-4 w-4" />
@@ -398,7 +420,6 @@ const GuestDetailsStep = ({
                   onClick={() => {
                     setPaymentError(null);
                     setRetryCount(prev => prev + 1);
-                    // Retry with current form data
                     const currentFormData = form.getValues();
                     initiatePayment(currentFormData);
                   }}
