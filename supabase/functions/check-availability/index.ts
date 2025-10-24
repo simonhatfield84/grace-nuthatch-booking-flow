@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
     }
 
     // Step 2: Rate limiting check
-    const rateLimitExceeded = await checkRateLimit(supabase, ipHash, venue.id);
+    const rateLimitExceeded = await checkRateLimit(supabase, ipHash, venue.id, serviceId);
     if (rateLimitExceeded) {
       await logAvailability(supabase, {
         venue_id: venue.id,
@@ -165,8 +165,10 @@ Deno.serve(async (req) => {
       took_ms: Date.now() - startTime,
     };
 
-    // Step 5: Write to cache
-    await writeCache(supabase, venue.id, availabilityResult.serviceId, date, partySize, response);
+    // Step 5: Write to cache (only if serviceId exists)
+    if (availabilityResult.serviceId) {
+      await writeCache(supabase, venue.id, availabilityResult.serviceId, date, partySize, response);
+    }
 
     // Step 6: Log success
     await logAvailability(supabase, {
@@ -208,14 +210,19 @@ async function sha256(input: string): Promise<string> {
 }
 
 // Helper: Rate limit check
-async function checkRateLimit(supabase: any, ipHash: string, venueId: string): Promise<boolean> {
-  const { count } = await supabase
+async function checkRateLimit(supabase: any, ipHash: string, venueId: string, serviceId?: string): Promise<boolean> {
+  let query = supabase
     .from('availability_logs')
     .select('id', { count: 'exact', head: true })
     .eq('ip_hash', ipHash)
     .eq('venue_id', venueId)
     .gte('occurred_at', new Date(Date.now() - RATE_LIMIT_WINDOW_MS).toISOString());
+  
+  if (serviceId) {
+    query = query.eq('service_id', serviceId);
+  }
 
+  const { count } = await query;
   return (count || 0) >= RATE_LIMIT_MAX_REQUESTS;
 }
 
@@ -227,11 +234,13 @@ async function checkCache(
   date: string,
   partySize: number
 ): Promise<any | null> {
+  if (!serviceId) return null;  // No cache without service
+  
   const { data } = await supabase
     .from('availability_cache')
     .select('payload, created_at')
     .eq('venue_id', venueId)
-    .eq('service_id', serviceId || '')
+    .eq('service_id', serviceId)
     .eq('date', date)
     .eq('party_size', partySize)
     .gte('created_at', new Date(Date.now() - CACHE_TTL_MS).toISOString())
@@ -278,35 +287,49 @@ async function calculateAvailability(
   date: string,
   partySize: number
 ): Promise<any> {
-  // Get service (use first active if not specified)
-  let service;
-  if (serviceId) {
-    const { data } = await supabase
-      .from('services')
-      .select('*, booking_windows(*)')
-      .eq('id', serviceId)
-      .eq('venue_id', venueId)
-      .eq('active', true)
-      .single();
-    service = data;
-  } else {
-    const { data } = await supabase
-      .from('services')
-      .select('*, booking_windows(*)')
-      .eq('venue_id', venueId)
-      .eq('active', true)
-      .eq('online_bookable', true)
-      .order('created_at', { ascending: true })
-      .limit(1)
-      .single();
-    service = data;
-  }
-
-  if (!service) {
+  // CRITICAL: Require serviceId - fail fast if missing
+  if (!serviceId) {
     return {
       ok: false,
-      code: 'no_service',
-      message: 'No available service found',
+      code: 'missing_service_id',
+      message: 'Service ID is required for availability checks',
+    };
+  }
+
+  // Validate serviceId is a valid UUID
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(serviceId)) {
+    return {
+      ok: false,
+      code: 'invalid_service_id',
+      message: 'Service ID must be a valid UUID',
+    };
+  }
+
+  // Get service and verify it belongs to this venue
+  const { data: service, error: serviceError } = await supabase
+    .from('services')
+    .select('*, booking_windows(*)')
+    .eq('id', serviceId)
+    .eq('venue_id', venueId)  // Verify venue ownership
+    .eq('active', true)
+    .eq('online_bookable', true)
+    .single();
+
+  if (serviceError || !service) {
+    return {
+      ok: false,
+      code: 'service_not_found',
+      message: 'Service not found or not available for online booking',
+    };
+  }
+
+  // Verify service supports the requested party size
+  if (partySize < service.min_guests || partySize > service.max_guests) {
+    return {
+      ok: false,
+      code: 'party_size_invalid',
+      message: `This service requires between ${service.min_guests} and ${service.max_guests} guests`,
     };
   }
 

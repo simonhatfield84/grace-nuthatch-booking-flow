@@ -86,7 +86,8 @@ function BookingWidgetContent({ venueSlug }: BookingWidgetProps) {
             onTimeSelect={handleTimeSelection}
             selectedDate={bookingData.date}
             partySize={bookingData.partySize}
-            venueId={venue.id}
+            venueSlug={venue?.slug || ''}
+            selectedService={bookingData.service}
           />
         );
       case 3:

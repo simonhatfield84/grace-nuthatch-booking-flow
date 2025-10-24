@@ -212,6 +212,7 @@ export function NuthatchBookingWidget() {
             onServiceSelect={(service) => {
               updateBookingData({ 
                 service,
+                time: '',  // Reset time when service changes
                 paymentRequired: service?.requires_payment || false,
                 paymentAmount: service?.charge_amount_per_guest ? 
                   service.charge_amount_per_guest * bookingData.partySize : 0
@@ -223,10 +224,11 @@ export function NuthatchBookingWidget() {
       case 'time':
         return (
           <TimeStep
-            venueId={venue?.id}
+            venueSlug={venue?.slug}
             selectedDate={bookingData.date}
             partySize={bookingData.partySize}
             selectedTime={bookingData.time}
+            selectedService={bookingData.service}
             onTimeSelect={(time) => {
               updateBookingData({ time });
               nextStep();

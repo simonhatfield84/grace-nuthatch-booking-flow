@@ -78,40 +78,44 @@ export class BookingService {
 
   // Get available time slots for a specific date
   static async getAvailableTimeSlots(
-    venueId: string,
+    venueSlug: string,
     date: string,
-    partySize: number
+    partySize: number,
+    serviceId: string
   ): Promise<AvailabilitySlot[]> {
-    try {
-      // Get venue slug first
-      const { data: venue } = await supabase
-        .from('venues')
-        .select('slug')
-        .eq('id', venueId)
-        .single();
-      
-      if (!venue) {
-        console.error('Venue not found for ID:', venueId);
-        return [];
-      }
+    const cacheKey = `availability:${venueSlug}:${serviceId}:${date}:${partySize}`;
+    
+    // Check cache first
+    const cached = this.cache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
+      console.log('📦 Using cached time slots');
+      return cached.data;
+    }
 
-      // Call availability API
+    console.log(`🔍 Fetching time slots for ${date} (${partySize} guests, service: ${serviceId})`);
+
+    try {
+      // Call the Edge Function API with all parameters
       const response = await AvailabilityApiClient.checkAvailability({
-        venueSlug: venue.slug,
+        venueSlug,
+        serviceId,
         date,
-        partySize
+        partySize,
       });
 
       if (!response.ok) {
-        console.error('Availability check failed:', response.message);
-        return [];
+        console.error('Availability check failed:', response);
+        throw new Error(response.message || 'Failed to check availability');
       }
 
-      return (response.slots || []).map(slot => ({
+      const slots = (response.slots || []).map(slot => ({
         time: slot.time,
         available: slot.available,
         reason: slot.available ? undefined : "Not available"
       }));
+      
+      this.cache.set(cacheKey, { data: slots, timestamp: Date.now() });
+      return slots;
     } catch (error) {
       console.error("Error getting available time slots:", error);
       return [];

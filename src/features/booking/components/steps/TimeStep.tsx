@@ -6,30 +6,32 @@ import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Clock, CheckCircle, Loader2 } from 'lucide-react';
 import { BookingService } from '../../services/BookingService';
+import { Service } from '../../types/booking';
 
 interface TimeStepProps {
   selectedTime: string | null;
   onTimeSelect: (time: string) => void;
   selectedDate: Date | null;
   partySize: number;
-  venueId: string;
+  venueSlug: string;
+  selectedService: Service | null;
 }
 
-export function TimeStep({ selectedTime, onTimeSelect, selectedDate, partySize, venueId }: TimeStepProps) {
+export function TimeStep({ selectedTime, onTimeSelect, selectedDate, partySize, venueSlug, selectedService }: TimeStepProps) {
   const { data: timeSlots = [], isLoading } = useQuery({
-    queryKey: ['time-slots', selectedDate, partySize, venueId],
+    queryKey: ['time-slots', selectedDate, partySize, venueSlug, selectedService?.id],
     queryFn: async () => {
-      if (!selectedDate || !venueId) return [];
+      if (!selectedDate || !venueSlug || !selectedService?.id) return [];
 
       const dateStr = format(selectedDate, 'yyyy-MM-dd');
-      console.log(`🕐 Checking time slots for ${dateStr} (${partySize} guests)`);
+      console.log(`🕐 Checking time slots for ${dateStr} (${partySize} guests, service: ${selectedService.title})`);
 
-      const slots = await BookingService.getAvailableTimeSlots(venueId, dateStr, partySize);
+      const slots = await BookingService.getAvailableTimeSlots(venueSlug, dateStr, partySize, selectedService.id);
       
       console.log(`✅ Found ${slots.filter(s => s.available).length} available slots`);
       return slots;
     },
-    enabled: !!selectedDate && !!venueId && partySize > 0,
+    enabled: Boolean(selectedDate && partySize && venueSlug && selectedService?.id),
     staleTime: 2 * 60 * 1000,
   });
 
