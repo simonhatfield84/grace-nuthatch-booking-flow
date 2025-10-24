@@ -21,12 +21,9 @@ import Tables from "./pages/Tables";
 import Guests from "./pages/Guests";
 import Settings from "./pages/Settings";
 import Reports from "./pages/Reports";
-import WiFi from "./pages/WiFi";
 import BookingWidget from "./pages/BookingWidget";
 import ModifyBooking from "./pages/ModifyBooking";
 import CancelBooking from "./pages/CancelBooking";
-import WifiPortal from "./pages/WifiPortal";
-import WifiPortalSuccess from "./pages/WifiPortalSuccess";
 import HomePage from "./pages/HomePage";
 import NotFound from "./pages/NotFound";
 import PaymentPage from "./pages/PaymentPage";
@@ -46,38 +43,11 @@ import PlatformStyleExportPreview from "./pages/PlatformStyleExportPreview";
 
 const queryClient = new QueryClient();
 
-// Minimal layout for public WiFi routes that don't need Auth or Stripe
-function WifiPublicLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <ErrorBoundary>
-          {children}
-        </ErrorBoundary>
-      </TooltipProvider>
-    </QueryClientProvider>
-  );
-}
-
 function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* WiFi Portal routes - minimal providers, no auth needed */}
-        <Route path="/wifiportal/nuthatch" element={
-          <WifiPublicLayout>
-            <WifiPortal />
-          </WifiPublicLayout>
-        } />
-        <Route path="/wifiportal/success/nuthatch" element={
-          <WifiPublicLayout>
-            <WifiPortalSuccess />
-          </WifiPublicLayout>
-        } />
-        
-        {/* All other routes - full provider stack but selective Stripe usage */}
+        {/* All routes - full provider stack but selective Stripe usage */}
         <Route path="/*" element={
           <QueryClientProvider client={queryClient}>
             <TooltipProvider>
@@ -180,13 +150,6 @@ function App() {
                       <ProtectedRoute>
                         <AdminLayout>
                           <Reports />
-                        </AdminLayout>
-                      </ProtectedRoute>
-                    } />
-                    <Route path="/wifi" element={
-                      <ProtectedRoute>
-                        <AdminLayout>
-                          <WiFi />
                         </AdminLayout>
                       </ProtectedRoute>
                     } />
