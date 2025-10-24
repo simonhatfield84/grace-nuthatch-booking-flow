@@ -3,11 +3,14 @@ import React from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart3, TrendingUp, Calendar, Users, Download } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval } from "date-fns";
+import { AvailabilityAnalytics } from "@/components/admin/AvailabilityAnalytics";
+import PaymentReports from "@/components/reports/PaymentReports";
 
 const Reports = () => {
   const { user } = useAuth();
@@ -209,17 +212,16 @@ const Reports = () => {
           <h1 className="text-3xl font-bold text-foreground">Reports</h1>
           <p className="text-muted-foreground">Analytics and performance insights</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline">
-            <Download className="h-4 w-4 mr-2" strokeWidth={2} />
-            Export CSV
-          </Button>
-          <Button>
-            <BarChart3 className="h-4 w-4 mr-2" strokeWidth={2} />
-            Generate Report
-          </Button>
-        </div>
       </div>
+
+      <Tabs defaultValue="bookings" className="w-full">
+        <TabsList>
+          <TabsTrigger value="bookings">Bookings</TabsTrigger>
+          <TabsTrigger value="payments">Payments</TabsTrigger>
+          <TabsTrigger value="availability">Availability API</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="bookings" className="space-y-6">
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
@@ -418,6 +420,16 @@ const Reports = () => {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="payments">
+          <PaymentReports />
+        </TabsContent>
+
+        <TabsContent value="availability">
+          {userVenue && <AvailabilityAnalytics venueId={userVenue} />}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

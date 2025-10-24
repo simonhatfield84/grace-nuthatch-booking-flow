@@ -3,6 +3,7 @@ import { format, addDays, startOfDay } from "date-fns";
 import { Service, AvailabilitySlot } from "../types/booking";
 import { EnhancedAvailabilityService } from "@/services/enhancedAvailabilityService";
 import { parseYYYYMMDDDate, getShortDayName } from '@/utils/dateUtils';
+import { AvailabilityApiClient } from "@/services/api/availabilityApiClient";
 
 export class BookingService {
   private static cache = new Map<string, { data: any, timestamp: number }>();
@@ -81,39 +82,38 @@ export class BookingService {
     date: string,
     partySize: number
   ): Promise<AvailabilitySlot[]> {
-    const cacheKey = `times-${venueId}-${date}-${partySize}`;
-    const cached = this.cache.get(cacheKey);
-
-    if (cached && Date.now() - cached.timestamp < this.CACHE_DURATION) {
-      return cached.data;
-    }
-
     try {
-      // Generate time slots (every 15 minutes from 17:00 to 22:00)
-      const timeSlots: string[] = [];
-      for (let hour = 17; hour <= 22; hour++) {
-        for (let minute of [0, 15, 30, 45]) {
-          if (hour === 22 && minute > 0) break;
-          timeSlots.push(`${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`);
-        }
+      // Get venue slug first
+      const { data: venue } = await supabase
+        .from('venues')
+        .select('slug')
+        .eq('id', venueId)
+        .single();
+      
+      if (!venue) {
+        console.error('Venue not found for ID:', venueId);
+        return [];
       }
 
-      // Check availability for each slot
-      const availabilitySlots = await Promise.all(
-        timeSlots.map(async (time) => {
-          const available = await this.checkTimeSlotAvailability(venueId, date, time, partySize);
-          return {
-            time,
-            available,
-            reason: available ? undefined : 'No tables available'
-          };
-        })
-      );
+      // Call availability API
+      const response = await AvailabilityApiClient.checkAvailability({
+        venueSlug: venue.slug,
+        date,
+        partySize
+      });
 
-      this.cache.set(cacheKey, { data: availabilitySlots, timestamp: Date.now() });
-      return availabilitySlots;
+      if (!response.ok) {
+        console.error('Availability check failed:', response.message);
+        return [];
+      }
+
+      return (response.slots || []).map(slot => ({
+        time: slot.time,
+        available: slot.available,
+        reason: slot.available ? undefined : "Not available"
+      }));
     } catch (error) {
-      console.error('Error getting time slots:', error);
+      console.error("Error getting available time slots:", error);
       return [];
     }
   }

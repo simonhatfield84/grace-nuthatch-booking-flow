@@ -49,6 +49,103 @@ export type Database = {
           },
         ]
       }
+      availability_cache: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          party_size: number
+          payload: Json
+          service_id: string | null
+          venue_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          party_size: number
+          payload: Json
+          service_id?: string | null
+          venue_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          party_size?: number
+          payload?: Json
+          service_id?: string | null
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "availability_cache_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      availability_logs: {
+        Row: {
+          cached: boolean | null
+          date: string | null
+          error_text: string | null
+          id: string
+          ip_hash: string | null
+          occurred_at: string
+          party_size: number | null
+          result_slots: number | null
+          service_id: string | null
+          status: string
+          took_ms: number | null
+          ua_hash: string | null
+          venue_id: string | null
+          venue_slug: string | null
+        }
+        Insert: {
+          cached?: boolean | null
+          date?: string | null
+          error_text?: string | null
+          id?: string
+          ip_hash?: string | null
+          occurred_at?: string
+          party_size?: number | null
+          result_slots?: number | null
+          service_id?: string | null
+          status: string
+          took_ms?: number | null
+          ua_hash?: string | null
+          venue_id?: string | null
+          venue_slug?: string | null
+        }
+        Update: {
+          cached?: boolean | null
+          date?: string | null
+          error_text?: string | null
+          id?: string
+          ip_hash?: string | null
+          occurred_at?: string
+          party_size?: number | null
+          result_slots?: number | null
+          service_id?: string | null
+          status?: string
+          took_ms?: number | null
+          ua_hash?: string | null
+          venue_id?: string | null
+          venue_slug?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "availability_logs_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       billing_events: {
         Row: {
           created_at: string
@@ -1880,6 +1977,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      cleanup_availability_cache: { Args: never; Returns: undefined }
       create_default_email_templates: {
         Args: { p_venue_id: string }
         Returns: undefined
