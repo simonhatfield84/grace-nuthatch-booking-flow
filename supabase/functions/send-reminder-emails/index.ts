@@ -131,6 +131,7 @@ const handler = async (req: Request): Promise<Response> => {
             booking_id: booking.id,
             token_type: 'cancel',
             token: crypto.randomUUID(),
+            venue_id: booking.venue_id,
           })
           .select('token')
           .single();
@@ -141,6 +142,7 @@ const handler = async (req: Request): Promise<Response> => {
             booking_id: booking.id,
             token_type: 'modify',
             token: crypto.randomUUID(),
+            venue_id: booking.venue_id,
           })
           .select('token')
           .single();

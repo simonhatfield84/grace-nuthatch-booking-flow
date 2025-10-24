@@ -224,6 +224,7 @@ export type Database = {
           stripe_payment_intent_id: string | null
           stripe_refund_id: string | null
           updated_at: string
+          venue_id: string
         }
         Insert: {
           amount_cents: number
@@ -241,6 +242,7 @@ export type Database = {
           stripe_payment_intent_id?: string | null
           stripe_refund_id?: string | null
           updated_at?: string
+          venue_id: string
         }
         Update: {
           amount_cents?: number
@@ -258,6 +260,7 @@ export type Database = {
           stripe_payment_intent_id?: string | null
           stripe_refund_id?: string | null
           updated_at?: string
+          venue_id?: string
         }
         Relationships: [
           {
@@ -265,6 +268,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_booking_payments_venue"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
         ]
@@ -319,6 +329,7 @@ export type Database = {
           token: string
           token_type: string
           used_at: string | null
+          venue_id: string
         }
         Insert: {
           booking_id: number
@@ -328,6 +339,7 @@ export type Database = {
           token: string
           token_type: string
           used_at?: string | null
+          venue_id: string
         }
         Update: {
           booking_id?: number
@@ -337,6 +349,7 @@ export type Database = {
           token?: string
           token_type?: string
           used_at?: string | null
+          venue_id?: string
         }
         Relationships: [
           {
@@ -344,6 +357,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_booking_tokens_venue"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
             referencedColumns: ["id"]
           },
         ]
@@ -575,6 +595,7 @@ export type Database = {
           guest_id: string | null
           id: string
           tag_id: string | null
+          venue_id: string
         }
         Insert: {
           assigned_at?: string | null
@@ -582,6 +603,7 @@ export type Database = {
           guest_id?: string | null
           id?: string
           tag_id?: string | null
+          venue_id: string
         }
         Update: {
           assigned_at?: string | null
@@ -589,8 +611,16 @@ export type Database = {
           guest_id?: string | null
           id?: string
           tag_id?: string | null
+          venue_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_guest_tags_venue"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "guest_tags_guest_id_fkey"
             columns: ["guest_id"]
@@ -1194,20 +1224,30 @@ export type Database = {
           id: string
           service_id: string
           tag_id: string
+          venue_id: string
         }
         Insert: {
           created_at?: string
           id?: string
           service_id: string
           tag_id: string
+          venue_id: string
         }
         Update: {
           created_at?: string
           id?: string
           service_id?: string
           tag_id?: string
+          venue_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_service_tags_venue"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "service_tags_tag_id_fkey"
             columns: ["tag_id"]

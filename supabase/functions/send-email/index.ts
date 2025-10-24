@@ -325,6 +325,7 @@ async function handleBookingEmail(supabase: any, request: SendEmailRequest, req:
           booking_id: booking_id,
           token_type: 'cancel',
           token: cancelTokenResult,
+          venue_id: venue_id,
         })
         .select('token')
         .single();
@@ -357,6 +358,7 @@ async function handleBookingEmail(supabase: any, request: SendEmailRequest, req:
           booking_id: booking_id,
           token_type: 'modify',
           token: modifyTokenResult,
+          venue_id: venue_id,
         })
         .select('token')
         .single();

@@ -9,12 +9,24 @@ export const useGuestTags = () => {
 
   const assignTagMutation = useMutation({
     mutationFn: async ({ guestId, tagId }: { guestId: string, tagId: string }) => {
+      // Fetch guest's venue_id first
+      const { data: guestData, error: guestError } = await supabase
+        .from('guests')
+        .select('venue_id')
+        .eq('id', guestId)
+        .single();
+      
+      if (guestError || !guestData) {
+        throw new Error('Guest not found');
+      }
+
       const { data, error } = await supabase
         .from('guest_tags')
         .insert([{
           guest_id: guestId,
           tag_id: tagId,
-          assigned_by: 'manual'
+          assigned_by: 'manual',
+          venue_id: guestData.venue_id
         }])
         .select()
         .single();

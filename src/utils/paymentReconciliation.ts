@@ -50,6 +50,19 @@ export const reconcilePayment = async (data: PaymentReconciliationData) => {
       
       // If update failed, try to create the missing payment record
       console.log('🔧 Attempting to create missing payment record');
+      
+      // Fetch venue_id from booking
+      const { data: bookingData, error: bookingFetchError } = await supabase
+        .from('bookings')
+        .select('venue_id')
+        .eq('id', data.bookingId)
+        .single();
+      
+      if (bookingFetchError || !bookingData) {
+        console.error('Error fetching booking for venue_id:', bookingFetchError);
+        throw bookingFetchError || new Error('Booking not found');
+      }
+      
       const { error: createError } = await supabase
         .from('booking_payments')
         .insert({
@@ -60,7 +73,8 @@ export const reconcilePayment = async (data: PaymentReconciliationData) => {
           payment_method_type: 'card',
           processed_at: now,
           created_at: now,
-          updated_at: now
+          updated_at: now,
+          venue_id: bookingData.venue_id
         });
 
       if (createError) {

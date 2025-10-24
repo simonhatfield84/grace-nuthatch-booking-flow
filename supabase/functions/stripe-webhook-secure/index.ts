@@ -456,7 +456,8 @@ async function handlePaymentSuccess(supabase: any, event: StripeEvent, venueId: 
               payment_method_type: event.data.object.payment_method?.type || 'card',
               processed_at: now,
               created_at: now,
-              updated_at: now
+              updated_at: now,
+              venue_id: booking.venue_id
             });
 
           if (createError) {
