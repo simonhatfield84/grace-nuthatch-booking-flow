@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { format, subDays, startOfWeek, endOfWeek, eachDayOfInterval } from "date-fns";
 import { AvailabilityAnalytics } from "@/components/admin/AvailabilityAnalytics";
-import PaymentReports from "@/components/reports/PaymentReports";
+import { PaymentReports } from "@/components/reports/PaymentReports";
 
 const Reports = () => {
   const { user } = useAuth();
