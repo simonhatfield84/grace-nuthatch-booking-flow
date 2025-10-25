@@ -1,8 +1,8 @@
-
 import SecurityMonitoringDashboard from "@/components/security/SecurityMonitoringDashboard";
 import SecurityAlertsPanel from "@/components/security/SecurityAlertsPanel";
 import { SecurityAlertsBanner } from "@/components/security/SecurityAlertsBanner";
 import { StripeWebhooksPanel } from "@/components/platform/StripeWebhooksPanel";
+import { WebhookHealthMonitor } from "@/components/platform/WebhookHealthMonitor";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useSystemHealth } from "@/hooks/useSystemHealth";
@@ -156,6 +156,9 @@ export default function PlatformSecurity() {
 
       {/* Security Monitoring Dashboard */}
       <SecurityMonitoringDashboard />
+
+      {/* Webhook Health Monitor */}
+      <WebhookHealthMonitor />
 
       {/* Stripe Webhook Events */}
       <StripeWebhooksPanel />

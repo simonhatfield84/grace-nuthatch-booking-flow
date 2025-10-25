@@ -1961,6 +1961,53 @@ export type Database = {
           },
         ]
       }
+      webhook_retry_queue: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          last_error: string | null
+          next_attempt_at: string
+          payload: Json
+          retry_count: number
+          stripe_event_id: string
+          updated_at: string
+          venue_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          last_error?: string | null
+          next_attempt_at?: string
+          payload: Json
+          retry_count?: number
+          stripe_event_id: string
+          updated_at?: string
+          venue_id: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          last_error?: string | null
+          next_attempt_at?: string
+          payload?: Json
+          retry_count?: number
+          stripe_event_id?: string
+          updated_at?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_retry_queue_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       homepage_analytics_summary: {

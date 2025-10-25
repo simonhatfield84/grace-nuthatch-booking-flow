@@ -105,6 +105,70 @@ async function logWebhookEvent(
   }
 }
 
+async function upsertRetryQueue(
+  supabase: any,
+  stripeEventId: string,
+  eventType: string,
+  venueId: string,
+  payload: any,
+  error: Error
+) {
+  try {
+    const { data: existing } = await supabase
+      .from('webhook_retry_queue')
+      .select('retry_count')
+      .eq('stripe_event_id', stripeEventId)
+      .single();
+
+    const retryCount = existing ? existing.retry_count + 1 : 1;
+    const backoffMinutes = 2 * Math.pow(2, Math.min(retryCount - 1, 6));
+    
+    const nextAttempt = retryCount > 10 
+      ? new Date(Date.now() + 24 * 60 * 60 * 1000)
+      : new Date(Date.now() + backoffMinutes * 60 * 1000);
+
+    const { error: upsertError } = await supabase
+      .from('webhook_retry_queue')
+      .upsert({
+        stripe_event_id: stripeEventId,
+        event_type: eventType,
+        venue_id: venueId,
+        payload: payload,
+        last_error: error.message,
+        retry_count: retryCount,
+        next_attempt_at: nextAttempt.toISOString(),
+        updated_at: new Date().toISOString()
+      }, {
+        onConflict: 'stripe_event_id'
+      });
+
+    if (upsertError) {
+      console.error('❌ Failed to upsert retry queue:', upsertError);
+    } else {
+      console.log(`🔄 Queued for retry (attempt ${retryCount}), next at ${nextAttempt.toISOString()}`);
+    }
+  } catch (err) {
+    console.error('💥 Error upserting retry queue:', err);
+  }
+}
+
+async function removeFromRetryQueue(supabase: any, stripeEventId: string) {
+  try {
+    const { error } = await supabase
+      .from('webhook_retry_queue')
+      .delete()
+      .eq('stripe_event_id', stripeEventId);
+
+    if (error) {
+      console.error('❌ Failed to remove from retry queue:', error);
+    } else {
+      console.log('✅ Removed from retry queue:', stripeEventId);
+    }
+  } catch (err) {
+    console.error('💥 Error removing from retry queue:', err);
+  }
+}
+
 function detectThreatLevel(req: Request, identifier: string): 'low' | 'medium' | 'high' {
   const userAgent = req.headers.get('user-agent') || '';
   const referer = req.headers.get('referer') || '';
@@ -380,13 +444,27 @@ const handler = async (req: Request): Promise<Response> => {
         default:
           console.log(`📋 Unhandled event type: ${event.type}`);
       }
+
+      // ✅ SUCCESS: Remove from retry queue if exists
+      await removeFromRetryQueue(supabaseAdmin, event.id);
+
     } catch (error) {
       console.error('❌ Error processing webhook event:', error);
       webhookStatus = 'failed';
       errorMessage = error.message;
+
+      // ❌ FAILURE: Add to retry queue with exponential backoff
+      await upsertRetryQueue(
+        supabaseAdmin,
+        event.id,
+        event.type,
+        venueId,
+        event.data,
+        error
+      );
     }
 
-    // Log webhook event processing
+    // Log webhook event processing (always log, even on failure)
     await logWebhookEvent(
       supabaseAdmin,
       event.id,
