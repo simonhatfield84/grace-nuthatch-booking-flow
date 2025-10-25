@@ -491,11 +491,9 @@ function checkSlotAvailabilityWithLocks(
     })
     .map((b) => b.table_id);
 
-  // Calculate tables needed for active locks at this time
+  // Only consider locks for the exact same time slot
   const locksAtThisTime = locks.filter(lock => {
-    const lockStart = timeToMinutes(lock.start_time);
-    const lockEnd = lockStart + durationMinutes;
-    return slotStart < lockEnd && slotEnd > lockStart;
+    return lock.start_time === time;
   });
 
   // Simulate table allocation for each lock
