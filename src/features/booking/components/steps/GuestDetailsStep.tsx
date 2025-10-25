@@ -169,6 +169,7 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
         status: paymentAmount > 0 ? 'pending_payment' : 'confirmed',
         table_id: allocationResult.tableIds[0],
         is_unallocated: false,
+        lock_token: lockData?.lockToken,
       };
 
       const { data, error } = await supabase
@@ -213,6 +214,12 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
 
     } catch (error) {
       console.error('Error creating booking:', error);
+      
+      // Release lock on booking failure
+      if (lockData) {
+        await releaseLock('booking_failed');
+      }
+      
       toast.error(error instanceof Error ? error.message : 'Failed to create booking. Please try again.');
     } finally {
       setIsCreatingBooking(false);
@@ -249,6 +256,12 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
 
     } catch (err) {
       console.error('Payment setup error:', err);
+      
+      // Release lock on payment setup failure
+      if (lockData) {
+        await releaseLock('payment_failed');
+      }
+      
       const errorMessage = err instanceof Error ? err.message : 'Failed to initialize payment';
       toast.error(errorMessage);
     }
@@ -305,6 +318,12 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
       }
       
       if (paymentVerified) {
+        // Release lock after successful payment
+        if (lockData) {
+          await releaseLock('paid');
+          console.log('✅ Lock released after successful payment');
+        }
+        
         // Verify booking status was also updated
         const { data: bookingData, error: bookingError } = await supabase
           .from('bookings')
@@ -324,6 +343,12 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
         console.error('❌ Payment verification failed after all attempts');
         // Still proceed with success since webhook might be delayed
         console.log('⚡ Proceeding with booking confirmation despite verification timeout');
+        
+        // Release lock even if verification timeout occurs
+        if (lockData) {
+          await releaseLock('paid');
+        }
+        
         toast.success('Payment processed! Your booking is being confirmed.');
         onChange(formData, true, paymentCalculation?.amount || 0, bookingId!);
       }
@@ -378,6 +403,14 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
 
   return (
     <div className="space-y-6">
+      {lockData && (
+        <HoldBanner 
+          lockToken={lockData.lockToken}
+          expiresAt={lockData.expiresAt}
+          onExpiry={handleLockExpiry}
+        />
+      )}
+      
       <div>
         <h2 className="text-2xl font-nuthatch-heading font-light text-nuthatch-dark mb-2">
           Guest Details

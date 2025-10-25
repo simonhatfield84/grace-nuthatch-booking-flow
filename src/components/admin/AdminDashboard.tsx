@@ -5,6 +5,7 @@ import { RefreshCw } from "lucide-react";
 import { WebhookMonitor } from "./WebhookMonitor";
 import { QuickReconciliation } from "./QuickReconciliation";
 import { WebhookStatusMonitor } from "./WebhookStatusMonitor";
+import { LockAnalytics } from "./LockAnalytics";
 
 export const AdminDashboard = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -32,6 +33,12 @@ export const AdminDashboard = () => {
 
       {/* Quick Reconciliation for immediate fixes */}
       <QuickReconciliation />
+
+      {/* Booking slot lock analytics */}
+      <div>
+        <h2 className="text-xl font-semibold mb-4">Booking Slot Analytics</h2>
+        <LockAnalytics />
+      </div>
 
       {/* Detailed webhook monitoring */}
       <WebhookMonitor />
