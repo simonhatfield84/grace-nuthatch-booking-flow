@@ -70,12 +70,19 @@ serve(async (req: Request) => {
       console.log(`🔄 Invalidated cache for ${uniqueSlots.size} date/service combinations`);
     }
 
-    // Log cleanup to availability_logs
-    if (cleanedCount > 0) {
-      await supabase.from('availability_logs').insert({
-        status: 'cleanup',
-        result_slots: cleanedCount
-      });
+    // Log expired locks individually to availability_logs
+    if (expiredLocks && expiredLocks.length > 0) {
+      const logEntries = expiredLocks.map(lock => ({
+        venue_id: lock.venue_id,
+        service_id: lock.service_id,
+        date: lock.booking_date,
+        action: 'expired',
+        status: 'ok',
+        result_slots: 1
+      }));
+      
+      await supabase.from('availability_logs').insert(logEntries);
+      console.log(`📊 Logged ${logEntries.length} expired locks to availability_logs`);
     }
 
     return new Response(JSON.stringify({

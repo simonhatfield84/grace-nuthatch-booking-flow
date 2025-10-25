@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Clock, CheckCircle, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { BookingService } from '../../services/BookingService';
 import { Service } from '../../types/booking';
 import { useSlotLock } from '../../hooks/useSlotLock';
@@ -44,19 +45,34 @@ export function TimeStep({ selectedTime, onTimeSelect, selectedDate, partySize, 
     
     console.log(`🕐 Time selected: ${time}`);
     
-    // Create lock before selecting time
-    const lockCreated = await createLock(
-      venueSlug,
-      selectedService.id,
-      format(selectedDate, 'yyyy-MM-dd'),
-      time,
-      partySize
-    );
+    try {
+      // Create lock before selecting time
+      const lockCreated = await createLock(
+        venueSlug,
+        selectedService.id,
+        format(selectedDate, 'yyyy-MM-dd'),
+        time,
+        partySize
+      );
 
-    if (lockCreated) {
-      onTimeSelect(time);
-    } else {
-      // Lock failed - refresh availability
+      if (lockCreated) {
+        onTimeSelect(time);
+      } else {
+        // Lock failed - refresh availability
+        console.log('🔄 Lock failed, refreshing availability...');
+        queryClient.invalidateQueries({ queryKey: ['time-slots'] });
+      }
+    } catch (error: any) {
+      console.error('❌ Error selecting time:', error);
+      
+      // Handle slot conflict specifically
+      if (error.code === 'slot_conflict' || error.message?.includes('no longer available')) {
+        toast.error('That time was just taken by another guest. Please choose another time.');
+      } else {
+        toast.error('Failed to select time. Please try again.');
+      }
+      
+      // Refresh availability after error
       queryClient.invalidateQueries({ queryKey: ['time-slots'] });
     }
   };

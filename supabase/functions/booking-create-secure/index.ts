@@ -312,7 +312,7 @@ const handler = async (req: Request): Promise<Response> => {
       return new Response('Cannot book for past dates', { status: 400, headers: corsHeaders });
     }
 
-    // Create the booking with enhanced error handling
+    // Create the booking with enhanced error handling and exclusion constraint detection
     const { data: booking, error: bookingError } = await supabaseAdmin
       .from('bookings')
       .insert(sanitizedData)
@@ -321,6 +321,42 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (bookingError) {
       console.error('❌ Booking creation error:', bookingError);
+      
+      // Check for exclusion constraint violation (slot conflict)
+      if (bookingError.code === '23P01' || bookingError.message?.includes('bookings_no_overlap_per_table')) {
+        console.error('❌ Slot conflict: Table overlap detected by exclusion constraint');
+        
+        // Release lock if present
+        if (lockToken) {
+          await supabaseAdmin
+            .from('booking_locks')
+            .update({
+              released_at: new Date().toISOString(),
+              reason: 'slot_conflict',
+              updated_at: new Date().toISOString()
+            })
+            .eq('lock_token', lockToken);
+          
+          console.log('🔓 Lock released due to slot conflict');
+        }
+
+        await logSecurityEvent(supabaseAdmin, 'booking_created', {
+          error: 'slot_conflict',
+          db_error: bookingError.message,
+          threat_level: threatLevel
+        }, req, sanitizedData.venue_id);
+        
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'This time slot is no longer available. Please select another time.',
+          code: 'slot_conflict'
+        }), {
+          status: 409,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      
+      // Other database errors
       await logSecurityEvent(supabaseAdmin, 'booking_created', {
         error: 'database_error',
         db_error: bookingError.message,

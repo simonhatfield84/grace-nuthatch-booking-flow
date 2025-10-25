@@ -6,6 +6,8 @@ import { WebhookMonitor } from "./WebhookMonitor";
 import { QuickReconciliation } from "./QuickReconciliation";
 import { WebhookStatusMonitor } from "./WebhookStatusMonitor";
 import { LockAnalytics } from "./LockAnalytics";
+import { ActiveHoldsInspector } from "./ActiveHoldsInspector";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const AdminDashboard = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -31,17 +33,32 @@ export const AdminDashboard = () => {
       {/* Critical webhook status monitoring */}
       <WebhookStatusMonitor />
 
-      {/* Quick Reconciliation for immediate fixes */}
-      <QuickReconciliation />
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="holds">Active Holds</TabsTrigger>
+          <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
+        </TabsList>
 
-      {/* Booking slot lock analytics */}
-      <div>
-        <h2 className="text-xl font-semibold mb-4">Booking Slot Analytics</h2>
-        <LockAnalytics />
-      </div>
+        <TabsContent value="overview" className="space-y-6">
+          {/* Quick Reconciliation for immediate fixes */}
+          <QuickReconciliation />
 
-      {/* Detailed webhook monitoring */}
-      <WebhookMonitor />
+          {/* Booking slot lock analytics */}
+          <div>
+            <h2 className="text-xl font-semibold mb-4">Booking Slot Analytics</h2>
+            <LockAnalytics />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="holds">
+          <ActiveHoldsInspector />
+        </TabsContent>
+
+        <TabsContent value="webhooks">
+          <WebhookMonitor />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

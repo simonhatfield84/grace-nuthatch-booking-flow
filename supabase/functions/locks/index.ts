@@ -188,13 +188,16 @@ async function handleCreateLock(supabase: any, req: Request): Promise<Response> 
   // Invalidate availability cache
   await invalidateAvailabilityCache(supabase, venueId, serviceId, date);
 
-  // Log to availability_logs
+  // Log to availability_logs with enhanced tracking
   await supabase.from('availability_logs').insert({
     venue_id: venueId,
+    venue_slug: venueSlug,
     service_id: serviceId,
     date: date,
+    time: time,
     party_size: partySize,
-    status: 'held',
+    action: 'held',
+    status: 'ok',
     ip_hash: ipHash,
     ua_hash: uaHash
   });
@@ -353,12 +356,14 @@ async function handleReleaseLock(supabase: any, req: Request): Promise<Response>
       lock.booking_date
     );
 
-    // Log release
+    // Log release with enhanced tracking
     await supabase.from('availability_logs').insert({
       venue_id: lock.venue_id,
       service_id: lock.service_id,
       date: lock.booking_date,
-      status: 'released'
+      time: lock.start_time,
+      action: 'released',
+      status: 'ok'
     });
   }
 

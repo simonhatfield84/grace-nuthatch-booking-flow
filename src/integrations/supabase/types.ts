@@ -89,6 +89,7 @@ export type Database = {
       }
       availability_logs: {
         Row: {
+          action: string | null
           cached: boolean | null
           date: string | null
           error_text: string | null
@@ -99,12 +100,14 @@ export type Database = {
           result_slots: number | null
           service_id: string | null
           status: string
+          time: string | null
           took_ms: number | null
           ua_hash: string | null
           venue_id: string | null
           venue_slug: string | null
         }
         Insert: {
+          action?: string | null
           cached?: boolean | null
           date?: string | null
           error_text?: string | null
@@ -115,12 +118,14 @@ export type Database = {
           result_slots?: number | null
           service_id?: string | null
           status: string
+          time?: string | null
           took_ms?: number | null
           ua_hash?: string | null
           venue_id?: string | null
           venue_slug?: string | null
         }
         Update: {
+          action?: string | null
           cached?: boolean | null
           date?: string | null
           error_text?: string | null
@@ -131,6 +136,7 @@ export type Database = {
           result_slots?: number | null
           service_id?: string | null
           status?: string
+          time?: string | null
           took_ms?: number | null
           ua_hash?: string | null
           venue_id?: string | null
@@ -292,6 +298,20 @@ export type Database = {
             foreignKeyName: "booking_audit_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "booking_overlaps_review"
+            referencedColumns: ["booking_1_id"]
+          },
+          {
+            foreignKeyName: "booking_audit_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_overlaps_review"
+            referencedColumns: ["booking_2_id"]
+          },
+          {
+            foreignKeyName: "booking_audit_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
           },
@@ -436,6 +456,20 @@ export type Database = {
             foreignKeyName: "booking_payments_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "booking_overlaps_review"
+            referencedColumns: ["booking_1_id"]
+          },
+          {
+            foreignKeyName: "booking_payments_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_overlaps_review"
+            referencedColumns: ["booking_2_id"]
+          },
+          {
+            foreignKeyName: "booking_payments_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
           },
@@ -521,6 +555,20 @@ export type Database = {
           venue_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "booking_tokens_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_overlaps_review"
+            referencedColumns: ["booking_1_id"]
+          },
+          {
+            foreignKeyName: "booking_tokens_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_overlaps_review"
+            referencedColumns: ["booking_2_id"]
+          },
           {
             foreignKeyName: "booking_tokens_booking_id_fkey"
             columns: ["booking_id"]
@@ -616,6 +664,7 @@ export type Database = {
           service: string | null
           status: string | null
           table_id: number | null
+          time_range: unknown
           updated_at: string | null
           venue_id: string
         }
@@ -637,6 +686,7 @@ export type Database = {
           service?: string | null
           status?: string | null
           table_id?: number | null
+          time_range?: unknown
           updated_at?: string | null
           venue_id: string
         }
@@ -658,6 +708,7 @@ export type Database = {
           service?: string | null
           status?: string | null
           table_id?: number | null
+          time_range?: unknown
           updated_at?: string | null
           venue_id?: string
         }
@@ -984,6 +1035,20 @@ export type Database = {
           venue_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "payment_requests_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_overlaps_review"
+            referencedColumns: ["booking_1_id"]
+          },
+          {
+            foreignKeyName: "payment_requests_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_overlaps_review"
+            referencedColumns: ["booking_2_id"]
+          },
           {
             foreignKeyName: "payment_requests_booking_id_fkey"
             columns: ["booking_id"]
@@ -2021,6 +2086,20 @@ export type Database = {
             foreignKeyName: "webhook_events_booking_id_fkey"
             columns: ["booking_id"]
             isOneToOne: false
+            referencedRelation: "booking_overlaps_review"
+            referencedColumns: ["booking_1_id"]
+          },
+          {
+            foreignKeyName: "webhook_events_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_overlaps_review"
+            referencedColumns: ["booking_2_id"]
+          },
+          {
+            foreignKeyName: "webhook_events_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
             referencedRelation: "bookings"
             referencedColumns: ["id"]
           },
@@ -2082,6 +2161,31 @@ export type Database = {
       }
     }
     Views: {
+      booking_overlaps_review: {
+        Row: {
+          booking_1_id: number | null
+          booking_2_id: number | null
+          booking_date: string | null
+          end_1: string | null
+          end_2: string | null
+          guest_1: string | null
+          guest_2: string | null
+          status_1: string | null
+          status_2: string | null
+          table_id: number | null
+          time_1: string | null
+          time_2: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       homepage_analytics_summary: {
         Row: {
           avg_session_duration: number | null
@@ -2131,6 +2235,10 @@ export type Database = {
         Returns: boolean
       }
       cleanup_availability_cache: { Args: never; Returns: undefined }
+      compute_booking_time_range: {
+        Args: { p_date: string; p_duration_minutes: number; p_time: string }
+        Returns: unknown
+      }
       create_default_email_templates: {
         Args: { p_venue_id: string }
         Returns: undefined
