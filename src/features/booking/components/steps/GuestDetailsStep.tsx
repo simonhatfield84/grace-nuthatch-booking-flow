@@ -101,15 +101,16 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
       newErrors.name = 'Name is required';
     }
 
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email address is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = 'Please enter a valid email address';
+    }
+
     if (!formData.phone.trim()) {
       newErrors.phone = 'Mobile number is required';
     } else if (!/^[\+]?[\d\s\-\(\)]{10,}$/.test(formData.phone.replace(/\s/g, ''))) {
       newErrors.phone = 'Please enter a valid mobile number';
-    }
-
-    // Email validation - will be required in future
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
     }
 
     if (!formData.termsAccepted) {
@@ -139,6 +140,12 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
   };
 
   const createBooking = async (paymentAmount: number) => {
+    // Validate service before proceeding
+    if (!service || !service.id) {
+      toast.error("Please select a service before proceeding");
+      return;
+    }
+
     setIsCreatingBooking(true);
     try {
       // First, try to allocate tables
@@ -153,22 +160,27 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
       );
 
       if (!allocationResult.tableIds || allocationResult.tableIds.length === 0) {
+        console.error('❌ No tables allocated');
         throw new Error('No tables available for your requested time. Please try a different time slot.');
       }
 
+      console.log('✅ Table allocated:', allocationResult.tableIds[0]);
+
       const bookingPayload = {
         venue_id: venue.id,
+        service_id: service.id,
         guest_name: formData.name,
-        email: formData.email || null,
+        email: formData.email,
         phone: formData.phone,
         party_size: partySize,
         booking_date: format(date, 'yyyy-MM-dd'),
         booking_time: time,
-        service: service?.title || 'Dinner',
+        service: service.title,
         notes: formData.notes || null,
         status: paymentAmount > 0 ? 'pending_payment' : 'confirmed',
         table_id: allocationResult.tableIds[0],
         is_unallocated: false,
+        source: 'widget' as const,
       };
 
       // Call booking-create-secure edge function with lock token
@@ -185,7 +197,16 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
       }
 
       if (!response?.booking) {
-        throw new Error(response?.error || 'Booking creation failed');
+        const errorMessage = response?.error || 'Booking creation failed';
+        const reqId = response?.reqId ? ` (Request ID: ${response.reqId})` : '';
+        
+        console.error('Booking creation failed:', {
+          error: errorMessage,
+          reqId: response?.reqId,
+          errors: response?.errors
+        });
+        
+        throw new Error(errorMessage + reqId);
       }
 
       const data = response.booking;
@@ -401,6 +422,7 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
 
   const isButtonDisabled = () => {
     return !formData.name || 
+           !formData.email ||
            !formData.phone || 
            !formData.termsAccepted || 
            isCreatingBooking || 
@@ -470,7 +492,7 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
 
         <div>
           <Label htmlFor="email" className="text-nuthatch-dark">
-            Email Address
+            Email Address <span className="text-red-500">*</span>
           </Label>
           <Input
             id="email"
@@ -480,14 +502,12 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
             className={`mt-1 border-nuthatch-border focus:border-nuthatch-green ${
               errors.email ? 'border-red-500' : ''
             }`}
-            placeholder="Enter your email address (optional)"
+            placeholder="your.email@example.com"
+            required
           />
           {errors.email && (
             <p className="text-red-500 text-sm mt-1">{errors.email}</p>
           )}
-          <p className="text-sm text-nuthatch-muted mt-1">
-            Optional for now, but recommended for booking confirmations
-          </p>
         </div>
 
         <div>

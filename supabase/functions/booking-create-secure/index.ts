@@ -119,21 +119,23 @@ function detectThreatLevel(req: Request, identifier: string): 'low' | 'medium' |
   return 'low';
 }
 
-// Enhanced validation schema with lockToken support
+// Enhanced validation schema with lockToken support and required fields
 const bookingCreateSchema = z.object({
   booking: z.object({
     guest_name: z.string().min(2, "Guest name must be at least 2 characters").max(100, "Guest name too long").trim(),
-    email: z.string().email("Invalid email format").max(254, "Email too long").optional(),
-    phone: z.string().regex(/^[\d\s\-\+\(\)]{7,20}$/, "Invalid phone format").optional(),
+    email: z.string().email("Invalid email format").max(254, "Email too long"),
+    phone: z.string().regex(/^[\d\s\-\+\(\)]{7,20}$/, "Invalid phone format"),
     party_size: z.number().int().min(1, "Party size must be at least 1").max(50, "Party size too large"),
     booking_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format"),
     booking_time: z.string().regex(/^\d{2}:\d{2}$/, "Invalid time format"),
-    service: z.string().max(100, "Service name too long").optional(),
-    notes: z.string().max(500, "Notes too long").optional(),
+    service: z.string().min(1, "Service is required").max(100, "Service name too long"),
+    service_id: z.string().uuid("Invalid service ID").nullable().optional(),
+    notes: z.string().max(500, "Notes too long").nullable().optional(),
     venue_id: z.string().uuid("Invalid venue ID"),
     status: z.enum(['pending_payment', 'confirmed']).optional(),
-    table_id: z.number().int().optional(),
+    table_id: z.number().int().nullable().optional(),
     is_unallocated: z.boolean().optional(),
+    source: z.enum(['widget', 'admin', 'walkin']).optional(),
   }),
   lockToken: z.string().uuid().nullable(),
 });
@@ -207,6 +209,10 @@ async function safeReleaseLock(
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  const reqId = crypto.randomUUID();
+  const t0 = Date.now();
+  const log = (...args: any[]) => console.log(`[booking-create][${reqId}]`, ...args);
+  
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -225,9 +231,10 @@ const handler = async (req: Request): Promise<Response> => {
   let validatedLock: any = null;
   let bookingCreated = false;
   let serviceId: string | null = null;
+  let lockToken: string | null = null;
 
   try {
-    console.log('🔒 Enhanced secure booking creation request received');
+    log('🔒 Request received');
 
     // Advanced rate limiting with threat detection
     const clientId = AdvancedRateLimiter.getClientIdentifier(req);
@@ -257,17 +264,38 @@ const handler = async (req: Request): Promise<Response> => {
     let requestData: BookingRequest;
     try {
       const rawData = await req.json();
+      lockToken = rawData?.lockToken;
+      
+      log('📥 Incoming data:', {
+        venue_id: rawData?.booking?.venue_id,
+        service_id: rawData?.booking?.service_id,
+        service: rawData?.booking?.service,
+        booking_date: rawData?.booking?.booking_date,
+        booking_time: rawData?.booking?.booking_time,
+        party_size: rawData?.booking?.party_size,
+        has_lock: !!lockToken,
+        has_email: !!rawData?.booking?.email,
+        has_phone: !!rawData?.booking?.phone,
+        source: rawData?.booking?.source
+      });
+      
       requestData = bookingCreateSchema.parse(rawData);
+      log('✅ Schema validation passed');
     } catch (error) {
       if (error instanceof z.ZodError) {
         const errors = error.errors.map(err => `${err.path.join('.')}: ${err.message}`);
-        console.error('❌ Validation errors:', errors);
+        log('❌ Validation errors:', errors);
         await logSecurityEvent(supabaseAdmin, 'booking_created', {
           error: 'validation_failed',
           validation_errors: errors,
           threat_level: threatLevel
         }, req);
-        return new Response(JSON.stringify({ errors }), {
+        return new Response(JSON.stringify({ 
+          success: false,
+          error: 'Invalid booking data',
+          errors,
+          reqId 
+        }), {
           status: 400,
           headers: { 'Content-Type': 'application/json', ...corsHeaders },
         });
@@ -275,23 +303,27 @@ const handler = async (req: Request): Promise<Response> => {
       throw error;
     }
 
-    const { booking: bookingData, lockToken } = requestData;
+    const { booking: bookingData } = requestData;
 
     // Sanitize input
     const sanitizedData = {
       guest_name: sanitizeInput(bookingData.guest_name),
-      email: bookingData.email ? sanitizeEmail(bookingData.email) : null,
-      phone: bookingData.phone ? sanitizePhone(bookingData.phone) : null,
+      email: sanitizeEmail(bookingData.email),
+      phone: sanitizePhone(bookingData.phone),
       party_size: Math.floor(bookingData.party_size),
       booking_date: bookingData.booking_date,
       booking_time: bookingData.booking_time,
-      service: bookingData.service ? sanitizeInput(bookingData.service) : 'Dinner',
+      service: sanitizeInput(bookingData.service),
       notes: bookingData.notes ? sanitizeInput(bookingData.notes) : null,
       venue_id: bookingData.venue_id,
       status: bookingData.status || 'confirmed',
-      table_id: bookingData.table_id,
+      table_id: bookingData.table_id || null,
       is_unallocated: bookingData.is_unallocated || false,
+      source: bookingData.source || 'widget',
     };
+
+    serviceId = bookingData.service_id || null;
+    log('🧼 Data sanitized');
 
     // Verify venue
     const { data: venue, error: venueError } = await supabaseAdmin
@@ -333,9 +365,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Validate lock token if provided
     if (lockToken) {
-      console.log('🔒 Validating lock token');
+      log('🔒 Validating lock token:', lockToken.substring(0, 8) + '...');
       validatedLock = await validateLock(supabaseAdmin, lockToken, sanitizedData);
-      console.log('✅ Lock validated');
+      log('✅ Lock validated');
     }
 
     // Validate booking date
@@ -371,6 +403,13 @@ const handler = async (req: Request): Promise<Response> => {
       .single();
 
     if (bookingError) {
+      log('❌ DB error:', {
+        code: bookingError.code,
+        message: bookingError.message,
+        detail: bookingError.detail,
+        hint: bookingError.hint
+      });
+      
       // Check for slot conflict
       if (bookingError.code === '23P01' || bookingError.message?.includes('bookings_no_overlap_per_table')) {
         throw new Error('slot_conflict');
@@ -379,7 +418,11 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     bookingCreated = true;
-    console.log('✅ Booking created:', booking.id);
+    log('✅ Booking created:', {
+      id: booking.id,
+      reference: booking.booking_reference,
+      took_ms: Date.now() - t0
+    });
 
     // Create audit log
     try {
@@ -414,7 +457,6 @@ const handler = async (req: Request): Promise<Response> => {
       success: true
     }, req, sanitizedData.venue_id);
 
-    console.log('✅ Booking created successfully');
     return new Response(JSON.stringify({
       booking: {
         id: booking.id,
@@ -423,14 +465,19 @@ const handler = async (req: Request): Promise<Response> => {
         party_size: booking.party_size,
         booking_date: booking.booking_date,
         booking_time: booking.booking_time
-      }
+      },
+      reqId
     }), {
       status: 201,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
 
   } catch (error: any) {
-    console.error('💥 Booking creation error:', error);
+    log('💥 Error:', {
+      message: error.message,
+      type: error.constructor.name,
+      took_ms: Date.now() - t0
+    });
     
     await logSecurityEvent(supabaseAdmin, 'booking_created', {
       error: error.message,
@@ -442,7 +489,8 @@ const handler = async (req: Request): Promise<Response> => {
       return new Response(JSON.stringify({
         success: false,
         error: 'Time slot lock has expired. Please select your time again.',
-        code: 'lock_expired'
+        code: 'lock_expired',
+        reqId
       }), { status: 410, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
@@ -450,42 +498,47 @@ const handler = async (req: Request): Promise<Response> => {
       return new Response(JSON.stringify({
         success: false,
         error: 'This time slot is no longer available. Please select another time.',
-        code: 'slot_conflict'
+        code: 'slot_conflict',
+        reqId
       }), { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     return new Response(JSON.stringify({
       success: false,
-      error: error.message || 'Booking failed'
+      error: error.message || 'Booking failed',
+      reqId
     }), { 
       status: 500, 
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
 
   } finally {
-    // ALWAYS release lock and invalidate cache if lock was validated
-    if (validatedLock) {
+    // ALWAYS release lock and invalidate cache, even on validation errors
+    if (lockToken) {
+      log('🔓 Releasing lock...');
       const releaseReason = bookingCreated ? 'created' : 'error';
-      await safeReleaseLock(supabaseAdmin, validatedLock.lock_token, releaseReason);
+      await safeReleaseLock(supabaseAdmin, lockToken, releaseReason);
       
-      // Invalidate cache
-      await invalidateBookingCache(
-        supabaseAdmin,
-        validatedLock.venue_id,
-        serviceId,
-        validatedLock.booking_date
-      );
+      // Invalidate cache if we have validated lock data
+      if (validatedLock) {
+        await invalidateBookingCache(
+          supabaseAdmin,
+          validatedLock.venue_id,
+          serviceId,
+          validatedLock.booking_date
+        );
 
-      // Log to availability_logs
-      await supabaseAdmin.from('availability_logs').insert({
-        venue_id: validatedLock.venue_id,
-        service_id: serviceId,
-        date: validatedLock.booking_date,
-        time: validatedLock.start_time,
-        action: 'released',
-        status: bookingCreated ? 'ok' : 'error',
-        result_slots: null
-      });
+        // Log to availability_logs
+        await supabaseAdmin.from('availability_logs').insert({
+          venue_id: validatedLock.venue_id,
+          service_id: serviceId,
+          date: validatedLock.booking_date,
+          time: validatedLock.start_time,
+          action: 'released',
+          status: bookingCreated ? 'ok' : 'error',
+          result_slots: null
+        }).catch(() => {});
+      }
     }
   }
 };
