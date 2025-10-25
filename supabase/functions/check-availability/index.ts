@@ -368,32 +368,29 @@ async function calculateAvailability(
   // Get active locks for this date/service
   const { data: locks } = await supabase
     .from('booking_locks')
-    .select('start_time')
+    .select('start_time, party_size')
     .eq('venue_id', venueId)
     .eq('service_id', serviceId)
     .eq('booking_date', date)
     .is('released_at', null)
     .gt('expires_at', new Date().toISOString());
 
-  const lockedTimes = new Set((locks || []).map(l => l.start_time));
-
   // Generate time slots
   const slots = generateTimeSlots(service.booking_windows || [], date);
 
   // Check availability for each slot
   const availableSlots = slots.map((time) => {
-    // Check if slot is locked
-    if (lockedTimes.has(time)) {
-      return {
-        time,
-        available: false,
-        reason: 'slot_temporarily_held'
-      };
-    }
-    
     return {
       time,
-      available: checkSlotAvailability(time, tables, bookings || [], blocks || [], service.duration_minutes || 120),
+      available: checkSlotAvailabilityWithLocks(
+        time, 
+        tables, 
+        bookings || [], 
+        blocks || [], 
+        locks || [],
+        partySize,
+        service.duration_minutes || 120
+      ),
     };
   });
 
@@ -458,6 +455,81 @@ function checkSlotAvailability(
   const availableTables = tables.filter((t) => !bookedTableIds.includes(t.id));
 
   return availableTables.length > 0;
+}
+
+// Helper: Check slot availability accounting for locks
+function checkSlotAvailabilityWithLocks(
+  time: string,
+  tables: any[],
+  bookings: any[],
+  blocks: any[],
+  locks: any[],
+  partySize: number,
+  durationMinutes: number
+): boolean {
+  const slotStart = timeToMinutes(time);
+  const slotEnd = slotStart + durationMinutes;
+
+  // Check if time is blocked (venue-wide blocks)
+  for (const block of blocks) {
+    const blockStart = timeToMinutes(block.start_time);
+    const blockEnd = timeToMinutes(block.end_time);
+
+    if (slotStart < blockEnd && slotEnd > blockStart) {
+      if (!block.table_ids || block.table_ids.length === 0) {
+        return false; // Venue-wide block
+      }
+    }
+  }
+
+  // Find booked table IDs
+  const bookedTableIds = bookings
+    .filter((b) => {
+      const bookingStart = timeToMinutes(b.booking_time);
+      const bookingEnd = timeToMinutes(b.end_time);
+      return slotStart < bookingEnd && slotEnd > bookingStart;
+    })
+    .map((b) => b.table_id);
+
+  // Calculate tables needed for active locks at this time
+  const locksAtThisTime = locks.filter(lock => {
+    const lockStart = timeToMinutes(lock.start_time);
+    const lockEnd = lockStart + durationMinutes;
+    return slotStart < lockEnd && slotEnd > lockStart;
+  });
+
+  // Simulate table allocation for each lock
+  let lockedTableIds: number[] = [];
+  for (const lock of locksAtThisTime) {
+    const availableForLock = tables.filter(t => 
+      !bookedTableIds.includes(t.id) && 
+      !lockedTableIds.includes(t.id)
+    );
+    
+    // Find smallest table(s) that can accommodate lock party
+    const suitableTables = availableForLock
+      .filter(t => t.seats >= lock.party_size)
+      .sort((a, b) => a.seats - b.seats);
+    
+    if (suitableTables.length > 0) {
+      // Allocate the smallest suitable table for this lock
+      lockedTableIds.push(suitableTables[0].id);
+    }
+  }
+
+  // Now check if remaining tables can accommodate the NEW party
+  const unavailableTableIds = [...bookedTableIds, ...lockedTableIds];
+  const availableTables = tables.filter(t => !unavailableTableIds.includes(t.id));
+
+  // Check if any single table can fit the party
+  const suitableSingleTable = availableTables.find(t => t.seats >= partySize);
+  if (suitableSingleTable) {
+    return true;
+  }
+
+  // For now, return false if no single table fits
+  // TODO: Add join group logic for combining tables
+  return false;
 }
 
 // Helper: Time string to minutes
