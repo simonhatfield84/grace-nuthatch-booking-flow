@@ -569,7 +569,7 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
             </p>
           </Card>
 
-          <StripeProvider venueId={venue?.id} usePublicMode={true}>
+          <StripeProvider venueSlug={venue?.slug} usePublicMode={true}>
             <div className={`space-y-4 ${isProcessingPayment ? 'opacity-50 pointer-events-none' : ''}`}>
               <AppleGooglePayButton
                 clientSecret={clientSecret}
