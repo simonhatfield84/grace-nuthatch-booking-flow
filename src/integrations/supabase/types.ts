@@ -510,6 +510,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "booking_windows_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "booking_windows_venue_id_fkey"
             columns: ["venue_id"]
             isOneToOne: false
