@@ -1,66 +1,63 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 interface UsePublicStripeSettingsProps {
-  venueId?: string;
-  venueSlug?: string;
+  venueSlug: string;
 }
 
-export const usePublicStripeSettings = ({ venueId, venueSlug }: UsePublicStripeSettingsProps) => {
-  // First get venue ID if we only have slug
-  const { data: venue } = useQuery({
-    queryKey: ['venue-by-slug', venueSlug],
+interface StripeSettingsResponse {
+  ok: boolean;
+  publishableKey?: string;
+  testMode?: boolean;
+  active?: boolean;
+  code?: string;
+  message?: string;
+}
+
+export const usePublicStripeSettings = ({ venueSlug }: UsePublicStripeSettingsProps) => {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ['public-stripe-settings', venueSlug],
     queryFn: async () => {
       if (!venueSlug) return null;
-      
-      const { data, error } = await supabase
-        .from('venues')
-        .select('id')
-        .eq('slug', venueSlug)
-        .single();
-      
-      if (error) throw error;
+
+      console.log('🔄 Fetching Stripe settings for:', venueSlug);
+
+      const { data, error } = await supabase.functions.invoke<StripeSettingsResponse>(
+        'public-stripe-settings',
+        {
+          body: { venueSlug }
+        }
+      );
+
+      if (error) {
+        console.error('❌ Function invocation error:', error);
+        throw error;
+      }
+
+      if (!data) {
+        console.error('❌ No data returned from function');
+        return null;
+      }
+
+      // Handle error responses from the function
+      if (!data.ok) {
+        console.warn('⚠️ Function returned error:', data.code, data.message);
+        return null;
+      }
+
+      console.log('✅ Stripe settings loaded successfully');
       return data;
     },
-    enabled: !!venueSlug && !venueId,
+    enabled: !!venueSlug,
+    staleTime: 5 * 60 * 1000,
+    retry: 1
   });
-
-  const finalVenueId = venueId || venue?.id;
-
-  // Get venue's Stripe settings
-  const { data: stripeSettings, isLoading } = useQuery({
-    queryKey: ['public-stripe-settings', finalVenueId],
-    queryFn: async () => {
-      if (!finalVenueId) return null;
-      
-      const { data, error } = await supabase
-        .from('venue_stripe_settings')
-        .select('test_mode, is_active, publishable_key_test, publishable_key_live')
-        .eq('venue_id', finalVenueId)
-        .maybeSingle();
-      
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!finalVenueId,
-  });
-
-  // Return the appropriate publishable key
-  const getPublishableKey = () => {
-    if (!stripeSettings?.is_active) return null;
-    
-    if (stripeSettings.test_mode) {
-      return stripeSettings.publishable_key_test;
-    } else {
-      return stripeSettings.publishable_key_live;
-    }
-  };
 
   return {
-    publishableKey: getPublishableKey(),
-    isTestMode: stripeSettings?.test_mode ?? true,
-    isActive: stripeSettings?.is_active ?? false,
-    isLoading: isLoading || (!finalVenueId && !!venueSlug),
+    publishableKey: data?.publishableKey || null,
+    isTestMode: data?.testMode ?? true,
+    isActive: data?.active ?? false,
+    isLoading,
+    error: error || (!data?.ok ? data : null)
   };
 };

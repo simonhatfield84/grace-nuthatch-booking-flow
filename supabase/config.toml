@@ -59,6 +59,9 @@ verify_jwt = false
 [functions.check-availability]
 verify_jwt = false
 
+[functions.public-stripe-settings]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 policy = "per_request"

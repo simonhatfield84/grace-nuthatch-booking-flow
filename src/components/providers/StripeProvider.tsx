@@ -25,8 +25,8 @@ export const StripeProvider = ({ children, venueId, venueSlug, usePublicMode = f
   const shouldUsePublicMode = usePublicMode || !hasAuth;
   
   // Use public hook for unauthenticated users, authenticated hook for admin users
-  const authenticatedStripe = hasAuth ? useStripePublishableKey() : { publishableKey: null, isTestMode: true, isActive: false, isLoading: false };
-  const publicStripe = usePublicStripeSettings({ venueId, venueSlug });
+  const authenticatedStripe = hasAuth && !shouldUsePublicMode ? useStripePublishableKey() : { publishableKey: null, isTestMode: true, isActive: false, isLoading: false };
+  const publicStripe = shouldUsePublicMode && venueSlug ? usePublicStripeSettings({ venueSlug }) : { publishableKey: null, isTestMode: true, isActive: false, isLoading: false };
   
   const { publishableKey, isTestMode, isActive, isLoading } = shouldUsePublicMode ? publicStripe : authenticatedStripe;
 
