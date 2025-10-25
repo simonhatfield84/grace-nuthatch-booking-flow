@@ -1906,33 +1906,60 @@ export type Database = {
       }
       webhook_events: {
         Row: {
+          booking_id: number | null
           created_at: string | null
+          error_message: string | null
           event_data: Json | null
           event_type: string
           id: string
           processed_at: string | null
+          status: string | null
           stripe_event_id: string
           test_mode: boolean | null
+          venue_id: string | null
         }
         Insert: {
+          booking_id?: number | null
           created_at?: string | null
+          error_message?: string | null
           event_data?: Json | null
           event_type: string
           id?: string
           processed_at?: string | null
+          status?: string | null
           stripe_event_id: string
           test_mode?: boolean | null
+          venue_id?: string | null
         }
         Update: {
+          booking_id?: number | null
           created_at?: string | null
+          error_message?: string | null
           event_data?: Json | null
           event_type?: string
           id?: string
           processed_at?: string | null
+          status?: string | null
           stripe_event_id?: string
           test_mode?: boolean | null
+          venue_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "webhook_events_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "webhook_events_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
