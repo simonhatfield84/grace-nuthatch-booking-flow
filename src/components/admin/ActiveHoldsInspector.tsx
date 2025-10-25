@@ -30,30 +30,19 @@ export const ActiveHoldsInspector = () => {
     queryKey: ['active-holds'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('booking_locks')
-        .select(`
-          id,
-          lock_token,
-          venue_id,
-          service_id,
-          booking_date,
-          start_time,
-          party_size,
-          locked_at,
-          expires_at,
-          venues!inner(slug),
-          services!inner(title)
-        `)
-        .is('released_at', null)
-        .gt('expires_at', new Date().toISOString())
-        .order('expires_at', { ascending: true });
+        .rpc('admin_list_active_holds' as any, { 
+          _venue_id: null 
+        });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Failed to fetch active holds:', error);
+        throw error;
+      }
 
       return (data || []).map(hold => ({
         id: hold.id,
-        venue_slug: hold.venues.slug,
-        service_title: hold.services.title,
+        venue_slug: hold.venue_slug,
+        service_title: hold.service_title,
         booking_date: hold.booking_date,
         start_time: hold.start_time,
         party_size: hold.party_size,
@@ -62,7 +51,7 @@ export const ActiveHoldsInspector = () => {
         lock_token: hold.lock_token
       }));
     },
-    refetchInterval: 5000 // Refresh every 5 seconds
+    refetchInterval: 5000
   });
 
   // Update countdown timers
@@ -83,13 +72,18 @@ export const ActiveHoldsInspector = () => {
 
   // Force release mutation
   const releaseMutation = useMutation({
-    mutationFn: async (lockToken: string) => {
+    mutationFn: async (lockId: string) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
       const { data, error } = await supabase.functions.invoke('locks/release', {
-        body: { lockToken, reason: 'admin_force_release' }
+        body: { lockId, reason: 'admin_force' },
+        headers: session?.access_token ? {
+          Authorization: `Bearer ${session.access_token}`
+        } : {}
       });
 
       if (error || !data?.ok) {
-        throw new Error(data?.message || 'Failed to release lock');
+        throw new Error(data?.message || error?.message || 'Failed to release lock');
       }
     },
     onSuccess: () => {
@@ -183,7 +177,7 @@ export const ActiveHoldsInspector = () => {
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction
-                              onClick={() => releaseMutation.mutate(hold.lock_token)}
+                              onClick={() => releaseMutation.mutate(hold.id)}
                               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             >
                               Force Release

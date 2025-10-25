@@ -3,8 +3,11 @@ import SecurityAlertsPanel from "@/components/security/SecurityAlertsPanel";
 import { SecurityAlertsBanner } from "@/components/security/SecurityAlertsBanner";
 import { StripeWebhooksPanel } from "@/components/platform/StripeWebhooksPanel";
 import { WebhookHealthMonitor } from "@/components/platform/WebhookHealthMonitor";
+import { ActiveHoldsInspector } from "@/components/admin/ActiveHoldsInspector";
+import { AvailabilityLogsViewer } from "@/components/admin/AvailabilityLogsViewer";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSystemHealth } from "@/hooks/useSystemHealth";
 import { Shield, Server, Database, Mail, CreditCard, AlertTriangle, CheckCircle, Clock } from "lucide-react";
 
@@ -151,17 +154,33 @@ export default function PlatformSecurity() {
         </CardContent>
       </Card>
 
-      {/* Security Alerts */}
-      <SecurityAlertsPanel />
+      {/* Tabbed Monitoring Interface */}
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="overview">Security Overview</TabsTrigger>
+          <TabsTrigger value="holds">Active Holds</TabsTrigger>
+          <TabsTrigger value="logs">Availability Logs</TabsTrigger>
+          <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
+        </TabsList>
 
-      {/* Security Monitoring Dashboard */}
-      <SecurityMonitoringDashboard />
+        <TabsContent value="overview">
+          <SecurityAlertsPanel />
+          <SecurityMonitoringDashboard />
+        </TabsContent>
 
-      {/* Webhook Health Monitor */}
-      <WebhookHealthMonitor />
+        <TabsContent value="holds">
+          <ActiveHoldsInspector />
+        </TabsContent>
 
-      {/* Stripe Webhook Events */}
-      <StripeWebhooksPanel />
+        <TabsContent value="logs">
+          <AvailabilityLogsViewer />
+        </TabsContent>
+
+        <TabsContent value="webhooks">
+          <WebhookHealthMonitor />
+          <StripeWebhooksPanel />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

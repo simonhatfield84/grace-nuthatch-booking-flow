@@ -22,7 +22,8 @@ interface ExtendLockRequest {
 }
 
 interface ReleaseLockRequest {
-  lockToken: string;
+  lockToken?: string;
+  lockId?: string;
   reason?: string;
 }
 
@@ -308,17 +309,151 @@ async function handleExtendLock(supabase: any, req: Request): Promise<Response> 
 
 // Endpoint: POST /locks/release
 async function handleReleaseLock(supabase: any, req: Request): Promise<Response> {
-  const { lockToken, reason = 'released' }: ReleaseLockRequest = await req.json();
+  const { lockToken, lockId, reason = 'released' }: ReleaseLockRequest = await req.json();
 
-  console.log('🔓 Releasing lock:', lockToken, 'reason:', reason);
+  console.log('🔓 Release request:', { lockToken: !!lockToken, lockId: !!lockId, reason });
 
-  if (!lockToken) {
+  // Validate input
+  if (!lockToken && !lockId) {
     return new Response(JSON.stringify({
       ok: false,
       code: 'invalid_request',
-      message: 'lockToken required'
+      message: 'Either lockToken or lockId required'
     }), {
       status: 400,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
+  // ✅ RBAC CHECK: Verify user authorization (for admin force release)
+  const authHeader = req.headers.get('Authorization');
+  let isAdminRelease = false;
+  
+  if (authHeader && (lockId || reason === 'admin_force')) {
+    const supabaseAuth = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      {
+        global: { headers: { Authorization: authHeader } }
+      }
+    );
+
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
+    if (!authError && user) {
+      // Find lock to check venue_id
+      let lockQuery = supabase
+        .from('booking_locks')
+        .select('id, lock_token, released_at, venue_id, service_id, booking_date, start_time, expires_at');
+      
+      if (lockToken) {
+        lockQuery = lockQuery.eq('lock_token', lockToken);
+      } else {
+        lockQuery = lockQuery.eq('id', lockId);
+      }
+
+      const { data: targetLock } = await lockQuery.maybeSingle();
+
+      if (targetLock) {
+        // Check RBAC: Platform admin OR venue admin
+        const { data: isPlatformAdmin } = await supabase
+          .rpc('is_platform_admin', { _user_id: user.id });
+
+        const { data: canManageVenue } = await supabase
+          .rpc('user_can_manage_venue', { 
+            _user_id: user.id, 
+            _venue_id: targetLock.venue_id 
+          });
+
+        if (!isPlatformAdmin && !canManageVenue) {
+          console.log('❌ Insufficient permissions for user', user.email);
+          return new Response(JSON.stringify({
+            ok: false,
+            code: 'forbidden',
+            message: 'You do not have permission to release this lock'
+          }), {
+            status: 403,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        isAdminRelease = true;
+        console.log('✅ Admin release authorized:', user.email);
+
+        // Check idempotency
+        if (targetLock.released_at) {
+          console.log('🔓 Lock already released (idempotent)');
+          return new Response(JSON.stringify({ 
+            ok: true, 
+            message: 'already_released',
+            lock: {
+              id: targetLock.id,
+              released_at: targetLock.released_at
+            }
+          }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+          });
+        }
+
+        // Release lock
+        const { error: releaseError } = await supabase
+          .from('booking_locks')
+          .update({
+            released_at: new Date().toISOString(),
+            reason: reason,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', targetLock.id)
+          .is('released_at', null);
+
+        if (releaseError) {
+          console.error('❌ Lock release failed:', releaseError);
+        }
+
+        // Invalidate cache
+        await invalidateAvailabilityCache(
+          supabase,
+          targetLock.venue_id,
+          targetLock.service_id,
+          targetLock.booking_date
+        );
+
+        // Log release
+        await supabase.from('availability_logs').insert({
+          venue_id: targetLock.venue_id,
+          service_id: targetLock.service_id,
+          date: targetLock.booking_date,
+          time: targetLock.start_time,
+          action: 'released',
+          status: 'ok'
+        });
+
+        console.log('✅ Lock force-released by admin');
+
+        return new Response(JSON.stringify({
+          ok: true,
+          lock: {
+            id: targetLock.id,
+            venue_id: targetLock.venue_id,
+            booking_date: targetLock.booking_date,
+            start_time: targetLock.start_time
+          }
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+    }
+  }
+
+  // Regular release flow (no auth required for lockToken-based release)
+  if (!lockToken) {
+    return new Response(JSON.stringify({
+      ok: false,
+      code: 'unauthorized',
+      message: 'Authentication required for admin release'
+    }), {
+      status: 401,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
@@ -326,7 +461,7 @@ async function handleReleaseLock(supabase: any, req: Request): Promise<Response>
   // Check if lock exists and is already released (idempotent behavior)
   const { data: existingLock } = await supabase
     .from('booking_locks')
-    .select('released_at, venue_id, service_id, booking_date, start_time')
+    .select('released_at, venue_id, service_id, booking_date, start_time, id')
     .eq('lock_token', lockToken)
     .maybeSingle();
 
@@ -354,7 +489,6 @@ async function handleReleaseLock(supabase: any, req: Request): Promise<Response>
 
   if (releaseError) {
     console.error('❌ Lock release failed:', releaseError);
-    // Don't fail - release is best effort
   }
 
   const lock = existingLock;
@@ -368,7 +502,7 @@ async function handleReleaseLock(supabase: any, req: Request): Promise<Response>
       lock.booking_date
     );
 
-    // Log release with enhanced tracking
+    // Log release
     await supabase.from('availability_logs').insert({
       venue_id: lock.venue_id,
       service_id: lock.service_id,
@@ -382,7 +516,13 @@ async function handleReleaseLock(supabase: any, req: Request): Promise<Response>
   console.log('✅ Lock released');
 
   return new Response(JSON.stringify({
-    ok: true
+    ok: true,
+    lock: lock ? {
+      id: lock.id,
+      venue_id: lock.venue_id,
+      booking_date: lock.booking_date,
+      start_time: lock.start_time
+    } : undefined
   }), {
     status: 200,
     headers: { ...corsHeaders, 'Content-Type': 'application/json' }

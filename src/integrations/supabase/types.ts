@@ -2200,6 +2200,42 @@ export type Database = {
       }
     }
     Functions: {
+      admin_list_active_holds: {
+        Args: { _venue_id?: string }
+        Returns: {
+          booking_date: string
+          expires_at: string
+          id: string
+          lock_token: string
+          locked_at: string
+          party_size: number
+          remaining_seconds: number
+          service_id: string
+          service_title: string
+          start_time: string
+          venue_id: string
+          venue_slug: string
+        }[]
+      }
+      admin_list_availability_logs: {
+        Args: { _limit?: number; _since?: string; _venue_id?: string }
+        Returns: {
+          action: string
+          cached: boolean
+          date: string
+          error_text: string
+          id: string
+          occurred_at: string
+          party_size: number
+          result_slots: number
+          service_id: string
+          status: string
+          time_slot: string
+          took_ms: number
+          venue_id: string
+          venue_slug: string
+        }[]
+      }
       assign_automatic_tags: {
         Args: { guest_id_param: string }
         Returns: undefined
@@ -2298,6 +2334,7 @@ export type Database = {
         Args: { _user_id: string; _venue_id: string }
         Returns: boolean
       }
+      is_platform_admin: { Args: { _user_id: string }; Returns: boolean }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       log_security_event: {
         Args: {
@@ -2334,6 +2371,10 @@ export type Database = {
           target_user_id: string
           target_venue_id: string
         }
+        Returns: boolean
+      }
+      user_can_manage_venue: {
+        Args: { _user_id: string; _venue_id: string }
         Returns: boolean
       }
       verify_code: {
