@@ -15,6 +15,8 @@ import { toast } from "sonner";
 import { StripeProvider } from "@/components/providers/StripeProvider";
 import { StripeCardForm } from "@/components/payments/StripeCardForm";
 import { AppleGooglePayButton } from "@/components/payments/AppleGooglePayButton";
+import { HoldBanner } from "../shared/HoldBanner";
+import { useSlotLock } from "../../hooks/useSlotLock";
 
 interface GuestDetailsStepProps {
   value: {
@@ -34,6 +36,8 @@ interface GuestDetailsStepProps {
 }
 
 export function GuestDetailsStep({ value, service, venue, partySize, date, time, onChange }: GuestDetailsStepProps) {
+  const { lockData, releaseLock } = useSlotLock();
+  
   const [formData, setFormData] = useState({
     name: value?.name || '',
     email: value?.email || '',
@@ -52,6 +56,11 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
   const [bookingId, setBookingId] = useState<number | null>(null);
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
+  const handleLockExpiry = () => {
+    toast.error("Your time hold has expired. Please select your time again.");
+    window.location.href = '/booking';
+  };
 
   // Load terms and conditions and calculate payment
   useEffect(() => {

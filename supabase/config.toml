@@ -62,6 +62,12 @@ verify_jwt = false
 [functions.public-stripe-settings]
 verify_jwt = false
 
+[functions.locks]
+verify_jwt = false
+
+[functions.locks-cleaner]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 policy = "per_request"

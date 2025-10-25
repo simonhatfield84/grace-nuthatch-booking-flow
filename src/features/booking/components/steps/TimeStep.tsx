@@ -2,11 +2,12 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Clock, CheckCircle, Loader2 } from 'lucide-react';
 import { BookingService } from '../../services/BookingService';
 import { Service } from '../../types/booking';
+import { useSlotLock } from '../../hooks/useSlotLock';
 
 interface TimeStepProps {
   selectedTime: string | null;
@@ -18,6 +19,9 @@ interface TimeStepProps {
 }
 
 export function TimeStep({ selectedTime, onTimeSelect, selectedDate, partySize, venueSlug, selectedService }: TimeStepProps) {
+  const queryClient = useQueryClient();
+  const { createLock } = useSlotLock();
+  
   const { data: timeSlots = [], isLoading } = useQuery({
     queryKey: ['time-slots', selectedDate, partySize, venueSlug, selectedService?.id],
     queryFn: async () => {
@@ -35,10 +39,26 @@ export function TimeStep({ selectedTime, onTimeSelect, selectedDate, partySize, 
     staleTime: 2 * 60 * 1000,
   });
 
-  const handleTimeSelect = (time: string) => {
+  const handleTimeSelect = async (time: string) => {
+    if (!selectedDate || !selectedService?.id) return;
+    
     console.log(`🕐 Time selected: ${time}`);
-    onTimeSelect(time);
-    // Auto-advance will be handled by parent component
+    
+    // Create lock before selecting time
+    const lockCreated = await createLock(
+      venueSlug,
+      selectedService.id,
+      format(selectedDate, 'yyyy-MM-dd'),
+      time,
+      partySize
+    );
+
+    if (lockCreated) {
+      onTimeSelect(time);
+    } else {
+      // Lock failed - refresh availability
+      queryClient.invalidateQueries({ queryKey: ['time-slots'] });
+    }
   };
 
   const availableSlots = timeSlots.filter(slot => slot.available);

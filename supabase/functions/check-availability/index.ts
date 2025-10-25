@@ -365,14 +365,37 @@ async function calculateAvailability(
     .eq('venue_id', venueId)
     .eq('date', date);
 
+  // Get active locks for this date/service
+  const { data: locks } = await supabase
+    .from('booking_locks')
+    .select('start_time')
+    .eq('venue_id', venueId)
+    .eq('service_id', serviceId)
+    .eq('booking_date', date)
+    .is('released_at', null)
+    .gt('expires_at', new Date().toISOString());
+
+  const lockedTimes = new Set((locks || []).map(l => l.start_time));
+
   // Generate time slots
   const slots = generateTimeSlots(service.booking_windows || [], date);
 
   // Check availability for each slot
-  const availableSlots = slots.map((time) => ({
-    time,
-    available: checkSlotAvailability(time, tables, bookings || [], blocks || [], service.duration_minutes || 120),
-  }));
+  const availableSlots = slots.map((time) => {
+    // Check if slot is locked
+    if (lockedTimes.has(time)) {
+      return {
+        time,
+        available: false,
+        reason: 'slot_temporarily_held'
+      };
+    }
+    
+    return {
+      time,
+      available: checkSlotAvailability(time, tables, bookings || [], blocks || [], service.duration_minutes || 120),
+    };
+  });
 
   return {
     ok: true,

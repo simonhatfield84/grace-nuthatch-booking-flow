@@ -241,6 +241,41 @@ const handler = async (req: Request): Promise<Response> => {
       return new Response('Venue not available for bookings', { status: 403, headers: corsHeaders });
     }
 
+    // Validate lock token for public bookings
+    const lockToken = bookingData.lockToken || (await req.json()).lockToken;
+    if (lockToken) {
+      console.log('🔒 Validating lock token for public booking');
+      
+      const { data: lock, error: lockError } = await supabaseAdmin
+        .from('booking_locks')
+        .select('*')
+        .eq('lock_token', lockToken)
+        .eq('venue_id', sanitizedData.venue_id)
+        .eq('booking_date', sanitizedData.booking_date)
+        .eq('booking_time', sanitizedData.booking_time)
+        .is('released_at', null)
+        .gt('expires_at', new Date().toISOString())
+        .maybeSingle();
+
+      if (lockError || !lock) {
+        console.error('❌ Invalid or expired lock token');
+        await logSecurityEvent(supabaseAdmin, 'booking_created', {
+          error: 'invalid_lock_token',
+          lock_token: lockToken?.substring(0, 8) + '...',
+          threat_level: 'high'
+        }, req, sanitizedData.venue_id);
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Time slot lock has expired. Please select your time again.'
+        }), { 
+          status: 410, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+
+      console.log('✅ Lock validated:', lock.lock_token.substring(0, 8) + '...');
+    }
+
     // Check for potential duplicate bookings (same email/phone, same date/time)
     if (sanitizedData.email || sanitizedData.phone) {
       const { data: duplicateBookings } = await supabaseAdmin
@@ -326,6 +361,20 @@ const handler = async (req: Request): Promise<Response> => {
       // Don't fail the booking creation for audit logging failures
     }
 
+    // Release lock if provided
+    if (lockToken) {
+      await supabaseAdmin
+        .from('booking_locks')
+        .update({
+          released_at: new Date().toISOString(),
+          reason: 'paid',
+          updated_at: new Date().toISOString()
+        })
+        .eq('lock_token', lockToken);
+      
+      console.log('✅ Lock released after booking creation');
+    }
+
     // Log successful booking creation
     await logSecurityEvent(supabaseAdmin, 'booking_created', {
       booking_id: booking.id,
@@ -337,7 +386,7 @@ const handler = async (req: Request): Promise<Response> => {
     }, req, sanitizedData.venue_id);
 
     console.log('✅ Booking created successfully:', booking.id);
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       booking: {
         id: booking.id,
         booking_reference: booking.booking_reference,

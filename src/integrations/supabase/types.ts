@@ -304,6 +304,78 @@ export type Database = {
           },
         ]
       }
+      booking_locks: {
+        Row: {
+          booking_date: string
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          id: string
+          ip_hash: string | null
+          lock_token: string
+          locked_at: string
+          party_size: number
+          reason: string | null
+          released_at: string | null
+          service_id: string
+          start_time: string
+          ua_hash: string | null
+          updated_at: string
+          venue_id: string
+        }
+        Insert: {
+          booking_date: string
+          created_at?: string
+          created_by?: string | null
+          expires_at: string
+          id?: string
+          ip_hash?: string | null
+          lock_token: string
+          locked_at?: string
+          party_size: number
+          reason?: string | null
+          released_at?: string | null
+          service_id: string
+          start_time: string
+          ua_hash?: string | null
+          updated_at?: string
+          venue_id: string
+        }
+        Update: {
+          booking_date?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          id?: string
+          ip_hash?: string | null
+          lock_token?: string
+          locked_at?: string
+          party_size?: number
+          reason?: string | null
+          released_at?: string | null
+          service_id?: string
+          start_time?: string
+          ua_hash?: string | null
+          updated_at?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_locks_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_locks_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_payments: {
         Row: {
           amount_cents: number
@@ -2096,6 +2168,16 @@ export type Database = {
       get_security_metrics: { Args: never; Returns: Json }
       get_tag_usage_count: { Args: { tag_id: string }; Returns: number }
       get_user_venue: { Args: { _user_id: string }; Returns: string }
+      has_active_lock: {
+        Args: {
+          check_time?: string
+          p_booking_date: string
+          p_service_id: string
+          p_start_time: string
+          p_venue_id: string
+        }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
