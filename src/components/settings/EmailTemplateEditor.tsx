@@ -11,6 +11,7 @@ import { useEmailTemplates, EmailTemplate, EmailTemplateUpdate } from "@/hooks/u
 import { EmailTemplateService } from "@/services/emailTemplateService";
 import { FullScreenEmailBuilder } from "./FullScreenEmailBuilder";
 import { CopyDesignDropdown } from "./CopyDesignDropdown";
+import { SafeHtml } from "@/components/ui/safe-html";
 
 interface EmailTemplateEditorProps {
   template?: EmailTemplate;
@@ -100,10 +101,8 @@ export function EmailTemplateEditor({ template, onSave, onCancel }: EmailTemplat
             <strong>Subject:</strong> {EmailTemplateService.previewTemplate(formData.subject)}
           </div>
           {formData.html_content ? (
-            <div 
-              dangerouslySetInnerHTML={{ 
-                __html: EmailTemplateService.previewTemplate(formData.html_content) 
-              }}
+            <SafeHtml 
+              html={EmailTemplateService.previewTemplate(formData.html_content)}
               className="prose max-w-none"
             />
           ) : (

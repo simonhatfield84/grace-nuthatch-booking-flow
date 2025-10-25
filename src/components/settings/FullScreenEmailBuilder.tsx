@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { X, Eye, Save } from 'lucide-react';
+import { SafeHtml } from '@/components/ui/safe-html';
 
 interface FullScreenEmailBuilderProps {
   isOpen: boolean;
@@ -37,9 +38,11 @@ const PreviewModal: React.FC<PreviewModalProps> = ({ isOpen, html, onClose }) =>
           </Button>
         </div>
         <div className="overflow-auto max-h-[70vh] p-4">
-          <div 
-            dangerouslySetInnerHTML={{ __html: html }}
+          <SafeHtml 
+            html={html}
             className="prose max-w-none"
+            allowedTags={['p', 'br', 'strong', 'em', 'u', 'ol', 'ul', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'a', 'img', 'div', 'span', 'table', 'tr', 'td', 'th', 'tbody', 'thead']}
+            allowedAttributes={['href', 'src', 'alt', 'class', 'style', 'width', 'height', 'align']}
           />
         </div>
       </DialogContent>

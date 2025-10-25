@@ -47,6 +47,13 @@ export type Database = {
             referencedRelation: "venues"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "approval_tokens_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       availability_cache: {
@@ -83,6 +90,13 @@ export type Database = {
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "availability_cache_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
             referencedColumns: ["id"]
           },
         ]
@@ -150,6 +164,13 @@ export type Database = {
             referencedRelation: "venues"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "availability_logs_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       billing_events: {
@@ -198,6 +219,13 @@ export type Database = {
             referencedRelation: "venues"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "billing_events_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       blocks: {
@@ -240,6 +268,13 @@ export type Database = {
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "blocks_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
             referencedColumns: ["id"]
           },
         ]
@@ -322,6 +357,13 @@ export type Database = {
             referencedRelation: "venues"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "booking_audit_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       booking_locks: {
@@ -392,6 +434,13 @@ export type Database = {
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_locks_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
             referencedColumns: ["id"]
           },
         ]
@@ -480,6 +529,13 @@ export type Database = {
             referencedRelation: "venues"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_booking_payments_venue"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       booking_priorities: {
@@ -519,6 +575,13 @@ export type Database = {
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_priorities_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
             referencedColumns: ["id"]
           },
         ]
@@ -583,6 +646,13 @@ export type Database = {
             referencedRelation: "venues"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fk_booking_tokens_venue"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       booking_windows: {
@@ -641,6 +711,13 @@ export type Database = {
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_windows_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
             referencedColumns: ["id"]
           },
         ]
@@ -727,6 +804,13 @@ export type Database = {
             referencedRelation: "venues"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "bookings_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       email_templates: {
@@ -781,6 +865,13 @@ export type Database = {
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_templates_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
             referencedColumns: ["id"]
           },
         ]
@@ -849,6 +940,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "fk_guest_tags_venue"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "guest_tags_guest_id_fkey"
             columns: ["guest_id"]
             isOneToOne: false
@@ -910,6 +1008,13 @@ export type Database = {
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guests_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
             referencedColumns: ["id"]
           },
         ]
@@ -993,6 +1098,13 @@ export type Database = {
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "join_groups_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
             referencedColumns: ["id"]
           },
         ]
@@ -1101,6 +1213,13 @@ export type Database = {
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_transactions_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
             referencedColumns: ["id"]
           },
         ]
@@ -1348,6 +1467,13 @@ export type Database = {
             referencedRelation: "venues"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "profiles_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       reminder_log: {
@@ -1416,6 +1542,13 @@ export type Database = {
             referencedRelation: "venues"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "sections_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       security_audit: {
@@ -1457,6 +1590,13 @@ export type Database = {
             referencedRelation: "venues"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "security_audit_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       service_tags: {
@@ -1487,6 +1627,13 @@ export type Database = {
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_service_tags_venue"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
             referencedColumns: ["id"]
           },
           {
@@ -1591,6 +1738,13 @@ export type Database = {
             referencedRelation: "venues"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "services_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       stripe_key_audit: {
@@ -1642,6 +1796,13 @@ export type Database = {
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_key_audit_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
             referencedColumns: ["id"]
           },
         ]
@@ -1758,6 +1919,13 @@ export type Database = {
             referencedRelation: "venues"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "tables_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       tags: {
@@ -1791,6 +1959,13 @@ export type Database = {
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tags_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
             referencedColumns: ["id"]
           },
         ]
@@ -1828,6 +2003,13 @@ export type Database = {
             referencedRelation: "venues"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "user_roles_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       venue_settings: {
@@ -1861,6 +2043,13 @@ export type Database = {
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_settings_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
             referencedColumns: ["id"]
           },
         ]
@@ -1940,6 +2129,13 @@ export type Database = {
             referencedRelation: "venues"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "venue_stripe_settings_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: true
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       venue_subscriptions: {
@@ -1995,6 +2191,13 @@ export type Database = {
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_subscriptions_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
             referencedColumns: ["id"]
           },
         ]
@@ -2110,6 +2313,13 @@ export type Database = {
             referencedRelation: "venues"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "webhook_events_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       webhook_retry_queue: {
@@ -2157,6 +2367,13 @@ export type Database = {
             referencedRelation: "venues"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "webhook_retry_queue_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
@@ -2195,6 +2412,30 @@ export type Database = {
           sessions: number | null
           unique_visitors: number | null
           viewed_sections: Json | null
+        }
+        Relationships: []
+      }
+      venues_public: {
+        Row: {
+          approval_status: string | null
+          created_at: string | null
+          id: string | null
+          name: string | null
+          slug: string | null
+        }
+        Insert: {
+          approval_status?: string | null
+          created_at?: string | null
+          id?: string | null
+          name?: string | null
+          slug?: string | null
+        }
+        Update: {
+          approval_status?: string | null
+          created_at?: string | null
+          id?: string | null
+          name?: string | null
+          slug?: string | null
         }
         Relationships: []
       }
