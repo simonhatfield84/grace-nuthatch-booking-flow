@@ -119,45 +119,120 @@ function detectThreatLevel(req: Request, identifier: string): 'low' | 'medium' |
   return 'low';
 }
 
-// Enhanced validation schema
+// Enhanced validation schema with lockToken support
 const bookingCreateSchema = z.object({
-  guest_name: z.string().min(2, "Guest name must be at least 2 characters").max(100, "Guest name too long").trim(),
-  email: z.string().email("Invalid email format").max(254, "Email too long").optional(),
-  phone: z.string().regex(/^[\d\s\-\+\(\)]{7,20}$/, "Invalid phone format").optional(),
-  party_size: z.number().int().min(1, "Party size must be at least 1").max(50, "Party size too large"),
-  booking_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format"),
-  booking_time: z.string().regex(/^\d{2}:\d{2}$/, "Invalid time format"),
-  service: z.string().max(100, "Service name too long").optional(),
-  notes: z.string().max(500, "Notes too long").optional(),
-  venue_id: z.string().uuid("Invalid venue ID"),
+  booking: z.object({
+    guest_name: z.string().min(2, "Guest name must be at least 2 characters").max(100, "Guest name too long").trim(),
+    email: z.string().email("Invalid email format").max(254, "Email too long").optional(),
+    phone: z.string().regex(/^[\d\s\-\+\(\)]{7,20}$/, "Invalid phone format").optional(),
+    party_size: z.number().int().min(1, "Party size must be at least 1").max(50, "Party size too large"),
+    booking_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date format"),
+    booking_time: z.string().regex(/^\d{2}:\d{2}$/, "Invalid time format"),
+    service: z.string().max(100, "Service name too long").optional(),
+    notes: z.string().max(500, "Notes too long").optional(),
+    venue_id: z.string().uuid("Invalid venue ID"),
+    status: z.enum(['pending_payment', 'confirmed']).optional(),
+    table_id: z.number().int().optional(),
+    is_unallocated: z.boolean().optional(),
+  }),
+  lockToken: z.string().uuid().nullable(),
 });
 
 type BookingRequest = z.infer<typeof bookingCreateSchema>;
+
+// Helper: Validate lock token
+async function validateLock(
+  supabase: any,
+  lockToken: string,
+  bookingData: any
+): Promise<any> {
+  const { data: lock, error } = await supabase
+    .from('booking_locks')
+    .select('*')
+    .eq('lock_token', lockToken)
+    .eq('venue_id', bookingData.venue_id)
+    .eq('booking_date', bookingData.booking_date)
+    .eq('start_time', bookingData.booking_time)
+    .is('released_at', null)
+    .gt('expires_at', new Date().toISOString())
+    .maybeSingle();
+
+  if (error || !lock) {
+    throw new Error('invalid_lock_token');
+  }
+
+  return lock;
+}
+
+// Helper: Invalidate availability cache
+async function invalidateBookingCache(
+  supabase: any,
+  venueId: string,
+  serviceId: string | null,
+  bookingDate: string
+): Promise<void> {
+  if (!serviceId) return;
+  
+  await supabase
+    .from('availability_cache')
+    .delete()
+    .eq('venue_id', venueId)
+    .eq('service_id', serviceId)
+    .eq('date', bookingDate);
+  
+  console.log('✅ Invalidated availability cache for:', { venueId, serviceId, bookingDate });
+}
+
+// Helper: Safe lock release (idempotent)
+async function safeReleaseLock(
+  supabase: any,
+  lockToken: string,
+  reason: string
+): Promise<void> {
+  try {
+    await supabase
+      .from('booking_locks')
+      .update({
+        released_at: new Date().toISOString(),
+        reason: reason,
+        updated_at: new Date().toISOString()
+      })
+      .eq('lock_token', lockToken)
+      .is('released_at', null);
+    
+    console.log(`✅ Lock released: ${lockToken.substring(0, 8)}... (reason: ${reason})`);
+  } catch (error) {
+    console.error('⚠️ Failed to release lock (non-fatal):', error);
+  }
+}
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const supabaseAdmin = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    }
+  );
+
+  let validatedLock: any = null;
+  let bookingCreated = false;
+  let serviceId: string | null = null;
+
   try {
     console.log('🔒 Enhanced secure booking creation request received');
-
-    const supabaseAdmin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    );
 
     // Advanced rate limiting with threat detection
     const clientId = AdvancedRateLimiter.getClientIdentifier(req);
     const threatLevel = detectThreatLevel(req, clientId);
     
-    // Adjusted rate limits based on threat level
     const baseLimit = threatLevel === 'high' ? 5 : threatLevel === 'medium' ? 8 : 15;
     const rateLimitResult = await AdvancedRateLimiter.checkLimit(
       clientId,
@@ -178,11 +253,11 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
-    // Parse and validate request body with enhanced error handling
-    let bookingData: BookingRequest;
+    // Parse and validate request
+    let requestData: BookingRequest;
     try {
       const rawData = await req.json();
-      bookingData = bookingCreateSchema.parse(rawData);
+      requestData = bookingCreateSchema.parse(rawData);
     } catch (error) {
       if (error instanceof z.ZodError) {
         const errors = error.errors.map(err => `${err.path.join('.')}: ${err.message}`);
@@ -200,7 +275,9 @@ const handler = async (req: Request): Promise<Response> => {
       throw error;
     }
 
-    // Enhanced input sanitization
+    const { booking: bookingData, lockToken } = requestData;
+
+    // Sanitize input
     const sanitizedData = {
       guest_name: sanitizeInput(bookingData.guest_name),
       email: bookingData.email ? sanitizeEmail(bookingData.email) : null,
@@ -211,9 +288,12 @@ const handler = async (req: Request): Promise<Response> => {
       service: bookingData.service ? sanitizeInput(bookingData.service) : 'Dinner',
       notes: bookingData.notes ? sanitizeInput(bookingData.notes) : null,
       venue_id: bookingData.venue_id,
+      status: bookingData.status || 'confirmed',
+      table_id: bookingData.table_id,
+      is_unallocated: bookingData.is_unallocated || false,
     };
 
-    // Enhanced venue verification with additional security checks
+    // Verify venue
     const { data: venue, error: venueError } = await supabaseAdmin
       .from('venues')
       .select('id, approval_status, name')
@@ -241,46 +321,37 @@ const handler = async (req: Request): Promise<Response> => {
       return new Response('Venue not available for bookings', { status: 403, headers: corsHeaders });
     }
 
-    // Validate lock token for public bookings
-    const lockToken = bookingData.lockToken || (await req.json()).lockToken;
+    // Get service ID for cache invalidation
+    const { data: service } = await supabaseAdmin
+      .from('services')
+      .select('id')
+      .eq('venue_id', venue.id)
+      .eq('title', sanitizedData.service)
+      .maybeSingle();
+
+    serviceId = service?.id || null;
+
+    // Validate lock token if provided
     if (lockToken) {
-      console.log('🔒 Validating lock token for public booking');
-      
-      const { data: lock, error: lockError } = await supabaseAdmin
-        .from('booking_locks')
-        .select('*')
-        .eq('lock_token', lockToken)
-        .eq('venue_id', sanitizedData.venue_id)
-        .eq('booking_date', sanitizedData.booking_date)
-        .eq('booking_time', sanitizedData.booking_time)
-        .is('released_at', null)
-        .gt('expires_at', new Date().toISOString())
-        .maybeSingle();
-
-      if (lockError || !lock) {
-        console.error('❌ Invalid or expired lock token');
-        await logSecurityEvent(supabaseAdmin, 'booking_created', {
-          error: 'invalid_lock_token',
-          lock_token: lockToken?.substring(0, 8) + '...',
-          threat_level: 'high'
-        }, req, sanitizedData.venue_id);
-        return new Response(JSON.stringify({
-          success: false,
-          error: 'Time slot lock has expired. Please select your time again.'
-        }), { 
-          status: 410, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-
-      console.log('✅ Lock validated:', lock.lock_token.substring(0, 8) + '...');
+      console.log('🔒 Validating lock token');
+      validatedLock = await validateLock(supabaseAdmin, lockToken, sanitizedData);
+      console.log('✅ Lock validated');
     }
 
-    // Check for potential duplicate bookings (same email/phone, same date/time)
+    // Validate booking date
+    const bookingDate = new Date(sanitizedData.booking_date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (bookingDate < today) {
+      throw new Error('Cannot book for past dates');
+    }
+
+    // Check for potential duplicates
     if (sanitizedData.email || sanitizedData.phone) {
       const { data: duplicateBookings } = await supabaseAdmin
         .from('bookings')
-        .select('id, guest_name')
+        .select('id')
         .eq('venue_id', sanitizedData.venue_id)
         .eq('booking_date', sanitizedData.booking_date)
         .eq('booking_time', sanitizedData.booking_time)
@@ -289,30 +360,10 @@ const handler = async (req: Request): Promise<Response> => {
 
       if (duplicateBookings && duplicateBookings.length > 0) {
         console.log('⚠️ Potential duplicate booking detected');
-        await logSecurityEvent(supabaseAdmin, 'booking_created', {
-          warning: 'potential_duplicate',
-          existing_booking_id: duplicateBookings[0].id,
-          threat_level: threatLevel
-        }, req, sanitizedData.venue_id);
       }
     }
 
-    // Additional business logic validation
-    const bookingDate = new Date(sanitizedData.booking_date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (bookingDate < today) {
-      console.error('❌ Cannot book in the past');
-      await logSecurityEvent(supabaseAdmin, 'booking_created', {
-        error: 'booking_in_past',
-        booking_date: sanitizedData.booking_date,
-        threat_level: threatLevel
-      }, req, sanitizedData.venue_id);
-      return new Response('Cannot book for past dates', { status: 400, headers: corsHeaders });
-    }
-
-    // Create the booking with enhanced error handling and exclusion constraint detection
+    // Create booking
     const { data: booking, error: bookingError } = await supabaseAdmin
       .from('bookings')
       .insert(sanitizedData)
@@ -320,108 +371,50 @@ const handler = async (req: Request): Promise<Response> => {
       .single();
 
     if (bookingError) {
-      console.error('❌ Booking creation error:', bookingError);
-      
-      // Check for exclusion constraint violation (slot conflict)
+      // Check for slot conflict
       if (bookingError.code === '23P01' || bookingError.message?.includes('bookings_no_overlap_per_table')) {
-        console.error('❌ Slot conflict: Table overlap detected by exclusion constraint');
-        
-        // Release lock if present
-        if (lockToken) {
-          await supabaseAdmin
-            .from('booking_locks')
-            .update({
-              released_at: new Date().toISOString(),
-              reason: 'slot_conflict',
-              updated_at: new Date().toISOString()
-            })
-            .eq('lock_token', lockToken);
-          
-          console.log('🔓 Lock released due to slot conflict');
-        }
-
-        await logSecurityEvent(supabaseAdmin, 'booking_created', {
-          error: 'slot_conflict',
-          db_error: bookingError.message,
-          threat_level: threatLevel
-        }, req, sanitizedData.venue_id);
-        
-        return new Response(JSON.stringify({
-          success: false,
-          error: 'This time slot is no longer available. Please select another time.',
-          code: 'slot_conflict'
-        }), {
-          status: 409,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
+        throw new Error('slot_conflict');
       }
-      
-      // Other database errors
-      await logSecurityEvent(supabaseAdmin, 'booking_created', {
-        error: 'database_error',
-        db_error: bookingError.message,
-        threat_level: threatLevel
-      }, req, sanitizedData.venue_id);
       throw new Error('Failed to create booking');
     }
 
-    // Enhanced audit logging for guest-created booking
+    bookingCreated = true;
+    console.log('✅ Booking created:', booking.id);
+
+    // Create audit log
     try {
       const ipAddress = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
       const userAgent = req.headers.get('user-agent') || 'unknown';
       
-      await supabaseAdmin
-        .from('booking_audit')
-        .insert([{
-          booking_id: booking.id,
-          change_type: 'created',
-          changed_by: 'guest',
-          notes: `Booking created via online widget by ${sanitizedData.guest_name}`,
-          venue_id: sanitizedData.venue_id,
-          source_type: 'guest_via_widget',
-          source_details: {
-            ip_address: ipAddress,
-            user_agent: userAgent,
-            threat_level: threatLevel,
-            party_size: sanitizedData.party_size,
-            service: sanitizedData.service,
-            interface: 'booking_widget',
-            timestamp: new Date().toISOString()
-          },
-          email_status: 'not_applicable' // Email will be sent after payment if required
-        }]);
-      
-      console.log('✅ Guest booking audit entry created');
+      await supabaseAdmin.from('booking_audit').insert([{
+        booking_id: booking.id,
+        change_type: 'created',
+        changed_by: 'guest',
+        notes: `Booking created via widget by ${sanitizedData.guest_name}`,
+        venue_id: sanitizedData.venue_id,
+        source_type: 'guest_via_widget',
+        source_details: {
+          ip_address: ipAddress,
+          user_agent: userAgent,
+          threat_level: threatLevel,
+          party_size: sanitizedData.party_size,
+          service: sanitizedData.service,
+          timestamp: new Date().toISOString()
+        },
+        email_status: 'not_applicable'
+      }]);
     } catch (auditError) {
-      console.error('❌ Failed to create audit entry:', auditError);
-      // Don't fail the booking creation for audit logging failures
+      console.error('⚠️ Audit log failed (non-fatal):', auditError);
     }
 
-    // Release lock if provided
-    if (lockToken) {
-      await supabaseAdmin
-        .from('booking_locks')
-        .update({
-          released_at: new Date().toISOString(),
-          reason: 'paid',
-          updated_at: new Date().toISOString()
-        })
-        .eq('lock_token', lockToken);
-      
-      console.log('✅ Lock released after booking creation');
-    }
-
-    // Log successful booking creation
+    // Log success
     await logSecurityEvent(supabaseAdmin, 'booking_created', {
       booking_id: booking.id,
       party_size: sanitizedData.party_size,
-      booking_date: sanitizedData.booking_date,
-      venue_name: venue.name,
-      threat_level: threatLevel,
       success: true
     }, req, sanitizedData.venue_id);
 
-    console.log('✅ Booking created successfully:', booking.id);
+    console.log('✅ Booking created successfully');
     return new Response(JSON.stringify({
       booking: {
         id: booking.id,
@@ -438,10 +431,62 @@ const handler = async (req: Request): Promise<Response> => {
 
   } catch (error: any) {
     console.error('💥 Booking creation error:', error);
-    return new Response(`Booking error: ${error.message}`, { 
+    
+    await logSecurityEvent(supabaseAdmin, 'booking_created', {
+      error: error.message,
+      success: false
+    }, req);
+
+    // Handle specific error types
+    if (error.message === 'invalid_lock_token') {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Time slot lock has expired. Please select your time again.',
+        code: 'lock_expired'
+      }), { status: 410, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    if (error.message === 'slot_conflict') {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'This time slot is no longer available. Please select another time.',
+        code: 'slot_conflict'
+      }), { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+
+    return new Response(JSON.stringify({
+      success: false,
+      error: error.message || 'Booking failed'
+    }), { 
       status: 500, 
-      headers: corsHeaders 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
+
+  } finally {
+    // ALWAYS release lock and invalidate cache if lock was validated
+    if (validatedLock) {
+      const releaseReason = bookingCreated ? 'created' : 'error';
+      await safeReleaseLock(supabaseAdmin, validatedLock.lock_token, releaseReason);
+      
+      // Invalidate cache
+      await invalidateBookingCache(
+        supabaseAdmin,
+        validatedLock.venue_id,
+        serviceId,
+        validatedLock.booking_date
+      );
+
+      // Log to availability_logs
+      await supabaseAdmin.from('availability_logs').insert({
+        venue_id: validatedLock.venue_id,
+        service_id: serviceId,
+        date: validatedLock.booking_date,
+        time: validatedLock.start_time,
+        action: 'released',
+        status: bookingCreated ? 'ok' : 'error',
+        result_slots: null
+      });
+    }
   }
 };
 

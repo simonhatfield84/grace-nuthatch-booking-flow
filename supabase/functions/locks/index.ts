@@ -323,15 +323,25 @@ async function handleReleaseLock(supabase: any, req: Request): Promise<Response>
     });
   }
 
-  // Fetch lock to get venue/service/date for cache invalidation
-  const { data: lock } = await supabase
+  // Check if lock exists and is already released (idempotent behavior)
+  const { data: existingLock } = await supabase
     .from('booking_locks')
-    .select('venue_id, service_id, booking_date')
+    .select('released_at, venue_id, service_id, booking_date, start_time')
     .eq('lock_token', lockToken)
-    .is('released_at', null)
     .maybeSingle();
 
-  // Release lock (idempotent)
+  if (existingLock && existingLock.released_at) {
+    console.log('🔓 Lock already released (idempotent)');
+    return new Response(JSON.stringify({ 
+      ok: true, 
+      message: 'already_released' 
+    }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
+  // Release lock (only if not already released)
   const { error: releaseError } = await supabase
     .from('booking_locks')
     .update({
@@ -346,6 +356,8 @@ async function handleReleaseLock(supabase: any, req: Request): Promise<Response>
     console.error('❌ Lock release failed:', releaseError);
     // Don't fail - release is best effort
   }
+
+  const lock = existingLock;
 
   // Invalidate cache if lock was found
   if (lock) {

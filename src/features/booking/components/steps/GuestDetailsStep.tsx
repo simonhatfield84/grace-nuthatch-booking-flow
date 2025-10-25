@@ -169,16 +169,26 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
         status: paymentAmount > 0 ? 'pending_payment' : 'confirmed',
         table_id: allocationResult.tableIds[0],
         is_unallocated: false,
-        lock_token: lockData?.lockToken,
       };
 
-      const { data, error } = await supabase
-        .from('bookings')
-        .insert([bookingPayload])
-        .select()
-        .single();
+      // Call booking-create-secure edge function with lock token
+      const { data: response, error } = await supabase.functions.invoke('booking-create-secure', {
+        body: {
+          booking: bookingPayload,
+          lockToken: lockData?.lockToken ?? null
+        }
+      });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Edge function error:', error);
+        throw new Error('Failed to create booking');
+      }
+
+      if (!response?.booking) {
+        throw new Error(response?.error || 'Booking creation failed');
+      }
+
+      const data = response.booking;
 
       console.log('Booking created successfully:', data.id);
       setBookingId(data.id);
