@@ -178,6 +178,7 @@ export function V4BookingWidget({ isPreview = false }: V4BookingWidgetProps) {
           {currentStep === 0 && (
             <PartyDateStep
               bookingData={bookingData}
+              venueId={venue.id}
               onUpdate={updateBookingData}
               onNext={handleNext}
               config={config}
