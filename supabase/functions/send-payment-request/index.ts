@@ -1,10 +1,19 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
+
+// Input validation schema
+const paymentRequestSchema = z.object({
+  booking_id: z.number().int().positive('Booking ID must be a positive integer'),
+  amount_cents: z.number().int().min(50, 'Minimum amount is 50 cents').max(1000000, 'Maximum amount is £10,000'),
+  venue_id: z.string().uuid('Venue ID must be a valid UUID'),
+  custom_message: z.string().max(500, 'Custom message must be less than 500 characters').optional(),
+});
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -12,7 +21,25 @@ serve(async (req) => {
   }
 
   try {
-    const { booking_id, amount_cents, venue_id, custom_message } = await req.json()
+    const requestData = await req.json();
+    
+    // Validate input with Zod
+    const validationResult = paymentRequestSchema.safeParse(requestData);
+    if (!validationResult.success) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Invalid input parameters',
+          details: validationResult.error.errors.map(e => ({
+            field: e.path.join('.'),
+            message: e.message
+          })),
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    const { booking_id, amount_cents, venue_id, custom_message } = validationResult.data;
 
     console.log('📧 Processing payment request:', {
       booking_id,

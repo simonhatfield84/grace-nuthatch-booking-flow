@@ -1,9 +1,18 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.3';
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Input validation schema
+const availabilityRequestSchema = z.object({
+  venueSlug: z.string().min(1).max(100).regex(/^[a-z0-9-]+$/, 'Venue slug must contain only lowercase letters, numbers, and hyphens'),
+  serviceId: z.string().uuid().optional(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
+  partySize: z.number().int().min(1).max(100, 'Party size must be between 1 and 100'),
+});
 
 interface AvailabilityRequest {
   venueSlug: string;
@@ -34,19 +43,26 @@ Deno.serve(async (req) => {
   );
 
   try {
-    const { venueSlug, serviceId, date, partySize }: AvailabilityRequest = await req.json();
-
-    // Validate input
-    if (!venueSlug || !date || !partySize) {
+    const requestData = await req.json();
+    
+    // Validate input with Zod
+    const validationResult = availabilityRequestSchema.safeParse(requestData);
+    if (!validationResult.success) {
       return new Response(
         JSON.stringify({
           ok: false,
           code: 'invalid_input',
-          message: 'Missing required fields: venueSlug, date, partySize',
+          message: 'Invalid input parameters',
+          errors: validationResult.error.errors.map(e => ({
+            field: e.path.join('.'),
+            message: e.message
+          })),
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
       );
     }
+    
+    const { venueSlug, serviceId, date, partySize }: AvailabilityRequest = validationResult.data;
 
     // Get client IP and User-Agent
     const clientIP = req.headers.get('x-forwarded-for')?.split(',')[0] || req.headers.get('x-real-ip') || 'unknown';

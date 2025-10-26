@@ -1,11 +1,23 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
+
+// Input validation schema
+const authEmailHookSchema = z.object({
+  type: z.enum(['recovery', 'confirmation', 'magic_link']),
+  user: z.object({
+    id: z.string().uuid(),
+    email: z.string().email(),
+    user_metadata: z.record(z.any()).optional(),
+  }),
+  redirect_to: z.string().url().optional(),
+});
 
 interface AuthEmailHookRequest {
   type: 'recovery' | 'confirmation' | 'magic_link';
@@ -23,7 +35,24 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { type, user, redirect_to }: AuthEmailHookRequest = await req.json();
+    const requestData = await req.json();
+    
+    // Validate input with Zod
+    const validationResult = authEmailHookSchema.safeParse(requestData);
+    if (!validationResult.success) {
+      return new Response(
+        JSON.stringify({
+          error: 'Invalid auth hook parameters',
+          details: validationResult.error.errors.map(e => ({
+            field: e.path.join('.'),
+            message: e.message
+          })),
+        }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+    
+    const { type, user, redirect_to }: AuthEmailHookRequest = validationResult.data;
 
     // Only intercept password recovery emails
     if (type === 'recovery') {

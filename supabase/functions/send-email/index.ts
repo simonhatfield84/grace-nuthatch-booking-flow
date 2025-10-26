@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.3";
 import { Resend } from "npm:resend@2.0.0";
+import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
@@ -9,6 +10,24 @@ const corsHeaders = {
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
+
+// Input validation schemas
+const directEmailSchema = z.object({
+  to: z.union([z.string().email(), z.array(z.string().email())]),
+  from: z.string().optional(),
+  from_name: z.string().max(100).optional(),
+  from_email: z.string().email().optional(),
+  subject: z.string().min(1).max(200),
+  html: z.string().min(1),
+  text: z.string().optional(),
+});
+
+const bookingEmailSchema = z.object({
+  booking_id: z.number().int().positive(),
+  guest_email: z.string().email(),
+  venue_id: z.string().uuid(),
+  email_type: z.string().max(50).optional(),
+});
 
 interface SendEmailRequest {
   to?: string | string[];
@@ -121,6 +140,22 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Handle booking email requests
     if (requestBody.booking_id && requestBody.guest_email && requestBody.venue_id) {
+      // Validate booking email request
+      const validationResult = bookingEmailSchema.safeParse(requestBody);
+      if (!validationResult.success) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Invalid booking email parameters',
+            details: validationResult.error.errors.map(e => ({
+              field: e.path.join('.'),
+              message: e.message
+            })),
+          }),
+          { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+      
       console.log('📧 Processing booking email request:', {
         booking_id: requestBody.booking_id,
         guest_email: requestBody.guest_email,
@@ -128,10 +163,26 @@ const handler = async (req: Request): Promise<Response> => {
         email_type: requestBody.email_type
       });
 
-      return await handleBookingEmail(supabase, requestBody, req);
+      return await handleBookingEmail(supabase, validationResult.data, req);
     }
 
     // Handle direct email requests (legacy)
+    // Validate direct email request
+    const directValidation = directEmailSchema.safeParse(requestBody);
+    if (!directValidation.success) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Invalid email parameters',
+          details: directValidation.error.errors.map(e => ({
+            field: e.path.join('.'),
+            message: e.message
+          })),
+        }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+    
     const { 
       to, 
       from, 
@@ -140,7 +191,7 @@ const handler = async (req: Request): Promise<Response> => {
       subject, 
       html, 
       text 
-    } = requestBody;
+    } = directValidation.data;
 
     // Get platform settings for from address
     let fromAddress: string;
