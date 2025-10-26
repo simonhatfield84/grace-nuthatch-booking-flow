@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 import Stripe from 'https://esm.sh/stripe@14.21.0';
 import { createErrorResponse, corsHeaders } from '../_shared/errorSanitizer.ts';
+import { ok } from '../_shared/apiResponse.ts';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -163,13 +164,13 @@ serve(async (req) => {
       console.log('✅ Refund processed successfully');
 
       return new Response(
-        JSON.stringify({ 
-          success: true, 
-          refund_id: refund.id, // Return actual Stripe refund ID
+        JSON.stringify(ok({
+          success: true,
+          refund_id: refund.id,
           amount_refunded: refund_amount_cents,
           refund_status: refundStatus,
           stripe_refund_status: refund.status
-        }),
+        })),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
 

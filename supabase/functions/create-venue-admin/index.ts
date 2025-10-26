@@ -1,6 +1,7 @@
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.3";
+import { ok, err, jsonResponse } from '../_shared/apiResponse.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -118,16 +119,11 @@ const handler = async (req: Request): Promise<Response> => {
         blocked_at: new Date().toISOString()
       });
       
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'Too many requests. Please try again later.'
-      }), {
-        status: 429,
-        headers: {
-          'Content-Type': 'application/json',
-          ...secureHeaders,
-        },
-      });
+      return jsonResponse(
+        err('rate_limited', 'Too many requests. Please try again later.'),
+        429,
+        secureHeaders
+      );
     }
 
     // Create Supabase client with service role key for admin operations
@@ -196,16 +192,11 @@ const handler = async (req: Request): Promise<Response> => {
         user_agent: userAgent
       });
       
-      return new Response(JSON.stringify({
-        success: false,
-        error: `Validation failed: ${validationErrors.join(', ')}`
-      }), {
-        status: 400,
-        headers: {
-          'Content-Type': 'application/json',
-          ...secureHeaders,
-        },
-      });
+      return jsonResponse(
+        err('invalid_input', `Validation failed: ${validationErrors.join(', ')}`),
+        400,
+        secureHeaders
+      );
     }
 
     // Check for duplicate venue slug
@@ -223,16 +214,11 @@ const handler = async (req: Request): Promise<Response> => {
         user_agent: userAgent
       });
       
-      return new Response(JSON.stringify({
-        success: false,
-        error: 'A venue with this slug already exists'
-      }), {
-        status: 400,
-        headers: {
-          'Content-Type': 'application/json',
-          ...secureHeaders,
-        },
-      });
+      return jsonResponse(
+        err('duplicate_entry', 'A venue with this slug already exists'),
+        400,
+        secureHeaders
+      );
     }
 
     // Validate required fields
@@ -327,32 +313,24 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     // Return success response with temporary password info
-    return new Response(JSON.stringify({
-      success: true,
-      venue: response.venue,
-      tempPassword: tempPassword,
-      message: `Venue created successfully. Admin can log in with email ${requestData.adminEmail} and temporary password.`
-    }), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        ...secureHeaders,
-      },
-    });
+    return jsonResponse(
+      ok({
+        venue: response.venue,
+        tempPassword: tempPassword,
+        message: `Venue created successfully. Admin can log in with email ${requestData.adminEmail} and temporary password.`
+      }),
+      200,
+      secureHeaders
+    );
 
   } catch (error: any) {
     console.error('Error in create-venue-admin function:', error);
     
-    return new Response(JSON.stringify({
-      success: false,
-      error: error.message || 'An unexpected error occurred'
-    }), {
-      status: 500,
-      headers: {
-        'Content-Type': 'application/json',
-        ...secureHeaders,
-      },
-    });
+    return jsonResponse(
+      err('server_error', error.message || 'An unexpected error occurred'),
+      500,
+      secureHeaders
+    );
   }
 };
 

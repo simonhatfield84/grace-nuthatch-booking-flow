@@ -4,6 +4,7 @@ import Stripe from 'https://esm.sh/stripe@12.0.0?target=deno';
 import { corsHeaders, handleCors } from '../_shared/cors.ts';
 import { createErrorResponse } from '../_shared/errorSanitizer.ts';
 import { rateLimit, getRateLimitKey } from '../_shared/rateLimit.ts';
+import { ok, err, jsonResponse } from '../_shared/apiResponse.ts';
 
 const stripe = new Stripe(
   Deno.env.get('STRIPE_SECRET_KEY') || Deno.env.get('STRIPE_TEST_SECRET_KEY') || '',
@@ -19,9 +20,10 @@ const handler = async (req: Request): Promise<Response> => {
     // STEP 1: Authenticate user
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      return new Response(
-        JSON.stringify({ code: 'unauthorized', message: 'Authentication required' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }}
+      return jsonResponse(
+        err('unauthorized', 'Authentication required'),
+        401,
+        corsHeaders
       );
     }
 
@@ -33,9 +35,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
     if (authError || !user) {
-      return new Response(
-        JSON.stringify({ code: 'unauthorized', message: 'Invalid authentication' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }}
+      return jsonResponse(
+        err('unauthorized', 'Invalid authentication'),
+        401,
+        corsHeaders
       );
     }
 
@@ -43,9 +46,10 @@ const handler = async (req: Request): Promise<Response> => {
     const { bookingId, idempotencyKey } = await req.json();
 
     if (!Number.isInteger(bookingId) || bookingId <= 0) {
-      return new Response(
-        JSON.stringify({ code: 'invalid_booking_id', message: 'Valid booking ID required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }}
+      return jsonResponse(
+        err('invalid_input', 'Valid booking ID required'),
+        400,
+        corsHeaders
       );
     }
 
@@ -54,12 +58,10 @@ const handler = async (req: Request): Promise<Response> => {
     const allowed = await rateLimit(rateLimitKey, 5, 60 * 60);
     
     if (!allowed) {
-      return new Response(
-        JSON.stringify({ 
-          code: 'rate_limited', 
-          message: 'Too many payment requests. Please try again later.' 
-        }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' }}
+      return jsonResponse(
+        err('rate_limited', 'Too many payment requests. Please try again later.'),
+        429,
+        corsHeaders
       );
     }
 
@@ -86,9 +88,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (bookingError || !booking) {
       console.error('[create-payment-intent] Booking not found:', bookingId);
-      return new Response(
-        JSON.stringify({ code: 'booking_not_found', message: 'Booking not found' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' }}
+      return jsonResponse(
+        err('not_found', 'Booking not found'),
+        404,
+        corsHeaders
       );
     }
 
@@ -115,12 +118,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (!isAuthorized) {
       console.error('[create-payment-intent] Unauthorized:', { userId: user.id, bookingVenue: booking.venue_id, userVenue: userVenue?.venue_id });
-      return new Response(
-        JSON.stringify({ 
-          code: 'forbidden', 
-          message: 'You do not have permission to create payment for this booking' 
-        }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }}
+      return jsonResponse(
+        err('forbidden', 'You do not have permission to create payment for this booking'),
+        403,
+        corsHeaders
       );
     }
 
@@ -140,12 +141,10 @@ const handler = async (req: Request): Promise<Response> => {
     }
     
     if (amountCents > 100000) {
-      return new Response(
-        JSON.stringify({ 
-          code: 'invalid_amount', 
-          message: 'Payment amount out of acceptable range' 
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' }}
+      return jsonResponse(
+        err('invalid_input', 'Payment amount out of acceptable range'),
+        400,
+        corsHeaders
       );
     }
 
@@ -166,14 +165,15 @@ const handler = async (req: Request): Promise<Response> => {
         
         console.log(`[create-payment-intent] Retrieved existing intent: ${existingIntent.id}`);
         
-        return new Response(
-          JSON.stringify({
+        return jsonResponse(
+          ok({
             success: true,
             client_secret: existingIntent.client_secret,
             payment_intent_id: existingIntent.id,
             amount_cents: amountCents
           }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }}
+          200,
+          corsHeaders
         );
       } catch (retrieveError) {
         console.error('[create-payment-intent] Error retrieving existing intent:', retrieveError);
@@ -223,14 +223,15 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`[create-payment-intent] Created: ${paymentIntent.id} for booking ${bookingId}, amount: £${amountCents/100}`);
 
-    return new Response(
-      JSON.stringify({
+    return jsonResponse(
+      ok({
         success: true,
         client_secret: paymentIntent.client_secret,
         payment_intent_id: paymentIntent.id,
         amount_cents: amountCents
       }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }}
+      200,
+      corsHeaders
     );
 
   } catch (error) {

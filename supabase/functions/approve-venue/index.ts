@@ -1,5 +1,6 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { ok, err, jsonResponse } from '../_shared/apiResponse.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,7 +18,11 @@ Deno.serve(async (req) => {
     const token = url.searchParams.get('token')
 
     if (!token) {
-      throw new Error('Approval token is required')
+      return jsonResponse(
+        err('invalid_input', 'Token is required'),
+        400,
+        corsHeaders
+      );
     }
 
     const supabase = createClient(

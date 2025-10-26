@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.3';
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
+import { ok, err, jsonResponse } from '../_shared/apiResponse.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -48,17 +49,15 @@ Deno.serve(async (req) => {
     // Validate input with Zod
     const validationResult = availabilityRequestSchema.safeParse(requestData);
     if (!validationResult.success) {
-      return new Response(
-        JSON.stringify({
-          ok: false,
-          code: 'invalid_input',
-          message: 'Invalid input parameters',
+      return jsonResponse(
+        err('invalid_input', 'Invalid input parameters', undefined, {
           errors: validationResult.error.errors.map(e => ({
             field: e.path.join('.'),
             message: e.message
-          })),
+          }))
         }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 400 }
+        400,
+        corsHeaders
       );
     }
     
@@ -90,13 +89,10 @@ Deno.serve(async (req) => {
         took_ms: Date.now() - startTime,
       });
 
-      return new Response(
-        JSON.stringify({
-          ok: false,
-          code: 'venue_not_found',
-          message: 'Venue not found or not approved',
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+      return jsonResponse(
+        err('venue_not_found', 'Venue not found or not approved'),
+        404,
+        corsHeaders
       );
     }
 
@@ -114,13 +110,10 @@ Deno.serve(async (req) => {
         took_ms: Date.now() - startTime,
       });
 
-      return new Response(
-        JSON.stringify({
-          ok: false,
-          code: 'rate_limited',
-          message: "We're getting lots of interest—please try again in a moment.",
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 429 }
+      return jsonResponse(
+        err('rate_limited', "We're getting lots of interest—please try again in a moment."),
+        429,
+        corsHeaders
       );
     }
 
@@ -141,9 +134,10 @@ Deno.serve(async (req) => {
         took_ms: Date.now() - startTime,
       });
 
-      return new Response(
-        JSON.stringify({ ...cachedResult, cached: true }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      return jsonResponse(
+        { ...cachedResult, cached: true },
+        200,
+        corsHeaders
       );
     }
 
@@ -164,10 +158,7 @@ Deno.serve(async (req) => {
         took_ms: Date.now() - startTime,
       });
 
-      return new Response(JSON.stringify(availabilityResult), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      });
+      return jsonResponse(availabilityResult, 400, corsHeaders);
     }
 
     const response = {
@@ -201,18 +192,13 @@ Deno.serve(async (req) => {
       took_ms: Date.now() - startTime,
     });
 
-    return new Response(JSON.stringify(response), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return jsonResponse(response, 200, corsHeaders);
   } catch (error) {
     console.error('Availability check error:', error);
-    return new Response(
-      JSON.stringify({
-        ok: false,
-        code: 'server_error',
-        message: 'Internal server error',
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+    return jsonResponse(
+      err('server_error', 'Internal server error'),
+      500,
+      corsHeaders
     );
   }
 });
@@ -434,43 +420,6 @@ function generateTimeSlots(windows: any[], date: string): string[] {
   }
 
   return [...new Set(slots)].sort();
-}
-
-// Helper: Check if a time slot is available
-function checkSlotAvailability(
-  time: string,
-  tables: any[],
-  bookings: any[],
-  blocks: any[],
-  durationMinutes: number
-): boolean {
-  const slotStart = timeToMinutes(time);
-  const slotEnd = slotStart + durationMinutes;
-
-  // Check if time is blocked
-  for (const block of blocks) {
-    const blockStart = timeToMinutes(block.start_time);
-    const blockEnd = timeToMinutes(block.end_time);
-
-    if (slotStart < blockEnd && slotEnd > blockStart) {
-      if (!block.table_ids || block.table_ids.length === 0) {
-        return false; // Venue-wide block
-      }
-    }
-  }
-
-  // Find available tables
-  const bookedTableIds = bookings
-    .filter((b) => {
-      const bookingStart = timeToMinutes(b.booking_time);
-      const bookingEnd = timeToMinutes(b.end_time);
-      return slotStart < bookingEnd && slotEnd > bookingStart;
-    })
-    .map((b) => b.table_id);
-
-  const availableTables = tables.filter((t) => !bookedTableIds.includes(t.id));
-
-  return availableTables.length > 0;
 }
 
 // Helper: Check slot availability accounting for locks

@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.21.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.3";
 import { createErrorResponse, corsHeaders } from '../_shared/errorSanitizer.ts';
+import { ok } from '../_shared/apiResponse.ts';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -91,14 +92,14 @@ serve(async (req) => {
         }
       });
 
-    const response = {
+    const response = ok({
       payment_intent_id: paymentIntent.id,
       stripe_status: paymentIntent.status,
       payment_succeeded: paymentIntent.status === 'succeeded',
       amount: paymentIntent.amount,
       currency: paymentIntent.currency,
       created: paymentIntent.created
-    };
+    });
 
     console.log('✅ Payment verification completed:', response);
 

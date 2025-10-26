@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.3";
+import { ok, err, jsonResponse } from "../_shared/apiResponse.ts";
+import { batchInvalidateCache } from "../_shared/cacheInvalidation.ts";
 
 serve(async (req: Request) => {
   try {
@@ -32,13 +34,10 @@ serve(async (req: Request) => {
 
     if (error) {
       console.error('❌ Cleanup failed:', error);
-      return new Response(JSON.stringify({ 
-        ok: false, 
-        error: error.message 
-      }), {
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      });
+      return jsonResponse(
+        err('db_error', error.message),
+        500
+      );
     }
 
     const cleanedCount = expiredLocks?.length || 0;
@@ -46,28 +45,14 @@ serve(async (req: Request) => {
 
     // Invalidate availability cache for affected slots
     if (expiredLocks && expiredLocks.length > 0) {
-      const uniqueSlots = new Map();
-      expiredLocks.forEach(lock => {
-        const key = `${lock.venue_id}-${lock.service_id}-${lock.booking_date}`;
-        if (!uniqueSlots.has(key)) {
-          uniqueSlots.set(key, {
-            venue_id: lock.venue_id,
-            service_id: lock.service_id,
-            date: lock.booking_date
-          });
-        }
-      });
+      const uniqueSlots = expiredLocks.map(lock => ({
+        venue_id: lock.venue_id,
+        service_id: lock.service_id,
+        date: lock.booking_date
+      }));
 
-      for (const slot of uniqueSlots.values()) {
-        await supabase
-          .from('availability_cache')
-          .delete()
-          .eq('venue_id', slot.venue_id)
-          .eq('service_id', slot.service_id)
-          .eq('date', slot.date);
-      }
-
-      console.log(`🔄 Invalidated cache for ${uniqueSlots.size} date/service combinations`);
+      const { total_deleted } = await batchInvalidateCache(supabase, uniqueSlots);
+      console.log(`🔄 Invalidated ${total_deleted} cache entries`);
     }
 
     // Log expired locks individually to availability_logs
@@ -85,21 +70,12 @@ serve(async (req: Request) => {
       console.log(`📊 Logged ${logEntries.length} expired locks to availability_logs`);
     }
 
-    return new Response(JSON.stringify({
-      ok: true,
-      cleanedCount
-    }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return jsonResponse(ok({ cleanedCount }), 200);
   } catch (error: any) {
     console.error('💥 Cleanup error:', error);
-    return new Response(JSON.stringify({
-      ok: false,
-      error: error.message
-    }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return jsonResponse(
+      err('server_error', error.message),
+      500
+    );
   }
 });
