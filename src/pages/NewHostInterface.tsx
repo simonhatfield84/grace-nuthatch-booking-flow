@@ -1,4 +1,10 @@
 
+// @locked
+// IMPORTANT: This file is protected during the refactor guard-rails phase.
+// Do not change public APIs, props, or routing without approval.
+// Last validated: 2025-10-26
+// Note: Internal optimizations (virtualization, memoization) are allowed.
+
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";

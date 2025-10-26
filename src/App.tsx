@@ -40,6 +40,7 @@ import PlatformSecurity from "./pages/PlatformSecurity";
 import PlatformSubscriptions from "./pages/PlatformSubscriptions";
 import PlatformSupport from "./pages/PlatformSupport";
 import PlatformStyleExportPreview from "./pages/PlatformStyleExportPreview";
+import PlatformRefactorStatus from "./pages/PlatformRefactorStatus";
 
 const queryClient = new QueryClient();
 
@@ -99,6 +100,7 @@ function App() {
                       <Route path="subscriptions" element={<PlatformSubscriptions />} />
                       <Route path="support" element={<PlatformSupport />} />
                       <Route path="style-export-preview" element={<PlatformStyleExportPreview />} />
+                      <Route path="refactor-status" element={<PlatformRefactorStatus />} />
                     </Route>
 
                     {/* Admin routes with AdminLayout - NO STRIPE PROVIDER */}

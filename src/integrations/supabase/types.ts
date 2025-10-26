@@ -1476,6 +1476,48 @@ export type Database = {
           },
         ]
       }
+      refactor_runs: {
+        Row: {
+          created_at: string
+          duration_ms: number | null
+          failed_tests: number
+          git_branch: string | null
+          git_commit: string | null
+          id: string
+          passed_tests: number
+          results: Json | null
+          status: string
+          total_tests: number
+          triggered_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          duration_ms?: number | null
+          failed_tests?: number
+          git_branch?: string | null
+          git_commit?: string | null
+          id?: string
+          passed_tests?: number
+          results?: Json | null
+          status: string
+          total_tests?: number
+          triggered_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          duration_ms?: number | null
+          failed_tests?: number
+          git_branch?: string | null
+          git_commit?: string | null
+          id?: string
+          passed_tests?: number
+          results?: Json | null
+          status?: string
+          total_tests?: number
+          triggered_by?: string | null
+        }
+        Relationships: []
+      }
       reminder_log: {
         Row: {
           booking_id: number

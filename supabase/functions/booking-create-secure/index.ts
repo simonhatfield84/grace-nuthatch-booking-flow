@@ -1,3 +1,9 @@
+// @locked
+// IMPORTANT: This file is protected during the refactor guard-rails phase.
+// Do not rewrite or remove public interfaces without updating /src/lib/contracts.ts and smoke tests.
+// Last validated: 2025-10-26
+// Contract version: v1
+// Related tests: tests/smoke/01-booking-widget-no-deposit.spec.ts, tests/smoke/03-booking-exclusion.spec.ts
 
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.3";

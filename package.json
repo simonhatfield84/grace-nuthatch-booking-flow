@@ -13,6 +13,7 @@
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
     "@hookform/resolvers": "^3.9.0",
+    "@playwright/test": "^1.56.1",
     "@radix-ui/react-accordion": "^1.2.0",
     "@radix-ui/react-alert-dialog": "^1.1.1",
     "@radix-ui/react-aspect-ratio": "^1.1.0",
@@ -54,6 +55,7 @@
     "embla-carousel-react": "^8.3.0",
     "grapesjs": "^0.22.11",
     "grapesjs-preset-newsletter": "^1.0.2",
+    "husky": "^9.1.7",
     "input-otp": "^1.2.4",
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
