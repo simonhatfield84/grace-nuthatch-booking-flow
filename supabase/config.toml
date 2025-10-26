@@ -68,6 +68,12 @@ verify_jwt = false
 [functions.locks-cleaner]
 verify_jwt = false
 
+[functions.verify-code]
+verify_jwt = false
+
+[functions.send-verification-code]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 policy = "per_request"

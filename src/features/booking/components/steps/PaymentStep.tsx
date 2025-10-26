@@ -35,28 +35,40 @@ export function PaymentStep({ amount, paymentRequired, onSuccess, bookingId, des
       setError(null);
 
       try {
-        console.log('Creating payment intent for booking:', bookingId, 'amount:', amount);
+        console.log('[PaymentStep] Creating payment intent for booking:', bookingId);
+        console.log('[PaymentStep] NOTE: Amount calculated server-side for security');
 
+        // SECURITY: Only send bookingId - amount is calculated server-side
         const { data, error: paymentError } = await supabase.functions.invoke('create-payment-intent', {
           body: {
             bookingId: bookingId,
-            amount: amount,
-            currency: 'gbp',
-            description: description || 'Booking payment'
+            idempotencyKey: `booking-${bookingId}-${Date.now()}`
           }
         });
 
         if (paymentError) {
-          console.error('Payment intent error:', paymentError);
+          console.error('[PaymentStep] Payment intent error:', paymentError);
+          
+          // Handle specific error codes
+          if (paymentError.message?.includes('unauthorized')) {
+            throw new Error('Authentication required. Please refresh and try again.');
+          } else if (paymentError.message?.includes('rate_limited')) {
+            throw new Error('Too many payment requests. Please wait a moment and try again.');
+          }
+          
           throw new Error('Failed to initialize payment. Please try again.');
         }
 
         if (!data?.client_secret) {
-          console.error('No client secret returned:', data);
+          console.error('[PaymentStep] No client secret returned:', data);
           throw new Error('Payment system error. Please contact the venue.');
         }
 
-        console.log('Payment intent created successfully:', data);
+        console.log('[PaymentStep] Payment intent created:', {
+          id: data.payment_intent_id,
+          amount: data.amount_cents ? `£${data.amount_cents / 100}` : 'unknown'
+        });
+        
         setClientSecret(data.client_secret);
 
       } catch (err) {

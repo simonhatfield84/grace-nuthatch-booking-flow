@@ -2511,6 +2511,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      check_returning_guest: {
+        Args: {
+          check_email: string
+          check_phone: string
+          check_venue_id: string
+        }
+        Returns: Json
+      }
       cleanup_availability_cache: { Args: never; Returns: undefined }
       compute_booking_time_range: {
         Args: { p_date: string; p_duration_minutes: number; p_time: string }
@@ -2612,6 +2620,10 @@ export type Database = {
           target_user_id: string
           target_venue_id: string
         }
+        Returns: boolean
+      }
+      user_can_create_payment: {
+        Args: { _booking_id: number; _user_id: string }
         Returns: boolean
       }
       user_can_manage_venue: {

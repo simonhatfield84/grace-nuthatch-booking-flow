@@ -74,21 +74,31 @@ export const createUserAccount = async (adminData: AdminData): Promise<void> => 
 };
 
 export const verifyEmailCode = async (email: string, code: string): Promise<boolean> => {
-  console.log('🔐 Verifying code for email:', email);
+  console.log('🔐 Verifying code for email:', email, 'via edge function');
   
   try {
-    const { data: isValid, error } = await supabase.rpc('verify_code', {
-      user_email: email,
-      submitted_code: code
+    // Use edge function for secure verification (no direct DB access)
+    const { data, error } = await supabase.functions.invoke('verify-code', {
+      body: {
+        email: email,
+        code: code
+      }
     });
 
     if (error) {
       console.error('❌ Code verification error:', error);
       throw error;
     }
-    
-    console.log('📋 Code verification result:', isValid);
-    return isValid;
+
+    // Edge function returns { success: true, email: ... } on success
+    // or { code: 'invalid_code', message: ... } on failure
+    if (data?.success) {
+      console.log('✅ Code verified successfully via edge function');
+      return true;
+    } else {
+      console.log('❌ Code verification failed:', data);
+      return false;
+    }
   } catch (error) {
     console.error('💥 verifyEmailCode error:', error);
     throw error;
