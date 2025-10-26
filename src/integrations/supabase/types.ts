@@ -2054,6 +2054,63 @@ export type Database = {
           },
         ]
       }
+      venue_branding: {
+        Row: {
+          accent_color: string
+          button_radius: string
+          created_at: string
+          font_body: string
+          font_heading: string
+          id: string
+          logo_url: string | null
+          primary_color: string
+          secondary_color: string
+          updated_at: string
+          venue_id: string
+        }
+        Insert: {
+          accent_color?: string
+          button_radius?: string
+          created_at?: string
+          font_body?: string
+          font_heading?: string
+          id?: string
+          logo_url?: string | null
+          primary_color?: string
+          secondary_color?: string
+          updated_at?: string
+          venue_id: string
+        }
+        Update: {
+          accent_color?: string
+          button_radius?: string
+          created_at?: string
+          font_body?: string
+          font_heading?: string
+          id?: string
+          logo_url?: string | null
+          primary_color?: string
+          secondary_color?: string
+          updated_at?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_branding_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: true
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_branding_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: true
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       venue_settings: {
         Row: {
           created_at: string
@@ -2239,6 +2296,54 @@ export type Database = {
             foreignKeyName: "venue_subscriptions_venue_id_fkey"
             columns: ["venue_id"]
             isOneToOne: false
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      venue_widget_settings: {
+        Row: {
+          about_html: string | null
+          copy_json: Json
+          created_at: string
+          flags_json: Json
+          hero_image_url: string | null
+          id: string
+          updated_at: string
+          venue_id: string
+        }
+        Insert: {
+          about_html?: string | null
+          copy_json?: Json
+          created_at?: string
+          flags_json?: Json
+          hero_image_url?: string | null
+          id?: string
+          updated_at?: string
+          venue_id: string
+        }
+        Update: {
+          about_html?: string | null
+          copy_json?: Json
+          created_at?: string
+          flags_json?: Json
+          hero_image_url?: string | null
+          id?: string
+          updated_at?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_widget_settings_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: true
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_widget_settings_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: true
             referencedRelation: "venues_public"
             referencedColumns: ["id"]
           },
@@ -2454,6 +2559,24 @@ export type Database = {
           sessions: number | null
           unique_visitors: number | null
           viewed_sections: Json | null
+        }
+        Relationships: []
+      }
+      venue_widget_public_v4: {
+        Row: {
+          about_html: string | null
+          accent_color: string | null
+          button_radius: string | null
+          copy_json: Json | null
+          flags_json: Json | null
+          font_body: string | null
+          font_heading: string | null
+          hero_image_url: string | null
+          logo_url: string | null
+          primary_color: string | null
+          secondary_color: string | null
+          venue_name: string | null
+          venue_slug: string | null
         }
         Relationships: []
       }

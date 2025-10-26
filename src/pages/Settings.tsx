@@ -7,7 +7,8 @@ import { DefaultTermsSettings } from "@/components/settings/DefaultTermsSettings
 import { TagManagement } from "@/components/settings/TagManagement";
 import { EmailSettingsPanel } from "@/components/settings/EmailSettingsPanel";
 import { EmailTemplatesList } from "@/components/settings/EmailTemplateEditor";
-import { Settings as SettingsIcon, Clock, CreditCard, FileText, Tags, Mail } from "lucide-react";
+import { BrandingSettingsTab } from "@/components/settings/BrandingSettingsTab";
+import { Settings as SettingsIcon, Clock, CreditCard, FileText, Tags, Mail, Palette } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 
 const Settings = () => {
@@ -22,7 +23,7 @@ const Settings = () => {
       </div>
 
       <Tabs defaultValue={defaultTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="hours" className="flex items-center gap-2">
             <Clock className="h-4 w-4" />
             <span className="hidden sm:inline">Hours</span>
@@ -42,6 +43,10 @@ const Settings = () => {
           <TabsTrigger value="email" className="flex items-center gap-2">
             <Mail className="h-4 w-4" />
             <span className="hidden sm:inline">Email</span>
+          </TabsTrigger>
+          <TabsTrigger value="brand" className="flex items-center gap-2">
+            <Palette className="h-4 w-4" />
+            <span className="hidden sm:inline">Brand</span>
           </TabsTrigger>
         </TabsList>
 
@@ -66,6 +71,10 @@ const Settings = () => {
             <EmailSettingsPanel />
             <EmailTemplatesList />
           </div>
+        </TabsContent>
+
+        <TabsContent value="brand">
+          <BrandingSettingsTab />
         </TabsContent>
       </Tabs>
     </div>
