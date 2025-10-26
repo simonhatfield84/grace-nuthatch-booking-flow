@@ -15,6 +15,7 @@ export const FLAGS = {
   NEW_AVAILABILITY_ENGINE: import.meta.env.VITE_NEW_AVAILABILITY_ENGINE === 'true' || false,
   ENABLE_CONTRACT_VALIDATION: import.meta.env.VITE_CONTRACT_VALIDATION !== 'false', // Default true
   ENABLE_SMOKE_TEST_MODE: import.meta.env.VITE_SMOKE_TEST_MODE === 'true' || false,
+  USE_EXTRACTED_TIME_UTILS: import.meta.env.VITE_USE_EXTRACTED_TIME_UTILS === 'true' || false,
 } as const;
 
 export type FlagName = keyof typeof FLAGS;

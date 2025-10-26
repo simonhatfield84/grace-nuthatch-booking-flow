@@ -1,0 +1,16 @@
+# Smoke Test Baseline - October 26, 2025
+
+## Instruction
+Run `npm run smoke` and replace this file with the actual output.
+
+## Expected Tests
+1. Booking Widget (No Deposit) Flow
+2. Locks Lifecycle (Create/Extend/Release)
+3. Booking Exclusion (Double-Booking Prevention)
+4. Public Stripe Settings Endpoint
+
+## Pre-Task 1 Status
+All tests should PASS before proceeding with time utils extraction.
+
+---
+(This file will be populated by running: `npm run smoke > docs/snapshots/smoke-baseline-20251026.txt`)
