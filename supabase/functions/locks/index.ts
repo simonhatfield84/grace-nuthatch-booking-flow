@@ -1,10 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.3";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { createErrorResponse, corsHeaders } from '../_shared/errorSanitizer.ts';
 
 const LOCK_HOLD_MINUTES = 5;
 
@@ -176,14 +172,7 @@ async function handleCreateLock(supabase: any, req: Request): Promise<Response> 
 
   if (lockError) {
     console.error('❌ Lock creation failed:', lockError);
-    return new Response(JSON.stringify({
-      ok: false,
-      code: 'lock_failed',
-      message: 'Failed to create lock'
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    return createErrorResponse(lockError, 500);
   }
 
   // Invalidate availability cache
@@ -286,14 +275,7 @@ async function handleExtendLock(supabase: any, req: Request): Promise<Response> 
 
   if (updateError) {
     console.error('❌ Lock extension failed:', updateError);
-    return new Response(JSON.stringify({
-      ok: false,
-      code: 'extend_failed',
-      message: 'Failed to extend lock'
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    return createErrorResponse(updateError, 500);
   }
 
   console.log('✅ Lock extended until:', newExpiresAt);
@@ -406,8 +388,9 @@ async function handleReleaseLock(supabase: any, req: Request): Promise<Response>
           .eq('id', targetLock.id)
           .is('released_at', null);
 
-        if (releaseError) {
+         if (releaseError) {
           console.error('❌ Lock release failed:', releaseError);
+          return createErrorResponse(releaseError, 500);
         }
 
         // Invalidate cache
@@ -489,6 +472,7 @@ async function handleReleaseLock(supabase: any, req: Request): Promise<Response>
 
   if (releaseError) {
     console.error('❌ Lock release failed:', releaseError);
+    return createErrorResponse(releaseError, 500);
   }
 
   const lock = existingLock;

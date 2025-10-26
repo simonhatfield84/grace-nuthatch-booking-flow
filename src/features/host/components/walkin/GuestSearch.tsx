@@ -42,11 +42,19 @@ export function GuestSearch({ onGuestSelect, onCreateNew, isLoading }: GuestSear
     queryFn: async () => {
       if (!searchTerm.trim()) return [];
 
-      const { data, error } = await supabase
-        .from('guests')
-        .select('*')
-        .or(`name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%,phone.ilike.%${searchTerm}%`)
-        .limit(10);
+      // Get venue context from server (single source of truth)
+      const { data: context, error: ctxError } = await supabase.rpc('get_current_context');
+      if (ctxError) throw ctxError;
+      
+      const venueId = (context as any)?.venue_id;
+      if (!venueId) throw new Error('No venue context');
+
+      // Search guests using secure RPC
+      const { data, error } = await supabase.rpc('guests_search', {
+        _venue: venueId,
+        _q: searchTerm,
+        _limit: 10
+      });
 
       if (error) throw error;
       return data || [];

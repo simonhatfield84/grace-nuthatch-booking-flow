@@ -1,10 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.3";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, stripe-signature',
-};
+import { createErrorResponse, corsHeaders } from '../_shared/errorSanitizer.ts';
 
 // Inline security utilities for edge function
 interface RateLimitConfig {
@@ -481,10 +477,7 @@ const handler = async (req: Request): Promise<Response> => {
 
   } catch (error: any) {
     console.error('💥 Webhook error:', error);
-    return new Response(`Webhook error: ${error.message}`, { 
-      status: 500, 
-      headers: corsHeaders 
-    });
+    return createErrorResponse(error, 500);
   }
 };
 

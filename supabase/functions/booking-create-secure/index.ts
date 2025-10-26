@@ -2,11 +2,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.3";
 import { z } from "https://esm.sh/zod@3.23.8";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { createErrorResponse, corsHeaders } from '../_shared/errorSanitizer.ts';
 
 // Inline security utilities for edge function
 interface RateLimitConfig {
@@ -484,7 +480,7 @@ const handler = async (req: Request): Promise<Response> => {
       success: false
     }, req);
 
-    // Handle specific error types
+    // Handle specific error types with user-friendly messages
     if (error.message === 'invalid_lock_token') {
       return new Response(JSON.stringify({
         success: false,
@@ -503,14 +499,8 @@ const handler = async (req: Request): Promise<Response> => {
       }), { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    return new Response(JSON.stringify({
-      success: false,
-      error: error.message || 'Booking failed',
-      reqId
-    }), { 
-      status: 500, 
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    // Generic error response with sanitization
+    return createErrorResponse(error, 500);
 
   } finally {
     // ALWAYS release lock and invalidate cache, even on validation errors

@@ -64,7 +64,7 @@ export const WalkInGuestSearch = ({
   // Search for existing guests as user types
   useEffect(() => {
     const searchGuests = async () => {
-      if (!guestName.trim() || guestName.length < 2 || !user) {
+      if (!guestName.trim() || guestName.length < 2) {
         setSearchResults([]);
         setShowResults(false);
         return;
@@ -72,31 +72,43 @@ export const WalkInGuestSearch = ({
 
       setIsSearching(true);
       try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('venue_id')
-          .eq('id', user.id)
-          .single();
-
-        if (profile?.venue_id) {
-          // Search for guests (simplified to avoid complex join for now)
-          const { data: guests } = await supabase
-            .from('guests')
-            .select('*')
-            .eq('venue_id', profile.venue_id)
-            .or(`name.ilike.%${guestName}%,email.ilike.%${guestName}%,phone.ilike.%${guestName}%`)
-            .limit(5)
-            .order('name');
-
-          // For now, just set empty conflicts - future enhancement
-          const guestsWithConflicts = (guests || []).map(guest => ({
-            ...guest,
-            bookingConflicts: []
-          }));
-
-          setSearchResults(guestsWithConflicts);
-          setShowResults(guestsWithConflicts.length > 0);
+        // Get venue context from server (single source of truth)
+        const { data: context, error: ctxError } = await supabase.rpc('get_current_context');
+        
+        if (ctxError) {
+          console.error('Error getting context:', ctxError);
+          setSearchResults([]);
+          return;
         }
+
+        const venueId = (context as any)?.venue_id;
+        if (!venueId) {
+          console.warn('No venue context available');
+          setSearchResults([]);
+          return;
+        }
+
+        // Search guests using secure RPC
+        const { data: guests, error: searchError } = await supabase.rpc('guests_search', {
+          _venue: venueId,
+          _q: guestName,
+          _limit: 5
+        });
+
+        if (searchError) {
+          console.error('Error searching guests:', searchError);
+          setSearchResults([]);
+          return;
+        }
+
+        // Add empty conflicts for now (future enhancement)
+        const guestsWithConflicts = (guests || []).map(guest => ({
+          ...guest,
+          bookingConflicts: []
+        }));
+
+        setSearchResults(guestsWithConflicts);
+        setShowResults(guestsWithConflicts.length > 0);
       } catch (error) {
         console.error('Error searching guests:', error);
         setSearchResults([]);
@@ -107,7 +119,7 @@ export const WalkInGuestSearch = ({
 
     const debounceTimer = setTimeout(searchGuests, 300);
     return () => clearTimeout(debounceTimer);
-  }, [guestName, user]);
+  }, [guestName]);
 
   const handleGuestSelect = (guest: Guest) => {
     setGuestName(guest.name);

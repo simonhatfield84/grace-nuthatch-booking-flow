@@ -2558,9 +2558,36 @@ export type Database = {
       generate_booking_token: { Args: never; Returns: string }
       generate_verification_code: { Args: never; Returns: string }
       generate_webhook_secret: { Args: never; Returns: string }
+      get_current_context: { Args: never; Returns: Json }
       get_security_metrics: { Args: never; Returns: Json }
       get_tag_usage_count: { Args: { tag_id: string }; Returns: number }
+      get_user_roles: {
+        Args: { _user_id: string; _venue_id: string }
+        Returns: string[]
+      }
       get_user_venue: { Args: { _user_id: string }; Returns: string }
+      guests_search: {
+        Args: { _limit?: number; _q: string; _venue: string }
+        Returns: {
+          created_at: string | null
+          email: string | null
+          id: string
+          import_last_visit_date: string | null
+          import_visit_count: number | null
+          name: string
+          notes: string | null
+          opt_in_marketing: boolean | null
+          phone: string | null
+          updated_at: string | null
+          venue_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "guests"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       has_active_lock: {
         Args: {
           check_time?: string
