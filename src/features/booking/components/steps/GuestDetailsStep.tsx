@@ -121,90 +121,85 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
+    
+    setIsCreatingBooking(true);
 
-    // GUARDRAIL 5: Calculate payment ONLY when form is submitted (after service/time selected)
-    let paymentCalc = null;
-    if (service?.id && venue?.slug) {
-      try {
-        const reqId = crypto.randomUUID().substring(0, 8);
-        console.log(`💰 [${reqId}] Calculating payment for:`, {
-          venueSlug: venue.slug.substring(0, 8) + '...',
-          serviceId: service.id.substring(0, 8) + '...',
+    try {
+      // STEP 1: Calculate payment SERVER-SIDE (anonymous-safe)
+      const reqId = crypto.randomUUID().substring(0, 8);
+      console.log(`💰 [${reqId}] Calculating payment for:`, {
+        venueSlug: venue.slug.substring(0, 8) + '...',
+        serviceId: service.id.substring(0, 8) + '...',
+        partySize
+      });
+      
+      const { data: paymentCalc, error: paymentError } = await supabase.functions.invoke('venue-payment-rules', {
+        body: {
+          venueSlug: venue.slug,
+          serviceId: service.id,
           partySize
-        });
-        
-        const { data, error } = await supabase.functions.invoke('venue-payment-rules', {
-          body: {
-            venueSlug: venue.slug,
-            serviceId: service.id,
-            partySize
-          }
-        });
-
-        if (error) {
-          console.error('Payment calculation error:', error);
-          toast.error('Unable to calculate payment. Please try again.');
-          return;
         }
+      });
 
-        if (data?.ok) {
-          paymentCalc = data;
-          setPaymentCalculation(data); // Set state for later use in payment step
-          console.log(`✅ [${reqId}] Payment calculated:`, {
-            shouldCharge: data.shouldCharge,
-            amount_cents: data.amount_cents
-          });
-        }
-      } catch (error) {
-        console.error('Payment calculation failed:', error);
+      if (paymentError) {
+        console.error(`❌ [${reqId}] Payment calculation error:`, paymentError);
+        toast.error('Unable to calculate payment. Please try again.');
+        return;
+      }
+
+      if (!paymentCalc?.ok) {
+        console.error(`❌ [${reqId}] Payment calculation failed:`, paymentCalc);
         toast.error('Unable to process payment calculation');
         return;
       }
+
+      setPaymentCalculation(paymentCalc);
+      
+      const paymentRequired = paymentCalc.shouldCharge && paymentCalc.amount_cents > 0;
+      
+      console.log(`✅ [${reqId}] Payment calculated:`, {
+        shouldCharge: paymentCalc.shouldCharge,
+        amount_cents: paymentCalc.amount_cents,
+        paymentRequired
+      });
+
+      // STEP 2: Create booking (server determines status based on payment requirement)
+      await createBookingWithPayment(paymentRequired, paymentCalc.amount_cents);
+      
+    } catch (error) {
+      console.error('Error in payment/booking flow:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to process booking');
+    } finally {
+      setIsCreatingBooking(false);
     }
-
-    const paymentRequired = paymentCalc?.shouldCharge || false;
-    const paymentAmount = paymentCalc?.amount_cents ? paymentCalc.amount_cents / 100 : 0;
-
-    console.log('📝 Form submitted:', {
-      paymentRequired,
-      paymentAmount,
-      paymentCalculation: paymentCalc,
-      service: service?.title,
-      partySize
-    });
-
-    // Create booking first
-    await createBooking(paymentAmount);
   };
 
-  const createBooking = async (paymentAmount: number) => {
-    console.log('📝 Creating booking with payment amount:', paymentAmount);
-    // Validate service before proceeding
+  const createBookingWithPayment = async (paymentRequired: boolean, amountCents: number) => {
+    console.log('📝 Creating booking:', { paymentRequired, amountCents });
+    
     if (!service || !service.id) {
       toast.error("Please select a service before proceeding");
       return;
     }
 
-    setIsCreatingBooking(true);
     try {
-      // First, try to allocate tables
+      // Allocate tables
       const { TableAllocationService } = await import("@/services/tableAllocation");
-      
       const allocationResult = await TableAllocationService.allocateTable(
         partySize,
         format(date, 'yyyy-MM-dd'),
         time,
-        120, // duration minutes
+        120,
         venue.id
       );
 
       if (!allocationResult.tableIds || allocationResult.tableIds.length === 0) {
-        console.error('❌ No tables allocated');
         throw new Error('No tables available for your requested time. Please try a different time slot.');
       }
 
       console.log('✅ Table allocated:', allocationResult.tableIds[0]);
 
+      // CRITICAL: Do NOT set status on client - server will enforce
       const bookingPayload = {
         venue_id: venue.id,
         service_id: service.id,
@@ -216,13 +211,14 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
         booking_time: time,
         service: service.title,
         notes: formData.notes || null,
-        status: paymentAmount > 0 ? 'pending_payment' : 'confirmed',
+        // NO status field - server decides based on payment requirement
         table_id: allocationResult.tableIds[0],
         is_unallocated: false,
         source: 'widget' as const,
+        payment_required: paymentRequired, // NEW: signal payment requirement to server
+        payment_amount_cents: amountCents  // NEW: amount for server validation
       };
 
-      // Call booking-create-secure edge function with lock token
       const { data: response, error } = await supabase.functions.invoke('booking-create-secure', {
         body: {
           booking: bookingPayload,
@@ -230,110 +226,91 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
         }
       });
 
-      if (error) {
-        console.error('Edge function error:', error);
-        throw new Error('Failed to create booking');
+      if (error || !response?.booking) {
+        throw new Error(response?.error || 'Booking creation failed');
       }
 
-      if (!response?.booking) {
-        const errorMessage = response?.error || 'Booking creation failed';
-        const reqId = response?.reqId ? ` (Request ID: ${response.reqId})` : '';
-        
-        console.error('Booking creation failed:', {
-          error: errorMessage,
-          reqId: response?.reqId,
-          errors: response?.errors
-        });
-        
-        throw new Error(errorMessage + reqId);
-      }
-
-      const data = response.booking;
-
-      console.log('Booking created successfully:', data.id);
-      setBookingId(data.id);
+      const booking = response.booking;
+      setBookingId(booking.id);
       
-      // If payment is required, create payment intent and show payment form
-      if (paymentAmount > 0) {
-        console.log('Payment required, creating payment intent...');
-        await createPaymentIntent(data.id, paymentAmount);
-      } else {
-        // No payment required, send confirmation email and proceed
-        console.log('No payment required, confirming booking...');
+      console.log(`✅ Booking created: ${booking.id}, status: ${booking.status || 'N/A'}`);
+      
+      // STEP 3: Handle payment or direct confirmation
+      if (paymentRequired) {
+        // CRITICAL: Booking MUST be pending_payment at this point
+        if (booking.status === 'confirmed') {
+          throw new Error('Security violation: Booking confirmed without payment');
+        }
         
-        // Send confirmation email if email is provided
+        console.log('🔒 Payment required - initializing Stripe...');
+        await initializePayment(booking.id, amountCents);
+      } else {
+        // No payment required - booking should already be confirmed by server
+        console.log('✅ No payment required, booking confirmed');
+        
+        // Send confirmation email
         if (formData.email) {
           try {
             await supabase.functions.invoke('send-email', {
               body: {
-                booking_id: data.id,
+                booking_id: booking.id,
                 guest_email: formData.email,
                 venue_id: venue.id,
                 email_type: 'booking_confirmation'
               }
             });
-            console.log('Confirmation email sent successfully');
           } catch (emailError) {
-            console.error('Failed to send confirmation email:', emailError);
+            console.error('Email send failed (non-fatal):', emailError);
           }
         }
-
+        
         toast.success("Booking confirmed successfully!");
-        onChange(formData, false, 0, data.id);
+        onChange(formData, false, 0, booking.id);
       }
 
     } catch (error) {
       console.error('Error creating booking:', error);
       
-      // Release lock on booking failure
       if (lockData) {
         await releaseLock('booking_failed');
       }
       
       toast.error(error instanceof Error ? error.message : 'Failed to create booking. Please try again.');
-    } finally {
-      setIsCreatingBooking(false);
     }
   };
 
-  const createPaymentIntent = async (bookingId: number, amount: number) => {
+  const initializePayment = async (bookingId: number, amountCents: number) => {
     try {
-      console.log('Creating payment intent for booking:', bookingId, 'amount:', amount);
+      console.log('💳 Creating payment intent for booking:', bookingId, 'amount:', amountCents);
 
+      // Create payment intent - server calculates amount from booking
       const { data, error: paymentError } = await supabase.functions.invoke('create-payment-intent', {
         body: {
-          bookingId: bookingId,
-          amount: amount,
-          currency: 'gbp',
-          description: `${service?.title} - The Nuthatch`
+          bookingId: bookingId
+          // Don't pass amount - server calculates it
         }
       });
 
-      if (paymentError) {
-        console.error('Payment intent error:', paymentError);
-        throw new Error('Failed to initialize payment. Please try again.');
+      if (paymentError || !data?.client_secret) {
+        console.error('Payment initialization failed:', paymentError || data);
+        throw new Error('Payment required for this booking, but we couldn\'t initialize checkout. Please try again or contact the venue.');
       }
 
-      if (!data?.client_secret) {
-        console.error('No client secret returned:', data);
-        throw new Error('Payment system error. Please contact the venue.');
-      }
-
-      console.log('✅ Payment intent created successfully:', data);
+      console.log('✅ Payment intent created:', data.payment_intent_id);
       setClientSecret(data.client_secret);
       setShowPaymentForm(true);
+      
       toast.success("Please complete your payment below to confirm your booking.");
 
     } catch (err) {
       console.error('Payment setup error:', err);
       
-      // Release lock on payment setup failure
       if (lockData) {
         await releaseLock('payment_failed');
       }
       
-      const errorMessage = err instanceof Error ? err.message : 'Failed to initialize payment';
-      toast.error(errorMessage);
+      toast.error(err instanceof Error ? err.message : 'Failed to initialize payment. Please try again or contact the venue.');
+      throw err; // Re-throw to prevent proceeding
     }
   };
 

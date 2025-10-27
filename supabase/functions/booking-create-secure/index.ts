@@ -134,10 +134,13 @@ const bookingCreateSchema = z.object({
     service_id: z.string().uuid("Invalid service ID").nullable().optional(),
     notes: z.string().max(500, "Notes too long").nullable().optional(),
     venue_id: z.string().uuid("Invalid venue ID"),
-    status: z.enum(['pending_payment', 'confirmed']).optional(),
     table_id: z.number().int().nullable().optional(),
     is_unallocated: z.boolean().optional(),
     source: z.enum(['widget', 'admin', 'walkin']).optional(),
+    // NEW: Payment requirement fields (client hints, server validates)
+    payment_required: z.boolean().optional(),
+    payment_amount_cents: z.number().int().min(0).max(1000000).optional(),
+    // REMOVED: status field - server determines this
   }),
   lockToken: z.string().uuid().nullable(),
 });
@@ -318,20 +321,19 @@ const handler = async (req: Request): Promise<Response> => {
       service: sanitizeInput(bookingData.service),
       notes: bookingData.notes ? sanitizeInput(bookingData.notes) : null,
       venue_id: bookingData.venue_id,
-      status: bookingData.status || 'confirmed',
+      // REMOVED: status field from sanitizedData
       table_id: bookingData.table_id || null,
       is_unallocated: bookingData.is_unallocated || false,
       source: bookingData.source || 'widget',
-      variant: (requestData as any).variant || null,
     };
 
     serviceId = bookingData.service_id || null;
     log('🧼 Data sanitized');
 
-    // Verify venue
+    // Verify venue (get slug for payment calculation)
     const { data: venue, error: venueError } = await supabaseAdmin
       .from('venues')
-      .select('id, approval_status, name')
+      .select('id, approval_status, name, slug')
       .eq('id', sanitizedData.venue_id)
       .single();
 
@@ -366,6 +368,57 @@ const handler = async (req: Request): Promise<Response> => {
 
     serviceId = service?.id || null;
 
+    // NEW: SERVER-SIDE PAYMENT REQUIREMENT CHECK
+    let requiresPayment = false;
+    let paymentAmountCents = 0;
+    let paymentDescription = '';
+
+    // Re-calculate payment server-side (never trust client)
+    if (serviceId && venue.slug) {
+      log('💰 Calculating payment requirement server-side...');
+      
+      try {
+        // Invoke venue-payment-rules with service role
+        const { data: paymentCalc, error: paymentError } = await supabaseAdmin.functions.invoke(
+          'venue-payment-rules',
+          {
+            body: {
+              venueSlug: venue.slug,
+              serviceId: serviceId,
+              partySize: sanitizedData.party_size
+            }
+          }
+        );
+
+        if (!paymentError && paymentCalc?.ok && paymentCalc.shouldCharge && paymentCalc.amount_cents > 0) {
+          requiresPayment = true;
+          paymentAmountCents = paymentCalc.amount_cents;
+          paymentDescription = paymentCalc.description || 'Booking deposit';
+          
+          log('💰 Payment required:', {
+            amount_cents: paymentAmountCents,
+            description: paymentDescription
+          });
+        } else {
+          log('✅ No payment required');
+        }
+      } catch (paymentCheckError) {
+        log('⚠️ Payment check failed (non-fatal):', paymentCheckError);
+        // If payment check fails, fail safe: assume no payment required
+      }
+    } else {
+      log('ℹ️ No service ID or slug, assuming no payment');
+    }
+
+    // CRITICAL: Determine status server-side
+    const bookingStatus = requiresPayment ? 'pending_payment' : 'confirmed';
+
+    log('🔐 Booking status determined server-side:', {
+      requiresPayment,
+      status: bookingStatus,
+      amount_cents: paymentAmountCents
+    });
+
     // Validate lock token if provided
     if (lockToken) {
       log('🔒 Validating lock token:', lockToken.substring(0, 8) + '...');
@@ -398,10 +451,13 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Create booking
+    // Create booking with SERVER-DETERMINED status
     const { data: booking, error: bookingError } = await supabaseAdmin
       .from('bookings')
-      .insert(sanitizedData)
+      .insert({
+        ...sanitizedData,
+        status: bookingStatus, // SERVER-SIDE ONLY
+      })
       .select()
       .single();
 
@@ -422,17 +478,29 @@ const handler = async (req: Request): Promise<Response> => {
 
     bookingCreated = true;
     
-    // GUARDRAIL 5: Re-assert confirmation invariant
-    const paymentAmount = sanitizedData.payment_amount || 0;
-    if (paymentAmount > 0 && booking.status !== 'pending_payment') {
+    // GUARDRAIL: Re-assert confirmation invariant
+    if (requiresPayment && booking.status !== 'pending_payment') {
+      log('❌ INVARIANT VIOLATION:', {
+        requiresPayment,
+        bookingStatus: booking.status,
+        expected: 'pending_payment'
+      });
       throw new Error('Booking status invariant violated: payment required but status not pending_payment');
     }
-    
+
+    if (!requiresPayment && booking.status !== 'confirmed') {
+      log('⚠️ WARNING: No payment required but booking not confirmed:', {
+        requiresPayment,
+        bookingStatus: booking.status
+      });
+    }
+
     log('✅ Booking created:', {
       id: booking.id,
       reference: booking.booking_reference,
       status: booking.status,
-      requiresPayment: paymentAmount > 0,
+      requiresPayment,
+      paymentAmount: paymentAmountCents,
       took_ms: Date.now() - t0
     });
 
@@ -476,8 +544,13 @@ const handler = async (req: Request): Promise<Response> => {
         guest_name: booking.guest_name,
         party_size: booking.party_size,
         booking_date: booking.booking_date,
-        booking_time: booking.booking_time
+        booking_time: booking.booking_time,
+        status: booking.status // Include status for client validation
       },
+      // NEW: Payment information
+      requiresPayment,
+      paymentAmountCents,
+      paymentDescription,
       reqId
     }), {
       status: 201,
