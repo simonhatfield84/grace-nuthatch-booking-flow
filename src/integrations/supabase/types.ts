@@ -279,6 +279,70 @@ export type Database = {
           },
         ]
       }
+      booking_attempts: {
+        Row: {
+          created_at: string | null
+          date: string | null
+          id: string
+          party_size: number | null
+          reason: string | null
+          result: string
+          service_id: string | null
+          time: string | null
+          utm: Json | null
+          venue_id: string
+          venue_slug: string
+        }
+        Insert: {
+          created_at?: string | null
+          date?: string | null
+          id?: string
+          party_size?: number | null
+          reason?: string | null
+          result: string
+          service_id?: string | null
+          time?: string | null
+          utm?: Json | null
+          venue_id: string
+          venue_slug: string
+        }
+        Update: {
+          created_at?: string | null
+          date?: string | null
+          id?: string
+          party_size?: number | null
+          reason?: string | null
+          result?: string
+          service_id?: string | null
+          time?: string | null
+          utm?: Json | null
+          venue_id?: string
+          venue_slug?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_attempts_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_attempts_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_attempts_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_audit: {
         Row: {
           booking_id: number
@@ -743,6 +807,11 @@ export type Database = {
           table_id: number | null
           time_range: unknown
           updated_at: string | null
+          utm_campaign: string | null
+          utm_content: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          utm_term: string | null
           venue_id: string
         }
         Insert: {
@@ -765,6 +834,11 @@ export type Database = {
           table_id?: number | null
           time_range?: unknown
           updated_at?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
           venue_id: string
         }
         Update: {
@@ -787,6 +861,11 @@ export type Database = {
           table_id?: number | null
           time_range?: unknown
           updated_at?: string | null
+          utm_campaign?: string | null
+          utm_content?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          utm_term?: string | null
           venue_id?: string
         }
         Relationships: [

@@ -24,6 +24,8 @@ import Reports from "./pages/Reports";
 import BookingWidget from "./pages/BookingWidget";
 import ModifyBooking from "./pages/ModifyBooking";
 import CancelBooking from "./pages/CancelBooking";
+import V5WidgetPage from "./features/bookingV5/pages/V5WidgetPage";
+import V5WidgetPreviewPage from "./features/bookingV5/pages/V5WidgetPreviewPage";
 import HomePage from "./pages/HomePage";
 import NotFound from "./pages/NotFound";
 import PaymentPage from "./pages/PaymentPage";
@@ -72,6 +74,18 @@ function App() {
                       <StripeProvider>
                         <BookingWidget />
                       </StripeProvider>
+                    } />
+                    <Route path="/booking/:venueSlug/v5" element={
+                      <StripeProvider>
+                        <V5WidgetPage />
+                      </StripeProvider>
+                    } />
+                    <Route path="/booking/:venueSlug/v5/preview" element={
+                      <ProtectedRoute>
+                        <StripeProvider>
+                          <V5WidgetPreviewPage />
+                        </StripeProvider>
+                      </ProtectedRoute>
                     } />
                     <Route path="/modify/:token" element={
                       <StripeProvider>
