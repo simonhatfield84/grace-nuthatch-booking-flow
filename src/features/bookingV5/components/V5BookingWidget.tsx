@@ -6,6 +6,7 @@ import { V5BookingProvider, useV5Booking } from '../context/V5BookingContext';
 import { useV5WidgetConfig } from '../hooks/useV5WidgetConfig';
 import { useUTM } from '../hooks/useUTM';
 import { useAttemptLogger } from '../hooks/useAttemptLogger';
+import { StripeProvider } from '@/components/providers/StripeProvider';
 import { parseURLPrefill, parseVariant } from '../utils/paramParsing';
 import { BrandHeader } from './BrandHeader';
 import { HoldBanner } from './HoldBanner';
@@ -198,14 +199,24 @@ function V5BookingWidgetInner({ venueSlug }: V5BookingWidgetProps) {
   }
   
   if (error || !config) {
+    // Determine error message based on error code
+    let title = 'Venue Not Available';
+    let message = 'The booking page you\'re looking for doesn\'t exist or is not currently accepting bookings.';
+    
+    if (error?.message?.includes('not approved') || error?.message?.includes('not currently accepting')) {
+      title = 'Bookings Temporarily Unavailable';
+      message = 'This venue is not currently accepting online bookings. Please check back later or contact the venue directly.';
+    } else if (error?.message?.includes('not found')) {
+      title = 'Venue Not Found';
+      message = 'We couldn\'t find the booking page you\'re looking for. Please check the URL and try again.';
+    }
+    
     return (
       <div className="min-h-screen flex items-center justify-center bg-background p-4">
         <Card className="p-6 max-w-md text-center">
           <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-          <h2 className="text-xl font-semibold mb-2">Venue Not Found</h2>
-          <p className="text-muted-foreground">
-            The booking page you're looking for doesn't exist or is not available.
-          </p>
+          <h2 className="text-xl font-semibold mb-2">{title}</h2>
+          <p className="text-muted-foreground">{message}</p>
         </Card>
       </div>
     );
@@ -316,13 +327,50 @@ export function V5BookingWidget({ venueSlug }: V5BookingWidgetProps) {
   const [searchParams] = useSearchParams();
   const urlVariant = parseVariant(searchParams);
   
-  // Fetch config to get effective variant (URL or venue default)
-  const { data: config } = useV5WidgetConfig(venueSlug, urlVariant);
-  const effectiveVariant = config?.variant || 'standard';
+  // Fetch config FIRST to resolve venue
+  const { data: config, isLoading, error } = useV5WidgetConfig(venueSlug, urlVariant);
   
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+  
+  // Show error state BEFORE Stripe loads
+  if (error || !config) {
+    let title = 'Venue Not Available';
+    let message = 'The booking page you\'re looking for doesn\'t exist or is not currently accepting bookings.';
+    
+    if (error?.message?.includes('not approved') || error?.message?.includes('not currently accepting')) {
+      title = 'Bookings Temporarily Unavailable';
+      message = 'This venue is not currently accepting online bookings. Please check back later or contact the venue directly.';
+    } else if (error?.message?.includes('not found')) {
+      title = 'Venue Not Found';
+      message = 'We couldn\'t find the booking page you\'re looking for. Please check the URL and try again.';
+    }
+    
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="p-6 max-w-md text-center">
+          <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+          <h2 className="text-xl font-semibold mb-2">{title}</h2>
+          <p className="text-muted-foreground">{message}</p>
+        </Card>
+      </div>
+    );
+  }
+  
+  const effectiveVariant = config.variant || 'standard';
+  
+  // ONLY load Stripe after venue is confirmed valid
   return (
-    <V5BookingProvider initialUTM={utm} variant={effectiveVariant}>
-      <V5BookingWidgetInner venueSlug={venueSlug} />
-    </V5BookingProvider>
+    <StripeProvider venueSlug={venueSlug} usePublicMode={true}>
+      <V5BookingProvider initialUTM={utm} variant={effectiveVariant}>
+        <V5BookingWidgetInner venueSlug={venueSlug} />
+      </V5BookingProvider>
+    </StripeProvider>
   );
 }

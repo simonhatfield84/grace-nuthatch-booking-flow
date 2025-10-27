@@ -2764,6 +2764,62 @@ export type Database = {
         }
         Relationships: []
       }
+      venue_branding_public: {
+        Row: {
+          accent_color: string | null
+          button_shape: string | null
+          font_body: string | null
+          font_heading: string | null
+          logo_dark: string | null
+          logo_light: string | null
+          primary_color: string | null
+          secondary_color: string | null
+          venue_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_branding_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: true
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_branding_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: true
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      venue_media_public: {
+        Row: {
+          height: number | null
+          id: string | null
+          path: string | null
+          sort_order: number | null
+          type: string | null
+          venue_id: string | null
+          width: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_media_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_media_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       venue_widget_public_v4: {
         Row: {
           about_html: string | null

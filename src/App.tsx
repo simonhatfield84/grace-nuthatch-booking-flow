@@ -75,11 +75,7 @@ function App() {
                         <BookingWidget />
                       </StripeProvider>
                     } />
-                    <Route path="/booking/:venueSlug/v5" element={
-                      <StripeProvider>
-                        <V5WidgetPage />
-                      </StripeProvider>
-                    } />
+                    <Route path="/booking/:venueSlug/v5" element={<V5WidgetPage />} />
                     <Route path="/booking/:venueSlug/v5/preview" element={
                       <ProtectedRoute>
                         <StripeProvider>

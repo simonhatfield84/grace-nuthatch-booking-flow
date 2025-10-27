@@ -16,17 +16,19 @@ export function useV5WidgetConfig(venueSlug: string, urlVariant?: 'standard' | '
   return useQuery({
     queryKey: ['v5-widget-config', venueSlug, urlVariant],
     queryFn: async (): Promise<V5WidgetConfig> => {
-      // Get venue ID first
-      const { data: venue, error: venueError } = await (supabase as any)
-        .from('venues')
-        .select('id')
-        .eq('slug', venueSlug)
-        .eq('approved', true)
-        .single();
-      
-      if (venueError || !venue) {
-        throw new Error('Venue not found or not approved');
+      // Get venue ID using service role edge function
+      const { data: venueResponse, error: venueError } = await supabase.functions.invoke(
+        'venue-lookup',
+        { body: { venueSlug } }
+      );
+
+      if (venueError || !venueResponse?.ok) {
+        const message = venueResponse?.message || 'Venue not found or not approved';
+        console.error('❌ Venue lookup failed:', message);
+        throw new Error(message);
       }
+
+      const venue = venueResponse.venue;
       
       // Get branding, media, copy in parallel
       const [brandingRes, mediaRes, copyRes] = await Promise.all([

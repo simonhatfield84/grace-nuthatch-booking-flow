@@ -74,6 +74,9 @@ verify_jwt = false
 [functions.send-verification-code]
 verify_jwt = false
 
+[functions.venue-lookup]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 policy = "per_request"
