@@ -9,6 +9,7 @@ import { useAttemptLogger } from '../hooks/useAttemptLogger';
 import { StripeProvider } from '@/components/providers/StripeProvider';
 import { parseURLPrefill, parseVariant } from '../utils/paramParsing';
 import { BrandHeader } from './BrandHeader';
+import { HeroSection } from './HeroSection';
 import { HoldBanner } from './HoldBanner';
 import { PartyDateStep } from '../steps/PartyDateStep';
 import { ServiceStep } from '../steps/ServiceStep';
@@ -140,25 +141,31 @@ function V5BookingWidgetInner({ venueSlug }: V5BookingWidgetProps) {
         return;
       }
       
-      // Create booking
+      // Create booking - wrap in 'booking' object as expected by edge function
       const bookingPayload = {
-        venue_id: config!.venueId,
-        service: state.selectedService.title,
-        booking_date: format(state.selectedDate!, 'yyyy-MM-dd'),
-        booking_time: state.selectedTime,
-        party_size: state.partySize,
-        guest_name: guestData.name,
-        email: guestData.email,
-        phone: guestData.phone,
-        notes: guestData.notes,
-        status: payment.shouldCharge ? 'pending_payment' : 'confirmed',
+        booking: {
+          venue_id: config!.venueId,
+          service_id: state.selectedService?.id || null,
+          service: state.selectedService.title,
+          booking_date: format(state.selectedDate!, 'yyyy-MM-dd'),
+          booking_time: state.selectedTime,
+          party_size: state.partySize,
+          guest_name: guestData.name,
+          email: guestData.email,
+          phone: guestData.phone,
+          notes: guestData.notes || null,
+          status: payment.shouldCharge ? 'pending_payment' : 'confirmed',
+          source: 'widget'
+        },
         lockToken: state.lockToken,
         variant: state.variant,
-        utm_source: state.utm.utm_source,
-        utm_medium: state.utm.utm_medium,
-        utm_campaign: state.utm.utm_campaign,
-        utm_content: state.utm.utm_content,
-        utm_term: state.utm.utm_term
+        utm: {
+          utm_source: state.utm.utm_source,
+          utm_medium: state.utm.utm_medium,
+          utm_campaign: state.utm.utm_campaign,
+          utm_content: state.utm.utm_content,
+          utm_term: state.utm.utm_term
+        }
       };
       
       const { data, error } = await supabase.functions.invoke('booking-create-secure', {
@@ -287,7 +294,11 @@ function V5BookingWidgetInner({ venueSlug }: V5BookingWidgetProps) {
           venueName={venueSlug}
         />
         
-        <Card className="mt-4 mx-4 mb-4">
+        {config.media && config.media.length > 0 && (
+          <HeroSection images={config.media.filter(m => m.type === 'hero')} />
+        )}
+        
+        <Card className="mt-4 mx-4 mb-4" style={{ fontFamily: 'var(--font-body)' }}>
           {state.lockToken && state.lockExpiresAt && (
             <div className="p-4 border-b">
               <HoldBanner 

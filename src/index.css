@@ -60,6 +60,9 @@
     --nuthatch-primary-foreground: var(--nuthatch-white);
     --nuthatch-muted: 200 8% 90%; /* Lighter variant of dark */
     --nuthatch-border: 200 8% 85%; /* Even lighter for borders */
+    
+    /* Dynamic venue branding (set by useBrandingForVenue hook) */
+    /* These override the default theme when branding is loaded */
   }
 
   /* Dark theme with host interface colors */
