@@ -375,10 +375,12 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Re-calculate payment server-side (never trust client)
     if (serviceId && venue.slug) {
-      log('💰 Calculating payment requirement server-side...');
+      log('💰 Calculating payment requirement server-side...', { 
+        serviceId: serviceId.substring(0, 8) + '...', 
+        venueSlug: venue.slug 
+      });
       
       try {
-        // Invoke venue-payment-rules with service role
         const { data: paymentCalc, error: paymentError } = await supabaseAdmin.functions.invoke(
           'venue-payment-rules',
           {
@@ -390,30 +392,36 @@ const handler = async (req: Request): Promise<Response> => {
           }
         );
 
+        log('📊 Payment calc response:', {
+          ok: paymentCalc?.ok,
+          shouldCharge: paymentCalc?.shouldCharge,
+          amount_cents: paymentCalc?.amount_cents,
+          error: paymentError?.message
+        });
+
         if (!paymentError && paymentCalc?.ok && paymentCalc.shouldCharge && paymentCalc.amount_cents > 0) {
           requiresPayment = true;
           paymentAmountCents = paymentCalc.amount_cents;
           paymentDescription = paymentCalc.description || 'Booking deposit';
           
-          log('💰 Payment required:', {
+          log('💰 Payment REQUIRED:', {
             amount_cents: paymentAmountCents,
             description: paymentDescription
           });
         } else {
-          log('✅ No payment required');
+          log('✅ No payment required', { reason: paymentError ? 'error' : 'shouldCharge=false' });
         }
       } catch (paymentCheckError) {
-        log('⚠️ Payment check failed (non-fatal):', paymentCheckError);
-        // If payment check fails, fail safe: assume no payment required
+        log('⚠️ Payment check failed (defaulting to no payment):', paymentCheckError);
       }
     } else {
-      log('ℹ️ No service ID or slug, assuming no payment');
+      log('ℹ️ Skipping payment check:', { hasServiceId: !!serviceId, hasSlug: !!venue.slug });
     }
 
     // CRITICAL: Determine status server-side
     const bookingStatus = requiresPayment ? 'pending_payment' : 'confirmed';
 
-    log('🔐 Booking status determined server-side:', {
+    log('🔐 SERVER DECISION:', {
       requiresPayment,
       status: bookingStatus,
       amount_cents: paymentAmountCents
@@ -477,21 +485,37 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     bookingCreated = true;
-    
-    // GUARDRAIL: Re-assert confirmation invariant
+        
+    // GUARDRAIL: Assert confirmation invariant
     if (requiresPayment && booking.status !== 'pending_payment') {
-      log('❌ INVARIANT VIOLATION:', {
+      log('❌ INVARIANT VIOLATION - BLOCKING BOOKING:', {
         requiresPayment,
-        bookingStatus: booking.status,
-        expected: 'pending_payment'
+        actualStatus: booking.status,
+        expectedStatus: 'pending_payment',
+        bookingId: booking.id,
+        amountCents: paymentAmountCents
       });
-      throw new Error('Booking status invariant violated: payment required but status not pending_payment');
+      
+      // DELETE the booking if invariant violated
+      await supabaseAdmin.from('bookings').delete().eq('id', booking.id);
+      
+      return new Response(JSON.stringify({
+        ok: false,
+        code: 'payment_required_not_enforced',
+        error: 'Payment required but booking was not created in pending_payment status',
+        requiresPayment: true,
+        paymentAmountCents,
+        reqId: requestData.reqId || reqId
+      }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
     }
 
     if (!requiresPayment && booking.status !== 'confirmed') {
-      log('⚠️ WARNING: No payment required but booking not confirmed:', {
+      log('⚠️ WARNING: No payment but not confirmed:', {
         requiresPayment,
-        bookingStatus: booking.status
+        actualStatus: booking.status
       });
     }
 
@@ -501,6 +525,7 @@ const handler = async (req: Request): Promise<Response> => {
       status: booking.status,
       requiresPayment,
       paymentAmount: paymentAmountCents,
+      reqId: requestData.reqId || reqId,
       took_ms: Date.now() - t0
     });
 
@@ -545,13 +570,12 @@ const handler = async (req: Request): Promise<Response> => {
         party_size: booking.party_size,
         booking_date: booking.booking_date,
         booking_time: booking.booking_time,
-        status: booking.status // Include status for client validation
+        status: booking.status
       },
-      // NEW: Payment information
       requiresPayment,
       paymentAmountCents,
       paymentDescription,
-      reqId
+      reqId: requestData.reqId || reqId
     }), {
       status: 201,
       headers: { 'Content-Type': 'application/json', ...corsHeaders },

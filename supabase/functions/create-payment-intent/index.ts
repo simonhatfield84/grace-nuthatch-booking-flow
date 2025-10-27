@@ -16,13 +16,14 @@ const handler = async (req: Request): Promise<Response> => {
   if (corsResponse) return corsResponse;
 
   try {
-    const reqId = crypto.randomUUID().substring(0, 8);
-    console.log(`💳 [${reqId}] Payment intent request`);
-    
     // Parse input
-    const { bookingId } = await req.json();
+    const { bookingId, reqId: clientReqId } = await req.json();
+    const reqId = clientReqId || crypto.randomUUID().substring(0, 8);
+    
+    console.log(`💳 [${reqId}] Payment intent request:`, { bookingId });
 
     if (!Number.isInteger(bookingId) || bookingId <= 0) {
+      console.error(`❌ [${reqId}] Invalid booking ID:`, bookingId);
       return jsonResponse(
         err('invalid_input', 'Valid booking ID required'),
         400,
@@ -115,7 +116,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const amountCents = paymentCalc.amount_cents;
-    console.log(`💰 [${reqId}] Amount calculated: £${amountCents/100}`);
+    console.log(`💰 [${reqId}] Amount calculated server-side: £${amountCents/100}`);
 
     // Enforce bounds
     if (amountCents < 50 || amountCents > 1000000) {
