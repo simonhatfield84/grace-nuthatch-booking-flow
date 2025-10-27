@@ -1915,6 +1915,186 @@ export type Database = {
           },
         ]
       }
+      services_backup_utc_now: {
+        Row: {
+          active: boolean | null
+          auto_refund_enabled: boolean | null
+          backed_up_at_utc: string | null
+          cancellation_window_hours: number | null
+          charge_amount_per_guest: number | null
+          charge_type: string | null
+          created_at: string | null
+          deposit_per_guest: number | null
+          description: string | null
+          duration_rules: Json | null
+          id: string | null
+          image_url: string | null
+          is_secret: boolean | null
+          lead_time_hours: number | null
+          max_guests: number | null
+          min_guests: number | null
+          minimum_guests_for_charge: number | null
+          online_bookable: boolean | null
+          refund_window_hours: number | null
+          requires_deposit: boolean | null
+          requires_payment: boolean | null
+          secret_slug: string | null
+          tag_ids: string[] | null
+          terms_and_conditions: string | null
+          title: string | null
+          updated_at: string | null
+          venue_id: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          auto_refund_enabled?: boolean | null
+          backed_up_at_utc?: string | null
+          cancellation_window_hours?: number | null
+          charge_amount_per_guest?: number | null
+          charge_type?: string | null
+          created_at?: string | null
+          deposit_per_guest?: number | null
+          description?: string | null
+          duration_rules?: Json | null
+          id?: string | null
+          image_url?: string | null
+          is_secret?: boolean | null
+          lead_time_hours?: number | null
+          max_guests?: number | null
+          min_guests?: number | null
+          minimum_guests_for_charge?: number | null
+          online_bookable?: boolean | null
+          refund_window_hours?: number | null
+          requires_deposit?: boolean | null
+          requires_payment?: boolean | null
+          secret_slug?: string | null
+          tag_ids?: string[] | null
+          terms_and_conditions?: string | null
+          title?: string | null
+          updated_at?: string | null
+          venue_id?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          auto_refund_enabled?: boolean | null
+          backed_up_at_utc?: string | null
+          cancellation_window_hours?: number | null
+          charge_amount_per_guest?: number | null
+          charge_type?: string | null
+          created_at?: string | null
+          deposit_per_guest?: number | null
+          description?: string | null
+          duration_rules?: Json | null
+          id?: string | null
+          image_url?: string | null
+          is_secret?: boolean | null
+          lead_time_hours?: number | null
+          max_guests?: number | null
+          min_guests?: number | null
+          minimum_guests_for_charge?: number | null
+          online_bookable?: boolean | null
+          refund_window_hours?: number | null
+          requires_deposit?: boolean | null
+          requires_payment?: boolean | null
+          secret_slug?: string | null
+          tag_ids?: string[] | null
+          terms_and_conditions?: string | null
+          title?: string | null
+          updated_at?: string | null
+          venue_id?: string | null
+        }
+        Relationships: []
+      }
+      services_backup_utc_now_2: {
+        Row: {
+          active: boolean | null
+          auto_refund_enabled: boolean | null
+          backed_up_at_utc: string | null
+          cancellation_window_hours: number | null
+          charge_amount_per_guest: number | null
+          charge_type: string | null
+          created_at: string | null
+          deposit_per_guest: number | null
+          description: string | null
+          duration_rules: Json | null
+          id: string | null
+          image_url: string | null
+          is_secret: boolean | null
+          lead_time_hours: number | null
+          max_guests: number | null
+          min_guests: number | null
+          minimum_guests_for_charge: number | null
+          online_bookable: boolean | null
+          refund_window_hours: number | null
+          requires_deposit: boolean | null
+          requires_payment: boolean | null
+          secret_slug: string | null
+          tag_ids: string[] | null
+          terms_and_conditions: string | null
+          title: string | null
+          updated_at: string | null
+          venue_id: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          auto_refund_enabled?: boolean | null
+          backed_up_at_utc?: string | null
+          cancellation_window_hours?: number | null
+          charge_amount_per_guest?: number | null
+          charge_type?: string | null
+          created_at?: string | null
+          deposit_per_guest?: number | null
+          description?: string | null
+          duration_rules?: Json | null
+          id?: string | null
+          image_url?: string | null
+          is_secret?: boolean | null
+          lead_time_hours?: number | null
+          max_guests?: number | null
+          min_guests?: number | null
+          minimum_guests_for_charge?: number | null
+          online_bookable?: boolean | null
+          refund_window_hours?: number | null
+          requires_deposit?: boolean | null
+          requires_payment?: boolean | null
+          secret_slug?: string | null
+          tag_ids?: string[] | null
+          terms_and_conditions?: string | null
+          title?: string | null
+          updated_at?: string | null
+          venue_id?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          auto_refund_enabled?: boolean | null
+          backed_up_at_utc?: string | null
+          cancellation_window_hours?: number | null
+          charge_amount_per_guest?: number | null
+          charge_type?: string | null
+          created_at?: string | null
+          deposit_per_guest?: number | null
+          description?: string | null
+          duration_rules?: Json | null
+          id?: string | null
+          image_url?: string | null
+          is_secret?: boolean | null
+          lead_time_hours?: number | null
+          max_guests?: number | null
+          min_guests?: number | null
+          minimum_guests_for_charge?: number | null
+          online_bookable?: boolean | null
+          refund_window_hours?: number | null
+          requires_deposit?: boolean | null
+          requires_payment?: boolean | null
+          secret_slug?: string | null
+          tag_ids?: string[] | null
+          terms_and_conditions?: string | null
+          title?: string | null
+          updated_at?: string | null
+          venue_id?: string | null
+        }
+        Relationships: []
+      }
       stripe_key_audit: {
         Row: {
           action: string

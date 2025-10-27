@@ -45,6 +45,22 @@ function addMinutes(time: string, minutes: number): string {
   return `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`;
 }
 
+function getDurationForPartySize(durationRules: any, partySize: number): number {
+  const DEFAULT_DURATION = 120;
+  
+  if (!Array.isArray(durationRules) || durationRules.length === 0) {
+    return DEFAULT_DURATION;
+  }
+  
+  // Find matching rule based on party size
+  const matchingRule = durationRules.find((rule: any) => 
+    partySize >= (rule.minGuests || 0) && 
+    partySize <= (rule.maxGuests || 999)
+  );
+  
+  return matchingRule?.durationMinutes || DEFAULT_DURATION;
+}
+
 // ========== TABLE ALLOCATION (server-side with proper overlap) ==========
 async function allocateTableServerSide(
   supabase: any,
@@ -300,7 +316,7 @@ const handler = async (req: Request): Promise<Response> => {
       .select(`
         id, title, requires_payment, charge_type, 
         minimum_guests_for_charge, charge_amount_per_guest,
-        min_guests, max_guests, duration_minutes,
+        min_guests, max_guests, duration_rules,
         online_bookable, active
       `)
       .eq('id', input.serviceId)
@@ -367,12 +383,15 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // STEP 4: Allocate table server-side
+    const duration = getDurationForPartySize(service.duration_rules, input.partySize);
+    console.log(`⏱️ [${reqId}] Duration calculated: ${duration} mins for party of ${input.partySize}`);
+    
     const allocation = await allocateTableServerSide(supabase, {
       venueId: venue.id,
       date: input.date,
       time: input.time,
       partySize: input.partySize,
-      duration: service.duration_minutes || 120
+      duration: duration
     });
 
     if (!allocation.tableId) {
@@ -418,7 +437,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // STEP 6: Insert booking (DB trigger enforces status invariants)
     const bookingStatus = requiresPayment ? 'pending_payment' : 'confirmed';
-    const endTime = addMinutes(input.time, service.duration_minutes || 120);
+    const endTime = addMinutes(input.time, duration);
     
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
@@ -433,7 +452,7 @@ const handler = async (req: Request): Promise<Response> => {
         booking_date: input.date,
         booking_time: input.time,
         end_time: endTime,
-        duration_minutes: service.duration_minutes || 120,
+        duration_minutes: duration,
         table_id: allocation.tableId,
         is_unallocated: false,
         source: 'widget',

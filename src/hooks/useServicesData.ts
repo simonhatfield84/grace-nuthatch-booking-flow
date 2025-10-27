@@ -113,6 +113,14 @@ export const useServicesData = () => {
         throw new Error('No venue associated with user');
       }
 
+      // ✅ EXPLICIT GUARD
+      if (!userVenue || userVenue === '') {
+        const error = 'Cannot create service: venue_id is null or empty';
+        console.error(error);
+        toast.error(error);
+        throw new Error(error);
+      }
+
       console.log('Creating service with venue_id:', userVenue);
       console.log('Service data:', serviceData);
 
