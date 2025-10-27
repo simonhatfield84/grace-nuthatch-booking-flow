@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Loader2, AlertCircle } from 'lucide-react';
-import { V5BookingProvider, useV5Booking } from '../context/V5BookingContext';
+import { V5BookingProvider, useV5Booking, V5BookingStep } from '../context/V5BookingContext';
 import { useV5WidgetConfig } from '../hooks/useV5WidgetConfig';
 import { useUTM } from '../hooks/useUTM';
 import { useAttemptLogger } from '../hooks/useAttemptLogger';
@@ -227,6 +227,24 @@ function V5BookingWidgetInner({ venueSlug }: V5BookingWidgetProps) {
     goToStep('confirmation');
   };
   
+  // Helper: Determine previous step based on variant
+  const getPreviousStep = (currentStep: V5BookingStep): V5BookingStep | null => {
+    if (state.variant === 'serviceFirst') {
+      // serviceFirst flow: service → partyDate → time → guest → payment
+      if (currentStep === 'time') return 'partyDate';
+      if (currentStep === 'partyDate') return 'service';
+      if (currentStep === 'guest') return 'time';
+      if (currentStep === 'payment') return 'guest';
+    } else {
+      // standard flow: partyDate → service → time → guest → payment
+      if (currentStep === 'service') return 'partyDate';
+      if (currentStep === 'time') return 'service';
+      if (currentStep === 'guest') return 'time';
+      if (currentStep === 'payment') return 'guest';
+    }
+    return null;
+  };
+  
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -319,7 +337,10 @@ function V5BookingWidgetInner({ venueSlug }: V5BookingWidgetProps) {
                 markStepComplete('time');
                 goToStep('guest');
               }}
-              onBack={() => goToStep('service')}
+              onBack={() => {
+                const prevStep = getPreviousStep('time');
+                if (prevStep) goToStep(prevStep);
+              }}
             />
           )}
           

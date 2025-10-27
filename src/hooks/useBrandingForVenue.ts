@@ -29,18 +29,18 @@ export function useBrandingForVenue(venueSlug: string) {
   const { data: branding, isLoading: brandingLoading } = useQuery({
     queryKey: ['venue-branding-public', venueSlug],
     queryFn: async () => {
-      const { data: venue, error: venueError } = await supabase
-        .from('venues')
-        .select('id')
-        .eq('slug', venueSlug)
-        .single();
+      // Use venue-lookup edge function for anonymous access
+      const { data: venueData, error: venueError } = await supabase.functions.invoke(
+        'venue-lookup',
+        { body: { venueSlug } }
+      );
       
-      if (venueError) throw venueError;
+      if (venueError || !venueData?.ok) throw new Error('Venue not found');
 
       const { data, error } = await (supabase as any)
         .from('venue_branding_public')
         .select('*')
-        .eq('venue_id', venue.id)
+        .eq('venue_id', venueData.venue.id)
         .single();
       
       if (error) throw error;
@@ -52,18 +52,18 @@ export function useBrandingForVenue(venueSlug: string) {
   const { data: media, isLoading: mediaLoading } = useQuery({
     queryKey: ['venue-media-public', venueSlug],
     queryFn: async () => {
-      const { data: venue, error: venueError } = await supabase
-        .from('venues')
-        .select('id')
-        .eq('slug', venueSlug)
-        .single();
+      // Use venue-lookup edge function for anonymous access
+      const { data: venueData, error: venueError } = await supabase.functions.invoke(
+        'venue-lookup',
+        { body: { venueSlug } }
+      );
       
-      if (venueError) throw venueError;
+      if (venueError || !venueData?.ok) throw new Error('Venue not found');
 
       const { data, error} = await (supabase as any)
         .from('venue_media_public')
         .select('*')
-        .eq('venue_id', venue.id);
+        .eq('venue_id', venueData.venue.id);
       
       if (error) throw error;
       return data as VenueMediaPublic[];

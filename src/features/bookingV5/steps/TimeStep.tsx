@@ -42,9 +42,8 @@ export function TimeStep({ venueSlug, serviceId, date, partySize, onContinue, on
     setIsCreatingLock(true);
     
     try {
-      const { data, error } = await supabase.functions.invoke('locks', {
+      const { data, error } = await supabase.functions.invoke('locks/create', {
         body: {
-          action: 'create',
           venueSlug,
           serviceId,
           date: dateStr,
