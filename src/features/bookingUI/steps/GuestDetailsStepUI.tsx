@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -6,8 +8,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Info } from 'lucide-react';
+import { Info, Loader2 } from 'lucide-react';
 import { HoldBannerUI } from '../ui/HoldBannerUI';
+import { prepareBooking, createPaymentIntent } from '@/features/bookingAPI';
+import { useToast } from '@/hooks/use-toast';
 
 interface GuestDetails {
   name: string;
@@ -19,11 +23,24 @@ interface GuestDetails {
 }
 
 interface GuestDetailsStepUIProps {
-  onSubmit: (details: GuestDetails, requiresPayment: boolean) => void;
+  venueSlug: string;
+  bookingData: {
+    serviceId: string;
+    date: string;
+    time: string;
+    partySize: number;
+  };
+  lockToken: string;
+  secondsRemaining: number;
+  onSubmit: (details: any, requiresPayment: boolean) => Promise<void>;
   requiresDeposit?: boolean;
 }
 
 export function GuestDetailsStepUI({ 
+  venueSlug,
+  bookingData,
+  lockToken,
+  secondsRemaining,
   onSubmit, 
   requiresDeposit = false 
 }: GuestDetailsStepUIProps) {
@@ -38,6 +55,12 @@ export function GuestDetailsStepUI({
 
   const [showTerms, setShowTerms] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof GuestDetails, string>>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [requiresPayment, setRequiresPayment] = useState(false);
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [publishableKey, setPublishableKey] = useState<string | null>(null);
+  const [amountCents, setAmountCents] = useState(0);
+  const { toast } = useToast();
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof GuestDetails, string>> = {};
@@ -64,10 +87,61 @@ export function GuestDetailsStepUI({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = () => {
-    if (validateForm()) {
-      // TODO wire to BookingAPI later
-      onSubmit(details, requiresDeposit);
+  const handlePrepare = async () => {
+    if (!validateForm()) return;
+
+    setIsSubmitting(true);
+
+    try {
+      const result = await prepareBooking(venueSlug, {
+        serviceId: bookingData.serviceId,
+        date: bookingData.date,
+        time: bookingData.time,
+        partySize: bookingData.partySize,
+        guest: {
+          name: details.name,
+          email: details.email,
+          phone: details.phone,
+        },
+        notes: details.notes,
+        lockToken,
+      });
+
+      if (!result.ok) {
+        throw new Error(result.error || 'Booking failed');
+      }
+
+      if (result.requiresPayment) {
+        // Create payment intent
+        const paymentResult = await createPaymentIntent(
+          result.bookingData,
+          result.amountCents!
+        );
+
+        if (!paymentResult.ok) {
+          throw new Error('Failed to initialize payment');
+        }
+
+        setRequiresPayment(true);
+        setClientSecret(paymentResult.clientSecret!);
+        setPublishableKey(paymentResult.publishableKey!);
+        setAmountCents(result.amountCents!);
+      } else {
+        // No payment required - booking confirmed immediately
+        await onSubmit({
+          ...details,
+          booking: result.booking,
+        }, false);
+      }
+    } catch (error: any) {
+      console.error('Prepare booking error:', error);
+      toast({
+        title: 'Booking failed',
+        description: error.message || 'Please try again',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -82,9 +156,27 @@ export function GuestDetailsStepUI({
     }
   };
 
+  // Show payment form if payment is required
+  if (requiresPayment && clientSecret && publishableKey) {
+    const stripePromise = loadStripe(publishableKey);
+
+    return (
+      <Elements stripe={stripePromise} options={{ clientSecret }}>
+        <PaymentForm
+          amountCents={amountCents}
+          details={details}
+          secondsRemaining={secondsRemaining}
+          onSuccess={async () => {
+            await onSubmit({ ...details, paymentCompleted: true }, true);
+          }}
+        />
+      </Elements>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <HoldBannerUI />
+      <HoldBannerUI secondsRemaining={secondsRemaining} />
 
       <Card>
         <CardHeader>
@@ -221,12 +313,115 @@ export function GuestDetailsStepUI({
       )}
 
       <Button 
-        onClick={handleSubmit}
+        onClick={handlePrepare}
+        disabled={isSubmitting}
         className="w-full bg-black hover:bg-gray-800 text-white"
         size="lg"
       >
-        {requiresDeposit ? 'Continue to Payment' : 'Complete Booking'}
+        {isSubmitting ? (
+          <>
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Processing...
+          </>
+        ) : (
+          requiresDeposit ? 'Continue to Payment' : 'Complete Booking'
+        )}
       </Button>
+    </div>
+  );
+}
+
+// Payment form component
+interface PaymentFormProps {
+  amountCents: number;
+  details: GuestDetails;
+  secondsRemaining: number;
+  onSuccess: () => void;
+}
+
+function PaymentForm({ amountCents, details, secondsRemaining, onSuccess }: PaymentFormProps) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const { toast } = useToast();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!stripe || !elements) return;
+
+    setIsProcessing(true);
+
+    const { error } = await stripe.confirmPayment({
+      elements,
+      confirmParams: {
+        return_url: window.location.href,
+        receipt_email: details.email,
+      },
+      redirect: 'if_required',
+    });
+
+    if (error) {
+      toast({
+        title: 'Payment failed',
+        description: error.message || 'Please try again',
+        variant: 'destructive',
+      });
+      setIsProcessing(false);
+    } else {
+      // Payment succeeded - webhook will create booking
+      // Wait briefly then show confirmation
+      setTimeout(() => {
+        onSuccess();
+      }, 2000);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <HoldBannerUI secondsRemaining={secondsRemaining} />
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="font-nuthatch-heading text-nuthatch-dark">
+            Payment Details
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Alert className="bg-blue-50 border-blue-200">
+            <Info className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-800">
+              Deposit required: <strong>£{(amountCents / 100).toFixed(2)}</strong>
+            </AlertDescription>
+          </Alert>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="bg-white rounded-lg">
+              <PaymentElement />
+            </div>
+
+            <Button 
+              type="submit" 
+              disabled={isProcessing || !stripe}
+              className="w-full bg-black hover:bg-gray-800 text-white"
+              size="lg"
+            >
+              {isProcessing ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing payment...
+                </>
+              ) : (
+                `Pay £${(amountCents / 100).toFixed(2)} & Confirm`
+              )}
+            </Button>
+          </form>
+
+          <p className="text-xs text-nuthatch-muted text-center">
+            Your payment is secured by Stripe. The deposit will be charged immediately.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -1,26 +1,15 @@
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Clock } from 'lucide-react';
-import { useState, useEffect } from 'react';
 
 interface HoldBannerUIProps {
+  secondsRemaining?: number;
   className?: string;
 }
 
-export function HoldBannerUI({ className }: HoldBannerUIProps) {
-  // Mock countdown starting at 5:00
-  const [timeLeft, setTimeLeft] = useState(300); // 5 minutes in seconds
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTimeLeft(prev => Math.max(0, prev - 1));
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  const minutes = Math.floor(timeLeft / 60);
-  const seconds = timeLeft % 60;
-  const isUrgent = timeLeft < 60;
+export function HoldBannerUI({ secondsRemaining = 300, className }: HoldBannerUIProps) {
+  const minutes = Math.floor(secondsRemaining / 60);
+  const seconds = secondsRemaining % 60;
+  const isUrgent = secondsRemaining < 60;
 
   return (
     <Alert 
