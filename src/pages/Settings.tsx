@@ -8,8 +8,9 @@ import { TagManagement } from "@/components/settings/TagManagement";
 import { EmailSettingsPanel } from "@/components/settings/EmailSettingsPanel";
 import { EmailTemplatesList } from "@/components/settings/EmailTemplateEditor";
 import { BrandingSettingsTab } from "@/components/settings/BrandingSettingsTab";
-import { Settings as SettingsIcon, Clock, CreditCard, FileText, Tags, Mail, Palette } from "lucide-react";
+import { Settings as SettingsIcon, Clock, CreditCard, FileText, Tags, Mail, Palette, Link } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
+import { WidgetLinkBuilderTab } from "@/components/settings/WidgetLinkBuilderTab";
 
 const Settings = () => {
   const [searchParams] = useSearchParams();
@@ -23,7 +24,7 @@ const Settings = () => {
       </div>
 
       <Tabs defaultValue={defaultTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="hours" className="flex items-center gap-2">
             <Clock className="h-4 w-4" />
             <span className="hidden sm:inline">Hours</span>
@@ -47,6 +48,10 @@ const Settings = () => {
           <TabsTrigger value="brand" className="flex items-center gap-2">
             <Palette className="h-4 w-4" />
             <span className="hidden sm:inline">Brand</span>
+          </TabsTrigger>
+          <TabsTrigger value="widget" className="flex items-center gap-2">
+            <Link className="h-4 w-4" />
+            <span className="hidden sm:inline">Widget</span>
           </TabsTrigger>
         </TabsList>
 
@@ -75,6 +80,10 @@ const Settings = () => {
 
         <TabsContent value="brand">
           <BrandingSettingsTab />
+        </TabsContent>
+
+        <TabsContent value="widget">
+          <WidgetLinkBuilderTab />
         </TabsContent>
       </Tabs>
     </div>

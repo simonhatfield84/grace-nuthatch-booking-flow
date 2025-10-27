@@ -2190,6 +2190,57 @@ export type Database = {
           },
         ]
       }
+      venue_link_builder: {
+        Row: {
+          click_count: number | null
+          created_at: string
+          created_by: string | null
+          id: string
+          last_clicked_at: string | null
+          params: Json
+          slug: string
+          utm: Json
+          venue_id: string
+        }
+        Insert: {
+          click_count?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_clicked_at?: string | null
+          params?: Json
+          slug: string
+          utm?: Json
+          venue_id: string
+        }
+        Update: {
+          click_count?: number | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          last_clicked_at?: string | null
+          params?: Json
+          slug?: string
+          utm?: Json
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_link_builder_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_link_builder_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       venue_settings: {
         Row: {
           created_at: string
