@@ -211,15 +211,42 @@ export class AvailabilityService {
       // Get tables that can accommodate the party size
       const { data: tables, error: tablesError } = await supabase
         .from('tables')
-        .select('id')
+        .select('id, seats')
         .eq('venue_id', venueId)
         .eq('online_bookable', true)
-        .eq('status', 'active')
-        .gte('seats', partySize);
+        .eq('status', 'active');
 
       if (tablesError || !tables?.length) return false;
 
-      return tables.length > 0;
+      // Check if any single table can accommodate the party
+      const suitableSingleTable = tables.find(t => t.seats >= partySize);
+      if (suitableSingleTable) {
+        return true;
+      }
+
+      // Check join groups if no single table works
+      const { data: joinGroups, error: joinGroupsError } = await supabase
+        .from('join_groups')
+        .select('*')
+        .eq('venue_id', venueId);
+
+      if (joinGroupsError || !joinGroups?.length) return false;
+
+      // Check if any join group can accommodate the party
+      const suitableJoinGroup = joinGroups.find(group => {
+        // Check party size fits in group range
+        if (partySize < group.min_party_size || partySize > group.max_party_size) {
+          return false;
+        }
+        
+        // Check if all tables in group exist and can accommodate the party together
+        const groupTables = tables.filter(t => group.table_ids.includes(t.id));
+        const totalSeats = groupTables.reduce((sum, t) => sum + t.seats, 0);
+        
+        return groupTables.length === group.table_ids.length && totalSeats >= partySize;
+      });
+
+      return !!suitableJoinGroup;
     } catch (error) {
       console.error('Error checking table availability:', error);
       return false;

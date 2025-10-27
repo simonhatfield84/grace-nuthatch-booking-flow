@@ -341,8 +341,13 @@ async function calculateAvailability(
     .select('id, seats, label')
     .eq('venue_id', venueId)
     .eq('online_bookable', true)
-    .eq('status', 'active')
-    .gte('seats', partySize);
+    .eq('status', 'active');
+
+  // Get join groups for venue
+  const { data: joinGroups } = await supabase
+    .from('join_groups')
+    .select('*')
+    .eq('venue_id', venueId);
 
   if (!tables || tables.length === 0) {
     return {
@@ -391,7 +396,8 @@ async function calculateAvailability(
         blocks || [], 
         locks || [],
         partySize,
-        service.duration_minutes || 120
+        service.duration_minutes || 120,
+        joinGroups || []
       ),
     };
   });
@@ -430,7 +436,8 @@ function checkSlotAvailabilityWithLocks(
   blocks: any[],
   locks: any[],
   partySize: number,
-  durationMinutes: number
+  durationMinutes: number,
+  joinGroups: any[]
 ): boolean {
   const slotStart = timeToMinutes(time);
   const slotEnd = slotStart + durationMinutes;
@@ -490,8 +497,23 @@ function checkSlotAvailabilityWithLocks(
     return true;
   }
 
-  // For now, return false if no single table fits
-  // TODO: Add join group logic for combining tables
+  // Check join groups if no single table works
+  if (joinGroups && joinGroups.length > 0) {
+    const suitableJoinGroup = joinGroups.find(group => {
+      // Check party size fits in group range
+      if (partySize < group.min_party_size || partySize > group.max_party_size) {
+        return false;
+      }
+      
+      // Check ALL tables in group are available
+      return group.table_ids.every((tableId: number) => !unavailableTableIds.includes(tableId));
+    });
+    
+    if (suitableJoinGroup) {
+      return true;
+    }
+  }
+
   return false;
 }
 
