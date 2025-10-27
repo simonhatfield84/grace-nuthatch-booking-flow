@@ -42,6 +42,8 @@ export const useVenueBranding = (venueId: string) => {
   const { data: branding, isLoading: brandingLoading } = useQuery({
     queryKey: ['venue-branding', venueId],
     queryFn: async () => {
+      const startTime = performance.now();
+      
       const { data, error } = await supabase
         .from('venue_branding')
         .select('*')
@@ -49,9 +51,43 @@ export const useVenueBranding = (venueId: string) => {
         .maybeSingle();
       
       if (error) throw error;
-      return data as any as VenueBranding | null;
+      
+      // Auto-create if missing
+      if (!data) {
+        const { data: newBranding, error: createError } = await supabase
+          .from('venue_branding')
+          .insert({
+            venue_id: venueId,
+            primary_color: '#0ea5a0',
+            secondary_color: '#111827',
+            accent_color: '#f59e0b',
+            font_heading: 'Inter',
+            font_body: 'Inter',
+            button_shape: 'rounded'
+          })
+          .select()
+          .single();
+        
+        if (createError) throw createError;
+        
+        const endTime = performance.now();
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[Branding] Created & fetched in ${(endTime - startTime).toFixed(2)}ms`);
+        }
+        
+        return newBranding as VenueBranding;
+      }
+      
+      const endTime = performance.now();
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[Branding] Fetched in ${(endTime - startTime).toFixed(2)}ms`);
+      }
+      
+      return data as VenueBranding;
     },
-    enabled: !!venueId
+    enabled: !!venueId,
+    staleTime: 5 * 60 * 1000, // 5 minutes - reduce refetches
+    gcTime: 10 * 60 * 1000 // Keep in cache for 10 minutes
   });
 
   const { data: widgetCopy, isLoading: widgetLoading } = useQuery({
@@ -69,9 +105,11 @@ export const useVenueBranding = (venueId: string) => {
     enabled: !!venueId
   });
 
-  const { data: media, isLoading: mediaLoading } = useQuery({
+  const { data: media, isLoading: mediaLoading, refetch: refetchMedia } = useQuery({
     queryKey: ['venue-media', venueId],
     queryFn: async () => {
+      const startTime = performance.now();
+      
       const { data, error } = await (supabase as any)
         .from('venue_media')
         .select('*')
@@ -79,20 +117,34 @@ export const useVenueBranding = (venueId: string) => {
         .order('sort_order');
       
       if (error) throw error;
+      
+      const endTime = performance.now();
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`[Media] Fetched ${data?.length || 0} items in ${(endTime - startTime).toFixed(2)}ms`);
+      }
+      
       return data as VenueMedia[];
     },
-    enabled: !!venueId
+    enabled: false, // Start disabled, enable manually when Media tab opened
+    staleTime: 5 * 60 * 1000
   });
 
   const updateBranding = useMutation({
     mutationFn: async (updates: Partial<VenueBranding>) => {
+      // Remove non-updatable fields
+      const { id, venue_id, created_at, ...updateFields } = updates as any;
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[Branding] Updating fields:', Object.keys(updateFields));
+      }
+      
       const { error } = await supabase
         .from('venue_branding')
-        .upsert({
-          venue_id: venueId,
-          ...updates,
+        .update({
+          ...updateFields,
           updated_at: new Date().toISOString()
-        });
+        })
+        .eq('venue_id', venueId);
       
       if (error) throw error;
     },
@@ -145,9 +197,11 @@ export const useVenueBranding = (venueId: string) => {
     branding,
     widgetCopy,
     media: media || [],
-    isLoading: brandingLoading || widgetLoading || mediaLoading,
+    isLoading: brandingLoading || widgetLoading,
+    isMediaLoading: mediaLoading,
     updateBranding: updateBranding.mutate,
     updateWidgetCopy: updateWidgetCopy.mutate,
-    isUpdating: updateBranding.isPending || updateWidgetCopy.isPending
+    isUpdating: updateBranding.isPending || updateWidgetCopy.isPending,
+    refetchMedia
   };
 };

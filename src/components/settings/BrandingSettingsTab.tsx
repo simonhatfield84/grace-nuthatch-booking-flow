@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Save, Loader2, Info } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
 import { useVenueBranding } from "@/hooks/useVenueBranding";
 import { useNavigate } from "react-router-dom";
@@ -22,6 +23,10 @@ export function BrandingSettingsTab() {
   const navigate = useNavigate();
   const [venueId, setVenueId] = useState<string>('');
   const [venueSlug, setVenueSlug] = useState<string>('');
+  const [activeTab, setActiveTab] = useState('visual');
+  const [isDirty, setIsDirty] = useState(false);
+  const [originalBranding, setOriginalBranding] = useState<any>(null);
+  const [fontsLoaded, setFontsLoaded] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -46,7 +51,7 @@ export function BrandingSettingsTab() {
     }
   }, [user]);
 
-  const { branding, widgetCopy, media, isLoading, updateBranding, updateWidgetCopy, isUpdating } = 
+  const { branding, media, isLoading, isMediaLoading, updateBranding, isUpdating, refetchMedia } = 
     useVenueBranding(venueId);
 
   const [localBranding, setLocalBranding] = useState({
@@ -62,7 +67,7 @@ export function BrandingSettingsTab() {
 
   useEffect(() => {
     if (branding) {
-      setLocalBranding({
+      const brandingData = {
         logo_light: branding.logo_light,
         logo_dark: branding.logo_dark,
         primary_color: branding.primary_color,
@@ -71,12 +76,58 @@ export function BrandingSettingsTab() {
         font_heading: branding.font_heading,
         font_body: branding.font_body,
         button_shape: branding.button_shape
-      });
+      };
+      setLocalBranding(brandingData);
+      setOriginalBranding(brandingData);
     }
   }, [branding]);
 
+  // Track changes to enable dirty state
+  useEffect(() => {
+    if (originalBranding) {
+      const hasChanges = JSON.stringify(localBranding) !== JSON.stringify(originalBranding);
+      setIsDirty(hasChanges);
+    }
+  }, [localBranding, originalBranding]);
+
   const handleSaveBranding = () => {
-    updateBranding(localBranding);
+    if (!originalBranding) return;
+    
+    // Only send changed fields
+    const changes: any = {};
+    Object.keys(localBranding).forEach((key) => {
+      if (localBranding[key as keyof typeof localBranding] !== originalBranding[key]) {
+        changes[key] = localBranding[key as keyof typeof localBranding];
+      }
+    });
+    
+    updateBranding(changes);
+    setIsDirty(false);
+  };
+
+  // Lazy load media when Media tab is clicked
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    if (value === 'media') {
+      refetchMedia();
+    }
+  };
+
+  // Load fonts on first Select open
+  const handleFontSelectOpen = () => {
+    if (!fontsLoaded) {
+      const loadFont = (fontName: string) => {
+        if (!document.querySelector(`link[href*="${fontName.replace(' ', '+')}"]`)) {
+          const link = document.createElement('link');
+          link.href = `https://fonts.googleapis.com/css2?family=${fontName.replace(' ', '+')}:wght@400;500;600;700&display=swap`;
+          link.rel = 'stylesheet';
+          document.head.appendChild(link);
+        }
+      };
+      loadFont(localBranding.font_heading);
+      loadFont(localBranding.font_body);
+      setFontsLoaded(true);
+    }
   };
 
   const handleLogoUpdate = (variant: 'light' | 'dark', url: string | null) => {
@@ -102,6 +153,11 @@ export function BrandingSettingsTab() {
           <h2 className="text-2xl font-bold">Venue Branding</h2>
           <p className="text-muted-foreground">Customize your venue's visual identity globally</p>
         </div>
+        {isDirty && (
+          <Badge variant="secondary" className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100">
+            Unsaved changes
+          </Badge>
+        )}
       </div>
 
       <Alert>
@@ -111,10 +167,13 @@ export function BrandingSettingsTab() {
         </AlertDescription>
       </Alert>
 
-      <Tabs defaultValue="visual" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="visual">Visual Identity</TabsTrigger>
-          <TabsTrigger value="media">Media</TabsTrigger>
+          <TabsTrigger value="media">
+            Media
+            {isMediaLoading && <Loader2 className="ml-2 h-3 w-3 animate-spin" />}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="visual" className="space-y-6">
@@ -238,6 +297,7 @@ export function BrandingSettingsTab() {
                   <Select
                     value={localBranding.font_heading}
                     onValueChange={(value) => setLocalBranding({ ...localBranding, font_heading: value })}
+                    onOpenChange={(open) => open && handleFontSelectOpen()}
                   >
                     <SelectTrigger id="font-heading">
                       <SelectValue />
@@ -260,6 +320,7 @@ export function BrandingSettingsTab() {
                   <Select
                     value={localBranding.font_body}
                     onValueChange={(value) => setLocalBranding({ ...localBranding, font_body: value })}
+                    onOpenChange={(open) => open && handleFontSelectOpen()}
                   >
                     <SelectTrigger id="font-body">
                       <SelectValue />
@@ -313,8 +374,19 @@ export function BrandingSettingsTab() {
             </CardContent>
           </Card>
 
-          <div className="flex justify-end">
-            <Button onClick={handleSaveBranding} disabled={isUpdating}>
+          <div className="flex justify-end gap-2">
+            {isDirty && (
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setLocalBranding(originalBranding);
+                  setIsDirty(false);
+                }}
+              >
+                Discard Changes
+              </Button>
+            )}
+            <Button onClick={handleSaveBranding} disabled={isUpdating || !isDirty}>
               {isUpdating ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : (

@@ -2143,6 +2143,7 @@ export type Database = {
         Row: {
           accent_color: string
           button_radius: string
+          button_shape: string | null
           created_at: string
           font_body: string
           font_heading: string
@@ -2158,6 +2159,7 @@ export type Database = {
         Insert: {
           accent_color?: string
           button_radius?: string
+          button_shape?: string | null
           created_at?: string
           font_body?: string
           font_heading?: string
@@ -2173,6 +2175,7 @@ export type Database = {
         Update: {
           accent_color?: string
           button_radius?: string
+          button_shape?: string | null
           created_at?: string
           font_body?: string
           font_heading?: string
