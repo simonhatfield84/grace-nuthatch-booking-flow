@@ -1,9 +1,8 @@
-
-import { NuthatchBookingWidget } from "@/features/booking/components/NuthatchBookingWidget";
+import { Navigate } from "react-router-dom";
 
 const BookingWidgetPage = () => {
-  // Hard-coded for The Nuthatch - no dynamic slug needed
-  return <NuthatchBookingWidget />;
+  // Redirect to slug-based route for backward compatibility
+  return <Navigate to="/booking/the-nuthatch" replace />;
 };
 
 export default BookingWidgetPage;

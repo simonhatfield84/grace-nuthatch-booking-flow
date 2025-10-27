@@ -42,11 +42,16 @@ export interface BookingStep {
   isCompleted: boolean;
 }
 
-export function NuthatchBookingWidget() {
+interface LegacyBookingWidgetProps {
+  venueSlug: string;
+}
+
+export function LegacyBookingWidget({ venueSlug }: LegacyBookingWidgetProps) {
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [venue, setVenue] = useState<any>(null);
+  const [venueNotFound, setVenueNotFound] = useState(false);
   
   const [bookingData, setBookingData] = useState<BookingData>({
     partySize: 2,
@@ -118,24 +123,32 @@ export function NuthatchBookingWidget() {
     },
   ];
 
-  // Load The Nuthatch venue data
+  // Load venue data by slug
   useEffect(() => {
     const loadVenue = async () => {
       setIsLoading(true);
+      setVenueNotFound(false);
       try {
         const { data, error } = await supabase
           .from('venues')
           .select('*')
-          .eq('slug', 'the-nuthatch')
+          .eq('slug', venueSlug)
+          .eq('approval_status', 'approved')
           .single();
 
         if (error) {
           console.error('Error loading venue:', error);
-          toast({
-            title: "Error",
-            description: "Could not load venue information. Please try again.",
-            variant: "destructive",
-          });
+          
+          // Check if it's a "not found" error
+          if (error.code === 'PGRST116') {
+            setVenueNotFound(true);
+          } else {
+            toast({
+              title: "Error",
+              description: "Could not load venue information. Please try again.",
+              variant: "destructive",
+            });
+          }
           return;
         }
 
@@ -153,7 +166,7 @@ export function NuthatchBookingWidget() {
     };
 
     loadVenue();
-  }, [toast]);
+  }, [venueSlug, toast]);
 
   const updateBookingData = (data: Partial<BookingData>) => {
     setBookingData(prev => ({ ...prev, ...data }));
@@ -273,6 +286,28 @@ export function NuthatchBookingWidget() {
     }
   };
 
+  // Show error if venue not found
+  if (venueNotFound) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md p-6 text-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
+              <span className="text-2xl text-red-600">✕</span>
+            </div>
+            <h2 className="text-xl font-semibold">Venue Not Found</h2>
+            <p className="text-gray-600">
+              The booking page for "<strong>{venueSlug}</strong>" could not be found.
+            </p>
+            <p className="text-sm text-gray-500">
+              Please check the URL or contact the venue for the correct booking link.
+            </p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   if (isLoading || !venue) {
     return (
       <div className="min-h-screen bg-nuthatch-white flex items-center justify-center">
@@ -289,7 +324,7 @@ export function NuthatchBookingWidget() {
       <Card className="w-full max-w-md bg-white shadow-lg rounded-lg overflow-hidden">
         {/* Header - matching Guestplan style */}
         <div className="bg-black text-white p-4 text-center">
-          <h1 className="text-xl font-medium">The Nuthatch</h1>
+          <h1 className="text-xl font-medium">{venue?.name || 'Loading...'}</h1>
         </div>
 
         {/* Navigation tabs - simple like Guestplan */}

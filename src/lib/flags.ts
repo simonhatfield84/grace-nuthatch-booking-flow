@@ -16,6 +16,10 @@ export const FLAGS = {
   ENABLE_CONTRACT_VALIDATION: import.meta.env.VITE_CONTRACT_VALIDATION !== 'false', // Default true
   ENABLE_SMOKE_TEST_MODE: import.meta.env.VITE_SMOKE_TEST_MODE === 'true' || false,
   USE_EXTRACTED_TIME_UTILS: import.meta.env.VITE_USE_EXTRACTED_TIME_UTILS === 'true' || false,
+  
+  // Widget routing flags (ON by default in all environments)
+  USE_LEGACY_WIDGET_SLUGS: true,  // Enable slug-based legacy widget
+  ENABLE_V5_WIDGET: false,        // Disable V5 widget routes
 } as const;
 
 export type FlagName = keyof typeof FLAGS;

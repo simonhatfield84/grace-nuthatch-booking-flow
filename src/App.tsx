@@ -2,7 +2,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
@@ -11,6 +11,9 @@ import { StripeProvider } from "@/components/providers/StripeProvider";
 import { AdminLayout } from "@/components/layouts/AdminLayout";
 import { PlatformAdminLayout } from "@/components/layouts/PlatformAdminLayout";
 import { HostLayout } from "@/components/layouts/HostLayout";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { FLAGS } from "@/lib/flags";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Setup from "./pages/Setup";
@@ -22,6 +25,7 @@ import Guests from "./pages/Guests";
 import Settings from "./pages/Settings";
 import Reports from "./pages/Reports";
 import BookingWidget from "./pages/BookingWidget";
+import BookingLegacyBySlug from "./pages/BookingLegacyBySlug";
 import ModifyBooking from "./pages/ModifyBooking";
 import CancelBooking from "./pages/CancelBooking";
 import V5WidgetPage from "./features/bookingV5/pages/V5WidgetPage";
@@ -69,20 +73,46 @@ function App() {
                     } />
                     <Route path="/payment-success" element={<PaymentSuccess />} />
                     
-                    {/* Booking widget - public, needs Stripe */}
-                    <Route path="/booking" element={
-                      <StripeProvider>
-                        <BookingWidget />
-                      </StripeProvider>
-                    } />
-                    <Route path="/booking/:venueSlug/v5" element={<V5WidgetPage />} />
-                    <Route path="/booking/:venueSlug/v5/preview" element={
-                      <ProtectedRoute>
-                        <StripeProvider>
-                          <V5WidgetPreviewPage />
-                        </StripeProvider>
-                      </ProtectedRoute>
-                    } />
+                    {/* Legacy booking widget - slug-based (NEW) */}
+                    <Route path="/booking/:venueSlug" element={<BookingLegacyBySlug />} />
+                    
+                    {/* Legacy booking widget - redirect for backward compatibility */}
+                    <Route path="/booking" element={<Navigate to="/booking/the-nuthatch" replace />} />
+                    
+                    {/* V5 widget routes - conditionally enabled */}
+                    {FLAGS.ENABLE_V5_WIDGET ? (
+                      <>
+                        <Route path="/booking/:venueSlug/v5" element={<V5WidgetPage />} />
+                        <Route path="/booking/:venueSlug/v5/preview" element={
+                          <ProtectedRoute>
+                            <StripeProvider>
+                              <V5WidgetPreviewPage />
+                            </StripeProvider>
+                          </ProtectedRoute>
+                        } />
+                      </>
+                    ) : (
+                      <Route path="/booking/:venueSlug/v5" element={
+                        <div className="min-h-screen flex items-center justify-center p-4">
+                          <Card className="max-w-md p-6 text-center">
+                            <h2 className="text-xl font-semibold mb-2">Widget Temporarily Unavailable</h2>
+                            <p className="text-gray-600 mb-4">
+                              This booking variant is temporarily disabled during migration.
+                            </p>
+                            <Button 
+                              onClick={() => {
+                                const venueSlug = window.location.pathname.split('/')[2];
+                                window.location.href = `/booking/${venueSlug}`;
+                              }}
+                            >
+                              Use Standard Booking
+                            </Button>
+                          </Card>
+                        </div>
+                      } />
+                    )}
+                    
+                    {/* Modify/Cancel routes */}
                     <Route path="/modify/:token" element={
                       <StripeProvider>
                         <ModifyBooking />
