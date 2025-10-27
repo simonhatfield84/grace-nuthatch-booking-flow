@@ -15,3 +15,25 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   }
 });
+
+// ✅ GUARDRAIL 2: Dev-only base table detection (fail fast if base tables queried from client)
+if (import.meta.env.DEV) {
+  const originalFrom = supabase.from.bind(supabase);
+  (supabase as any).from = function(table: string) {
+    const restrictedBaseTables = ['services', 'booking_windows', 'venues', 'venue_stripe_settings'];
+    const allowedPublicViews = ['services_public', 'booking_windows_public', 'venues_public'];
+    
+    if (restrictedBaseTables.includes(table) && !allowedPublicViews.includes(table)) {
+      console.error(`🚨 DEV WARNING: Querying base table "${table}" from client!`);
+      console.error(`Use "${table}_public" view instead for security.`);
+      throw new Error(
+        `Security violation: Client should query "${table}_public" view, not base table "${table}". ` +
+        `This prevents exposing sensitive data to anonymous users.`
+      );
+    }
+    
+    return originalFrom(table);
+  };
+  
+  console.log('🛡️ Base table detection enabled in DEV mode');
+}

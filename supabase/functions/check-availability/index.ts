@@ -38,10 +38,14 @@ Deno.serve(async (req) => {
   }
 
   const startTime = Date.now();
+  const reqId = crypto.randomUUID();
+  
   const supabase = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
   );
+  
+  console.log(`🔍 [${reqId}] Availability check started`);
 
   try {
     const requestData = await req.json();
@@ -135,7 +139,7 @@ Deno.serve(async (req) => {
       });
 
       return jsonResponse(
-        { ...cachedResult, cached: true },
+        { ...cachedResult, cached: true, reqId },
         200,
         corsHeaders
       );
@@ -192,7 +196,7 @@ Deno.serve(async (req) => {
       took_ms: Date.now() - startTime,
     });
 
-    return jsonResponse(response, 200, corsHeaders);
+    return jsonResponse({ ...response, reqId }, 200, corsHeaders);
   } catch (error) {
     console.error('Availability check error:', error);
     return jsonResponse(
@@ -497,15 +501,13 @@ function checkSlotAvailabilityWithLocks(
     return true;
   }
 
-  // Check join groups if no single table works
-  if (joinGroups && joinGroups.length > 0) {
+  // Check join groups if no single table works (GUARDRAIL 4: behind feature flag)
+  const { isEdgeFlagEnabled } = await import('./_shared/flags.ts');
+  if (isEdgeFlagEnabled('NEW_JOIN_GROUP_CHECK') && joinGroups && joinGroups.length > 0) {
     const suitableJoinGroup = joinGroups.find(group => {
-      // Check party size fits in group range
       if (partySize < group.min_party_size || partySize > group.max_party_size) {
         return false;
       }
-      
-      // Check ALL tables in group are available
       return group.table_ids.every((tableId: number) => !unavailableTableIds.includes(tableId));
     });
     

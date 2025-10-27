@@ -421,9 +421,18 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     bookingCreated = true;
+    
+    // GUARDRAIL 5: Re-assert confirmation invariant
+    const paymentAmount = sanitizedData.payment_amount || 0;
+    if (paymentAmount > 0 && booking.status !== 'pending_payment') {
+      throw new Error('Booking status invariant violated: payment required but status not pending_payment');
+    }
+    
     log('✅ Booking created:', {
       id: booking.id,
       reference: booking.booking_reference,
+      status: booking.status,
+      requiresPayment: paymentAmount > 0,
       took_ms: Date.now() - t0
     });
 

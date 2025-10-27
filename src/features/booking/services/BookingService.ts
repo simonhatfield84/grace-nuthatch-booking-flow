@@ -128,7 +128,14 @@ export class BookingService {
     partySize: number,
     date?: string
   ): Promise<Service[]> {
+    // ✅ GUARDRAIL 3: Generate request ID for tracing
+    const reqId = crypto.randomUUID();
     try {
+      console.log(`🔍 [${reqId}] BookingService.getAvailableServices:`, { 
+        venueId: venueId?.substring(0, 8) + '...',
+        partySize,
+        date 
+      });
       console.log(`🔍 BookingService.getAvailableServices called with:`, { venueId, partySize, date });
 
       // First get all active, online bookable services for the party size
@@ -154,7 +161,7 @@ export class BookingService {
 
       // If no date provided, return all suitable services (backward compatibility)
       if (!date) {
-        console.log('📅 No date provided, returning all suitable services');
+        console.log(`✅ [${reqId}] No date provided, returning ${allServices.length} services`);
         return allServices;
       }
 

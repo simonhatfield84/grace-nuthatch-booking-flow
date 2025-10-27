@@ -49,6 +49,25 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
+    // ✅ GUARDRAIL 1: Rate limiting (30 requests per IP per venue per 5 minutes)
+    const clientIp = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+    const rateLimitKey = `payment-calc:${venueSlug}:${clientIp}`;
+    
+    const { rateLimit } = await import('../_shared/rateLimit.ts');
+    const allowed = await rateLimit(rateLimitKey, 30, 300); // 30 requests, 5 min window
+    
+    if (!allowed) {
+      const errorResponse: ErrorResponse = {
+        ok: false,
+        code: 'invalid_request',
+        message: 'Too many payment calculation requests. Please try again later.'
+      };
+      return new Response(JSON.stringify(errorResponse), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
     console.log(`💰 Calculating payment for venue: ${venueSlug}, service: ${serviceId}, party: ${partySize}`);
 
     const supabase = createClient(
@@ -190,6 +209,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
+    // ✅ GUARDRAIL 1: Return only safe fields (no secret Stripe keys)
     const successResponse: SuccessResponse = {
       ok: true,
       stripeActive,

@@ -2,7 +2,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Clock, MapPin, Plus, Check, X } from 'lucide-react';
+import { Users, Clock, MapPin, Plus, Check, X, CreditCard, AlertCircle } from 'lucide-react';
 import { Booking } from '@/features/booking/types/booking';
 
 interface BookingActionsPanelProps {
@@ -31,11 +31,14 @@ export const BookingActionsPanel = ({
       case 'finished': return 'bg-gray-100 text-gray-800';
       case 'cancelled': return 'bg-red-100 text-red-800';
       case 'late': return 'bg-orange-100 text-orange-800';
+      case 'pending_payment': return 'bg-amber-100 text-amber-800'; // ✅ GUARDRAIL 5
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const canExtend = booking.status !== 'finished' && booking.status !== 'cancelled';
+  // ✅ GUARDRAIL 5: Pending payment bookings cannot be seated
+  const isPendingPayment = booking.status === 'pending_payment';
+  const canExtend = booking.status !== 'finished' && booking.status !== 'cancelled' && !isPendingPayment;
   const canMarkSeated = booking.status === 'confirmed';
   const canMarkFinished = booking.status === 'seated' || booking.status === 'confirmed';
 
@@ -51,12 +54,29 @@ export const BookingActionsPanel = ({
       </CardHeader>
       
       <CardContent className="space-y-4">
+        {/* ✅ GUARDRAIL 5: Pending Payment Warning */}
+        {isPendingPayment && (
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200">
+            <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1 space-y-1">
+              <div className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4 text-amber-600" />
+                <span className="text-sm font-semibold text-amber-900">Awaiting Payment</span>
+              </div>
+              <p className="text-xs text-amber-700">
+                This booking cannot be seated until payment is confirmed. 
+                Table is allocated but unavailable.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Guest Info */}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-lg">{booking.guest_name}</h3>
             <Badge className={getStatusColor(booking.status)}>
-              {booking.status.toUpperCase()}
+              {booking.status === 'pending_payment' ? 'AWAITING PAYMENT' : booking.status.toUpperCase()}
             </Badge>
           </div>
           
@@ -87,31 +107,37 @@ export const BookingActionsPanel = ({
         <div className="space-y-2">
           <h4 className="font-medium text-sm">Quick Actions</h4>
           
-          <div className="grid grid-cols-2 gap-2">
-            {canMarkSeated && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onStatusChange(booking, 'seated')}
-                className="flex items-center gap-1"
-              >
-                <Check className="h-3 w-3" />
-                Seat
-              </Button>
-            )}
-            
-            {canMarkFinished && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => onStatusChange(booking, 'finished')}
-                className="flex items-center gap-1"
-              >
-                <Check className="h-3 w-3" />
-                Finish
-              </Button>
-            )}
-          </div>
+          {isPendingPayment ? (
+            <div className="text-sm text-muted-foreground italic p-2 bg-muted rounded">
+              Actions disabled until payment confirmed
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              {canMarkSeated && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onStatusChange(booking, 'seated')}
+                  className="flex items-center gap-1"
+                >
+                  <Check className="h-3 w-3" />
+                  Seat
+                </Button>
+              )}
+              
+              {canMarkFinished && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onStatusChange(booking, 'finished')}
+                  className="flex items-center gap-1"
+                >
+                  <Check className="h-3 w-3" />
+                  Finish
+                </Button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Extend Options */}

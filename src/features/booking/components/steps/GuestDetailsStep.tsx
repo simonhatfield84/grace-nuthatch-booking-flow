@@ -85,9 +85,7 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
           serviceChargeType: service.charge_type,
           serviceChargeAmount: service.charge_amount_per_guest
         });
-        const calculation = await calculatePaymentAmount(service.id, partySize, venue.id);
-        console.log('💰 Payment calculation result:', calculation);
-        setPaymentCalculation(calculation);
+        // GUARDRAIL 1: Payment calculation deferred to form submission
       }
     };
 
@@ -140,6 +138,7 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
   };
 
   const createBooking = async (paymentAmount: number) => {
+    console.log('📝 Creating booking with payment amount:', paymentAmount);
     // Validate service before proceeding
     if (!service || !service.id) {
       toast.error("Please select a service before proceeding");
