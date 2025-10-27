@@ -2,9 +2,13 @@ import { useParams } from 'react-router-dom';
 import { LegacyBookingWidget } from '@/features/booking/components/LegacyBookingWidget';
 import { StripeProvider } from '@/components/providers/StripeProvider';
 import { Card } from '@/components/ui/card';
+import { getUseNewUI, getDebugMode } from '@/features/bookingUI/utils/featureSwitch';
+import { BookingWidgetUI } from '@/features/bookingUI/BookingWidgetUI';
 
 export default function BookingLegacyBySlug() {
   const { venueSlug } = useParams<{ venueSlug: string }>();
+  const useNewUI = getUseNewUI();
+  const debug = getDebugMode();
   
   if (!venueSlug) {
     return (
@@ -18,7 +22,11 @@ export default function BookingLegacyBySlug() {
   
   return (
     <StripeProvider>
-      <LegacyBookingWidget venueSlug={venueSlug} />
+      {useNewUI ? (
+        <BookingWidgetUI venueSlug={venueSlug} debug={debug} />
+      ) : (
+        <LegacyBookingWidget venueSlug={venueSlug} />
+      )}
     </StripeProvider>
   );
 }
