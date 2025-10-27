@@ -33,7 +33,7 @@ export class BookingService {
     try {
       // Get booking windows for this venue
       const { data: bookingWindows, error } = await supabase
-        .from('booking_windows')
+        .from('booking_windows_public')
         .select('*')
         .eq('venue_id', venueId);
 
@@ -133,10 +133,8 @@ export class BookingService {
 
       // First get all active, online bookable services for the party size
       const { data: allServices, error: servicesError } = await supabase
-        .from('services')
+        .from('services_public')
         .select('*')
-        .eq('active', true)
-        .eq('online_bookable', true)
         .lte('min_guests', partySize)
         .gte('max_guests', partySize)
         .order('title');
@@ -167,7 +165,7 @@ export class BookingService {
 
       // Get all booking windows for this venue
       const { data: bookingWindows, error: windowsError } = await supabase
-        .from('booking_windows')
+        .from('booking_windows_public')
         .select('*')
         .eq('venue_id', venueId);
 

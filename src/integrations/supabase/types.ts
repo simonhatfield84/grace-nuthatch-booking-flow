@@ -331,6 +331,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "booking_attempts_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "booking_attempts_venue_id_fkey"
             columns: ["venue_id"]
             isOneToOne: false
@@ -494,6 +501,13 @@ export type Database = {
             columns: ["service_id"]
             isOneToOne: false
             referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_locks_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services_public"
             referencedColumns: ["id"]
           },
           {
@@ -774,6 +788,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "booking_windows_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services_public"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "booking_windows_venue_id_fkey"
             columns: ["venue_id"]
             isOneToOne: false
@@ -886,6 +907,13 @@ export type Database = {
             columns: ["service_id"]
             isOneToOne: false
             referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services_public"
             referencedColumns: ["id"]
           },
           {
@@ -2765,6 +2793,52 @@ export type Database = {
           },
         ]
       }
+      booking_windows_public: {
+        Row: {
+          blackout_periods: Json | null
+          created_at: string | null
+          days: string[] | null
+          end_date: string | null
+          end_time: string | null
+          id: string | null
+          max_bookings_per_slot: number | null
+          service_id: string | null
+          start_date: string | null
+          start_time: string | null
+          updated_at: string | null
+          venue_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_windows_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_windows_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_windows_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_windows_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       homepage_analytics_summary: {
         Row: {
           avg_session_duration: number | null
@@ -2776,6 +2850,47 @@ export type Database = {
           viewed_sections: Json | null
         }
         Relationships: []
+      }
+      services_public: {
+        Row: {
+          active: boolean | null
+          cancellation_window_hours: number | null
+          charge_amount_per_guest: number | null
+          charge_type: string | null
+          created_at: string | null
+          deposit_per_guest: number | null
+          description: string | null
+          duration_rules: Json | null
+          id: string | null
+          image_url: string | null
+          lead_time_hours: number | null
+          max_guests: number | null
+          min_guests: number | null
+          minimum_guests_for_charge: number | null
+          online_bookable: boolean | null
+          requires_deposit: boolean | null
+          requires_payment: boolean | null
+          terms_and_conditions: string | null
+          title: string | null
+          updated_at: string | null
+          venue_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "services_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "services_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       venue_branding_public: {
         Row: {

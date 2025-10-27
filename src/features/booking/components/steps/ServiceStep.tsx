@@ -22,18 +22,34 @@ export function ServiceStep({
   selectedDate,
   venueId
 }: ServiceStepProps) {
-  const { data: services = [], isLoading } = useQuery({
+  const { data: services = [], isLoading, error } = useQuery({
     queryKey: ['available-services', partySize, selectedDate, venueId],
     queryFn: async () => {
       if (!venueId) return [];
 
-      const services = await BookingService.getAvailableServices(
-        venueId,
-        partySize,
-        selectedDate ? formatDateToYYYYMMDD(selectedDate) : undefined
-      );
+      try {
+        const services = await BookingService.getAvailableServices(
+          venueId,
+          partySize,
+          selectedDate ? formatDateToYYYYMMDD(selectedDate) : undefined
+        );
 
-      return services;
+        return services;
+      } catch (err) {
+        // DEV-ONLY: Log detailed error information
+        if (import.meta.env.DEV) {
+          console.error('🚨 ServiceStep - Error fetching services:', {
+            error: err,
+            errorCode: (err as any)?.code,
+            errorMessage: (err as any)?.message,
+            errorDetails: (err as any)?.details,
+            venueId,
+            partySize,
+            selectedDate
+          });
+        }
+        throw err;
+      }
     },
     enabled: !!venueId && partySize > 0
   });
@@ -50,6 +66,27 @@ export function ServiceStep({
         <div className="flex items-center justify-center py-8">
           <div className="text-gray-500">Loading services...</div>
         </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-red-600 font-semibold mb-2">Unable to load services</p>
+        <p className="text-gray-500 text-sm">
+          Please try refreshing the page or contact support if the issue persists.
+        </p>
+        {import.meta.env.DEV && (
+          <details className="mt-4 text-left bg-red-50 p-4 rounded max-w-xl mx-auto">
+            <summary className="cursor-pointer text-red-700 font-mono text-xs">
+              Developer Error Details
+            </summary>
+            <pre className="mt-2 text-xs overflow-auto">
+              {JSON.stringify(error, null, 2)}
+            </pre>
+          </details>
+        )}
       </div>
     );
   }

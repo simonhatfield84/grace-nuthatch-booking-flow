@@ -35,7 +35,7 @@ export class AvailabilityService {
     try {
       // Get booking windows for this venue
       const { data: bookingWindows, error: windowsError } = await supabase
-        .from('booking_windows')
+        .from('booking_windows_public')
         .select('*')
         .eq('venue_id', venueId);
 
@@ -103,7 +103,7 @@ export class AvailabilityService {
       
       if (!windows) {
         const { data, error } = await supabase
-          .from('booking_windows')
+          .from('booking_windows_public')
           .select('*')
           .eq('venue_id', venueId);
 

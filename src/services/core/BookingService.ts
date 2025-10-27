@@ -67,10 +67,8 @@ export class CoreBookingService {
   static async getServices(venueId: string, partySize?: number, selectedDate?: Date) {
     try {
       let query = supabase
-        .from('services')
+        .from('services_public')
         .select('*')
-        .eq('active', true)
-        .eq('online_bookable', true)
         .order('title');
 
       if (partySize) {
@@ -92,7 +90,7 @@ export class CoreBookingService {
       const dayOfWeek = format(selectedDate, 'EEE').toLowerCase(); // 'Sat' -> 'sat'
       
       const { data: windows } = await supabase
-        .from('booking_windows')
+        .from('booking_windows_public')
         .select('service_id')
         .eq('venue_id', venueId)
         .contains('days', [dayOfWeek]);
