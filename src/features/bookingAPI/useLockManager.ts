@@ -60,9 +60,8 @@ export function useLockManager() {
     const handleUnload = () => {
       if (lockToken) {
         // Use navigator.sendBeacon for reliable cleanup
-        const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/locks`;
+        const url = `https://wxyotttvyexxzeaewyga.supabase.co/functions/v1/locks/release`;
         const payload = JSON.stringify({
-          action: 'release',
           lockToken,
           reason: 'page_unload',
         });

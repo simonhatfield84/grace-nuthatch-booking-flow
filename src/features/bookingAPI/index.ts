@@ -133,9 +133,8 @@ export async function createLock(
   time: string,
   partySize: number
 ): Promise<LockResponse> {
-  const { data, error } = await supabase.functions.invoke('locks', {
+  const { data, error } = await supabase.functions.invoke('locks/create', {
     body: {
-      action: 'create',
       venueSlug,
       serviceId,
       date,
@@ -152,9 +151,8 @@ export async function createLock(
  * Extend an existing lock
  */
 export async function extendLock(lockToken: string): Promise<LockResponse> {
-  const { data, error } = await supabase.functions.invoke('locks', {
+  const { data, error } = await supabase.functions.invoke('locks/extend', {
     body: {
-      action: 'extend',
       lockToken,
     }
   });
@@ -167,9 +165,8 @@ export async function extendLock(lockToken: string): Promise<LockResponse> {
  * Release a lock
  */
 export async function releaseLock(lockToken: string): Promise<void> {
-  await supabase.functions.invoke('locks', {
+  await supabase.functions.invoke('locks/release', {
     body: {
-      action: 'release',
       lockToken,
       reason: 'user_released',
     }
