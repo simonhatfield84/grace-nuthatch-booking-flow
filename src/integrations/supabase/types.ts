@@ -806,6 +806,8 @@ export type Database = {
           party_size: number
           phone: string | null
           service: string | null
+          service_id: string | null
+          source: string | null
           status: string | null
           table_id: number | null
           time_range: unknown
@@ -834,6 +836,8 @@ export type Database = {
           party_size: number
           phone?: string | null
           service?: string | null
+          service_id?: string | null
+          source?: string | null
           status?: string | null
           table_id?: number | null
           time_range?: unknown
@@ -862,6 +866,8 @@ export type Database = {
           party_size?: number
           phone?: string | null
           service?: string | null
+          service_id?: string | null
+          source?: string | null
           status?: string | null
           table_id?: number | null
           time_range?: unknown
@@ -875,6 +881,13 @@ export type Database = {
           venue_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "bookings_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "bookings_table_id_fkey"
             columns: ["table_id"]
