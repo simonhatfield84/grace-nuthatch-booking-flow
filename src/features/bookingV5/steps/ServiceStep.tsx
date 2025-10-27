@@ -5,20 +5,22 @@ import { Card } from '@/components/ui/card';
 import { CoreBookingService } from '@/services/core/BookingService';
 import { Loader2 } from 'lucide-react';
 import { SafeHtml } from '@/components/SafeHtml';
+import { format } from 'date-fns';
 
 interface ServiceStepProps {
   venueId: string;
   partySize: number;
+  selectedDate?: Date;
   initialService?: string;
   onContinue: (service: any) => void;
 }
 
-export function ServiceStep({ venueId, partySize, initialService, onContinue }: ServiceStepProps) {
+export function ServiceStep({ venueId, partySize, selectedDate, initialService, onContinue }: ServiceStepProps) {
   const [selectedId, setSelectedId] = useState<string | undefined>(initialService);
   
   const { data: services = [], isLoading } = useQuery({
-    queryKey: ['services-v5', venueId, partySize],
-    queryFn: () => CoreBookingService.getServices(venueId, partySize),
+    queryKey: ['services-v5', venueId, partySize, selectedDate],
+    queryFn: () => CoreBookingService.getServices(venueId, partySize, selectedDate),
     staleTime: 5 * 60 * 1000
   });
   
@@ -34,8 +36,12 @@ export function ServiceStep({ venueId, partySize, initialService, onContinue }: 
   
   if (services.length === 0) {
     return (
-      <div className="text-center py-12">
-        <p className="text-muted-foreground">No services available for party size {partySize}</p>
+      <div className="text-center py-12 space-y-4">
+        <p className="text-muted-foreground">
+          {selectedDate 
+            ? `No services available for ${format(selectedDate, 'PPP')}` 
+            : `No services available for party size ${partySize}`}
+        </p>
       </div>
     );
   }

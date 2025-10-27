@@ -4,6 +4,9 @@ import { UTMParams } from '../hooks/useUTM';
 export type V5BookingStep = 'partyDate' | 'service' | 'time' | 'guest' | 'payment' | 'confirmation';
 
 export interface V5BookingState {
+  // Flow variant
+  variant: 'standard' | 'serviceFirst';
+  
   // Step management
   currentStep: V5BookingStep;
   completedSteps: Set<V5BookingStep>;
@@ -46,9 +49,18 @@ interface V5BookingContextType {
 
 const V5BookingContext = createContext<V5BookingContextType | undefined>(undefined);
 
-export function V5BookingProvider({ children, initialUTM }: { children: ReactNode; initialUTM: UTMParams }) {
+export function V5BookingProvider({ 
+  children, 
+  initialUTM,
+  variant = 'standard'
+}: { 
+  children: ReactNode; 
+  initialUTM: UTMParams;
+  variant?: 'standard' | 'serviceFirst';
+}) {
   const [state, setState] = useState<V5BookingState>({
-    currentStep: 'partyDate',
+    variant,
+    currentStep: variant === 'serviceFirst' ? 'service' : 'partyDate',
     completedSteps: new Set(),
     utm: initialUTM
   });
@@ -70,7 +82,8 @@ export function V5BookingProvider({ children, initialUTM }: { children: ReactNod
   
   const resetBooking = () => {
     setState({
-      currentStep: 'partyDate',
+      variant: state.variant,
+      currentStep: state.variant === 'serviceFirst' ? 'service' : 'partyDate',
       completedSteps: new Set(),
       utm: state.utm // Preserve UTM
     });

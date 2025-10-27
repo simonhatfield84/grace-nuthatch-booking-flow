@@ -290,6 +290,7 @@ export type Database = {
           service_id: string | null
           time: string | null
           utm: Json | null
+          variant: string | null
           venue_id: string
           venue_slug: string
         }
@@ -303,6 +304,7 @@ export type Database = {
           service_id?: string | null
           time?: string | null
           utm?: Json | null
+          variant?: string | null
           venue_id: string
           venue_slug: string
         }
@@ -316,6 +318,7 @@ export type Database = {
           service_id?: string | null
           time?: string | null
           utm?: Json | null
+          variant?: string | null
           venue_id?: string
           venue_slug?: string
         }
@@ -812,6 +815,7 @@ export type Database = {
           utm_medium: string | null
           utm_source: string | null
           utm_term: string | null
+          variant: string | null
           venue_id: string
         }
         Insert: {
@@ -839,6 +843,7 @@ export type Database = {
           utm_medium?: string | null
           utm_source?: string | null
           utm_term?: string | null
+          variant?: string | null
           venue_id: string
         }
         Update: {
@@ -866,6 +871,7 @@ export type Database = {
           utm_medium?: string | null
           utm_source?: string | null
           utm_term?: string | null
+          variant?: string | null
           venue_id?: string
         }
         Relationships: [
@@ -2441,6 +2447,7 @@ export type Database = {
           id: string
           updated_at: string
           venue_id: string
+          widget_default_variant: string
         }
         Insert: {
           about_html?: string | null
@@ -2451,6 +2458,7 @@ export type Database = {
           id?: string
           updated_at?: string
           venue_id: string
+          widget_default_variant?: string
         }
         Update: {
           about_html?: string | null
@@ -2461,6 +2469,7 @@ export type Database = {
           id?: string
           updated_at?: string
           venue_id?: string
+          widget_default_variant?: string
         }
         Relationships: [
           {

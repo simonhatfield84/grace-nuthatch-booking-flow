@@ -64,7 +64,7 @@ export class CoreBookingService {
   }
 
   // Get services for a venue
-  static async getServices(venueId: string, partySize?: number) {
+  static async getServices(venueId: string, partySize?: number, selectedDate?: Date) {
     try {
       let query = supabase
         .from('services')
@@ -79,11 +79,27 @@ export class CoreBookingService {
           .gte('max_guests', partySize);
       }
 
-      const { data, error } = await query;
+      const { data: services, error } = await query;
 
       if (error) throw error;
 
-      return data || [];
+      if (!selectedDate || !services) {
+        return services || [];
+      }
+
+      // Filter services that have windows on the selected date
+      const { format } = await import('date-fns');
+      const dayOfWeek = format(selectedDate, 'EEEE').toLowerCase();
+      
+      const { data: windows } = await supabase
+        .from('booking_windows')
+        .select('service_id')
+        .eq('venue_id', venueId)
+        .contains('days', [dayOfWeek]);
+      
+      const serviceIdsWithWindows = new Set(windows?.map(w => w.service_id) || []);
+      
+      return services.filter(s => serviceIdsWithWindows.has(s.id)) || [];
     } catch (error) {
       console.error('Error fetching services:', error);
       return [];

@@ -9,19 +9,20 @@ import { CoreBookingService } from '@/services/core/BookingService';
 
 interface PartyDateStepProps {
   venueId: string;
+  serviceId?: string;
   initialParty?: number;
   initialDate?: Date;
   onContinue: (party: number, date: Date) => void;
 }
 
-export function PartyDateStep({ venueId, initialParty, initialDate, onContinue }: PartyDateStepProps) {
+export function PartyDateStep({ venueId, serviceId, initialParty, initialDate, onContinue }: PartyDateStepProps) {
   const [partySize, setPartySize] = useState(initialParty || 2);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(initialDate);
   
-  // Fetch available dates
+  // Fetch available dates (filtered by service if provided)
   const { data: availableDates = [], isLoading } = useQuery({
-    queryKey: ['available-dates-v5', venueId, partySize],
-    queryFn: () => CoreBookingService.getAvailableDates(venueId, partySize),
+    queryKey: ['available-dates-v5', venueId, partySize, serviceId],
+    queryFn: () => CoreBookingService.getAvailableDates(venueId, partySize, serviceId),
     staleTime: 2 * 60 * 1000
   });
   

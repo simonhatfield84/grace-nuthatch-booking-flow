@@ -10,6 +10,7 @@ export function useAttemptLogger(venueId: string, venueSlug: string) {
     result: 'success' | 'failed' | 'abandoned';
     reason?: string;
     utm?: UTMParams;
+    variant?: 'standard' | 'serviceFirst';
   }) => {
     try {
       await (supabase as any).from('booking_attempts').insert({
@@ -21,6 +22,7 @@ export function useAttemptLogger(venueId: string, venueSlug: string) {
         party_size: params.partySize || null,
         result: params.result,
         reason: params.reason || null,
+        variant: params.variant || null,
         utm: params.utm || {}
       });
     } catch (error) {

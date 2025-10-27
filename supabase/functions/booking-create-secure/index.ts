@@ -322,6 +322,7 @@ const handler = async (req: Request): Promise<Response> => {
       table_id: bookingData.table_id || null,
       is_unallocated: bookingData.is_unallocated || false,
       source: bookingData.source || 'widget',
+      variant: (requestData as any).variant || null,
     };
 
     serviceId = bookingData.service_id || null;

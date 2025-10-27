@@ -9,11 +9,12 @@ export interface V5WidgetConfig {
   copy: any;
   flags: any;
   variant: 'standard' | 'serviceFirst';
+  defaultVariant: 'standard' | 'serviceFirst';
 }
 
-export function useV5WidgetConfig(venueSlug: string, variant: 'standard' | 'serviceFirst' = 'standard') {
+export function useV5WidgetConfig(venueSlug: string, urlVariant?: 'standard' | 'serviceFirst') {
   return useQuery({
-    queryKey: ['v5-widget-config', venueSlug, variant],
+    queryKey: ['v5-widget-config', venueSlug, urlVariant],
     queryFn: async (): Promise<V5WidgetConfig> => {
       // Get venue ID first
       const { data: venue, error: venueError } = await (supabase as any)
@@ -38,10 +39,13 @@ export function useV5WidgetConfig(venueSlug: string, variant: 'standard' | 'serv
           .eq('venue_id', venue.id)
           .order('sort_order', { ascending: true }),
         (supabase as any).from('venue_widget_settings')
-          .select('copy_json, flags_json')
+          .select('copy_json, flags_json, widget_default_variant')
           .eq('venue_id', venue.id)
           .maybeSingle()
       ]);
+      
+      const defaultVariant = copyRes.data?.widget_default_variant || 'standard';
+      const effectiveVariant = urlVariant || defaultVariant;
       
       return {
         venueId: venue.id,
@@ -50,7 +54,8 @@ export function useV5WidgetConfig(venueSlug: string, variant: 'standard' | 'serv
         media: mediaRes.data || [],
         copy: copyRes.data?.copy_json || {},
         flags: copyRes.data?.flags_json || {},
-        variant
+        variant: effectiveVariant,
+        defaultVariant
       };
     },
     staleTime: 5 * 60 * 1000,

@@ -12,6 +12,7 @@ import { Settings as SettingsIcon, Clock, CreditCard, FileText, Tags, Mail, Pale
 import { useSearchParams } from "react-router-dom";
 import { WidgetLinkBuilderTab } from "@/components/settings/WidgetLinkBuilderTab";
 import { WidgetCopyTab } from "@/components/settings/WidgetCopyTab";
+import { WidgetDefaultVariantSetting } from "@/components/settings/WidgetDefaultVariantSetting";
 
 const Settings = () => {
   const [searchParams] = useSearchParams();
@@ -88,7 +89,10 @@ const Settings = () => {
         </TabsContent>
 
         <TabsContent value="widget">
-          <WidgetLinkBuilderTab />
+          <div className="space-y-6">
+            <WidgetDefaultVariantSetting />
+            <WidgetLinkBuilderTab />
+          </div>
         </TabsContent>
 
         <TabsContent value="widget-copy">

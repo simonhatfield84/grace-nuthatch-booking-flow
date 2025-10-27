@@ -27,10 +27,10 @@ interface V5BookingWidgetProps {
 
 function V5BookingWidgetInner({ venueSlug }: V5BookingWidgetProps) {
   const [searchParams] = useSearchParams();
-  const variant = parseVariant(searchParams);
+  const urlVariant = parseVariant(searchParams);
   const prefill = parseURLPrefill(searchParams);
   
-  const { data: config, isLoading, error } = useV5WidgetConfig(venueSlug, variant);
+  const { data: config, isLoading, error } = useV5WidgetConfig(venueSlug, urlVariant);
   const { state, updateState, goToStep, markStepComplete } = useV5Booking();
   const { logAttempt } = useAttemptLogger(config?.venueId || '', venueSlug);
   const { toast } = useToast();
@@ -81,7 +81,8 @@ function V5BookingWidgetInner({ venueSlug }: V5BookingWidgetProps) {
       partySize: state.partySize,
       result: 'abandoned',
       reason: 'lock_expired',
-      utm: state.utm
+      utm: state.utm,
+      variant: state.variant
     });
     
     updateState({ lockToken: undefined, lockExpiresAt: undefined, selectedTime: undefined });
@@ -114,6 +115,7 @@ function V5BookingWidgetInner({ venueSlug }: V5BookingWidgetProps) {
         notes: guestData.notes,
         status: payment.shouldCharge ? 'pending_payment' : 'confirmed',
         lockToken: state.lockToken,
+        variant: state.variant,
         utm_source: state.utm.utm_source,
         utm_medium: state.utm.utm_medium,
         utm_campaign: state.utm.utm_campaign,
@@ -145,7 +147,8 @@ function V5BookingWidgetInner({ venueSlug }: V5BookingWidgetProps) {
           time: state.selectedTime,
           partySize: state.partySize,
           result: 'success',
-          utm: state.utm
+          utm: state.utm,
+          variant: state.variant
         });
         
         goToStep('confirmation');
@@ -165,7 +168,8 @@ function V5BookingWidgetInner({ venueSlug }: V5BookingWidgetProps) {
         partySize: state.partySize,
         result: 'failed',
         reason: 'booking_creation_failed',
-        utm: state.utm
+        utm: state.utm,
+        variant: state.variant
       });
     }
   };
@@ -178,7 +182,8 @@ function V5BookingWidgetInner({ venueSlug }: V5BookingWidgetProps) {
       time: state.selectedTime,
       partySize: state.partySize,
       result: 'success',
-      utm: state.utm
+      utm: state.utm,
+      variant: state.variant
     });
     
     goToStep('confirmation');
@@ -230,12 +235,13 @@ function V5BookingWidgetInner({ venueSlug }: V5BookingWidgetProps) {
           {state.currentStep === 'partyDate' && (
             <PartyDateStep
               venueId={config.venueId}
+              serviceId={state.variant === 'serviceFirst' ? state.selectedService?.id : undefined}
               initialParty={state.partySize}
               initialDate={state.selectedDate}
               onContinue={(party, date) => {
                 updateState({ partySize: party, selectedDate: date });
                 markStepComplete('partyDate');
-                goToStep(variant === 'serviceFirst' ? 'service' : 'service');
+                goToStep(state.variant === 'serviceFirst' ? 'time' : 'service');
               }}
             />
           )}
@@ -244,11 +250,12 @@ function V5BookingWidgetInner({ venueSlug }: V5BookingWidgetProps) {
             <ServiceStep
               venueId={config.venueId}
               partySize={state.partySize!}
+              selectedDate={state.variant === 'standard' ? state.selectedDate : undefined}
               initialService={prefill.service}
               onContinue={(service) => {
                 updateState({ selectedService: service });
                 markStepComplete('service');
-                goToStep('time');
+                goToStep(state.variant === 'serviceFirst' ? 'partyDate' : 'time');
               }}
             />
           )}
@@ -306,9 +313,15 @@ function V5BookingWidgetInner({ venueSlug }: V5BookingWidgetProps) {
 
 export function V5BookingWidget({ venueSlug }: V5BookingWidgetProps) {
   const utm = useUTM();
+  const [searchParams] = useSearchParams();
+  const urlVariant = parseVariant(searchParams);
+  
+  // Fetch config to get effective variant (URL or venue default)
+  const { data: config } = useV5WidgetConfig(venueSlug, urlVariant);
+  const effectiveVariant = config?.variant || 'standard';
   
   return (
-    <V5BookingProvider initialUTM={utm}>
+    <V5BookingProvider initialUTM={utm} variant={effectiveVariant}>
       <V5BookingWidgetInner venueSlug={venueSlug} />
     </V5BookingProvider>
   );

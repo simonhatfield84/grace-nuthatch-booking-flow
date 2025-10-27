@@ -89,6 +89,22 @@ export function WidgetLinkBuilderTab() {
     enabled: !!venueInfo?.id
   });
 
+  const handleQuickLink = (presetVariant: 'standard' | 'serviceFirst') => {
+    if (!venueInfo) return;
+    
+    const params: WidgetLinkParams = { variant: presetVariant };
+    const utm: WidgetLinkUTM = {};
+    
+    const url = buildURL(venueInfo.slug, params, utm);
+    
+    navigator.clipboard.writeText(url);
+    
+    toast({
+      title: 'Link Copied!',
+      description: `${presetVariant === 'standard' ? 'Party & Date First' : 'Service First'} link copied to clipboard`
+    });
+  };
+
   const handleGenerate = async () => {
     if (!venueInfo) return;
 
@@ -190,6 +206,38 @@ export function WidgetLinkBuilderTab() {
       </CardHeader>
       
       <CardContent className="space-y-6">
+        {/* Quick Links */}
+        <Card className="bg-blue-50 border-blue-200">
+          <CardContent className="pt-6">
+            <h3 className="font-semibold mb-3">Quick Links</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Copy basic booking links with different start flows
+            </p>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                className="flex-1"
+                onClick={() => handleQuickLink('standard')}
+              >
+                <Copy className="mr-2 h-4 w-4" />
+                Party & Date First
+              </Button>
+              <Button 
+                variant="outline" 
+                className="flex-1"
+                onClick={() => handleQuickLink('serviceFirst')}
+              >
+                <Copy className="mr-2 h-4 w-4" />
+                Service First
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Separator className="my-6" />
+
+        <h3 className="text-lg font-semibold mb-4">Custom Link Builder</h3>
+
         {/* Form Builder */}
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
