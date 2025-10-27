@@ -65,6 +65,11 @@ export function V5BookingProvider({
     utm: initialUTM
   });
   
+  console.log('🎯 Initial Booking State:', {
+    variant,
+    currentStep: variant === 'serviceFirst' ? 'service' : 'partyDate'
+  });
+  
   const updateState = (updates: Partial<V5BookingState>) => {
     setState(prev => ({ ...prev, ...updates }));
   };

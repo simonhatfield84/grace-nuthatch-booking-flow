@@ -89,7 +89,7 @@ export class CoreBookingService {
 
       // Filter services that have windows on the selected date
       const { format } = await import('date-fns');
-      const dayOfWeek = format(selectedDate, 'EEEE').toLowerCase();
+      const dayOfWeek = format(selectedDate, 'EEE').toLowerCase(); // 'Sat' -> 'sat'
       
       const { data: windows } = await supabase
         .from('booking_windows')

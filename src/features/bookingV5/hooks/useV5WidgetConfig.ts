@@ -49,6 +49,13 @@ export function useV5WidgetConfig(venueSlug: string, urlVariant?: 'standard' | '
       const defaultVariant = copyRes.data?.widget_default_variant || 'standard';
       const effectiveVariant = urlVariant || defaultVariant;
       
+      console.log('🎯 Widget Config:', {
+        urlVariant,
+        defaultVariant,
+        effectiveVariant,
+        venueId: venue.id
+      });
+      
       return {
         venueId: venue.id,
         venueSlug,

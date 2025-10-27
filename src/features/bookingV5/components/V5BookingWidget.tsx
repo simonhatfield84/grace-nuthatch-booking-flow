@@ -402,6 +402,12 @@ export function V5BookingWidget({ venueSlug }: V5BookingWidgetProps) {
   
   const effectiveVariant = config.variant || 'standard';
   
+  console.log('🎯 Effective Variant:', {
+    configVariant: config.variant,
+    effectiveVariant,
+    utmParams: utm
+  });
+  
   // ONLY load Stripe after venue is confirmed valid
   return (
     <StripeProvider venueSlug={venueSlug} usePublicMode={true}>
