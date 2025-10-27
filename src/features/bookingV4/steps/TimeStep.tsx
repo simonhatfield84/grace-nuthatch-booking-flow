@@ -5,6 +5,8 @@ import { V4BookingData } from "../V4BookingWidget";
 import { V4WidgetConfig } from "@/hooks/useV4WidgetConfig";
 import { AvailabilityApiClient } from "@/services/api/availabilityApiClient";
 import { format } from "date-fns";
+import { useSlotLock } from "@/features/booking/hooks/useSlotLock";
+import { toast } from "sonner";
 
 interface TimeStepProps {
   bookingData: V4BookingData;
@@ -16,8 +18,10 @@ interface TimeStepProps {
 }
 
 export function TimeStep({ bookingData, venueSlug, onUpdate, onNext, onBack, config }: TimeStepProps) {
+  const { createLock } = useSlotLock();
   const [slots, setSlots] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCreatingLock, setIsCreatingLock] = useState(false);
   const [selectedTime, setSelectedTime] = useState(bookingData.time);
 
   useEffect(() => {
@@ -46,13 +50,54 @@ export function TimeStep({ bookingData, venueSlug, onUpdate, onNext, onBack, con
     fetchSlots();
   }, [bookingData.date, bookingData.service, bookingData.partySize, venueSlug]);
 
-  const handleTimeSelect = (time: string) => {
+  const handleTimeSelect = async (time: string) => {
+    if (!bookingData.date || !bookingData.service) {
+      toast.error("Missing booking information");
+      return;
+    }
+
     setSelectedTime(time);
-    onUpdate({ time });
+    setIsCreatingLock(true);
+
+    try {
+      const lockCreated = await createLock(
+        venueSlug,
+        bookingData.service.id,
+        format(bookingData.date, 'yyyy-MM-dd'),
+        time,
+        bookingData.partySize
+      );
+
+      if (lockCreated) {
+        // Get lock token from localStorage (how useSlotLock stores it)
+        const lockData = localStorage.getItem('grace.lock');
+        const lockToken = lockData ? JSON.parse(lockData).lockToken : null;
+        
+        onUpdate({ time, lockToken });
+        toast.success("Time slot reserved for 10 minutes");
+      } else {
+        setSelectedTime('');
+        // Refresh slots after failed lock
+        const response = await AvailabilityApiClient.checkAvailability({
+          venueSlug,
+          serviceId: bookingData.service.id,
+          date: format(bookingData.date, 'yyyy-MM-dd'),
+          partySize: bookingData.partySize
+        });
+        if (response.ok && response.slots) {
+          setSlots(response.slots);
+        }
+      }
+    } catch (error) {
+      console.error('Error creating lock:', error);
+      setSelectedTime('');
+    } finally {
+      setIsCreatingLock(false);
+    }
   };
 
   const handleNext = () => {
-    if (selectedTime) {
+    if (selectedTime && bookingData.lockToken) {
       onNext();
     }
   };
@@ -105,10 +150,17 @@ export function TimeStep({ bookingData, venueSlug, onUpdate, onNext, onBack, con
         </Button>
         <Button
           onClick={handleNext}
-          disabled={!selectedTime}
+          disabled={!selectedTime || isCreatingLock || !bookingData.lockToken}
           className="flex-1 v4-btn-primary"
         >
-          {config?.copy_json?.ctaText || 'Continue'}
+          {isCreatingLock ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Reserving...
+            </>
+          ) : (
+            config?.copy_json?.ctaText || 'Continue'
+          )}
         </Button>
       </div>
     </div>

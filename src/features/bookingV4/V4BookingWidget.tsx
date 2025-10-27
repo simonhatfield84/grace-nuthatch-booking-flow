@@ -20,6 +20,7 @@ export interface V4BookingData {
   date: Date | null;
   service: any | null;
   time: string;
+  lockToken: string | null;
   guestDetails: {
     name: string;
     email: string;
@@ -46,10 +47,11 @@ export function V4BookingWidget({ isPreview = false }: V4BookingWidgetProps) {
     date: null,
     service: null,
     time: '',
+    lockToken: null,
     guestDetails: null,
     paymentRequired: false,
     paymentAmount: 0,
-    bookingId: null
+    bookingId: null,
   });
 
   const { data: venue, isLoading: venueLoading, error: venueError } = useVenueBySlug(venueSlug || '');
@@ -207,6 +209,9 @@ export function V4BookingWidget({ isPreview = false }: V4BookingWidgetProps) {
           {currentStep === 3 && (
             <GuestDetailsStep
               bookingData={bookingData}
+              venueId={venue.id}
+              venueSlug={venueSlug || ''}
+              venueName={venue.name}
               onUpdate={updateBookingData}
               onNext={handleNext}
               onBack={handleBack}

@@ -1,7 +1,9 @@
-import { CheckCircle } from "lucide-react";
+import { CheckCircle, Loader2 } from "lucide-react";
 import { V4BookingData } from "../V4BookingWidget";
 import { V4WidgetConfig } from "@/hooks/useV4WidgetConfig";
 import { format } from "date-fns";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ConfirmationStepProps {
   bookingData: V4BookingData;
@@ -10,6 +12,35 @@ interface ConfirmationStepProps {
 }
 
 export function ConfirmationStep({ bookingData, venueName, config }: ConfirmationStepProps) {
+  const [bookingReference, setBookingReference] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchBookingReference = async () => {
+      if (bookingData.bookingId) {
+        try {
+          const { data, error } = await supabase
+            .from('bookings')
+            .select('booking_reference')
+            .eq('id', bookingData.bookingId)
+            .single();
+
+          if (!error && data) {
+            setBookingReference(data.booking_reference);
+          }
+        } catch (err) {
+          console.error('Failed to fetch booking reference:', err);
+        } finally {
+          setIsLoading(false);
+        }
+      } else {
+        setIsLoading(false);
+      }
+    };
+
+    fetchBookingReference();
+  }, [bookingData.bookingId]);
+
   return (
     <div className="space-y-6 text-center">
       <div className="flex justify-center">
@@ -24,6 +55,14 @@ export function ConfirmationStep({ bookingData, venueName, config }: Confirmatio
       </div>
 
       <div className="bg-gray-50 rounded-lg p-6 text-left space-y-3">
+        <div>
+          <p className="text-sm text-muted-foreground">Booking Reference</p>
+          {isLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <p className="v4-body font-semibold">{bookingReference || 'Pending...'}</p>
+          )}
+        </div>
         <div>
           <p className="text-sm text-muted-foreground">Date</p>
           <p className="v4-body font-semibold">
