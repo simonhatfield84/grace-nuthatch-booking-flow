@@ -8,9 +8,10 @@ import { TagManagement } from "@/components/settings/TagManagement";
 import { EmailSettingsPanel } from "@/components/settings/EmailSettingsPanel";
 import { EmailTemplatesList } from "@/components/settings/EmailTemplateEditor";
 import { BrandingSettingsTab } from "@/components/settings/BrandingSettingsTab";
-import { Settings as SettingsIcon, Clock, CreditCard, FileText, Tags, Mail, Palette, Link } from "lucide-react";
+import { Settings as SettingsIcon, Clock, CreditCard, FileText, Tags, Mail, Palette, Link, MessageSquare } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { WidgetLinkBuilderTab } from "@/components/settings/WidgetLinkBuilderTab";
+import { WidgetCopyTab } from "@/components/settings/WidgetCopyTab";
 
 const Settings = () => {
   const [searchParams] = useSearchParams();
@@ -24,7 +25,7 @@ const Settings = () => {
       </div>
 
       <Tabs defaultValue={defaultTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="hours" className="flex items-center gap-2">
             <Clock className="h-4 w-4" />
             <span className="hidden sm:inline">Hours</span>
@@ -52,6 +53,10 @@ const Settings = () => {
           <TabsTrigger value="widget" className="flex items-center gap-2">
             <Link className="h-4 w-4" />
             <span className="hidden sm:inline">Widget</span>
+          </TabsTrigger>
+          <TabsTrigger value="widget-copy" className="flex items-center gap-2">
+            <MessageSquare className="h-4 w-4" />
+            <span className="hidden sm:inline">Copy</span>
           </TabsTrigger>
         </TabsList>
 
@@ -84,6 +89,10 @@ const Settings = () => {
 
         <TabsContent value="widget">
           <WidgetLinkBuilderTab />
+        </TabsContent>
+
+        <TabsContent value="widget-copy">
+          <WidgetCopyTab />
         </TabsContent>
       </Tabs>
     </div>

@@ -48,10 +48,29 @@ function V5BookingWidgetInner({ venueSlug }: V5BookingWidgetProps) {
   }, [prefill]);
   
   // Handle lock expiry
-  const handleLockExpired = () => {
+  const handleLockExpired = async () => {
+    const expiredCopy = {
+      title: config.copy?.holdBanner?.expiredTitle || 'Time slot expired',
+      message: config.copy?.holdBanner?.expiredMessage || 'Please select a new time'
+    };
+    
+    // Release lock with reason='expired'
+    if (state.lockToken) {
+      try {
+        await supabase.functions.invoke('locks/release', {
+          body: {
+            lockToken: state.lockToken,
+            reason: 'expired'
+          }
+        });
+      } catch (error) {
+        console.error('Failed to release lock:', error);
+      }
+    }
+    
     toast({
-      title: 'Time slot expired',
-      description: 'Please select a new time',
+      title: expiredCopy.title,
+      description: expiredCopy.message,
       variant: 'destructive'
     });
     
@@ -203,6 +222,7 @@ function V5BookingWidgetInner({ venueSlug }: V5BookingWidgetProps) {
               <HoldBanner 
                 expiresAt={state.lockExpiresAt}
                 onExpired={handleLockExpired}
+                copy={config.copy?.holdBanner}
               />
             </div>
           )}
