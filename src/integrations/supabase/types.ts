@@ -3215,6 +3215,10 @@ export type Database = {
         Args: { duplicate_guest_id: string; primary_guest_id: string }
         Returns: string
       }
+      requires_payment_for_booking: {
+        Args: { p_party_size: number; p_service_id: string }
+        Returns: boolean
+      }
       setup_complete: { Args: never; Returns: boolean }
       setup_venue_atomic: {
         Args: {

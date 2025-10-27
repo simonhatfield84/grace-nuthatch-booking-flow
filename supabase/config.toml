@@ -80,6 +80,9 @@ verify_jwt = false
 [functions.venue-payment-rules]
 verify_jwt = false
 
+[functions.booking-submit]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 policy = "per_request"
