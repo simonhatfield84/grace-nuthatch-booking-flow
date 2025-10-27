@@ -28,8 +28,6 @@ import HomePage from "./pages/HomePage";
 import NotFound from "./pages/NotFound";
 import PaymentPage from "./pages/PaymentPage";
 import PaymentSuccess from "./pages/PaymentSuccess";
-import V4BookingPage from "./pages/v4/V4BookingPage";
-import V4BookingPreviewPage from "./pages/v4/V4BookingPreviewPage";
 
 // Platform admin routes
 import PlatformAuth from "./pages/PlatformAuth";
@@ -84,20 +82,6 @@ function App() {
                       <StripeProvider>
                         <CancelBooking />
                       </StripeProvider>
-                    } />
-
-                    {/* V4 Booking Widget Routes */}
-                    <Route path="/v4/booking/:venueSlug" element={
-                      <StripeProvider>
-                        <V4BookingPage />
-                      </StripeProvider>
-                    } />
-                    <Route path="/v4/booking/:venueSlug/preview" element={
-                      <ProtectedRoute>
-                        <StripeProvider>
-                          <V4BookingPreviewPage />
-                        </StripeProvider>
-                      </ProtectedRoute>
                     } />
 
                     {/* Platform admin routes */}
