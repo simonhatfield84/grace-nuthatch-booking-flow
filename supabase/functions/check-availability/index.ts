@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.3';
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 import { ok, err, jsonResponse } from '../_shared/apiResponse.ts';
+import { isEdgeFlagEnabled } from '../_shared/flags.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -502,7 +503,6 @@ function checkSlotAvailabilityWithLocks(
   }
 
   // Check join groups if no single table works (GUARDRAIL 4: behind feature flag)
-  const { isEdgeFlagEnabled } = await import('./_shared/flags.ts');
   if (isEdgeFlagEnabled('NEW_JOIN_GROUP_CHECK') && joinGroups && joinGroups.length > 0) {
     const suitableJoinGroup = joinGroups.find(group => {
       if (partySize < group.min_party_size || partySize > group.max_party_size) {

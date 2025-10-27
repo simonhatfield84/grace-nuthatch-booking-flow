@@ -122,13 +122,53 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
   const handleSubmit = async () => {
     if (!validateForm()) return;
 
-    const paymentRequired = paymentCalculation?.shouldCharge || false;
-    const paymentAmount = paymentCalculation?.amount || 0;
+    // GUARDRAIL 5: Calculate payment ONLY when form is submitted (after service/time selected)
+    let paymentCalc = null;
+    if (service?.id && venue?.slug) {
+      try {
+        const reqId = crypto.randomUUID().substring(0, 8);
+        console.log(`💰 [${reqId}] Calculating payment for:`, {
+          venueSlug: venue.slug.substring(0, 8) + '...',
+          serviceId: service.id.substring(0, 8) + '...',
+          partySize
+        });
+        
+        const { data, error } = await supabase.functions.invoke('venue-payment-rules', {
+          body: {
+            venueSlug: venue.slug,
+            serviceId: service.id,
+            partySize
+          }
+        });
+
+        if (error) {
+          console.error('Payment calculation error:', error);
+          toast.error('Unable to calculate payment. Please try again.');
+          return;
+        }
+
+        if (data?.ok) {
+          paymentCalc = data;
+          setPaymentCalculation(data); // Set state for later use in payment step
+          console.log(`✅ [${reqId}] Payment calculated:`, {
+            shouldCharge: data.shouldCharge,
+            amount_cents: data.amount_cents
+          });
+        }
+      } catch (error) {
+        console.error('Payment calculation failed:', error);
+        toast.error('Unable to process payment calculation');
+        return;
+      }
+    }
+
+    const paymentRequired = paymentCalc?.shouldCharge || false;
+    const paymentAmount = paymentCalc?.amount_cents ? paymentCalc.amount_cents / 100 : 0;
 
     console.log('📝 Form submitted:', {
       paymentRequired,
       paymentAmount,
-      paymentCalculation,
+      paymentCalculation: paymentCalc,
       service: service?.title,
       partySize
     });
