@@ -118,6 +118,14 @@ const handler = async (req: Request): Promise<Response> => {
     const amountCents = paymentCalc.amount_cents;
     console.log(`💰 [${reqId}] Amount calculated server-side: £${amountCents/100}`);
 
+    // UPDATE CPI_GATE log with calculated amount
+    console.log('[CPI_GATE_VALIDATED]', { 
+      bookingId, 
+      bookingStatus: booking.status, 
+      amountCents, 
+      reqId 
+    });
+
     // Enforce bounds
     if (amountCents < 50 || amountCents > 1000000) {
       return jsonResponse(

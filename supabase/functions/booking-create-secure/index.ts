@@ -418,14 +418,22 @@ const handler = async (req: Request): Promise<Response> => {
       log('ℹ️ Skipping payment check:', { hasServiceId: !!serviceId, hasSlug: !!venue.slug });
     }
 
-    // CRITICAL: Determine status server-side
-    const bookingStatus = requiresPayment ? 'pending_payment' : 'confirmed';
+// CRITICAL: Determine status server-side
+const bookingStatus = requiresPayment ? 'pending_payment' : 'confirmed';
 
-    log('🔐 SERVER DECISION:', {
-      requiresPayment,
-      status: bookingStatus,
-      amount_cents: paymentAmountCents
-    });
+// DIAGNOSTIC LOG
+console.log('[SERVER_DECISION]', { 
+  requiresPayment, 
+  bookingStatus, 
+  paymentAmountCents, 
+  reqId: requestData.reqId || reqId 
+});
+
+log('🔐 SERVER DECISION:', {
+  requiresPayment,
+  status: bookingStatus,
+  amount_cents: paymentAmountCents
+});
 
     // Validate lock token if provided
     if (lockToken) {

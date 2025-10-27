@@ -252,35 +252,28 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
     const booking = response.booking;
     setBookingId(booking.id);
     
-    console.log(`✅ [${reqId}] Booking created:`, {
-      id: booking.id,
-      status: booking.status,
-      serverRequiresPayment: response.requiresPayment,
-      serverPaymentAmount: response.paymentAmountCents,
+    // DIAGNOSTIC LOG: Full server decision with reqId
+    console.log('[PAYMENT_DECISION]', {
+      serverRequiresPayment: Boolean(response?.requiresPayment) || response?.booking?.status === 'pending_payment',
+      serverRequiresPaymentRaw: response?.requiresPayment,
+      bookingStatus: response?.booking?.status,
+      paymentAmountCents: response?.paymentAmountCents,
       reqId
     });
     
-    // CRITICAL FIX: Trust SERVER response, not client calculation
-    const serverRequiresPayment = response.requiresPayment || booking.status === 'pending_payment';
+    // TRUST ONLY SERVER RESPONSE (ignore client calculation)
+    const serverRequiresPayment = 
+      Boolean(response?.requiresPayment) || response?.booking?.status === 'pending_payment';
     
-    console.log(`🔐 [${reqId}] Payment decision:`, {
-      serverRequiresPayment,
-      bookingStatus: booking.status,
-      responseRequiresPayment: response.requiresPayment,
-      reqId
-    });
-    
-    // STEP 3: Handle payment based on SERVER decision
+    // FAIL-CLOSED GUARD: If payment required, status MUST be pending_payment
     if (serverRequiresPayment) {
-      // SECURITY: Booking MUST be pending_payment if server requires payment
       if (booking.status !== 'pending_payment') {
-        console.error(`❌ [${reqId}] SECURITY VIOLATION:`, {
-          serverRequiresPayment,
+        console.error('[SECURITY] Server requires payment but booking.status !== pending_payment', {
           bookingStatus: booking.status,
-          expected: 'pending_payment',
+          serverRequiresPayment: response?.requiresPayment,
           reqId
         });
-        throw new Error('Security violation: Server requires payment but booking not in pending_payment status');
+        throw new Error('Security violation: payment required but booking not pending.');
       }
       
       console.log(`🔒 [${reqId}] Payment required - initializing Stripe...`);
@@ -335,9 +328,18 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
         }
       });
 
-      if (paymentError || !data?.client_secret) {
-        console.error(`❌ [${reqId}] Payment initialization failed:`, paymentError || data);
-        throw new Error('Payment required for this booking, but we couldn\'t initialize checkout. Please try again or contact the venue.');
+      // DIAGNOSTIC LOG: Payment intent creation result
+      console.log('[CPI_RESPONSE]', { 
+        ok: data?.ok, 
+        amount: data?.amount_cents, 
+        has_secret: !!data?.client_secret,
+        reqId, 
+        error: paymentError || data?.error 
+      });
+
+      // FAIL-CLOSED: Must have client_secret to proceed
+      if (!data?.client_secret) {
+        throw new Error('No client_secret returned - cannot initialize payment');
       }
 
       console.log(`✅ [${reqId}] Payment intent created:`, {
