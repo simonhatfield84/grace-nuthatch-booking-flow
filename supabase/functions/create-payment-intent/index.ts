@@ -1,229 +1,142 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.3';
-import Stripe from 'https://esm.sh/stripe@12.0.0?target=deno';
-import { corsHeaders, handleCors } from '../_shared/cors.ts';
-import { createErrorResponse } from '../_shared/errorSanitizer.ts';
-import { rateLimit, getRateLimitKey } from '../_shared/rateLimit.ts';
-import { ok, err, jsonResponse } from '../_shared/apiResponse.ts';
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.3";
+import Stripe from "https://esm.sh/stripe@14.14.0?target=deno";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { getCorsHeaders, handleCors } from '../_shared/cors.ts';
 
-const stripe = new Stripe(
-  Deno.env.get('STRIPE_SECRET_KEY') || Deno.env.get('STRIPE_TEST_SECRET_KEY') || '',
-  { apiVersion: '2023-10-16' }
-);
+const createPaymentIntentSchema = z.object({
+  bookingData: z.object({
+    venueId: z.string().uuid(),
+    serviceId: z.string().uuid(),
+    date: z.string(),
+    time: z.string(),
+    partySize: z.number(),
+    guest: z.object({
+      name: z.string(),
+      email: z.string().email(),
+      phone: z.string(),
+    }),
+    notes: z.string().optional().nullable(),
+    lockToken: z.string().uuid().optional().nullable(),
+    allocation: z.object({
+      allocationType: z.enum(['single', 'join']),
+      tableId: z.number().optional(),
+      tableIds: z.array(z.number()).optional(),
+    }),
+  }),
+  amountCents: z.number().int().positive(),
+});
 
 const handler = async (req: Request): Promise<Response> => {
   const corsResponse = handleCors(req);
   if (corsResponse) return corsResponse;
+  
+  const corsH = getCorsHeaders(req);
 
   try {
-    // Parse input
-    const { bookingId, reqId: clientReqId } = await req.json();
-    const reqId = clientReqId || crypto.randomUUID().substring(0, 8);
-    
-    console.log(`💳 [${reqId}] Payment intent request:`, { bookingId });
+    const body = await req.json();
+    const input = createPaymentIntentSchema.parse(body);
 
-    if (!Number.isInteger(bookingId) || bookingId <= 0) {
-      console.error(`❌ [${reqId}] Invalid booking ID:`, bookingId);
-      return jsonResponse(
-        err('invalid_input', 'Valid booking ID required'),
-        400,
-        corsHeaders
-      );
-    }
-
-    // STEP 1: Use service role to fetch booking (anonymous-safe)
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+      { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    const { data: booking, error: bookingError } = await supabase
-      .from('bookings')
-      .select(`
-        id,
-        venue_id,
-        party_size,
-        service,
-        status,
-        guest_name,
-        email,
-        venues!inner(slug)
-      `)
-      .eq('id', bookingId)
+    // Get Stripe keys for venue
+    const { data: settings } = await supabase
+      .from('venue_stripe_settings')
+      .select('is_active, publishable_key_live, secret_key_live, publishable_key_test, secret_key_test, test_mode')
+      .eq('venue_id', input.bookingData.venueId)
+      .maybeSingle();
+
+    if (!settings || !settings.is_active) {
+      return new Response(JSON.stringify({
+        ok: false,
+        code: 'stripe_not_configured',
+        message: 'Payment processing is not available for this venue',
+      }), {
+        status: 400,
+        headers: { ...corsH, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const publishableKey = settings.test_mode 
+      ? settings.publishable_key_test 
+      : settings.publishable_key_live;
+      
+    const secretKey = settings.test_mode 
+      ? settings.secret_key_test 
+      : settings.secret_key_live;
+
+    if (!publishableKey || !secretKey) {
+      return new Response(JSON.stringify({
+        ok: false,
+        code: 'stripe_keys_missing',
+        message: 'Stripe keys are not configured',
+      }), {
+        status: 400,
+        headers: { ...corsH, 'Content-Type': 'application/json' }
+      });
+    }
+
+    const stripe = new Stripe(secretKey, {
+      apiVersion: '2023-10-16',
+    });
+
+    // Get service title for description
+    const { data: service } = await supabase
+      .from('services')
+      .select('title')
+      .eq('id', input.bookingData.serviceId)
       .single();
 
-    if (bookingError || !booking) {
-      console.error(`❌ [${reqId}] Booking not found:`, bookingId);
-      return jsonResponse(
-        err('not_found', 'Booking not found'),
-        404,
-        corsHeaders
-      );
-    }
-
-    // STEP 2: Verify booking is pending_payment
-    if (booking.status !== 'pending_payment') {
-      console.error(`❌ [${reqId}] Booking not pending payment:`, booking.status);
-      return jsonResponse(
-        err('invalid_state', 'Booking does not require payment or has already been paid'),
-        400,
-        corsHeaders
-      );
-    }
-
-    // STEP 3: Rate limiting (10 payment intents per booking)
-    const rateLimitKey = getRateLimitKey(`booking:${bookingId}`, 'payment_intent');
-    const allowed = await rateLimit(rateLimitKey, 10, 60 * 60);
-    
-    if (!allowed) {
-      return jsonResponse(
-        err('rate_limited', 'Too many payment requests. Please try again later.'),
-        429,
-        corsHeaders
-      );
-    }
-
-    // STEP 4: Get service and calculate amount SERVER-SIDE
-    const venueSlug = booking.venues.slug;
-    
-    const { data: serviceData, error: serviceError } = await supabase
-      .from('services')
-      .select('id, requires_payment, charge_amount_per_guest, minimum_guests_for_charge, title')
-      .eq('venue_id', booking.venue_id)
-      .eq('title', booking.service)
-      .maybeSingle();
-
-    if (serviceError) {
-      console.error(`❌ [${reqId}] Service fetch error:`, serviceError);
-    }
-
-    // Calculate amount using venue-payment-rules
-    const { data: paymentCalc } = await supabase.functions.invoke('venue-payment-rules', {
-      body: {
-        venueSlug: venueSlug,
-        serviceId: serviceData?.id,
-        partySize: booking.party_size
-      }
-    });
-
-    if (!paymentCalc?.ok || !paymentCalc.shouldCharge || paymentCalc.amount_cents <= 0) {
-      console.error(`❌ [${reqId}] Payment not required for this booking`);
-      return jsonResponse(
-        err('invalid_state', 'Payment not required for this booking'),
-        400,
-        corsHeaders
-      );
-    }
-
-    const amountCents = paymentCalc.amount_cents;
-    console.log(`💰 [${reqId}] Amount calculated server-side: £${amountCents/100}`);
-
-    // UPDATE CPI_GATE log with calculated amount
-    console.log('[CPI_GATE_VALIDATED]', { 
-      bookingId, 
-      bookingStatus: booking.status, 
-      amountCents, 
-      reqId 
-    });
-
-    // Enforce bounds
-    if (amountCents < 50 || amountCents > 1000000) {
-      return jsonResponse(
-        err('invalid_input', 'Payment amount out of acceptable range'),
-        400,
-        corsHeaders
-      );
-    }
-
-    // STEP 7: Check if payment intent already exists for this booking
-    const { data: existingPayment } = await supabase
-      .from('booking_payments')
-      .select('stripe_payment_intent_id, status')
-      .eq('booking_id', bookingId)
-      .in('status', ['pending', 'processing'])
-      .maybeSingle();
-
-    // If pending payment exists, retrieve that intent
-    if (existingPayment?.stripe_payment_intent_id) {
-      try {
-        const existingIntent = await stripe.paymentIntents.retrieve(
-          existingPayment.stripe_payment_intent_id
-        );
-        
-        console.log(`[create-payment-intent] Retrieved existing intent: ${existingIntent.id}`);
-        
-        return jsonResponse(
-          ok({
-            success: true,
-            client_secret: existingIntent.client_secret,
-            payment_intent_id: existingIntent.id,
-            amount_cents: amountCents
-          }),
-          200,
-          corsHeaders
-        );
-      } catch (retrieveError) {
-        console.error('[create-payment-intent] Error retrieving existing intent:', retrieveError);
-        // Continue to create new one if retrieval fails
-      }
-    }
-
-    // STEP 8: Create Stripe PaymentIntent
-    const paymentIntent = await stripe.paymentIntents.create(
-      {
-        amount: amountCents,
-        currency: 'gbp',
-        automatic_payment_methods: { enabled: true },
-        description: `Booking #${bookingId} - ${serviceData?.title || booking.service}`,
-        metadata: {
-          booking_id: String(bookingId),
-          venue_id: String(booking.venue_id),
-          party_size: String(booking.party_size),
-          guest_name: booking.guest_name
-        },
-        receipt_email: booking.email || undefined
+    // Create PaymentIntent
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: input.amountCents,
+      currency: 'gbp',
+      metadata: {
+        venueId: input.bookingData.venueId,
+        serviceId: input.bookingData.serviceId,
+        serviceTitle: service?.title || 'Reservation',
+        date: input.bookingData.date,
+        time: input.bookingData.time,
+        partySize: input.bookingData.partySize.toString(),
+        guestName: input.bookingData.guest.name,
+        guestEmail: input.bookingData.guest.email,
+        guestPhone: input.bookingData.guest.phone,
+        lockToken: input.bookingData.lockToken || '',
+        allocationType: input.bookingData.allocation.allocationType,
+        tableId: input.bookingData.allocation.tableId?.toString() || '',
+        tableIds: input.bookingData.allocation.tableIds?.join(',') || '',
+        notes: input.bookingData.notes || '',
       },
-      idempotencyKey ? { idempotencyKey } : undefined
-    );
+      receipt_email: input.bookingData.guest.email,
+      description: `Reservation deposit for ${input.bookingData.guest.name} on ${input.bookingData.date} at ${input.bookingData.time}`,
+    });
 
-    // STEP 9: Record payment in database
-    const { error: paymentError } = await supabase
-      .from('booking_payments')
-      .insert({
-        booking_id: bookingId,
-        venue_id: booking.venue_id,
-        stripe_payment_intent_id: paymentIntent.id,
-        amount_cents: amountCents,
-        status: 'pending'
-      });
+    console.log('✅ PaymentIntent created:', paymentIntent.id);
 
-    if (paymentError) {
-      console.error('[create-payment-intent] Error recording payment:', paymentError);
-      // Don't fail the request - payment intent is already created
-    }
+    return new Response(JSON.stringify({
+      ok: true,
+      clientSecret: paymentIntent.client_secret,
+      publishableKey,
+      testMode: settings.test_mode,
+    }), {
+      status: 200,
+      headers: { ...corsH, 'Content-Type': 'application/json' }
+    });
 
-    // STEP 10: Update booking status to pending_payment
-    await supabase
-      .from('bookings')
-      .update({ status: 'pending_payment' })
-      .eq('id', bookingId);
-
-    console.log(`[create-payment-intent] Created: ${paymentIntent.id} for booking ${bookingId}, amount: £${amountCents/100}`);
-
-    return jsonResponse(
-      ok({
-        success: true,
-        client_secret: paymentIntent.client_secret,
-        payment_intent_id: paymentIntent.id,
-        amount_cents: amountCents
-      }),
-      200,
-      corsHeaders
-    );
-
-  } catch (error) {
-    console.error('[create-payment-intent] Error:', error);
-    return createErrorResponse(error, 500, corsHeaders);
+  } catch (error: any) {
+    console.error('❌ Create payment intent error:', error);
+    return new Response(JSON.stringify({
+      ok: false,
+      code: 'payment_intent_failed',
+      message: error.message,
+    }), {
+      status: 500,
+      headers: { ...corsH, 'Content-Type': 'application/json' }
+    });
   }
 };
 

@@ -6,6 +6,8 @@
 const allowedOriginPatterns = [
   /^https:\/\/.*\.lovableproject\.com$/,
   /^https:\/\/graceful-kangaroo-afa6b6\.netlify\.app$/,
+  /^https:\/\/grace-os\.co\.uk$/,
+  /^https:\/\/www\.grace-os\.co\.uk$/,
   /^http:\/\/localhost:\d+$/,
   /^http:\/\/127\.0\.0\.1:\d+$/,
 ];

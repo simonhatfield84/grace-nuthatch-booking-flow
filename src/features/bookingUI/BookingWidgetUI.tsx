@@ -20,6 +20,9 @@ import { ServiceStepUI } from './steps/ServiceStepUI';
 import { TimeStepUI } from './steps/TimeStepUI';
 import { GuestDetailsStepUI } from './steps/GuestDetailsStepUI';
 import { ConfirmationStepUI } from './steps/ConfirmationStepUI';
+import { Service } from '@/features/bookingAPI';
+import { useLockManager } from '@/features/bookingAPI/useLockManager';
+import { format } from 'date-fns';
 
 interface BookingWidgetUIProps {
   venueSlug: string;
@@ -30,12 +33,7 @@ interface BookingWidgetUIProps {
 interface BookingData {
   partySize: number;
   date?: Date;
-  service?: {
-    id: string;
-    title: string;
-    description: string;
-    requires_deposit: boolean;
-  };
+  service?: Service;
   time?: string;
   guestDetails?: {
     name: string;
@@ -54,6 +52,7 @@ export function BookingWidgetUI({ venueSlug, onStepChange, debug }: BookingWidge
     partySize: 2,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const lockManager = useLockManager();
 
   // Stub venue data
   const venue = {
@@ -112,9 +111,21 @@ export function BookingWidgetUI({ venueSlug, onStepChange, debug }: BookingWidge
     handleStepChange(2);
   };
 
-  const handleTimeSelect = (time: string) => {
-    setBookingData(prev => ({ ...prev, time }));
-    handleStepChange(3);
+  const handleTimeSelect = async (time: string) => {
+    if (!bookingData.service || !bookingData.date) return;
+
+    const success = await lockManager.acquireLock(
+      venueSlug,
+      bookingData.service.id,
+      format(bookingData.date, 'yyyy-MM-dd'),
+      time,
+      bookingData.partySize
+    );
+
+    if (success) {
+      setBookingData(prev => ({ ...prev, time }));
+      handleStepChange(3);
+    }
   };
 
   const handleGuestDetailsSubmit = async (details: any, requiresPayment: boolean) => {
@@ -163,6 +174,9 @@ export function BookingWidgetUI({ venueSlug, onStepChange, debug }: BookingWidge
       case 1:
         return (
           <ServiceStepUI
+            venueSlug={venueSlug}
+            partySize={bookingData.partySize}
+            selectedDate={bookingData.date}
             selectedService={bookingData.service}
             onServiceSelect={handleServiceSelect}
           />
@@ -170,6 +184,9 @@ export function BookingWidgetUI({ venueSlug, onStepChange, debug }: BookingWidge
       case 2:
         return (
           <TimeStepUI
+            venueSlug={venueSlug}
+            serviceId={bookingData.service?.id || ''}
+            partySize={bookingData.partySize}
             selectedTime={bookingData.time}
             selectedDate={bookingData.date}
             onTimeSelect={handleTimeSelect}
@@ -178,8 +195,17 @@ export function BookingWidgetUI({ venueSlug, onStepChange, debug }: BookingWidge
       case 3:
         return (
           <GuestDetailsStepUI
+            venueSlug={venueSlug}
+            bookingData={{
+              serviceId: bookingData.service?.id || '',
+              date: bookingData.date ? format(bookingData.date, 'yyyy-MM-dd') : '',
+              time: bookingData.time || '',
+              partySize: bookingData.partySize,
+            }}
+            lockToken={lockManager.lockToken || ''}
+            secondsRemaining={lockManager.secondsRemaining}
             onSubmit={handleGuestDetailsSubmit}
-            requiresDeposit={bookingData.service?.requires_deposit}
+            requiresDeposit={bookingData.service?.requires_payment}
           />
         );
       case 4:
@@ -194,8 +220,8 @@ export function BookingWidgetUI({ venueSlug, onStepChange, debug }: BookingWidge
               guestName: bookingData.guestDetails?.name || '',
               guestEmail: bookingData.guestDetails?.email || '',
               guestPhone: bookingData.guestDetails?.phone || '',
-              depositPaid: bookingData.service?.requires_deposit,
-              depositAmount: bookingData.service?.requires_deposit ? 1000 : undefined,
+              depositPaid: bookingData.service?.requires_payment,
+              depositAmount: bookingData.service?.requires_payment ? 1000 : undefined,
             }}
             onNewBooking={handleNewBooking}
           />

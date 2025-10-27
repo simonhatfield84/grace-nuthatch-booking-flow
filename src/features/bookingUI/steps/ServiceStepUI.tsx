@@ -1,40 +1,59 @@
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-
-interface Service {
-  id: string;
-  title: string;
-  description: string;
-  requires_deposit: boolean;
-  image_url?: string | null;
-}
+import { fetchServices, Service } from '@/features/bookingAPI';
+import { format } from 'date-fns';
 
 interface ServiceStepUIProps {
+  venueSlug: string;
+  partySize: number;
+  selectedDate?: Date;
   selectedService?: Service;
   onServiceSelect: (service: Service) => void;
 }
 
-// Stub services
-const STUB_SERVICES: Service[] = [
-  {
-    id: 'service-1',
-    title: 'Drinks Table Reservation',
-    description: 'Reserve a table for drinks and light bites',
-    requires_deposit: true,
-    image_url: null,
-  },
-  {
-    id: 'service-2',
-    title: 'Dinner Reservation',
-    description: 'Full dining experience with seasonal menu',
-    requires_deposit: false,
-    image_url: null,
-  },
-];
+export function ServiceStepUI({ 
+  venueSlug, 
+  partySize, 
+  selectedDate, 
+  selectedService, 
+  onServiceSelect 
+}: ServiceStepUIProps) {
+  const [services, setServices] = useState<Service[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-export function ServiceStepUI({ selectedService, onServiceSelect }: ServiceStepUIProps) {
-  const services = STUB_SERVICES;
+  useEffect(() => {
+    if (!selectedDate) return;
+
+    const loadServices = async () => {
+      setIsLoading(true);
+      try {
+        const data = await fetchServices(
+          venueSlug,
+          partySize,
+          format(selectedDate, 'yyyy-MM-dd')
+        );
+        setServices(data);
+      } catch (error) {
+        console.error('Failed to load services:', error);
+        setServices([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadServices();
+  }, [venueSlug, partySize, selectedDate]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-8 w-8 animate-spin text-nuthatch-green" />
+      </div>
+    );
+  }
 
   if (services.length === 0) {
     return (
@@ -69,7 +88,7 @@ export function ServiceStepUI({ selectedService, onServiceSelect }: ServiceStepU
           <CardHeader>
             <CardTitle className="flex items-center justify-between font-nuthatch-heading text-nuthatch-dark">
               {service.title}
-              {service.requires_deposit && (
+              {service.requires_payment && (
                 <Badge variant="secondary" className="ml-2">
                   Deposit required
                 </Badge>

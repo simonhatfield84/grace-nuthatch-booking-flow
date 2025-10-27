@@ -41,6 +41,7 @@ export interface AllocationParams {
 
 export interface AllocationResult {
   available: boolean;
+  allocationType?: 'single' | 'join';
   tableId?: number;
   joinGroupId?: number;
   tableIds?: number[];
@@ -56,13 +57,15 @@ export async function findAvailableTable(
 ): Promise<AllocationResult> {
   const { venueId, date, time, partySize, duration } = params;
 
-  // Get tables for venue
+  // Get tables for venue with priority ranking
   const { data: tables, error: tablesError } = await supabase
     .from('tables')
-    .select('id, seats, label, online_bookable')
+    .select('id, seats, label, online_bookable, priority_rank')
     .eq('venue_id', venueId)
     .eq('online_bookable', true)
-    .eq('status', 'active');
+    .eq('status', 'active')
+    .order('priority_rank', { ascending: false }) // Higher rank first
+    .order('seats', { ascending: true }); // Then smallest fit
 
   if (tablesError || !tables || tables.length === 0) {
     return { available: false, reason: 'No tables available' };
@@ -102,14 +105,14 @@ export async function findAvailableTable(
     (t: Table) => !unavailableTableIds.includes(t.id)
   );
 
-  // Try single table first
+  // Try single table first (already sorted by priority_rank, then seats)
   const suitableSingleTable = availableTables
-    .filter((t: Table) => t.seats >= partySize)
-    .sort((a: Table, b: Table) => a.seats - b.seats)[0];
+    .find((t: Table) => t.seats >= partySize);
 
   if (suitableSingleTable) {
     return {
       available: true,
+      allocationType: 'single',
       tableId: suitableSingleTable.id,
     };
   }
@@ -130,6 +133,7 @@ export async function findAvailableTable(
     if (suitableJoinGroup) {
       return {
         available: true,
+        allocationType: 'join',
         joinGroupId: suitableJoinGroup.id,
         tableIds: suitableJoinGroup.table_ids,
       };

@@ -1,28 +1,54 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Info, AlertTriangle } from 'lucide-react';
+import { Info, AlertTriangle, Loader2 } from 'lucide-react';
 import { TimeSlotButton } from '../ui/TimeSlotButton';
 import { format } from 'date-fns';
+import { fetchTimeSlots } from '@/features/bookingAPI';
 
 interface TimeStepUIProps {
-  selectedTime?: string;
+  venueSlug: string;
+  serviceId: string;
+  partySize: number;
   selectedDate?: Date;
+  selectedTime?: string;
   onTimeSelect: (time: string) => void;
 }
 
-// Stub time slots
-const STUB_TIME_SLOTS = [
-  '17:00', '17:15', '17:30', '17:45',
-  '18:00', '18:15', '18:30', '18:45',
-  '19:00', '19:15', '19:30', '19:45',
-  '20:00', '20:15', '20:30', '20:45',
-  '21:00', '21:15', '21:30', '21:45',
-  '22:00'
-];
-
-export function TimeStepUI({ selectedTime, selectedDate, onTimeSelect }: TimeStepUIProps) {
+export function TimeStepUI({ 
+  venueSlug,
+  serviceId,
+  partySize,
+  selectedDate, 
+  selectedTime, 
+  onTimeSelect 
+}: TimeStepUIProps) {
   const [selected, setSelected] = useState(selectedTime);
-  const slots = STUB_TIME_SLOTS;
+  const [timeSlots, setTimeSlots] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!selectedDate) return;
+
+    const loadTimeSlots = async () => {
+      setIsLoading(true);
+      try {
+        const slots = await fetchTimeSlots(
+          venueSlug,
+          serviceId,
+          partySize,
+          format(selectedDate, 'yyyy-MM-dd')
+        );
+        setTimeSlots(slots);
+      } catch (error) {
+        console.error('Failed to load time slots:', error);
+        setTimeSlots([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadTimeSlots();
+  }, [venueSlug, serviceId, partySize, selectedDate]);
 
   const handleTimeSelect = (time: string) => {
     setSelected(time);
@@ -40,7 +66,15 @@ export function TimeStepUI({ selectedTime, selectedDate, onTimeSelect }: TimeSte
     );
   }
 
-  if (slots.length === 0) {
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-8 w-8 animate-spin text-nuthatch-green" />
+      </div>
+    );
+  }
+
+  if (timeSlots.length === 0) {
     return (
       <Alert className="bg-amber-50 border-amber-200">
         <AlertTriangle className="h-4 w-4 text-amber-600" />
@@ -62,7 +96,7 @@ export function TimeStepUI({ selectedTime, selectedDate, onTimeSelect }: TimeSte
       </Alert>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        {slots.map((time) => (
+        {timeSlots.map((time) => (
           <TimeSlotButton
             key={time}
             time={time}

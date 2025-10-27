@@ -83,6 +83,12 @@ verify_jwt = false
 [functions.booking-submit]
 verify_jwt = false
 
+[functions.fetch-services]
+verify_jwt = false
+
+[functions.create-payment-intent]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 policy = "per_request"

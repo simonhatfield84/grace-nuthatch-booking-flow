@@ -69,3 +69,35 @@ export function requireStripeEnv(): void {
     throw new Error(result.message);
   }
 }
+
+/**
+ * Get Stripe secret key based on environment
+ */
+export function getStripeSecretKey(): string {
+  const isLive = Deno.env.get('STRIPE_ENV') === 'live';
+  const key = isLive 
+    ? Deno.env.get('STRIPE_SECRET_KEY')
+    : Deno.env.get('STRIPE_TEST_SECRET_KEY');
+    
+  if (!key) {
+    throw new Error(`Missing Stripe key for ${isLive ? 'live' : 'test'} mode`);
+  }
+  
+  return key;
+}
+
+/**
+ * Get Stripe webhook secret based on environment
+ */
+export function getStripeWebhookSecret(): string {
+  const isLive = Deno.env.get('STRIPE_ENV') === 'live';
+  const secret = isLive
+    ? Deno.env.get('STRIPE_WEBHOOK_SECRET_LIVE')
+    : Deno.env.get('STRIPE_WEBHOOK_SECRET_TEST');
+    
+  if (!secret) {
+    throw new Error(`Missing webhook secret for ${isLive ? 'live' : 'test'} mode`);
+  }
+  
+  return secret;
+}
