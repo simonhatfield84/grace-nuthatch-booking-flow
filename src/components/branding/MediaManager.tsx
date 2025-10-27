@@ -2,10 +2,12 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Trash2, Upload, GripVertical } from "lucide-react";
+import { Loader2, Upload, Info } from "lucide-react";
 import { uploadMediaWithVariants, deleteMedia } from "@/services/mediaUploadService";
+import { ImagePreviewWithSafeAreas } from "./ImagePreviewWithSafeAreas";
 
 interface MediaManagerProps {
   venueId: string;
@@ -118,6 +120,16 @@ export function MediaManager({ venueId, type, label }: MediaManagerProps) {
 
   return (
     <div className="space-y-4">
+      {/* Educational Alert */}
+      <Alert>
+        <Info className="h-4 w-4" />
+        <AlertDescription>
+          <strong>Device Preview:</strong> Use the device tabs on each image to see how it will appear 
+          on different screen sizes. Content inside the blue safe area is always visible.
+        </AlertDescription>
+      </Alert>
+
+      {/* Upload Section */}
       <div className="flex items-center justify-between">
         <label className="text-sm font-medium">{label}</label>
         <Button
@@ -142,39 +154,41 @@ export function MediaManager({ venueId, type, label }: MediaManagerProps) {
         />
       </div>
 
+      {/* Aspect Ratio Guidance */}
+      <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
+        <CardContent className="pt-4">
+          <h4 className="font-semibold text-sm mb-2">📐 Recommended Aspect Ratios</h4>
+          <ul className="text-xs space-y-1 text-muted-foreground">
+            <li><strong>Hero Images:</strong> 16:9 (1600x900px) - Works well across all devices</li>
+            <li><strong>About Images:</strong> 4:3 (1200x900px) - Optimized for gallery display</li>
+            <li><strong>Safe Content:</strong> Keep important elements (faces, text, logos) within the center area</li>
+          </ul>
+        </CardContent>
+      </Card>
+
+      {/* Media Grid */}
       {media.length === 0 ? (
         <Card className="p-8 text-center border-dashed">
           <p className="text-sm text-muted-foreground">No images uploaded yet</p>
         </Card>
       ) : (
-        <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-4">
           {media.map((item) => (
-            <Card key={item.id} className="relative overflow-hidden group">
-              <img
-                src={getPublicUrl(item.path)}
-                alt={`${type} image`}
-                className="w-full h-48 object-cover"
-              />
-              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => deleteMutation.mutate(item.id)}
-                  disabled={deleteMutation.isPending}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="absolute top-2 left-2 cursor-move">
-                <GripVertical className="h-5 w-5 text-white drop-shadow-lg" />
-              </div>
-            </Card>
+            <ImagePreviewWithSafeAreas
+              key={item.id}
+              imageUrl={getPublicUrl(item.path)}
+              imageWidth={item.width || 1600}
+              imageHeight={item.height || 900}
+              onDelete={() => deleteMutation.mutate(item.id)}
+              isDeleting={deleteMutation.isPending}
+            />
           ))}
         </div>
       )}
 
       <p className="text-xs text-muted-foreground">
-        Recommended: {type === 'hero' ? '1600x900px' : '800x600px'} • Max 5MB • PNG, JPEG, WebP
+        <strong>Recommended:</strong> {type === 'hero' ? '1600x900px (16:9)' : '1200x900px (4:3)'} • 
+        <strong>Max 5MB</strong> • PNG, JPEG, WebP
       </p>
     </div>
   );
