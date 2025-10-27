@@ -88,11 +88,6 @@ export function ServiceStepUI({
           <CardHeader>
             <CardTitle className="flex items-center justify-between font-nuthatch-heading text-nuthatch-dark">
               {service.title}
-              {service.requires_payment && (
-                <Badge variant="secondary" className="ml-2">
-                  Deposit required
-                </Badge>
-              )}
             </CardTitle>
           </CardHeader>
           <CardContent>

@@ -205,7 +205,6 @@ export function BookingWidgetUI({ venueSlug, onStepChange, debug }: BookingWidge
             lockToken={lockManager.lockToken || ''}
             secondsRemaining={lockManager.secondsRemaining}
             onSubmit={handleGuestDetailsSubmit}
-            requiresDeposit={bookingData.service?.requires_payment}
           />
         );
       case 4:

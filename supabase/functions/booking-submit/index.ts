@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.3";
 import Stripe from "https://esm.sh/stripe@14.14.0?target=deno";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
+import { findAvailableTable, addMinutesToTime } from '../_shared/tableAllocation.ts';
 
 // ========== INPUT SCHEMA ==========
 const bookingSubmitSchema = z.object({
@@ -33,13 +34,7 @@ function sanitize(str: string | null | undefined): string | null {
   return str.trim().replace(/[<>]/g, '');
 }
 
-function addMinutes(time: string, minutes: number): string {
-  const [h, m] = time.split(':').map(Number);
-  const totalMins = h * 60 + m + minutes;
-  const newH = Math.floor(totalMins / 60) % 24;
-  const newM = totalMins % 60;
-  return `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`;
-}
+// Removed - now using addMinutesToTime from shared tableAllocation
 
 function getDurationForPartySize(durationRules: any, partySize: number): number {
   const DEFAULT_DURATION = 120;
@@ -57,76 +52,7 @@ function getDurationForPartySize(durationRules: any, partySize: number): number 
   return matchingRule?.durationMinutes || DEFAULT_DURATION;
 }
 
-// ========== TABLE ALLOCATION (server-side with proper overlap) ==========
-async function allocateTableServerSide(
-  supabase: any,
-  params: {
-    venueId: string;
-    date: string;
-    time: string;
-    partySize: number;
-    duration: number;
-  }
-): Promise<{ tableId: number | null }> {
-  const newStart = params.time;
-  const newEnd = addMinutes(params.time, params.duration);
-
-  console.log(`📋 [TABLE_ALLOC] Finding table for party ${params.partySize} on ${params.date} ${newStart}-${newEnd}`);
-
-  // Get all active tables sorted by capacity
-  const { data: tables, error: tablesError } = await supabase
-    .from('tables')
-    .select('id, min_capacity, max_capacity')
-    .eq('venue_id', params.venueId)
-    .eq('status', 'active')
-    .gte('max_capacity', params.partySize)
-    .order('min_capacity', { ascending: true });
-
-  if (tablesError || !tables || tables.length === 0) {
-    console.error(`❌ [TABLE_ALLOC] No suitable tables found:`, tablesError);
-    return { tableId: null };
-  }
-
-  console.log(`🔍 [TABLE_ALLOC] Checking ${tables.length} tables for conflicts`);
-
-  // Check each table for conflicts using proper interval overlap
-  for (const table of tables) {
-    // Get all confirmed/pending bookings for this table on this date
-    const { data: bookings, error: bookingsError } = await supabase
-      .from('bookings')
-      .select('booking_time, end_time')
-      .eq('table_id', table.id)
-      .eq('booking_date', params.date)
-      .in('status', ['confirmed', 'pending_payment', 'seated']);
-
-    if (bookingsError) {
-      console.error(`❌ [TABLE_ALLOC] Error checking table ${table.id}:`, bookingsError);
-      continue;
-    }
-
-    // Check for overlap: existing_start < new_end AND existing_end > new_start
-    const hasConflict = bookings?.some((booking: any) => {
-      const existingStart = booking.booking_time;
-      const existingEnd = booking.end_time || addMinutes(booking.booking_time, params.duration);
-      
-      const overlap = existingStart < newEnd && existingEnd > newStart;
-      
-      if (overlap) {
-        console.log(`⚠️ [TABLE_ALLOC] Table ${table.id} conflict: ${existingStart}-${existingEnd} overlaps ${newStart}-${newEnd}`);
-      }
-      
-      return overlap;
-    });
-
-    if (!hasConflict) {
-      console.log(`✅ [TABLE_ALLOC] Table ${table.id} available (capacity ${table.min_capacity}-${table.max_capacity})`);
-      return { tableId: table.id };
-    }
-  }
-
-  console.error(`❌ [TABLE_ALLOC] No available tables for ${params.date} ${newStart}`);
-  return { tableId: null };
-}
+// Removed - now using findAvailableTable from shared tableAllocation
 
 // ========== LOCK VERIFICATION & RELEASE ==========
 async function verifyAndReleaseLock(
@@ -383,7 +309,7 @@ const handler = async (req: Request): Promise<Response> => {
     const duration = getDurationForPartySize(service.duration_rules, input.partySize);
     console.log(`⏱️ [${reqId}] Duration calculated: ${duration} mins for party of ${input.partySize}`);
     
-    const allocation = await allocateTableServerSide(supabase, {
+    const allocation = await findAvailableTable(supabase, {
       venueId: venue.id,
       date: input.date,
       time: input.time,
@@ -391,8 +317,8 @@ const handler = async (req: Request): Promise<Response> => {
       duration: duration
     });
 
-    if (!allocation.tableId) {
-      console.error(`❌ [${reqId}] No table available`);
+    if (!allocation.available || !allocation.tableId) {
+      console.error(`❌ [${reqId}] No table available:`, allocation.reason);
       
       // Release lock with failure reason
       if (input.lockToken) {
@@ -424,7 +350,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const requiresPayment = !!requiresPaymentResult;
     const amountCents = requiresPayment ? computeAmountCents(service, input.partySize) : 0;
-    const endTime = addMinutes(input.time, duration);
+    const endTime = addMinutesToTime(input.time, duration);
 
     console.log(`💰 [${reqId}] Payment requirement:`, {
       requiresPayment,
