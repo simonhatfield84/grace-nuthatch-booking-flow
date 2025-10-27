@@ -57,15 +57,14 @@ export const useVenueBranding = (venueId: string) => {
   const { data: widgetCopy, isLoading: widgetLoading } = useQuery({
     queryKey: ['venue-widget-copy', venueId],
     queryFn: async () => {
-      // @ts-ignore - Types will be regenerated after migration
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('venue_widget_copy')
         .select('*')
         .eq('venue_id', venueId)
         .maybeSingle();
       
       if (error) throw error;
-      return data as any as VenueWidgetCopy | null;
+      return data as VenueWidgetCopy | null;
     },
     enabled: !!venueId
   });
@@ -73,15 +72,14 @@ export const useVenueBranding = (venueId: string) => {
   const { data: media, isLoading: mediaLoading } = useQuery({
     queryKey: ['venue-media', venueId],
     queryFn: async () => {
-      // @ts-ignore - Types will be regenerated after migration
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('venue_media')
         .select('*')
         .eq('venue_id', venueId)
         .order('sort_order');
       
       if (error) throw error;
-      return data as any as VenueMedia[];
+      return data as VenueMedia[];
     },
     enabled: !!venueId
   });
@@ -117,8 +115,7 @@ export const useVenueBranding = (venueId: string) => {
 
   const updateWidgetCopy = useMutation({
     mutationFn: async (updates: Partial<VenueWidgetCopy>) => {
-      // @ts-ignore - Types will be regenerated after migration
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('venue_widget_copy')
         .upsert({
           venue_id: venueId,

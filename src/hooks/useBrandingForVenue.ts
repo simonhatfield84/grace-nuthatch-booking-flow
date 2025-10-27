@@ -37,8 +37,7 @@ export function useBrandingForVenue(venueSlug: string) {
       
       if (venueError) throw venueError;
 
-      // @ts-ignore - Types will be regenerated after migration
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('venue_branding_public')
         .select('*')
         .eq('venue_id', venue.id)
@@ -61,8 +60,7 @@ export function useBrandingForVenue(venueSlug: string) {
       
       if (venueError) throw venueError;
 
-      // @ts-ignore - Types will be regenerated after migration
-      const { data, error } = await supabase
+      const { data, error} = await (supabase as any)
         .from('venue_media_public')
         .select('*')
         .eq('venue_id', venue.id);

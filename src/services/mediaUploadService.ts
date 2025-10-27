@@ -99,8 +99,7 @@ export async function uploadMediaWithVariants(
   }
 
   // Insert into venue_media
-  // @ts-ignore - Types will be regenerated after migration
-  const { error: dbError } = await supabase
+  const { error: dbError } = await (supabase as any)
     .from('venue_media')
     .insert({
       venue_id: venueId,
@@ -139,8 +138,7 @@ export async function uploadLogo(
 
 export async function deleteMedia(mediaId: string): Promise<void> {
   // Get media record first to delete from storage
-  // @ts-ignore - Types will be regenerated after migration
-  const { data: media, error: fetchError } = await supabase
+  const { data: media, error: fetchError } = await (supabase as any)
     .from('venue_media')
     .select('path, variants, type')
     .eq('id', mediaId)
@@ -148,12 +146,12 @@ export async function deleteMedia(mediaId: string): Promise<void> {
 
   if (fetchError) throw fetchError;
 
-  const bucket = (media as any).type === 'hero' ? 'brand-hero' : 'brand-about';
+  const bucket = media.type === 'hero' ? 'brand-hero' : 'brand-about';
 
   // Delete all files from storage
-  const filesToDelete = [(media as any).path];
-  if ((media as any).variants) {
-    filesToDelete.push(...(media as any).variants.map((v: ImageVariant) => v.path));
+  const filesToDelete = [media.path];
+  if (media.variants) {
+    filesToDelete.push(...media.variants.map((v: ImageVariant) => v.path));
   }
 
   const { error: storageError } = await supabase.storage
@@ -163,8 +161,7 @@ export async function deleteMedia(mediaId: string): Promise<void> {
   if (storageError) console.error('Storage deletion error:', storageError);
 
   // Delete from database
-  // @ts-ignore - Types will be regenerated after migration
-  const { error: dbError } = await supabase
+  const { error: dbError } = await (supabase as any)
     .from('venue_media')
     .delete()
     .eq('id', mediaId);
@@ -176,8 +173,7 @@ export async function reorderMedia(
   mediaId: string,
   newSortOrder: number
 ): Promise<void> {
-  // @ts-ignore - Types will be regenerated after migration
-  const { error } = await supabase
+  const { error } = await (supabase as any)
     .from('venue_media')
     .update({ sort_order: newSortOrder })
     .eq('id', mediaId);

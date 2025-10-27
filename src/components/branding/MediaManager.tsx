@@ -29,8 +29,7 @@ export function MediaManager({ venueId, type, label }: MediaManagerProps) {
   const { data: media = [], isLoading } = useQuery({
     queryKey: ['venue-media', venueId, type],
     queryFn: async () => {
-      // @ts-ignore - Types will be regenerated after migration
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('venue_media')
         .select('id, path, width, height, sort_order')
         .eq('venue_id', venueId)
@@ -38,7 +37,7 @@ export function MediaManager({ venueId, type, label }: MediaManagerProps) {
         .order('sort_order');
 
       if (error) throw error;
-      return data as any as MediaItem[];
+      return data as MediaItem[];
     },
     enabled: !!venueId
   });
