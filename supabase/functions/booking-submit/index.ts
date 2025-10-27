@@ -244,9 +244,10 @@ function computeAmountCents(service: any, partySize: number): number {
 
 // ========== MAIN HANDLER ==========
 const handler = async (req: Request): Promise<Response> => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
+  
+  const corsH = getCorsHeaders(req);
 
   const reqId = crypto.randomUUID().substring(0, 8);
   console.log(`🎫 [${reqId}] Booking submission started`);

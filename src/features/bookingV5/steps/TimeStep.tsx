@@ -41,41 +41,65 @@ export function TimeStep({ venueSlug, serviceId, date, partySize, onContinue, on
     setSelectedTime(time);
     setIsCreatingLock(true);
     
-    try {
-      const { data, error } = await supabase.functions.invoke('locks/create', {
-        body: {
-          venueSlug,
-          serviceId,
-          date: dateStr,
-          time,
-          partySize
+    const attemptLock = async (retryCount = 0): Promise<boolean> => {
+      try {
+        const { data, error } = await supabase.functions.invoke('locks/create', {
+          body: {
+            venueSlug,
+            serviceId,
+            date: dateStr,
+            time,
+            partySize
+          }
+        });
+        
+        if (error) throw error;
+        
+        // Handle 409 conflict - slot taken
+        if (!data?.ok && data?.code === 'slot_conflict') {
+          // Retry once after 300ms
+          if (retryCount === 0) {
+            console.log('⏳ Slot conflict detected, retrying in 300ms...');
+            await new Promise(resolve => setTimeout(resolve, 300));
+            return await attemptLock(1);
+          }
+          
+          // Max retries reached
+          toast({
+            title: 'Time slot taken',
+            description: 'That time was just taken. Please select another slot.',
+            variant: 'destructive'
+          });
+          return false;
         }
-      });
-      
-      if (error) throw error;
-      
-      if (!data?.ok) {
+        
+        if (!data?.ok) {
+          toast({
+            title: 'Time slot unavailable',
+            description: data?.message || 'This time slot is no longer available',
+            variant: 'destructive'
+          });
+          return false;
+        }
+        
+        onContinue(time, data.lockToken, data.expiresAt);
+        return true;
+      } catch (error: any) {
+        console.error('Lock creation failed:', error);
         toast({
-          title: 'Time slot unavailable',
-          description: data?.message || 'This time slot is no longer available',
+          title: 'Error',
+          description: 'Failed to hold time slot. Please try again.',
           variant: 'destructive'
         });
-        setSelectedTime(null);
-        return;
+        return false;
       }
-      
-      onContinue(time, data.lockToken, data.expiresAt);
-    } catch (error: any) {
-      console.error('Lock creation failed:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to hold time slot. Please try again.',
-        variant: 'destructive'
-      });
+    };
+    
+    const success = await attemptLock();
+    if (!success) {
       setSelectedTime(null);
-    } finally {
-      setIsCreatingLock(false);
     }
+    setIsCreatingLock(false);
   };
   
   if (isLoading) {

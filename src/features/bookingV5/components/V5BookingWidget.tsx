@@ -37,6 +37,46 @@ function V5BookingWidgetInner({ venueSlug }: V5BookingWidgetProps) {
   const { logAttempt } = useAttemptLogger(config?.venueId || '', venueSlug);
   const { toast } = useToast();
   
+  // Cleanup lock on unmount or navigation away
+  useEffect(() => {
+    const releaseLock = async () => {
+      if (state.lockToken) {
+        try {
+          await supabase.functions.invoke('locks/release', {
+            body: {
+              lockToken: state.lockToken,
+              reason: 'navigation_away'
+            }
+          });
+          console.log('🔓 Lock released on cleanup');
+        } catch (error) {
+          console.error('Failed to release lock on cleanup:', error);
+        }
+      }
+    };
+    
+    // Release lock on page unload
+    const handleBeforeUnload = () => {
+      if (state.lockToken) {
+        // Use navigator.sendBeacon for reliable cleanup
+        const releaseUrl = `https://wxyotttvyexxzeaewyga.supabase.co/functions/v1/locks/release`;
+        const payload = JSON.stringify({
+          lockToken: state.lockToken,
+          reason: 'page_unload'
+        });
+        
+        navigator.sendBeacon(releaseUrl, payload);
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      releaseLock();
+    };
+  }, [state.lockToken]);
+  
   // Apply branding
   useBrandingForVenue(venueSlug);
   

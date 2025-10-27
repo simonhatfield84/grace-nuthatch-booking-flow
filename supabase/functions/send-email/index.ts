@@ -2,14 +2,19 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.3";
 import { Resend } from "npm:resend@2.0.0";
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
+import { getCorsHeaders, handleCors } from '../_shared/cors.ts';
+import { requireEnv } from '../_shared/envValidator.ts';
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+let resend: any = null;
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
+// Lazy initialize Resend
+function getResend() {
+  if (!resend) {
+    requireEnv(['RESEND_API_KEY']);
+    resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+  }
+  return resend;
+}
 
 // Input validation schemas
 const directEmailSchema = z.object({
@@ -119,10 +124,10 @@ function formatCurrency(amountCents: number, currencyCode: string = 'GBP'): stri
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
+  
+  const corsH = getCorsHeaders(req);
 
   try {
     const supabase = createClient(
@@ -228,51 +233,78 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`📧 Sending email from: ${fromAddress} to: ${Array.isArray(to) ? to.join(', ') : to}`);
 
-    const emailResponse = await resend.emails.send({
-      from: fromAddress,
-      to: Array.isArray(to) ? to : [to!],
-      subject: subject!,
-      html: html!,
-      text,
-    });
+    try {
+      const emailService = getResend();
+      const emailResponse = await emailService.emails.send({
+        from: fromAddress,
+        to: Array.isArray(to) ? to : [to!],
+        subject: subject!,
+        html: html!,
+        text,
+      });
 
-    console.log("📧 Resend response:", emailResponse);
+      console.log("📧 Resend response:", emailResponse);
 
-    // Check for Resend errors
-    if (emailResponse.error) {
-      console.error("❌ Resend error:", emailResponse.error);
-      throw new Error(`Resend error: ${emailResponse.error.message || emailResponse.error}`);
+      // Check for Resend errors
+      if (emailResponse.error) {
+        console.error("❌ Resend provider error:", emailResponse.error);
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Email service error',
+          details: emailResponse.error.message || String(emailResponse.error)
+        }), {
+          status: 502,
+          headers: { "Content-Type": "application/json", ...corsH },
+        });
+      }
+
+      if (!emailResponse.data || !emailResponse.data.id) {
+        console.error("❌ No email ID returned from Resend");
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Email sending failed - no confirmation received'
+        }), {
+          status: 502,
+          headers: { "Content-Type": "application/json", ...corsH },
+        });
+      }
+
+      console.log("✅ Email sent successfully with ID:", emailResponse.data.id);
+
+      return new Response(JSON.stringify({
+        success: true,
+        id: emailResponse.data.id,
+        ...emailResponse
+      }), {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          ...corsH,
+        },
+      });
+    } catch (providerError: any) {
+      console.error("❌ Email provider error:", providerError);
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Email service unavailable',
+        details: providerError.message
+      }), {
+        status: 502,
+        headers: { "Content-Type": "application/json", ...corsH },
+      });
     }
-
-    if (!emailResponse.data || !emailResponse.data.id) {
-      console.error("❌ No email ID returned from Resend");
-      throw new Error("Email sending failed - no confirmation ID received");
-    }
-
-    console.log("✅ Email sent successfully with ID:", emailResponse.data.id);
-
-    return new Response(JSON.stringify({
-      success: true,
-      id: emailResponse.data.id,
-      ...emailResponse
-    }), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        ...corsHeaders,
-      },
-    });
   } catch (error: any) {
     console.error("❌ Error in send-email function:", error);
+    const corsH = getCorsHeaders(req);
     return new Response(
       JSON.stringify({ 
         success: false,
-        error: error.message,
+        error: error.message || 'Internal server error',
         details: error.stack 
       }),
       {
         status: 500,
-        headers: { "Content-Type": "application/json", ...corsHeaders },
+        headers: { "Content-Type": "application/json", ...corsH },
       }
     );
   }

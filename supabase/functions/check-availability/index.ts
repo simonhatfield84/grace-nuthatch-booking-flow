@@ -2,11 +2,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.50.3';
 import { z } from 'https://deno.land/x/zod@v3.22.4/mod.ts';
 import { ok, err, jsonResponse } from '../_shared/apiResponse.ts';
 import { isEdgeFlagEnabled } from '../_shared/flags.ts';
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { getCorsHeaders, handleCors } from '../_shared/cors.ts';
+import { findAvailableTable } from '../_shared/tableAllocation.ts';
 
 // Input validation schema
 const availabilityRequestSchema = z.object({
@@ -33,10 +30,10 @@ const RATE_LIMIT_MAX_REQUESTS = 10;
 const CACHE_TTL_MS = 60000; // 60 seconds
 
 Deno.serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
+  
+  const corsH = getCorsHeaders(req);
 
   const startTime = Date.now();
   const reqId = crypto.randomUUID();
@@ -62,7 +59,7 @@ Deno.serve(async (req) => {
           }))
         }),
         400,
-        corsHeaders
+        corsH
       );
     }
     
@@ -97,7 +94,7 @@ Deno.serve(async (req) => {
       return jsonResponse(
         err('venue_not_found', 'Venue not found or not approved'),
         404,
-        corsHeaders
+        corsH
       );
     }
 
@@ -118,7 +115,7 @@ Deno.serve(async (req) => {
       return jsonResponse(
         err('rate_limited', "We're getting lots of interest—please try again in a moment."),
         429,
-        corsHeaders
+        corsH
       );
     }
 
@@ -142,7 +139,7 @@ Deno.serve(async (req) => {
       return jsonResponse(
         { ...cachedResult, cached: true, reqId },
         200,
-        corsHeaders
+        corsH
       );
     }
 
@@ -163,7 +160,7 @@ Deno.serve(async (req) => {
         took_ms: Date.now() - startTime,
       });
 
-      return jsonResponse(availabilityResult, 400, corsHeaders);
+      return jsonResponse(availabilityResult, 400, corsH);
     }
 
     const response = {
@@ -197,13 +194,14 @@ Deno.serve(async (req) => {
       took_ms: Date.now() - startTime,
     });
 
-    return jsonResponse({ ...response, reqId }, 200, corsHeaders);
+    return jsonResponse({ ...response, reqId }, 200, corsH);
   } catch (error) {
     console.error('Availability check error:', error);
+    const corsH = getCorsHeaders(req);
     return jsonResponse(
       err('server_error', 'Internal server error'),
       500,
-      corsHeaders
+      corsH
     );
   }
 });
@@ -390,22 +388,25 @@ async function calculateAvailability(
   // Generate time slots
   const slots = generateTimeSlots(service.booking_windows || [], date);
 
-  // Check availability for each slot
-  const availableSlots = slots.map((time) => {
-    return {
-      time,
-      available: checkSlotAvailabilityWithLocks(
-        time, 
-        tables, 
-        bookings || [], 
-        blocks || [], 
-        locks || [],
+  // Check availability for each slot using shared allocation logic
+  const durationMinutes = service.duration_minutes || 120;
+  const availableSlots = await Promise.all(
+    slots.map(async (time) => {
+      // Use shared allocation logic for consistency
+      const allocation = await findAvailableTable(supabase, {
+        venueId,
+        date,
+        time,
         partySize,
-        service.duration_minutes || 120,
-        joinGroups || []
-      ),
-    };
-  });
+        duration: durationMinutes
+      });
+      
+      return {
+        time,
+        available: allocation.available,
+      };
+    })
+  );
 
   return {
     ok: true,
