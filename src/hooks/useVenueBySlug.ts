@@ -9,10 +9,9 @@ export const useVenueBySlug = (venueSlug: string) => {
       console.log(`🏢 Looking up venue by slug: ${venueSlug}`);
       
       const { data, error } = await supabase
-        .from('venues')
+        .from('venues_public')
         .select('id, name, slug, approval_status')
         .eq('slug', venueSlug)
-        .eq('approval_status', 'approved')
         .single();
       
       if (error) {

@@ -2879,25 +2879,37 @@ export type Database = {
       }
       venues_public: {
         Row: {
+          address: string | null
           approval_status: string | null
           created_at: string | null
+          email: string | null
           id: string | null
           name: string | null
+          phone: string | null
           slug: string | null
+          updated_at: string | null
         }
         Insert: {
+          address?: string | null
           approval_status?: string | null
           created_at?: string | null
+          email?: string | null
           id?: string | null
           name?: string | null
+          phone?: string | null
           slug?: string | null
+          updated_at?: string | null
         }
         Update: {
+          address?: string | null
           approval_status?: string | null
           created_at?: string | null
+          email?: string | null
           id?: string | null
           name?: string | null
+          phone?: string | null
           slug?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }

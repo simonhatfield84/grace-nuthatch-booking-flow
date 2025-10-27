@@ -17,7 +17,7 @@ export default function V5WidgetPreviewPage() {
       if (!user || !venueSlug) return false;
       
       const { data: venue } = await supabase
-        .from('venues')
+        .from('venues_public')
         .select('id')
         .eq('slug', venueSlug)
         .single();

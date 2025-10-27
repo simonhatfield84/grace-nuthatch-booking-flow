@@ -129,12 +129,11 @@ export function LegacyBookingWidget({ venueSlug }: LegacyBookingWidgetProps) {
       setIsLoading(true);
       setVenueNotFound(false);
       try {
-        const { data, error } = await supabase
-          .from('venues')
-          .select('*')
-          .eq('slug', venueSlug)
-          .eq('approval_status', 'approved')
-          .single();
+      const { data, error } = await supabase
+        .from('venues_public')
+        .select('*')
+        .eq('slug', venueSlug)
+        .single();
 
         if (error) {
           console.error('Error loading venue:', error);

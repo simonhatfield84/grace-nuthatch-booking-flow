@@ -9,9 +9,8 @@ export const useOptimizedAvailability = () => {
     queryKey: ['first-venue-optimized'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('venues')
+        .from('venues_public')
         .select('id, name')
-        .eq('approval_status', 'approved')
         .limit(1)
         .single();
       

@@ -38,9 +38,8 @@ export const useRealTimeAvailability = ({
     queryKey: ['default-venue'],
     queryFn: async () => {
       const { data } = await supabase
-        .from('venues')
+        .from('venues_public')
         .select('id')
-        .eq('approval_status', 'approved')
         .limit(1)
         .single();
       return data;
