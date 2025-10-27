@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWidgetLinkBuilder, WidgetLinkParams, WidgetLinkUTM } from '@/hooks/useWidgetLinkBuilder';
-import { validateLinkParams } from '@/features/bookingV5/utils/linkValidation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -122,12 +121,24 @@ export function WidgetLinkBuilderTab() {
     if (utmContent) utm.utm_content = utmContent;
     if (utmTerm) utm.utm_term = utmTerm;
 
-    // Validate
-    const validation = await validateLinkParams(venueInfo.id, params);
-    if (!validation.valid) {
+    // Simple inline validation
+    const errors: string[] = [];
+    if (params.party && (params.party < 1 || params.party > 50)) {
+      errors.push('Party size must be between 1 and 50');
+    }
+    if (params.date) {
+      const selectedDate = new Date(params.date);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (isNaN(selectedDate.getTime()) || selectedDate < today) {
+        errors.push('Invalid or past date');
+      }
+    }
+
+    if (errors.length > 0) {
       toast({
         title: 'Validation Error',
-        description: validation.errors.join(', '),
+        description: errors.join(', '),
         variant: 'destructive'
       });
       return;
@@ -165,7 +176,7 @@ export function WidgetLinkBuilderTab() {
       if (value) urlParams.set(key, value);
     });
     
-    return `${window.location.origin}/booking/${venueSlug}/v5?${urlParams.toString()}`;
+    return `${window.location.origin}/booking/${venueSlug}?${urlParams.toString()}`;
   };
 
   const handleCopy = (url: string) => {

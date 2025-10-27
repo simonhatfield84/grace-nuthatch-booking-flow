@@ -19,7 +19,6 @@ export const FLAGS = {
   
   // Widget routing flags (ON by default in all environments)
   USE_LEGACY_WIDGET_SLUGS: true,  // Enable slug-based legacy widget
-  ENABLE_V5_WIDGET: false,        // Disable V5 widget routes
 } as const;
 
 export type FlagName = keyof typeof FLAGS;

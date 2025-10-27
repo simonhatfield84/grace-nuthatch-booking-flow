@@ -57,7 +57,6 @@ export function useVenueWidgetCopy(venueId: string, isAdmin: boolean = false) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['venue-widget-copy', venueId] });
-      queryClient.invalidateQueries({ queryKey: ['v5-widget-config'] });
     }
   });
 
