@@ -10,6 +10,51 @@ export interface EnhancedPaymentCalculation {
   autoRefundEnabled: boolean;
 }
 
+// Anonymous-safe enhanced payment calculation
+export const calculateEnhancedPaymentAmountAnonymous = async (
+  venueSlug: string,
+  serviceId: string | null,
+  partySize: number
+): Promise<EnhancedPaymentCalculation> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('venue-payment-rules', {
+      body: { venueSlug, serviceId, partySize }
+    });
+
+    if (error || !data?.ok) {
+      console.error('Enhanced payment calculation failed:', error || data?.message);
+      return {
+        shouldCharge: false,
+        amount: 0,
+        description: 'No payment required',
+        chargeType: 'none',
+        refundWindowHours: 24,
+        autoRefundEnabled: false
+      };
+    }
+
+    return {
+      shouldCharge: data.shouldCharge,
+      amount: data.amount,
+      description: data.description,
+      chargeType: data.chargeType,
+      refundWindowHours: 24,
+      autoRefundEnabled: false
+    };
+  } catch (error) {
+    console.error('Enhanced payment calculation error:', error);
+    return {
+      shouldCharge: false,
+      amount: 0,
+      description: 'Payment calculation error',
+      chargeType: 'error',
+      refundWindowHours: 24,
+      autoRefundEnabled: false
+    };
+  }
+};
+
+// Admin-only enhanced payment calculation
 export const calculateEnhancedPaymentAmount = async (
   serviceId: string | null,
   partySize: number,

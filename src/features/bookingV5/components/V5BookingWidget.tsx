@@ -19,7 +19,7 @@ import { ConfirmationStep } from '../steps/ConfirmationStep';
 import { useBrandingForVenue } from '@/hooks/useBrandingForVenue';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { calculatePaymentAmount } from '@/utils/paymentCalculation';
+import { calculatePaymentAmountAnonymous } from '@/utils/paymentCalculation';
 import { format } from 'date-fns';
 
 interface V5BookingWidgetProps {
@@ -96,12 +96,49 @@ function V5BookingWidgetInner({ venueSlug }: V5BookingWidgetProps) {
     updateState({ guestData });
     
     try {
-      // Calculate payment
-      const payment = await calculatePaymentAmount(
-        state.selectedService,
-        state.partySize!,
-        config!.venueId
+      // Calculate payment using anonymous-safe method
+      const payment = await calculatePaymentAmountAnonymous(
+        venueSlug,
+        state.selectedService?.id || null,
+        state.partySize!
       );
+      
+      console.log('💰 Payment calculation result:', payment);
+      
+      // Check if Stripe is available
+      const { data: stripeSettings } = await supabase.functions.invoke('public-stripe-settings', {
+        body: { venueSlug }
+      });
+      
+      const stripeActive = stripeSettings?.ok && stripeSettings?.active;
+      
+      // Decision: No payment required → Skip to confirmation
+      if (!payment.shouldCharge) {
+        console.log('✅ No payment required, creating booking...');
+      }
+      
+      // Decision: Payment required but Stripe inactive → Show error and stop
+      if (payment.shouldCharge && !stripeActive) {
+        console.error('❌ Payment required but Stripe inactive');
+        toast({
+          title: 'Payment Unavailable',
+          description: 'This booking requires payment but card payments are currently disabled. Please contact the venue.',
+          variant: 'destructive'
+        });
+        
+        await logAttempt({
+          serviceId: state.selectedService?.id,
+          date: state.selectedDate ? format(state.selectedDate, 'yyyy-MM-dd') : undefined,
+          time: state.selectedTime,
+          partySize: state.partySize,
+          result: 'failed',
+          reason: 'payment_required_but_stripe_inactive',
+          utm: state.utm,
+          variant: state.variant
+        });
+        
+        return;
+      }
       
       // Create booking
       const bookingPayload = {

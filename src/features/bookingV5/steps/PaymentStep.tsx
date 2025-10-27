@@ -17,7 +17,19 @@ interface PaymentStepProps {
 export function PaymentStep({ bookingId, amount, description, onSuccess, onBack }: PaymentStepProps) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [stripeAvailable, setStripeAvailable] = useState(true);
   const { toast } = useToast();
+  
+  // Check if Stripe Elements context is available
+  useEffect(() => {
+    try {
+      // Check if we're inside an Elements provider
+      const hasStripe = typeof window !== 'undefined' && (window as any).Stripe;
+      setStripeAvailable(!!hasStripe);
+    } catch {
+      setStripeAvailable(false);
+    }
+  }, []);
   
   useEffect(() => {
     const createIntent = async () => {
@@ -47,6 +59,30 @@ export function PaymentStep({ bookingId, amount, description, onSuccess, onBack 
     
     createIntent();
   }, [bookingId, toast]);
+  
+  // Handle Stripe unavailable
+  if (!stripeAvailable) {
+    return (
+      <div className="space-y-6 p-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Payment</h2>
+          <Button onClick={onBack} variant="ghost" size="sm">Back</Button>
+        </div>
+        
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <p className="text-sm text-yellow-800">
+            <strong>Card payments are not available for this venue.</strong>
+            <br />
+            If you were expecting to pay a deposit or booking fee, please contact the venue directly.
+          </p>
+        </div>
+        
+        <Button onClick={onSuccess} className="w-full">
+          Continue without payment
+        </Button>
+      </div>
+    );
+  }
   
   if (isLoading || !clientSecret) {
     return (

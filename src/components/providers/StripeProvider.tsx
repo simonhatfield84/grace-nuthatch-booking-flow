@@ -79,13 +79,10 @@ export const StripeProvider = ({ children, venueId, venueSlug, usePublicMode = f
     );
   }
 
-  // Show error state if Stripe is not configured
+  // If Stripe is not active or configured, still render children without Elements wrapper
   if (!isActive || !stripePromise) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-800">
-        <strong>Payment system unavailable:</strong> Stripe is not configured for this venue.
-      </div>
-    );
+    console.warn('⚠️ Stripe not active or not configured - payment methods unavailable');
+    return <>{children}</>;
   }
 
   return (

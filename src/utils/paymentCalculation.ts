@@ -8,6 +8,45 @@ export interface PaymentCalculation {
   chargeType: string;
 }
 
+// Anonymous-safe payment calculation via edge function
+export const calculatePaymentAmountAnonymous = async (
+  venueSlug: string,
+  serviceId: string | null,
+  partySize: number
+): Promise<PaymentCalculation> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('venue-payment-rules', {
+      body: { venueSlug, serviceId, partySize }
+    });
+
+    if (error || !data?.ok) {
+      console.error('Payment calculation failed:', error || data?.message);
+      return {
+        shouldCharge: false,
+        amount: 0,
+        description: 'No payment required',
+        chargeType: 'none'
+      };
+    }
+
+    return {
+      shouldCharge: data.shouldCharge,
+      amount: data.amount,
+      description: data.description,
+      chargeType: data.chargeType
+    };
+  } catch (error) {
+    console.error('Payment calculation error:', error);
+    return {
+      shouldCharge: false,
+      amount: 0,
+      description: 'Payment calculation error',
+      chargeType: 'error'
+    };
+  }
+};
+
+// Admin-only payment calculation (direct DB access)
 export const calculatePaymentAmount = async (
   serviceId: string | null,
   partySize: number,
