@@ -2147,6 +2147,8 @@ export type Database = {
           font_body: string
           font_heading: string
           id: string
+          logo_dark: string | null
+          logo_light: string | null
           logo_url: string | null
           primary_color: string
           secondary_color: string
@@ -2160,6 +2162,8 @@ export type Database = {
           font_body?: string
           font_heading?: string
           id?: string
+          logo_dark?: string | null
+          logo_light?: string | null
           logo_url?: string | null
           primary_color?: string
           secondary_color?: string
@@ -2173,6 +2177,8 @@ export type Database = {
           font_body?: string
           font_heading?: string
           id?: string
+          logo_dark?: string | null
+          logo_light?: string | null
           logo_url?: string | null
           primary_color?: string
           secondary_color?: string
@@ -2240,6 +2246,60 @@ export type Database = {
           },
           {
             foreignKeyName: "venue_link_builder_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      venue_media: {
+        Row: {
+          created_at: string
+          height: number | null
+          id: string
+          path: string
+          sort_order: number | null
+          type: string
+          updated_at: string
+          variants: Json | null
+          venue_id: string
+          width: number | null
+        }
+        Insert: {
+          created_at?: string
+          height?: number | null
+          id?: string
+          path: string
+          sort_order?: number | null
+          type: string
+          updated_at?: string
+          variants?: Json | null
+          venue_id: string
+          width?: number | null
+        }
+        Update: {
+          created_at?: string
+          height?: number | null
+          id?: string
+          path?: string
+          sort_order?: number | null
+          type?: string
+          updated_at?: string
+          variants?: Json | null
+          venue_id?: string
+          width?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_media_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_media_venue_id_fkey"
             columns: ["venue_id"]
             isOneToOne: false
             referencedRelation: "venues_public"

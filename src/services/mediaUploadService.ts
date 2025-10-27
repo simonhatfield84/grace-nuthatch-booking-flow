@@ -43,9 +43,9 @@ export async function uploadMediaWithVariants(
   file: File,
   sortOrder: number = 0
 ): Promise<void> {
-  const bucket = type === 'hero' ? 'brand-hero' : 'brand-about';
+  const bucket = 'venue-media';
   const timestamp = Date.now();
-  const baseName = `${venueId}/${timestamp}`;
+  const baseName = `${venueId}/${type}/${timestamp}`;
 
   // Upload original (or resized to 1600 if larger)
   const originalBlob = file.size > 3 * 1024 * 1024 
@@ -121,10 +121,10 @@ export async function uploadLogo(
 ): Promise<string> {
   const timestamp = Date.now();
   const extension = file.name.split('.').pop();
-  const path = `${venueId}/${timestamp}-${variant}.${extension}`;
+  const path = `${venueId}/logos/${variant}.${extension}`;
 
   const { error: uploadError } = await supabase.storage
-    .from('brand-logos')
+    .from('branding')
     .upload(path, file, {
       contentType: file.type,
       upsert: true
@@ -132,8 +132,21 @@ export async function uploadLogo(
 
   if (uploadError) throw uploadError;
 
-  const { data } = supabase.storage.from('brand-logos').getPublicUrl(path);
-  return data.publicUrl;
+  const { data } = supabase.storage.from('branding').getPublicUrl(path);
+  const url = data.publicUrl;
+
+  // Insert record into venue_media table
+  await (supabase as any)
+    .from('venue_media')
+    .upsert({
+      venue_id: venueId,
+      type: `logo_${variant}`,
+      path
+    }, {
+      onConflict: 'venue_id,type'
+    });
+
+  return url;
 }
 
 export async function deleteMedia(mediaId: string): Promise<void> {
@@ -146,7 +159,7 @@ export async function deleteMedia(mediaId: string): Promise<void> {
 
   if (fetchError) throw fetchError;
 
-  const bucket = media.type === 'hero' ? 'brand-hero' : 'brand-about';
+  const bucket = 'venue-media';
 
   // Delete all files from storage
   const filesToDelete = [media.path];

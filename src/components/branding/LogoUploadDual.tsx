@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Upload, X } from "lucide-react";
 import { uploadLogo } from "@/services/mediaUploadService";
+import { supabase } from "@/integrations/supabase/client";
 
 interface LogoUploadDualProps {
   venueId: string;
@@ -46,8 +47,20 @@ export function LogoUploadDual({ venueId, logoLight, logoDark, onUpdate }: LogoU
     setUploading(true);
     try {
       const url = await uploadLogo(venueId, file, variant);
+      
+      // Update venue_branding table
+      const { error: dbError } = await supabase
+        .from('venue_branding')
+        .update({
+          [`logo_${variant}`]: url
+        })
+        .eq('venue_id', venueId);
+
+      if (dbError) throw new Error('Failed to update branding settings');
+      
       onUpdate(variant, url);
       queryClient.invalidateQueries({ queryKey: ['venue-branding', venueId] });
+      
       toast({
         title: "Logo uploaded",
         description: `${variant === 'light' ? 'Light' : 'Dark'} logo updated successfully`
@@ -110,6 +123,9 @@ export function LogoUploadDual({ venueId, logoLight, logoDark, onUpdate }: LogoU
           )}
           <span className="ml-2">Upload Light Logo</span>
         </Button>
+        <p className="text-xs text-muted-foreground">
+          Recommended: 400×100px • Max 2MB • PNG, SVG preferred
+        </p>
         <input
           id="upload-logo-light"
           type="file"
@@ -159,6 +175,9 @@ export function LogoUploadDual({ venueId, logoLight, logoDark, onUpdate }: LogoU
           )}
           <span className="ml-2">Upload Dark Logo</span>
         </Button>
+        <p className="text-xs text-muted-foreground">
+          Recommended: 400×100px • Max 2MB • PNG, SVG preferred
+        </p>
         <input
           id="upload-logo-dark"
           type="file"

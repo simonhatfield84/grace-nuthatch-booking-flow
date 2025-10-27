@@ -118,6 +118,14 @@ export function BrandingSettingsTab() {
         </TabsList>
 
         <TabsContent value="visual" className="space-y-6">
+          <Alert className="mb-4">
+            <Info className="h-4 w-4" />
+            <AlertDescription>
+              <strong>Logo Guidelines:</strong> Upload both light and dark versions for optimal visibility. 
+              Light logos display on dark backgrounds (e.g., header), dark logos on light backgrounds.
+            </AlertDescription>
+          </Alert>
+          
           {/* Logos */}
           <Card>
             <CardHeader>

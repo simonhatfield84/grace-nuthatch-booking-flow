@@ -106,8 +106,7 @@ export function MediaManager({ venueId, type, label }: MediaManagerProps) {
   };
 
   const getPublicUrl = (path: string) => {
-    const bucket = type === 'hero' ? 'brand-hero' : 'brand-about';
-    return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+    return supabase.storage.from('venue-media').getPublicUrl(path).data.publicUrl;
   };
 
   if (isLoading) {
@@ -157,12 +156,13 @@ export function MediaManager({ venueId, type, label }: MediaManagerProps) {
       {/* Aspect Ratio Guidance */}
       <Card className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
         <CardContent className="pt-4">
-          <h4 className="font-semibold text-sm mb-2">📐 Recommended Aspect Ratios</h4>
-          <ul className="text-xs space-y-1 text-muted-foreground">
-            <li><strong>Hero Images:</strong> 16:9 (1600x900px) - Works well across all devices</li>
-            <li><strong>About Images:</strong> 4:3 (1200x900px) - Optimized for gallery display</li>
-            <li><strong>Safe Content:</strong> Keep important elements (faces, text, logos) within the center area</li>
-          </ul>
+          <h4 className="font-semibold text-sm mb-2">📐 Recommended Dimensions</h4>
+          <p className="text-xs space-y-1 text-muted-foreground">
+            <strong>{type === 'hero' ? 'Hero Images' : 'About Images'}:</strong> {type === 'hero' ? '1600×900px (16:9)' : '1200×900px (4:3)'} • Max 5MB • PNG, JPEG, WebP
+          </p>
+          <p className="text-xs text-muted-foreground mt-2">
+            💡 Tip: Keep important content in the center 60% for mobile compatibility
+          </p>
         </CardContent>
       </Card>
 
