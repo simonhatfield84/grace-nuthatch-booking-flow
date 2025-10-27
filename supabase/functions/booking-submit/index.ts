@@ -428,6 +428,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const requiresPayment = !!requiresPaymentResult;
     const amountCents = requiresPayment ? computeAmountCents(service, input.partySize) : 0;
+    const endTime = addMinutes(input.time, duration);
 
     console.log(`💰 [${reqId}] Payment requirement:`, {
       requiresPayment,
@@ -436,173 +437,107 @@ const handler = async (req: Request): Promise<Response> => {
       minGuests: service.minimum_guests_for_charge
     });
 
-    // STEP 6: Insert booking (DB trigger enforces status invariants)
-    const bookingStatus = requiresPayment ? 'pending_payment' : 'confirmed';
-    const endTime = addMinutes(input.time, duration);
-    
-    const { data: booking, error: bookingError } = await supabase
-      .from('bookings')
-      .insert({
-        venue_id: venue.id,
-        service_id: service.id,
-        service: service.title,
-        guest_name: sanitize(input.guest.name),
-        email: input.guest.email.toLowerCase().trim(),
-        phone: sanitize(input.guest.phone),
-        party_size: input.partySize,
-        booking_date: input.date,
-        booking_time: input.time,
-        end_time: endTime,
-        duration_minutes: duration,
-        table_id: allocation.tableId,
-        is_unallocated: false,
-        source: 'widget',
-        status: bookingStatus,
-        notes: sanitize(input.notes)
-      })
-      .select('id, booking_reference, status')
-      .single();
-
-    if (bookingError) {
-      console.error(`❌ [${reqId}] Booking insert failed:`, bookingError);
-      
-      // Release lock on failure
-      if (input.lockToken) {
-        await verifyAndReleaseLock(supabase, input.lockToken, {
-          venueId: venue.id,
-          serviceId: service.id,
-          date: input.date,
-          time: input.time,
-          partySize: input.partySize
-        }, 'booking_failed');
-      }
-      
-      // Check if it's the payment invariant error
-      if (bookingError.message?.includes('payment_required_not_enforced')) {
-        return jsonResponse(400, {
-          ok: false,
-          code: 'payment_required_not_enforced',
-          error: 'Payment is required for this booking',
-          reqId
-        });
-      }
-      
-      return jsonResponse(400, {
-        ok: false,
-        code: 'booking_creation_failed',
-        error: bookingError.message || 'Failed to create booking',
-        reqId
-      });
-    }
-
-    bookingId = booking.id;
-
-    console.log(`✅ [${reqId}] Booking created:`, {
-      id: booking.id,
-      reference: booking.booking_reference,
-      status: booking.status
-    });
-
-    // Create audit log
-    await supabase.from('booking_audit').insert({
-      booking_id: booking.id,
-      venue_id: venue.id,
-      change_type: 'created',
-      source_type: 'widget',
-      source_details: {
-        reqId,
-        partySize: input.partySize,
-        date: input.date,
-        time: input.time,
-        service: service.title
-      }
-    });
-
-    // STEP 7: Handle payment or confirmation
+    // STEP 6: Handle payment-required vs no-payment flows
     if (requiresPayment) {
-      // Release lock with payment_required reason
-      if (input.lockToken) {
-        await verifyAndReleaseLock(supabase, input.lockToken, {
-          venueId: venue.id,
-          serviceId: service.id,
-          date: input.date,
-          time: input.time,
-          partySize: input.partySize
-        }, 'payment_required');
-      }
-
-      // Get Stripe keys
-      const stripeKeys = await getStripeKeysForVenue(supabase, venue.id);
-      
-      if (!stripeKeys?.secret) {
-        console.error(`❌ [${reqId}] Stripe not configured for venue`);
-        
-        // Delete the booking since we can't process payment
-        await supabase.from('bookings').delete().eq('id', booking.id);
-        
-        return jsonResponse(500, {
-          ok: false,
-          code: 'stripe_not_configured',
-          error: 'Payment processing is not available. Please contact the venue.',
-          reqId
-        });
-      }
-
-      // Create Stripe PaymentIntent with idempotency
-      const stripe = new Stripe(stripeKeys.secret, {
-        apiVersion: '2023-10-16'
-      });
-
-      const idempotencyKey = `booking:${booking.id}`;
-
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: amountCents,
-        currency: 'gbp',
-        metadata: {
-          booking_id: String(booking.id),
-          booking_reference: booking.booking_reference,
-          venue_slug: venue.slug,
-          venue_id: venue.id,
-          service_title: service.title,
-          party_size: String(input.partySize),
-          reqId
-        },
-        description: `Booking ${booking.booking_reference} at ${venue.name}`
-      }, {
-        idempotencyKey
-      });
-
-      console.log(`💳 [${reqId}] PaymentIntent created:`, {
-        id: paymentIntent.id,
-        amount: amountCents,
-        testMode: stripeKeys.testMode
-      });
-
-      // Record in booking_payments
-      await supabase.from('booking_payments').insert({
-        booking_id: booking.id,
-        venue_id: venue.id,
-        stripe_payment_intent_id: paymentIntent.id,
-        amount_cents: amountCents,
-        status: 'pending'
-      });
+      // DO NOT CREATE BOOKING - return booking data for webhook to use
+      console.log(`💳 [${reqId}] Payment required, returning booking data for webhook`);
 
       return jsonResponse(200, {
         ok: true,
-        booking: {
-          id: booking.id,
-          reference: booking.booking_reference,
-          status: booking.status
-        },
-        payment: {
-          required: true,
-          client_secret: paymentIntent.client_secret,
-          amount_cents: amountCents,
-          publishable_key: stripeKeys.publishable
+        requiresPayment: true,
+        amountCents,
+        bookingData: {
+          venueId: venue.id,
+          serviceId: service.id,
+          date: input.date,
+          time: input.time,
+          partySize: input.partySize,
+          duration,
+          endTime,
+          guest: {
+            name: sanitize(input.guest.name),
+            email: input.guest.email.toLowerCase().trim(),
+            phone: sanitize(input.guest.phone),
+          },
+          notes: sanitize(input.notes),
+          lockToken: input.lockToken,
+          allocation: { tableId: allocation.tableId },
+          service: service.title,
+          venueName: venue.name,
+          venueSlug: venue.slug,
         },
         reqId
       });
     } else {
+      // No payment required - create confirmed booking immediately
+      const { data: booking, error: bookingError } = await supabase
+        .from('bookings')
+        .insert({
+          venue_id: venue.id,
+          service_id: service.id,
+          service: service.title,
+          guest_name: sanitize(input.guest.name),
+          email: input.guest.email.toLowerCase().trim(),
+          phone: sanitize(input.guest.phone),
+          party_size: input.partySize,
+          booking_date: input.date,
+          booking_time: input.time,
+          end_time: endTime,
+          duration_minutes: duration,
+          table_id: allocation.tableId,
+          is_unallocated: false,
+          source: 'widget',
+          status: 'confirmed',
+          notes: sanitize(input.notes)
+        })
+        .select('id, booking_reference, status')
+        .single();
+
+      if (bookingError) {
+        console.error(`❌ [${reqId}] Booking insert failed:`, bookingError);
+        
+        // Release lock on failure
+        if (input.lockToken) {
+          await verifyAndReleaseLock(supabase, input.lockToken, {
+            venueId: venue.id,
+            serviceId: service.id,
+            date: input.date,
+            time: input.time,
+            partySize: input.partySize
+          }, 'booking_failed');
+        }
+        
+        return jsonResponse(400, {
+          ok: false,
+          code: 'booking_creation_failed',
+          error: bookingError.message || 'Failed to create booking',
+          reqId
+        });
+      }
+
+      bookingId = booking.id;
+
+      console.log(`✅ [${reqId}] Booking created and confirmed:`, {
+        id: booking.id,
+        reference: booking.booking_reference,
+        status: booking.status
+      });
+
+      // Create audit log
+      await supabase.from('booking_audit').insert({
+        booking_id: booking.id,
+        venue_id: venue.id,
+        change_type: 'created',
+        source_type: 'widget',
+        source_details: {
+          reqId,
+          partySize: input.partySize,
+          date: input.date,
+          time: input.time,
+          service: service.title
+        }
+      });
+
       // Release lock with confirmed reason
       if (input.lockToken) {
         await verifyAndReleaseLock(supabase, input.lockToken, {
@@ -614,7 +549,7 @@ const handler = async (req: Request): Promise<Response> => {
         }, 'confirmed');
       }
 
-      // No payment required - send confirmation email
+      // Send confirmation email
       try {
         await supabase.functions.invoke('send-email', {
           body: {
@@ -631,13 +566,11 @@ const handler = async (req: Request): Promise<Response> => {
 
       return jsonResponse(200, {
         ok: true,
+        requiresPayment: false,
         booking: {
           id: booking.id,
           reference: booking.booking_reference,
           status: booking.status
-        },
-        payment: {
-          required: false
         },
         reqId
       });

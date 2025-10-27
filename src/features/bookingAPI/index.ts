@@ -35,7 +35,22 @@ export interface PrepareBookingResponse {
   ok: boolean;
   requiresPayment: boolean;
   amountCents?: number;
-  bookingData?: any;
+  bookingData?: {
+    venueId: string;
+    serviceId: string;
+    date: string;
+    time: string;
+    partySize: number;
+    duration: number;
+    endTime: string;
+    guest: { name: string; email: string; phone: string };
+    notes: string | null;
+    lockToken: string | null;
+    allocation: { tableId: number };
+    service: string;
+    venueName: string;
+    venueSlug: string;
+  };
   booking?: {
     id: number;
     reference: string;

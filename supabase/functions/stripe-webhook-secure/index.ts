@@ -482,93 +482,148 @@ const handler = async (req: Request): Promise<Response> => {
 };
 
 async function handlePaymentSuccess(supabase: any, event: StripeEvent, venueId: string): Promise<number | undefined> {
-  const paymentIntentId = event.data.object.id;
-  const bookingId = event.data.object.metadata?.booking_id;
+  const paymentIntent = event.data.object;
+  const metadata = paymentIntent.metadata;
   
-  console.log('💰 Processing payment success:', paymentIntentId, 'for booking:', bookingId);
+  console.log('💰 Processing payment success:', paymentIntent.id);
 
   try {
-    // Start transaction-like operations
-    const now = new Date().toISOString();
+    // Extract booking data from metadata
+    const bookingData = {
+      venueId: metadata.venueId || venueId,
+      serviceId: metadata.serviceId,
+      date: metadata.date,
+      time: metadata.time,
+      endTime: metadata.endTime,
+      partySize: parseInt(metadata.partySize),
+      duration: parseInt(metadata.duration),
+      tableId: parseInt(metadata.tableId),
+      guest: {
+        name: metadata.guestName,
+        email: metadata.guestEmail,
+        phone: metadata.guestPhone,
+      },
+      notes: metadata.notes || null,
+      lockToken: metadata.lockToken || null,
+      service: metadata.serviceTitle,
+    };
 
-    // Update booking payment record with proper error handling
-    const { error: paymentError } = await supabase
-      .from('booking_payments')
-      .update({ 
-        status: 'succeeded', 
-        processed_at: now,
-        updated_at: now
-      })
-      .eq('stripe_payment_intent_id', paymentIntentId);
+    console.log('📋 Extracted booking data from PaymentIntent:', bookingData);
 
-    if (paymentError) {
-      console.error('❌ Failed to update booking payment:', paymentError);
+    // Re-run allocation to ensure table is still available
+    const { findAvailableTable } = await import('../_shared/tableAllocation.ts');
+    
+    const allocation = await findAvailableTable(supabase, {
+      venueId: bookingData.venueId,
+      date: bookingData.date,
+      time: bookingData.time,
+      partySize: bookingData.partySize,
+      duration: bookingData.duration,
+    });
+
+    if (!allocation.available) {
+      console.error('❌ Table no longer available after payment');
       
-      // If the update failed, try to create the payment record
-      if (bookingId) {
-        console.log('🔧 Attempting to create missing payment record for booking:', bookingId);
-        
-        // Get booking details to create payment record
-        const { data: booking } = await supabase
-          .from('bookings')
-          .select('*')
-          .eq('id', parseInt(bookingId))
-          .single();
+      // Create cancelled booking entry for Host visibility
+      await supabase.from('bookings').insert({
+        venue_id: bookingData.venueId,
+        service_id: bookingData.serviceId,
+        service: bookingData.service,
+        guest_name: bookingData.guest.name,
+        email: bookingData.guest.email,
+        phone: bookingData.guest.phone,
+        party_size: bookingData.partySize,
+        booking_date: bookingData.date,
+        booking_time: bookingData.time,
+        end_time: bookingData.endTime,
+        duration_minutes: bookingData.duration,
+        status: 'cancelled',
+        source: 'widget',
+        notes: 'Payment succeeded but table no longer available',
+        payment_intent_id: paymentIntent.id,
+        payment_amount: paymentIntent.amount,
+      });
 
-        if (booking) {
-          // Create the missing payment record
-          const { error: createError } = await supabase
-            .from('booking_payments')
-            .insert({
-              booking_id: parseInt(bookingId),
-              stripe_payment_intent_id: paymentIntentId,
-              amount_cents: event.data.object.amount,
-              status: 'succeeded',
-              payment_method_type: event.data.object.payment_method?.type || 'card',
-              processed_at: now,
-              created_at: now,
-              updated_at: now,
-              venue_id: booking.venue_id
-            });
-
-          if (createError) {
-            console.error('❌ Failed to create payment record:', createError);
-            throw new Error(`Failed to create payment record: ${createError.message}`);
-          } else {
-            console.log('✅ Created missing payment record for booking:', bookingId);
-          }
-        }
-      } else {
-        throw new Error(`Failed to update payment record: ${paymentError.message}`);
-      }
-    } else {
-      console.log('✅ Updated booking payment status to succeeded');
+      // TODO: Trigger auto-refund here
+      throw new Error('Table no longer available after payment');
     }
 
-    // If this is a booking payment, also update the booking status
-    if (bookingId) {
-      const { error: bookingError } = await supabase
-        .from('bookings')
-        .update({ 
-          status: 'confirmed',
-          updated_at: now
+    // Create NEW confirmed booking (not update existing)
+    const { data: booking, error: bookingError } = await supabase
+      .from('bookings')
+      .insert({
+        venue_id: bookingData.venueId,
+        service_id: bookingData.serviceId,
+        service: bookingData.service,
+        guest_name: bookingData.guest.name,
+        email: bookingData.guest.email,
+        phone: bookingData.guest.phone,
+        party_size: bookingData.partySize,
+        booking_date: bookingData.date,
+        booking_time: bookingData.time,
+        end_time: bookingData.endTime,
+        duration_minutes: bookingData.duration,
+        table_id: allocation.tableId,
+        is_unallocated: false,
+        source: 'widget',
+        status: 'confirmed',
+        notes: bookingData.notes,
+        payment_intent_id: paymentIntent.id,
+        payment_amount: paymentIntent.amount,
+      })
+      .select('id, booking_reference')
+      .single();
+
+    if (bookingError) {
+      console.error('❌ Failed to create booking:', bookingError);
+      throw new Error(`Failed to create booking: ${bookingError.message}`);
+    }
+
+    console.log('✅ Booking created:', booking.id, booking.booking_reference);
+
+    // Create payment record
+    await supabase.from('booking_payments').insert({
+      booking_id: booking.id,
+      venue_id: bookingData.venueId,
+      stripe_payment_intent_id: paymentIntent.id,
+      amount_cents: paymentIntent.amount,
+      status: 'succeeded',
+      payment_method_type: paymentIntent.payment_method?.type || 'card',
+      processed_at: new Date().toISOString(),
+    });
+
+    console.log('✅ Payment record created');
+
+    // Release lock
+    if (bookingData.lockToken) {
+      await supabase
+        .from('booking_locks')
+        .update({
+          released_at: new Date().toISOString(),
+          reason: 'payment_succeeded',
         })
-        .eq('id', parseInt(bookingId))
-        .eq('venue_id', venueId);
-
-      if (bookingError) {
-        console.error('❌ Failed to update booking status:', bookingError);
-        throw new Error(`Failed to update booking status: ${bookingError.message}`);
-      } else {
-        console.log('✅ Updated booking status to confirmed for booking:', bookingId);
-      }
-
-      // Send booking confirmation email and log audit trail
-      await sendBookingConfirmationEmail(supabase, parseInt(bookingId), venueId);
+        .eq('lock_token', bookingData.lockToken);
+      
+      console.log('🔓 Lock released:', bookingData.lockToken);
     }
 
-    console.log('💰 Payment succeeded processing complete:', paymentIntentId);
-    return bookingId ? parseInt(bookingId) : undefined;
+    // Create audit log
+    await supabase.from('booking_audit').insert({
+      booking_id: booking.id,
+      venue_id: bookingData.venueId,
+      change_type: 'created',
+      source_type: 'webhook',
+      source_details: {
+        payment_intent_id: paymentIntent.id,
+        amount_cents: paymentIntent.amount,
+      }
+    });
+
+    // Send confirmation email
+    await sendBookingConfirmationEmail(supabase, booking.id, bookingData.venueId);
+
+    console.log('💰 Payment succeeded processing complete:', paymentIntent.id);
+    return booking.id;
 
   } catch (error) {
     console.error('💥 Error in handlePaymentSuccess:', error);
@@ -707,45 +762,46 @@ async function sendBookingConfirmationEmail(supabase: any, bookingId: number, ve
 
 async function handlePaymentFailure(supabase: any, event: StripeEvent, venueId: string): Promise<number | undefined> {
   const paymentIntentId = event.data.object.id;
-  const bookingId = event.data.object.metadata?.booking_id;
+  const metadata = event.data.object.metadata;
   
-  console.log('❌ Processing payment failure:', paymentIntentId, 'for booking:', bookingId);
+  console.log('❌ Processing payment failure:', paymentIntentId);
   
-  const now = new Date().toISOString();
-  
-  // Update booking payment record
-  const { error: paymentError } = await supabase
-    .from('booking_payments')
-    .update({ 
-      status: 'failed', 
-      failure_reason: event.data.object.last_payment_error?.message || 'Payment failed',
-      processed_at: now,
-      updated_at: now
-    })
-    .eq('stripe_payment_intent_id', paymentIntentId);
+  // Create cancelled booking entry for Host visibility
+  const { data: booking } = await supabase.from('bookings').insert({
+    venue_id: metadata.venueId || venueId,
+    service_id: metadata.serviceId,
+    service: metadata.serviceTitle,
+    guest_name: metadata.guestName,
+    email: metadata.guestEmail,
+    phone: metadata.guestPhone,
+    party_size: parseInt(metadata.partySize),
+    booking_date: metadata.date,
+    booking_time: metadata.time,
+    end_time: metadata.endTime,
+    duration_minutes: parseInt(metadata.duration),
+    status: 'cancelled',
+    source: 'widget',
+    notes: 'Payment failed',
+    payment_intent_id: paymentIntentId,
+  }).select('id').single();
 
-  if (paymentError) {
-    console.error('❌ Failed to update booking payment:', paymentError);
-  }
+  console.log('📋 Cancelled booking entry created for payment failure');
 
-  // If this is a booking payment, also update the booking status
-  if (bookingId) {
-    const { error: bookingError } = await supabase
-      .from('bookings')
-      .update({ 
-        status: 'cancelled',
-        updated_at: now
+  // Release lock
+  if (metadata.lockToken) {
+    await supabase
+      .from('booking_locks')
+      .update({
+        released_at: new Date().toISOString(),
+        reason: 'payment_failed',
       })
-      .eq('id', parseInt(bookingId))
-      .eq('venue_id', venueId);
-
-    if (bookingError) {
-      console.error('❌ Failed to update booking status:', bookingError);
-    }
+      .eq('lock_token', metadata.lockToken);
+    
+    console.log('🔓 Lock released:', metadata.lockToken);
   }
 
   console.log('❌ Payment failed processing complete:', paymentIntentId);
-  return bookingId ? parseInt(bookingId) : undefined;
+  return booking?.id;
 }
 
 async function handleSubscriptionPayment(supabase: any, event: StripeEvent, venueId: string) {
