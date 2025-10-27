@@ -2,11 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.3";
 import Stripe from "https://esm.sh/stripe@14.14.0?target=deno";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 
 // ========== INPUT SCHEMA ==========
 const bookingSubmitSchema = z.object({
@@ -25,7 +21,7 @@ const bookingSubmitSchema = z.object({
 });
 
 // ========== HELPERS ==========
-function jsonResponse(status: number, body: any, headers = corsHeaders) {
+function jsonResponse(status: number, body: any, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { ...headers, 'Content-Type': 'application/json' }
@@ -282,7 +278,7 @@ const handler = async (req: Request): Promise<Response> => {
         code: 'rate_limited',
         error: 'Too many booking requests. Please try again later.',
         reqId
-      });
+      }, corsH);
     }
 
     // Create Supabase admin client
@@ -306,7 +302,7 @@ const handler = async (req: Request): Promise<Response> => {
         code: 'venue_not_found',
         error: 'Venue not found or not available',
         reqId
-      });
+      }, corsH);
     }
 
     console.log(`✅ [${reqId}] Venue resolved: ${venue.name}`);
@@ -331,7 +327,7 @@ const handler = async (req: Request): Promise<Response> => {
         code: 'service_not_found',
         error: 'Service not found',
         reqId
-      });
+      }, corsH);
     }
 
     if (!service.online_bookable || !service.active) {
@@ -341,7 +337,7 @@ const handler = async (req: Request): Promise<Response> => {
         code: 'service_unavailable',
         error: 'This service is not available for online booking',
         reqId
-      });
+      }, corsH);
     }
 
     // Validate party size
@@ -355,7 +351,7 @@ const handler = async (req: Request): Promise<Response> => {
         code: 'party_size_out_of_bounds',
         error: `Party size must be between ${minGuests} and ${maxGuests}`,
         reqId
-      });
+      }, corsH);
     }
 
     console.log(`✅ [${reqId}] Service validated: ${service.title}`);
@@ -380,7 +376,7 @@ const handler = async (req: Request): Promise<Response> => {
         code: 'invalid_lock',
         error: lockResult.error || 'Lock verification failed',
         reqId
-      });
+      }, corsH);
     }
 
     // STEP 4: Allocate table server-side
@@ -414,7 +410,7 @@ const handler = async (req: Request): Promise<Response> => {
         code: 'no_table_available',
         error: 'No tables available for your requested time. Please try a different time slot.',
         reqId
-      });
+      }, corsH);
     }
 
     console.log(`✅ [${reqId}] Table allocated: ${allocation.tableId}`);
@@ -467,7 +463,7 @@ const handler = async (req: Request): Promise<Response> => {
           venueSlug: venue.slug,
         },
         reqId
-      });
+      }, corsH);
     } else {
       // No payment required - create confirmed booking immediately
       const { data: booking, error: bookingError } = await supabase
@@ -512,7 +508,7 @@ const handler = async (req: Request): Promise<Response> => {
           code: 'booking_creation_failed',
           error: bookingError.message || 'Failed to create booking',
           reqId
-        });
+        }, corsH);
       }
 
       bookingId = booking.id;
@@ -573,11 +569,13 @@ const handler = async (req: Request): Promise<Response> => {
           status: booking.status
         },
         reqId
-      });
+      }, corsH);
     }
 
   } catch (error: any) {
     console.error(`💥 [${reqId}] Unexpected error:`, error);
+    
+    const corsH = getCorsHeaders(req);
     
     if (error instanceof z.ZodError) {
       return jsonResponse(400, {
@@ -586,7 +584,7 @@ const handler = async (req: Request): Promise<Response> => {
         error: 'Invalid input data',
         details: error.errors,
         reqId
-      });
+      }, corsH);
     }
 
     return jsonResponse(500, {
@@ -594,7 +592,7 @@ const handler = async (req: Request): Promise<Response> => {
       code: 'internal_error',
       error: error.message || 'Internal server error',
       reqId
-    });
+    }, corsH);
   }
 };
 
