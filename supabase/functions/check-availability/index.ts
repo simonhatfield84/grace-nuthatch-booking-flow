@@ -214,6 +214,22 @@ async function sha256(input: string): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+// Helper: Extract duration from duration_rules based on party size
+function getDurationForPartySize(durationRules: any, partySize: number): number {
+  const DEFAULT_DURATION = 120;
+  
+  if (!Array.isArray(durationRules) || durationRules.length === 0) {
+    return DEFAULT_DURATION;
+  }
+  
+  const matchingRule = durationRules.find((rule: any) => 
+    partySize >= (rule.minGuests || 0) && 
+    partySize <= (rule.maxGuests || 999)
+  );
+  
+  return matchingRule?.durationMinutes || DEFAULT_DURATION;
+}
+
 // Helper: Rate limit check
 async function checkRateLimit(supabase: any, ipHash: string, venueId: string, serviceId?: string): Promise<boolean> {
   let query = supabase
@@ -314,7 +330,7 @@ async function calculateAvailability(
   // Get service and verify it belongs to this venue
   const { data: service, error: serviceError } = await supabase
     .from('services')
-    .select('*, booking_windows(*)')
+    .select('id, title, min_guests, max_guests, duration_rules, active, online_bookable, booking_windows(*)')
     .eq('id', serviceId)
     .eq('venue_id', venueId)  // Verify venue ownership
     .eq('active', true)
@@ -389,7 +405,7 @@ async function calculateAvailability(
   const slots = generateTimeSlots(service.booking_windows || [], date);
 
   // Check availability for each slot using shared allocation logic
-  const durationMinutes = service.duration_minutes || 120;
+  const durationMinutes = getDurationForPartySize(service.duration_rules, partySize);
   const availableSlots = await Promise.all(
     slots.map(async (time) => {
       // Use shared allocation logic for consistency
