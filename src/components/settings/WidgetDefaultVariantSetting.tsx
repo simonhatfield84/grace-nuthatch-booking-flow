@@ -20,30 +20,94 @@ export function WidgetDefaultVariantSetting() {
     const fetchSettings = async () => {
       if (!user) return;
       
-      const { data: profile } = await (supabase as any)
-        .from('profiles')
-        .select('venue_id')
-        .eq('user_id', user.id)
-        .single();
-      
-      if (!profile?.venue_id) return;
-      setVenueId(profile.venue_id);
-      
-      const { data: settings } = await (supabase as any)
-        .from('venue_widget_settings')
-        .select('widget_default_variant')
-        .eq('venue_id', profile.venue_id)
-        .single();
-      
-      if (settings?.widget_default_variant) {
-        setVariant(settings.widget_default_variant);
+      try {
+        // Get venue ID from profile
+        const { data: profile, error: profileError } = await (supabase as any)
+          .from('profiles')
+          .select('venue_id')
+          .eq('id', user.id)
+          .single();
+        
+        if (profileError || !profile?.venue_id) {
+          console.error('Failed to load venue ID:', profileError);
+          setIsLoading(false);
+          return;
+        }
+        
+        setVenueId(profile.venue_id);
+        
+        // Fetch widget settings (admin has SELECT permission via new policy)
+        const { data: settings, error: settingsError } = await (supabase as any)
+          .from('venue_widget_settings')
+          .select('widget_default_variant')
+          .eq('venue_id', profile.venue_id)
+          .maybeSingle();
+        
+        if (settingsError) {
+          console.error('Failed to load widget settings:', settingsError);
+          toast({
+            title: 'Warning',
+            description: 'Could not load widget settings. Using defaults.',
+            variant: 'default'
+          });
+          setIsLoading(false);
+          return;
+        }
+        
+        // Auto-create if missing
+        if (!settings) {
+          console.log('No widget settings found, creating defaults...');
+          const { data: newSettings, error: createError } = await (supabase as any)
+            .from('venue_widget_settings')
+            .insert({
+              venue_id: profile.venue_id,
+              widget_default_variant: 'standard',
+              copy_json: {
+                holdBanner: {
+                  title: "We're holding your table",
+                  subtitle: "Complete your details within {time}, or the hold releases automatically.",
+                  urgentWarning: "⏰ Complete your booking soon!",
+                  expiredTitle: "Time slot expired",
+                  expiredMessage: "Please select a new time"
+                }
+              },
+              flags_json: {
+                showHero: true,
+                showAbout: true,
+                showAllergyNote: true,
+                showDepositExplainer: true
+              }
+            })
+            .select('widget_default_variant')
+            .single();
+          
+          if (createError) {
+            console.error('Failed to create default settings:', createError);
+            toast({
+              title: 'Error',
+              description: 'Could not initialize widget settings. Please contact support.',
+              variant: 'destructive'
+            });
+          } else {
+            setVariant(newSettings.widget_default_variant || 'standard');
+          }
+        } else {
+          setVariant(settings.widget_default_variant || 'standard');
+        }
+      } catch (error: any) {
+        console.error('Unexpected error loading widget settings:', error);
+        toast({
+          title: 'Error',
+          description: 'An unexpected error occurred. Please refresh the page.',
+          variant: 'destructive'
+        });
+      } finally {
+        setIsLoading(false);
       }
-      
-      setIsLoading(false);
     };
     
     fetchSettings();
-  }, [user]);
+  }, [user, toast]);
 
   const handleSave = async () => {
     if (!venueId) return;

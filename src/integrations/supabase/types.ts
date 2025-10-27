@@ -2782,6 +2782,32 @@ export type Database = {
         }
         Relationships: []
       }
+      venue_widget_settings_public: {
+        Row: {
+          about_html: string | null
+          copy_json: Json | null
+          flags_json: Json | null
+          hero_image_url: string | null
+          venue_id: string | null
+          widget_default_variant: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_widget_settings_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: true
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_widget_settings_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: true
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       venues_public: {
         Row: {
           approval_status: string | null

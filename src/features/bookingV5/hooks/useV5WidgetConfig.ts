@@ -38,7 +38,7 @@ export function useV5WidgetConfig(venueSlug: string, urlVariant?: 'standard' | '
           .select('*')
           .eq('venue_id', venue.id)
           .order('sort_order', { ascending: true }),
-        (supabase as any).from('venue_widget_settings')
+        (supabase as any).from('venue_widget_settings_public')
           .select('copy_json, flags_json, widget_default_variant')
           .eq('venue_id', venue.id)
           .maybeSingle()

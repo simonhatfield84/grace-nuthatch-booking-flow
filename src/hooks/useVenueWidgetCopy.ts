@@ -21,14 +21,17 @@ export const DEFAULT_HOLD_BANNER_COPY: HoldBannerCopy = {
   expiredMessage: "Please select a new time"
 };
 
-export function useVenueWidgetCopy(venueId: string) {
+export function useVenueWidgetCopy(venueId: string, isAdmin: boolean = false) {
   const queryClient = useQueryClient();
 
   const { data: copy, isLoading } = useQuery({
     queryKey: ['venue-widget-copy', venueId],
     queryFn: async (): Promise<VenueWidgetCopy> => {
+      // Admins read from main table, public reads from view
+      const table = isAdmin ? 'venue_widget_settings' : 'venue_widget_settings_public';
+      
       const { data, error } = await (supabase as any)
-        .from('venue_widget_settings')
+        .from(table)
         .select('copy_json')
         .eq('venue_id', venueId)
         .maybeSingle();
@@ -41,6 +44,10 @@ export function useVenueWidgetCopy(venueId: string) {
 
   const updateCopy = useMutation({
     mutationFn: async (newCopy: VenueWidgetCopy) => {
+      if (!isAdmin) {
+        throw new Error('Only admins can update widget copy');
+      }
+      
       const { error } = await (supabase as any)
         .from('venue_widget_settings')
         .update({ copy_json: newCopy })
@@ -57,6 +64,6 @@ export function useVenueWidgetCopy(venueId: string) {
   return {
     copy,
     isLoading,
-    updateCopy
+    updateCopy: isAdmin ? updateCopy : { mutate: () => {}, mutateAsync: async () => {}, isPending: false }
   };
 }

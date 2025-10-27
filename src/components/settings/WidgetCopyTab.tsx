@@ -29,7 +29,7 @@ export function WidgetCopyTab() {
   const [venueId, setVenueId] = useState<string>('');
   const [holdBanner, setHoldBanner] = useState<HoldBannerCopy>(DEFAULT_HOLD_BANNER_COPY);
   
-  const { copy, isLoading, updateCopy } = useVenueWidgetCopy(venueId);
+  const { copy, isLoading, updateCopy } = useVenueWidgetCopy(venueId, true);
 
   // Fetch venue ID
   useEffect(() => {
