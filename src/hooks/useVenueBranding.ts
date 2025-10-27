@@ -6,22 +6,33 @@ import DOMPurify from 'dompurify';
 export interface VenueBranding {
   id: string;
   venue_id: string;
-  logo_url: string | null;
+  logo_light: string | null;
+  logo_dark: string | null;
   primary_color: string;
   secondary_color: string;
   accent_color: string;
   font_heading: string;
   font_body: string;
   button_radius: string;
+  button_shape: 'rounded' | 'square';
 }
 
-export interface VenueWidgetSettings {
+export interface VenueWidgetCopy {
   id: string;
   venue_id: string;
-  hero_image_url: string | null;
-  about_html: string | null;
   copy_json: Record<string, any>;
   flags_json: Record<string, any>;
+}
+
+export interface VenueMedia {
+  id: string;
+  venue_id: string;
+  type: 'hero' | 'about';
+  path: string;
+  width: number | null;
+  height: number | null;
+  variants: Array<{ w: number; h: number; path: string }>;
+  sort_order: number;
 }
 
 export const useVenueBranding = (venueId: string) => {
@@ -38,22 +49,39 @@ export const useVenueBranding = (venueId: string) => {
         .maybeSingle();
       
       if (error) throw error;
-      return data as VenueBranding | null;
+      return data as any as VenueBranding | null;
     },
     enabled: !!venueId
   });
 
-  const { data: widgetSettings, isLoading: widgetLoading } = useQuery({
-    queryKey: ['venue-widget-settings', venueId],
+  const { data: widgetCopy, isLoading: widgetLoading } = useQuery({
+    queryKey: ['venue-widget-copy', venueId],
     queryFn: async () => {
+      // @ts-ignore - Types will be regenerated after migration
       const { data, error } = await supabase
-        .from('venue_widget_settings')
+        .from('venue_widget_copy')
         .select('*')
         .eq('venue_id', venueId)
         .maybeSingle();
       
       if (error) throw error;
-      return data as VenueWidgetSettings | null;
+      return data as any as VenueWidgetCopy | null;
+    },
+    enabled: !!venueId
+  });
+
+  const { data: media, isLoading: mediaLoading } = useQuery({
+    queryKey: ['venue-media', venueId],
+    queryFn: async () => {
+      // @ts-ignore - Types will be regenerated after migration
+      const { data, error } = await supabase
+        .from('venue_media')
+        .select('*')
+        .eq('venue_id', venueId)
+        .order('sort_order');
+      
+      if (error) throw error;
+      return data as any as VenueMedia[];
     },
     enabled: !!venueId
   });
@@ -87,18 +115,11 @@ export const useVenueBranding = (venueId: string) => {
     }
   });
 
-  const updateWidgetSettings = useMutation({
-    mutationFn: async (updates: Partial<VenueWidgetSettings>) => {
-      if (updates.about_html) {
-        updates.about_html = DOMPurify.sanitize(updates.about_html, {
-          ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'ol', 'ul', 'li', 'a'],
-          ALLOWED_ATTR: ['href', 'rel', 'target'],
-          ADD_ATTR: ['rel', 'target']
-        });
-      }
-
+  const updateWidgetCopy = useMutation({
+    mutationFn: async (updates: Partial<VenueWidgetCopy>) => {
+      // @ts-ignore - Types will be regenerated after migration
       const { error } = await supabase
-        .from('venue_widget_settings')
+        .from('venue_widget_copy')
         .upsert({
           venue_id: venueId,
           ...updates,
@@ -108,10 +129,9 @@ export const useVenueBranding = (venueId: string) => {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['venue-widget-settings', venueId] });
-      queryClient.invalidateQueries({ queryKey: ['v4-widget-config'] });
+      queryClient.invalidateQueries({ queryKey: ['venue-widget-copy', venueId] });
       toast({
-        title: "Widget settings updated",
+        title: "Widget copy updated",
         description: "Your changes have been saved successfully."
       });
     },
@@ -126,10 +146,11 @@ export const useVenueBranding = (venueId: string) => {
 
   return {
     branding,
-    widgetSettings,
-    isLoading: brandingLoading || widgetLoading,
+    widgetCopy,
+    media: media || [],
+    isLoading: brandingLoading || widgetLoading || mediaLoading,
     updateBranding: updateBranding.mutate,
-    updateWidgetSettings: updateWidgetSettings.mutate,
-    isUpdating: updateBranding.isPending || updateWidgetSettings.isPending
+    updateWidgetCopy: updateWidgetCopy.mutate,
+    isUpdating: updateBranding.isPending || updateWidgetCopy.isPending
   };
 };

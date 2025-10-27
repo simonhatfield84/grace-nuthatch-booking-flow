@@ -6,30 +6,16 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Eye, Save, Loader2, Info } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Save, Loader2, Info } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useVenueBranding } from "@/hooks/useVenueBranding";
-import { MediaUpload } from "@/components/services/MediaUpload";
-import { RichTextEditor } from "@/components/services/RichTextEditor";
-import { Checkbox } from "@/components/ui/checkbox";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-
-const FONT_OPTIONS = [
-  { value: 'Inter', label: 'Inter (default)' },
-  { value: 'Poppins', label: 'Poppins' },
-  { value: 'Playfair Display', label: 'Playfair Display' },
-  { value: 'Karla', label: 'Karla' },
-  { value: 'Roboto', label: 'Roboto' },
-  { value: 'Lato', label: 'Lato' }
-];
-
-const BUTTON_RADIUS_OPTIONS = [
-  { value: 'sm', label: 'Small (4px)' },
-  { value: 'md', label: 'Medium (6px)' },
-  { value: 'lg', label: 'Large (8px)' },
-  { value: 'full', label: 'Rounded (999px)' }
-];
+import { GOOGLE_FONTS } from "@/constants/fonts";
+import { ContrastChecker } from "@/components/branding/ContrastChecker";
+import { MediaManager } from "@/components/branding/MediaManager";
+import { LogoUploadDual } from "@/components/branding/LogoUploadDual";
 
 export function BrandingSettingsTab() {
   const { user } = useAuth();
@@ -60,62 +46,44 @@ export function BrandingSettingsTab() {
     }
   }, [user]);
 
-  const { branding, widgetSettings, isLoading, updateBranding, updateWidgetSettings, isUpdating } = 
+  const { branding, widgetCopy, media, isLoading, updateBranding, updateWidgetCopy, isUpdating } = 
     useVenueBranding(venueId);
 
   const [localBranding, setLocalBranding] = useState({
-    logo_url: '',
+    logo_light: null as string | null,
+    logo_dark: null as string | null,
     primary_color: '#0ea5a0',
     secondary_color: '#111827',
     accent_color: '#f59e0b',
     font_heading: 'Inter',
     font_body: 'Inter',
-    button_radius: 'md'
-  });
-
-  const [localWidget, setLocalWidget] = useState({
-    hero_image_url: '',
-    about_html: '',
-    copy_json: {},
-    flags_json: {}
+    button_shape: 'rounded' as 'rounded' | 'square'
   });
 
   useEffect(() => {
     if (branding) {
       setLocalBranding({
-        logo_url: branding.logo_url || '',
+        logo_light: branding.logo_light,
+        logo_dark: branding.logo_dark,
         primary_color: branding.primary_color,
         secondary_color: branding.secondary_color,
         accent_color: branding.accent_color,
         font_heading: branding.font_heading,
         font_body: branding.font_body,
-        button_radius: branding.button_radius
+        button_shape: branding.button_shape
       });
     }
   }, [branding]);
-
-  useEffect(() => {
-    if (widgetSettings) {
-      setLocalWidget({
-        hero_image_url: widgetSettings.hero_image_url || '',
-        about_html: widgetSettings.about_html || '',
-        copy_json: widgetSettings.copy_json || {},
-        flags_json: widgetSettings.flags_json || {}
-      });
-    }
-  }, [widgetSettings]);
 
   const handleSaveBranding = () => {
     updateBranding(localBranding);
   };
 
-  const handleSaveWidget = () => {
-    updateWidgetSettings(localWidget);
-  };
-
-  const handlePreview = () => {
-    if (venueSlug) {
-      window.open(`/v4/booking/${venueSlug}/preview`, '_blank');
+  const handleLogoUpdate = (variant: 'light' | 'dark', url: string | null) => {
+    if (variant === 'light') {
+      setLocalBranding({ ...localBranding, logo_light: url });
+    } else {
+      setLocalBranding({ ...localBranding, logo_dark: url });
     }
   };
 
@@ -131,38 +99,49 @@ export function BrandingSettingsTab() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Brand & Widget</h2>
-          <p className="text-muted-foreground">Customize your V4 booking widget appearance</p>
+          <h2 className="text-2xl font-bold">Venue Branding</h2>
+          <p className="text-muted-foreground">Customize your venue's visual identity globally</p>
         </div>
-        <Button onClick={handlePreview} variant="outline" disabled={!venueSlug}>
-          <Eye className="h-4 w-4 mr-2" />
-          Preview V4
-        </Button>
       </div>
 
       <Alert>
         <Info className="h-4 w-4" />
         <AlertDescription>
-          Changes here only affect the new V4 booking widget (/v4/booking/{venueSlug || 'your-slug'}).
-          Your existing booking widget remains unchanged.
+          These settings apply to your public booking widget and all customer-facing pages.
         </AlertDescription>
       </Alert>
 
       <Tabs defaultValue="visual" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="visual">Visual Identity</TabsTrigger>
-          <TabsTrigger value="content">Content</TabsTrigger>
-          <TabsTrigger value="features">Features</TabsTrigger>
+          <TabsTrigger value="media">Media</TabsTrigger>
         </TabsList>
 
         <TabsContent value="visual" className="space-y-6">
+          {/* Logos */}
           <Card>
             <CardHeader>
-              <CardTitle>Colors</CardTitle>
-              <CardDescription>Define your brand colors (HEX format)</CardDescription>
+              <CardTitle>Logos</CardTitle>
+              <CardDescription>Upload light and dark variants for different backgrounds</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <CardContent>
+              <LogoUploadDual
+                venueId={venueId}
+                logoLight={localBranding.logo_light}
+                logoDark={localBranding.logo_dark}
+                onUpdate={handleLogoUpdate}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Colors */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Brand Colors</CardTitle>
+              <CardDescription>Define your venue's color palette (HEX format)</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
                   <Label htmlFor="primary-color">Primary Color</Label>
                   <div className="flex gap-2">
@@ -181,6 +160,7 @@ export function BrandingSettingsTab() {
                     />
                   </div>
                 </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="secondary-color">Secondary Color</Label>
                   <div className="flex gap-2">
@@ -199,6 +179,7 @@ export function BrandingSettingsTab() {
                     />
                   </div>
                 </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="accent-color">Accent Color</Label>
                   <div className="flex gap-2">
@@ -218,248 +199,146 @@ export function BrandingSettingsTab() {
                   </div>
                 </div>
               </div>
+
+              {/* Contrast Checkers */}
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium">WCAG Contrast Validation</h4>
+                <ContrastChecker
+                  foreground="#FFFFFF"
+                  background={localBranding.primary_color}
+                  label="White text on primary"
+                />
+                <ContrastChecker
+                  foreground="#000000"
+                  background={localBranding.accent_color}
+                  label="Black text on accent"
+                />
+              </div>
             </CardContent>
           </Card>
 
+          {/* Typography */}
           <Card>
             <CardHeader>
               <CardTitle>Typography</CardTitle>
-              <CardDescription>Choose fonts for headings and body text</CardDescription>
+              <CardDescription>Select fonts from Google Fonts library</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Heading Font</Label>
+                  <Label htmlFor="font-heading">Heading Font</Label>
                   <Select
                     value={localBranding.font_heading}
                     onValueChange={(value) => setLocalBranding({ ...localBranding, font_heading: value })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="font-heading">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {FONT_OPTIONS.map(font => (
-                        <SelectItem key={font.value} value={font.value}>{font.label}</SelectItem>
+                      {GOOGLE_FONTS.map((font) => (
+                        <SelectItem key={font.value} value={font.value}>
+                          {font.label}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  <p className="text-sm text-muted-foreground" style={{ fontFamily: localBranding.font_heading }}>
+                    Preview: The Quick Brown Fox Jumps
+                  </p>
                 </div>
+
                 <div className="space-y-2">
-                  <Label>Body Font</Label>
+                  <Label htmlFor="font-body">Body Font</Label>
                   <Select
                     value={localBranding.font_body}
                     onValueChange={(value) => setLocalBranding({ ...localBranding, font_body: value })}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger id="font-body">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {FONT_OPTIONS.map(font => (
-                        <SelectItem key={font.value} value={font.value}>{font.label}</SelectItem>
+                      {GOOGLE_FONTS.map((font) => (
+                        <SelectItem key={font.value} value={font.value}>
+                          {font.label}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  <p className="text-sm text-muted-foreground" style={{ fontFamily: localBranding.font_body }}>
+                    Preview: The quick brown fox jumps over the lazy dog
+                  </p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
+          {/* Button Style */}
           <Card>
             <CardHeader>
-              <CardTitle>Buttons & Elements</CardTitle>
+              <CardTitle>Button Shape</CardTitle>
+              <CardDescription>Choose the corner style for buttons</CardDescription>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <Label>Button Corner Radius</Label>
-                <Select
-                  value={localBranding.button_radius}
-                  onValueChange={(value) => setLocalBranding({ ...localBranding, button_radius: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {BUTTON_RADIUS_OPTIONS.map(option => (
-                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Logo</CardTitle>
-              <CardDescription>Upload your venue logo (recommended: 400x100px PNG with transparency)</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <MediaUpload
-                imageUrl={localBranding.logo_url}
-                onImageChange={(url) => setLocalBranding({ ...localBranding, logo_url: url })}
-                onRemove={() => setLocalBranding({ ...localBranding, logo_url: '' })}
-              />
+            <CardContent className="space-y-4">
+              <RadioGroup
+                value={localBranding.button_shape}
+                onValueChange={(value: 'rounded' | 'square') => setLocalBranding({ ...localBranding, button_shape: value })}
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="rounded" id="rounded" />
+                  <Label htmlFor="rounded" className="flex items-center gap-2 cursor-pointer">
+                    Rounded
+                    <Button variant="default" size="sm" className="rounded-full pointer-events-none">
+                      Preview
+                    </Button>
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="square" id="square" />
+                  <Label htmlFor="square" className="flex items-center gap-2 cursor-pointer">
+                    Square
+                    <Button variant="default" size="sm" className="rounded-sm pointer-events-none">
+                      Preview
+                    </Button>
+                  </Label>
+                </div>
+              </RadioGroup>
             </CardContent>
           </Card>
 
           <div className="flex justify-end">
             <Button onClick={handleSaveBranding} disabled={isUpdating}>
-              {isUpdating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              {isUpdating ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
               Save Visual Identity
             </Button>
           </div>
         </TabsContent>
 
-        <TabsContent value="content" className="space-y-6">
+        <TabsContent value="media" className="space-y-6">
+          {/* Hero Images */}
           <Card>
             <CardHeader>
-              <CardTitle>Hero Section</CardTitle>
+              <CardTitle>Hero Images</CardTitle>
+              <CardDescription>Large featured images for your booking widget header</CardDescription>
             </CardHeader>
             <CardContent>
-              <MediaUpload
-                imageUrl={localWidget.hero_image_url}
-                onImageChange={(url) => setLocalWidget({ ...localWidget, hero_image_url: url })}
-                onRemove={() => setLocalWidget({ ...localWidget, hero_image_url: '' })}
-              />
+              <MediaManager venueId={venueId} type="hero" label="Hero Images" />
             </CardContent>
           </Card>
 
+          {/* About Images */}
           <Card>
             <CardHeader>
-              <CardTitle>About Section</CardTitle>
-              <CardDescription>Describe your venue (supports basic formatting)</CardDescription>
+              <CardTitle>About Gallery</CardTitle>
+              <CardDescription>Images showcasing your venue and atmosphere</CardDescription>
             </CardHeader>
             <CardContent>
-              <RichTextEditor
-                value={localWidget.about_html}
-                onChange={(value) => setLocalWidget({ ...localWidget, about_html: value })}
-                label="About Text"
-                placeholder="Tell guests about your venue..."
-              />
+              <MediaManager venueId={venueId} type="about" label="About Images" />
             </CardContent>
           </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Copy & Labels</CardTitle>
-              <CardDescription>Customize widget text</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Hero Heading</Label>
-                <Input
-                  value={(localWidget.copy_json as any)?.heroHeading || ''}
-                  onChange={(e) => setLocalWidget({
-                    ...localWidget,
-                    copy_json: { ...localWidget.copy_json, heroHeading: e.target.value }
-                  })}
-                  placeholder="Book Your Experience"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Hero Subheading</Label>
-                <Input
-                  value={(localWidget.copy_json as any)?.heroSubheading || ''}
-                  onChange={(e) => setLocalWidget({
-                    ...localWidget,
-                    copy_json: { ...localWidget.copy_json, heroSubheading: e.target.value }
-                  })}
-                  placeholder="Reserve your table in just a few clicks"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Call-to-Action Button</Label>
-                <Input
-                  value={(localWidget.copy_json as any)?.ctaText || ''}
-                  onChange={(e) => setLocalWidget({
-                    ...localWidget,
-                    copy_json: { ...localWidget.copy_json, ctaText: e.target.value }
-                  })}
-                  placeholder="Book Now"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Deposit Explainer</Label>
-                <Input
-                  value={(localWidget.copy_json as any)?.depositExplainer || ''}
-                  onChange={(e) => setLocalWidget({
-                    ...localWidget,
-                    copy_json: { ...localWidget.copy_json, depositExplainer: e.target.value }
-                  })}
-                  placeholder="A small deposit secures your booking..."
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="flex justify-end">
-            <Button onClick={handleSaveWidget} disabled={isUpdating}>
-              {isUpdating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-              Save Content
-            </Button>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="features" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Widget Features</CardTitle>
-              <CardDescription>Toggle sections on/off</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="showHero"
-                  checked={(localWidget.flags_json as any)?.showHero ?? true}
-                  onCheckedChange={(checked) => setLocalWidget({
-                    ...localWidget,
-                    flags_json: { ...localWidget.flags_json, showHero: checked }
-                  })}
-                />
-                <Label htmlFor="showHero">Show Hero Section</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="showAbout"
-                  checked={(localWidget.flags_json as any)?.showAbout ?? true}
-                  onCheckedChange={(checked) => setLocalWidget({
-                    ...localWidget,
-                    flags_json: { ...localWidget.flags_json, showAbout: checked }
-                  })}
-                />
-                <Label htmlFor="showAbout">Show About Section</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="showDepositExplainer"
-                  checked={(localWidget.flags_json as any)?.showDepositExplainer ?? true}
-                  onCheckedChange={(checked) => setLocalWidget({
-                    ...localWidget,
-                    flags_json: { ...localWidget.flags_json, showDepositExplainer: checked }
-                  })}
-                />
-                <Label htmlFor="showDepositExplainer">Show Deposit Explainer</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="showAllergyNote"
-                  checked={(localWidget.flags_json as any)?.showAllergyNote ?? true}
-                  onCheckedChange={(checked) => setLocalWidget({
-                    ...localWidget,
-                    flags_json: { ...localWidget.flags_json, showAllergyNote: checked }
-                  })}
-                />
-                <Label htmlFor="showAllergyNote">Show Allergy Note</Label>
-              </div>
-            </CardContent>
-          </Card>
-
-          <div className="flex justify-end">
-            <Button onClick={handleSaveWidget} disabled={isUpdating}>
-              {isUpdating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-              Save Features
-            </Button>
-          </div>
         </TabsContent>
       </Tabs>
     </div>
