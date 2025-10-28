@@ -2,10 +2,13 @@ import * as Sentry from "@sentry/react";
 
 // Initialize Sentry for the Grace public booking widget
 Sentry.init({
-  dsn: "https://f9af1fe2dc686e548824ad2d0e6ed583@o4510263265329152.ingest.de.sentry.io/4510263280140368",
+  dsn: "https://f0556f88a28288ba4408bd3c2c226e20@o4510263265329152.ingest.de.sentry.io/4510263281516624",
   
   // Environment configuration
   environment: import.meta.env.MODE === "production" ? "production" : "staging",
+  
+  // Debug mode - shows detailed SDK logs in console
+  debug: true,
   
   // Privacy: Disable automatic PII collection
   sendDefaultPii: false,
@@ -115,7 +118,16 @@ Sentry.init({
 if (import.meta.env.DEV) {
   console.log('🔍 Sentry initialized for Grace booking widget', {
     environment: import.meta.env.MODE,
-    dsn: 'https://...o4510263280140368',
+    dsn: 'https://...o4510263281516624',
+  });
+  
+  // Verify DSN is parsed correctly
+  const client = Sentry.getClient();
+  const dsn = client?.getDsn();
+  console.log('🔍 Sentry DSN parsed:', {
+    projectId: dsn?.projectId,
+    host: dsn?.host,
+    publicKey: dsn?.publicKey,
   });
 }
 
