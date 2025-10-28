@@ -4,7 +4,6 @@ import { StripeProvider } from '@/components/providers/StripeProvider';
 import { Card } from '@/components/ui/card';
 import { getUseNewUI, getDebugMode } from '@/features/bookingUI/utils/featureSwitch';
 import { BookingWidgetUI } from '@/features/bookingUI/BookingWidgetUI';
-import { SentryErrorButton } from '@/components/SentryErrorButton';
 
 export default function BookingLegacyBySlug() {
   const { venueSlug } = useParams<{ venueSlug: string }>();
@@ -28,9 +27,6 @@ export default function BookingLegacyBySlug() {
       ) : (
         <LegacyBookingWidget venueSlug={venueSlug} />
       )}
-      
-      {/* Dev-only: Manual Sentry test trigger */}
-      {import.meta.env.MODE !== "production" && <SentryErrorButton />}
     </StripeProvider>
   );
 }

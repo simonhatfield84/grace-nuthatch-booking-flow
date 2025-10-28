@@ -7,9 +7,6 @@ Sentry.init({
   // Environment configuration
   environment: import.meta.env.MODE === "production" ? "production" : "staging",
   
-  // Debug mode - shows detailed SDK logs in console
-  debug: true,
-  
   // Privacy: Disable automatic PII collection
   sendDefaultPii: false,
   
@@ -114,34 +111,3 @@ Sentry.init({
   ],
 });
 
-// Log initialization in development
-if (import.meta.env.DEV) {
-  console.log('🔍 Sentry initialized for Grace booking widget', {
-    environment: import.meta.env.MODE,
-    dsn: 'https://...o4510263281516624',
-  });
-  
-  // Verify DSN is parsed correctly
-  const client = Sentry.getClient();
-  const dsn = client?.getDsn();
-  console.log('🔍 Sentry DSN parsed:', {
-    projectId: dsn?.projectId,
-    host: dsn?.host,
-    publicKey: dsn?.publicKey,
-  });
-}
-
-// Dev-only: Send test error to verify Sentry integration
-if (import.meta.env.MODE !== "production") {
-  // Send a test error 2s after load so init has finished
-  setTimeout(() => {
-    try {
-      throw new Error("Grace Widget Sentry verification error");
-    } catch (e) {
-      // Both throw (unhandled) and capture (handled) to be safe
-      Sentry.captureException(e);
-      // Re-throw to ensure it shows as an unhandled error too
-      setTimeout(() => { throw e; }, 0);
-    }
-  }, 2000);
-}
