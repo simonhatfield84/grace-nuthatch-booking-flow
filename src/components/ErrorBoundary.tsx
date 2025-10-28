@@ -1,5 +1,6 @@
 
 import React from 'react';
+import * as Sentry from '@sentry/react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 
@@ -7,6 +8,7 @@ interface ErrorBoundaryState {
   hasError: boolean;
   error?: Error;
   errorInfo?: React.ErrorInfo;
+  eventId?: string; // Sentry event ID for user feedback
 }
 
 interface ErrorBoundaryProps {
@@ -25,7 +27,17 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('🚨 Application Error Boundary caught an error:', error, errorInfo);
-    this.setState({ error, errorInfo });
+    
+    // Send to Sentry with additional context
+    const eventId = Sentry.captureException(error, {
+      contexts: {
+        react: {
+          componentStack: errorInfo.componentStack,
+        },
+      },
+    });
+    
+    this.setState({ error, errorInfo, eventId });
   }
 
   render() {
@@ -49,6 +61,25 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
                   </pre>
                 </details>
               </div>
+              
+              {/* Optional: Report feedback button */}
+              {this.state.eventId && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    Sentry.showReportDialog({
+                      eventId: this.state.eventId,
+                      title: 'It looks like we\'re having issues',
+                      subtitle: 'Our team has been notified',
+                      subtitle2: 'If you\'d like to help, tell us what happened below.',
+                    });
+                  }}
+                  className="w-full"
+                >
+                  Report Feedback
+                </Button>
+              )}
+              
               <Button 
                 onClick={() => window.location.reload()} 
                 className="w-full"

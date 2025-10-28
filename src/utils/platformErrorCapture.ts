@@ -1,5 +1,5 @@
-
 import { supabase } from "@/integrations/supabase/client";
+import * as Sentry from "@sentry/react";
 
 interface ErrorDetails {
   message: string;
@@ -80,12 +80,27 @@ class PlatformErrorCapture {
 
   private async logError(errorDetails: ErrorDetails) {
     try {
+      // Send to Supabase (existing)
       const { error } = await supabase.functions.invoke('platform-log-client-error', {
         body: errorDetails
       });
 
       if (error) {
         console.error('Failed to log client error:', error);
+      }
+      
+      // Also send to Sentry for platform admin routes
+      if (window.location.pathname.startsWith('/platform/')) {
+        Sentry.captureException(new Error(errorDetails.message), {
+          tags: {
+            source: 'platform-admin',
+          },
+          extra: {
+            stack: errorDetails.stack,
+            url: errorDetails.url,
+            sessionId: errorDetails.sessionId,
+          },
+        });
       }
     } catch (err) {
       console.error('Error logging client error:', err);
