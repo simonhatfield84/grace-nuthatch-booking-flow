@@ -118,3 +118,18 @@ if (import.meta.env.DEV) {
     dsn: 'https://...o4510263280140368',
   });
 }
+
+// Dev-only: Send test error to verify Sentry integration
+if (import.meta.env.MODE !== "production") {
+  // Send a test error 2s after load so init has finished
+  setTimeout(() => {
+    try {
+      throw new Error("Grace Widget Sentry verification error");
+    } catch (e) {
+      // Both throw (unhandled) and capture (handled) to be safe
+      Sentry.captureException(e);
+      // Re-throw to ensure it shows as an unhandled error too
+      setTimeout(() => { throw e; }, 0);
+    }
+  }, 2000);
+}
