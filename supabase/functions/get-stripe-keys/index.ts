@@ -101,7 +101,25 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { venue_id, environment, key_type } = await req.json();
+  // Security check: Only allow service_role to access this endpoint
+  const authHeader = req.headers.get('authorization') || '';
+  const role = req.headers.get('x-supabase-role');
+  
+  if (role !== 'service_role' && !authHeader.includes('service_role')) {
+    console.warn('⚠️ Unauthorized access attempt to get-stripe-keys');
+    return new Response(
+      JSON.stringify({ 
+        error: 'This endpoint is for server use only',
+        code: 'unauthorized_access'
+      }),
+      {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      }
+    );
+  }
+
+  const { venue_id, environment, key_type } = await req.json();
 
     if (!venue_id || !environment || !key_type) {
       return new Response(

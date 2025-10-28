@@ -1602,6 +1602,30 @@ export type Database = {
           },
         ]
       }
+      rate_limits: {
+        Row: {
+          created_at: string
+          hits: number
+          ip: unknown
+          path: string
+          window_start: string
+        }
+        Insert: {
+          created_at?: string
+          hits?: number
+          ip: unknown
+          path: string
+          window_start: string
+        }
+        Update: {
+          created_at?: string
+          hits?: number
+          ip?: unknown
+          path?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       refactor_runs: {
         Row: {
           created_at: string
@@ -3271,6 +3295,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      check_rate_limit: {
+        Args: { p_ip: unknown; p_max_hits?: number; p_path: string }
+        Returns: boolean
+      }
       check_rate_limit_enhanced: {
         Args: {
           identifier: string
@@ -3289,6 +3317,7 @@ export type Database = {
         Returns: Json
       }
       cleanup_availability_cache: { Args: never; Returns: undefined }
+      cleanup_old_rate_limits: { Args: never; Returns: undefined }
       compute_booking_time_range: {
         Args: { p_date: string; p_duration_minutes: number; p_time: string }
         Returns: unknown

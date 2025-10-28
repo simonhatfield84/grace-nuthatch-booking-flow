@@ -399,18 +399,32 @@ const handler = async (req: Request): Promise<Response> => {
       return new Response('Invalid signature', { status: 400, headers: corsHeaders });
     }
 
-    // Check for duplicate events (prevent replay attacks)
-    const { data: existingEvent } = await supabaseAdmin
+    // Check for duplicate events (prevent replay attacks) with idempotent insert
+    const { error: webhookInsertError } = await supabaseAdmin
       .from('webhook_events')
-      .select('id')
-      .eq('stripe_event_id', event.id)
-      .eq('venue_id', venueId)
+      .insert({
+        stripe_event_id: event.id,
+        event_type: event.type,
+        venue_id: venueId,
+        status: 'processing',
+        raw_event: event,
+        created_at: new Date().toISOString(),
+      })
+      .select()
       .single();
 
-    if (existingEvent) {
-      console.log('📋 Duplicate webhook event detected, ignoring');
+    // If unique constraint violation (duplicate event), exit early
+    if (webhookInsertError?.code === '23505') {
+      console.log('🔄 Duplicate webhook event detected, skipping:', event.id);
       return new Response('Duplicate event', { status: 200, headers: corsHeaders });
     }
+
+    if (webhookInsertError) {
+      console.error('❌ Failed to insert webhook event:', webhookInsertError);
+      throw new Error(`Webhook event insert failed: ${webhookInsertError.message}`);
+    }
+
+    console.log('✅ Webhook event logged, processing...');
 
     // Log the verified webhook event for security audit
     await logSecurityEvent(supabaseAdmin, 'webhook_received', {

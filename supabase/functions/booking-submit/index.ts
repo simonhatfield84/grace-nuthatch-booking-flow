@@ -18,7 +18,8 @@ const bookingSubmitSchema = z.object({
     phone: z.string().regex(/^[\d\s\-\+\(\)]{7,20}$/)
   }),
   notes: z.string().max(500).optional().nullable(),
-  lockToken: z.string().uuid().nullable().optional()
+  lockToken: z.string().uuid().nullable().optional(),
+  website: z.string().max(0).optional() // Honeypot - must be empty
 });
 
 // ========== HELPERS ==========
@@ -181,6 +182,17 @@ const handler = async (req: Request): Promise<Response> => {
     const body = await req.json();
     const input = bookingSubmitSchema.parse(body);
 
+    // Bot detection: Honeypot check
+    if (input.website && input.website.length > 0) {
+      console.warn(`🤖 [${reqId}] Bot detected: honeypot filled`);
+      // Return fake success to avoid alerting bot
+      return jsonResponse(200, {
+        ok: true,
+        message: 'Booking received',
+        reqId
+      }, corsH);
+    }
+
     console.log(`📋 [${reqId}] Input validated:`, {
       venueSlug: input.venueSlug,
       serviceId: input.serviceId.substring(0, 8) + '...',
@@ -190,29 +202,38 @@ const handler = async (req: Request): Promise<Response> => {
       hasLock: !!input.lockToken
     });
 
-    // Rate limiting
-    const clientIp = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
-    const rateLimitKey = `booking-submit:${input.venueSlug}:${clientIp}`;
-    
-    const { rateLimit } = await import('../_shared/rateLimit.ts');
-    const allowed = await rateLimit(rateLimitKey, 10, 600); // 10 bookings per 10 minutes
-    
-    if (!allowed) {
-      console.error(`❌ [${reqId}] Rate limit exceeded for ${clientIp}`);
-      return jsonResponse(429, {
-        ok: false,
-        code: 'rate_limited',
-        error: 'Too many booking requests. Please try again later.',
-        reqId
-      }, corsH);
-    }
-
     // Create Supabase admin client
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
+
+    // Database-backed rate limiting (per IP + path)
+    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0].trim() 
+      || req.headers.get('x-real-ip') 
+      || 'unknown';
+
+    const { data: rateLimitOk, error: rateLimitError } = await supabase.rpc(
+      'check_rate_limit',
+      {
+        p_ip: clientIp,
+        p_path: '/booking-submit',
+        p_max_hits: 10 // 10 requests per minute
+      }
+    );
+
+    if (rateLimitError || !rateLimitOk) {
+      console.warn(`🚫 [${reqId}] Rate limit exceeded for IP: ${clientIp}`);
+      return jsonResponse(429, { 
+        ok: false, 
+        code: 'rate_limit_exceeded',
+        message: 'Too many booking attempts. Please try again in a minute.',
+        reqId
+      }, corsH);
+    }
+
+    console.log(`✅ [${reqId}] Rate limit check passed`);
 
     // STEP 1: Resolve venue
     const { data: venue, error: venueError } = await supabase
