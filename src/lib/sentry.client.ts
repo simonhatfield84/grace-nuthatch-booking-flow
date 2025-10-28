@@ -10,6 +10,13 @@ Sentry.init({
   // Privacy: Disable automatic PII collection
   sendDefaultPii: false,
   
+  // Propagate trace context to edge functions
+  tracePropagationTargets: [
+    /^https:\/\/.*\.supabase\.co\/functions\/v1\//i,
+    // Also propagate to localhost for development
+    /^http:\/\/127\.0\.0\.1:54321\/functions\/v1\//i,
+  ],
+  
   // Integrations
   integrations: [
     // Performance monitoring

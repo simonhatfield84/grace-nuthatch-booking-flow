@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { invokeSafe } from '@/lib/fetchSafe';
 
 export interface Service {
   id: string;
@@ -77,8 +77,9 @@ export async function fetchServices(
   partySize: number,
   date: string
 ): Promise<Service[]> {
-  const { data, error } = await supabase.functions.invoke('fetch-services', {
-    body: { venueSlug, partySize, date }
+  const { data, error } = await invokeSafe('fetch-services', {
+    service: 'fetch-services',
+    body: { venueSlug, partySize, date },
   });
 
   if (error) throw error;
@@ -96,8 +97,9 @@ export async function fetchCalendar(
   partySize: number,
   month: string // YYYY-MM
 ): Promise<AvailabilityResponse> {
-  const { data, error } = await supabase.functions.invoke('check-availability', {
-    body: { venueSlug, serviceId, partySize, month }
+  const { data, error } = await invokeSafe('check-availability', {
+    service: 'check-availability-calendar',
+    body: { venueSlug, serviceId, partySize, month },
   });
 
   if (error) throw error;
@@ -113,8 +115,9 @@ export async function fetchTimeSlots(
   partySize: number,
   date: string
 ): Promise<string[]> {
-  const { data, error } = await supabase.functions.invoke('check-availability', {
-    body: { venueSlug, serviceId, partySize, date }
+  const { data, error } = await invokeSafe('check-availability', {
+    service: 'check-availability-slots',
+    body: { venueSlug, serviceId, partySize, date },
   });
 
   if (error) throw error;
@@ -133,14 +136,9 @@ export async function createLock(
   time: string,
   partySize: number
 ): Promise<LockResponse> {
-  const { data, error } = await supabase.functions.invoke('locks/create', {
-    body: {
-      venueSlug,
-      serviceId,
-      date,
-      time,
-      partySize,
-    }
+  const { data, error } = await invokeSafe('locks/create', {
+    service: 'locks-create',
+    body: { venueSlug, serviceId, date, time, partySize },
   });
 
   if (error) throw error;
@@ -151,10 +149,9 @@ export async function createLock(
  * Extend an existing lock
  */
 export async function extendLock(lockToken: string): Promise<LockResponse> {
-  const { data, error } = await supabase.functions.invoke('locks/extend', {
-    body: {
-      lockToken,
-    }
+  const { data, error } = await invokeSafe('locks/extend', {
+    service: 'locks-extend',
+    body: { lockToken },
   });
 
   if (error) throw error;
@@ -165,11 +162,9 @@ export async function extendLock(lockToken: string): Promise<LockResponse> {
  * Release a lock
  */
 export async function releaseLock(lockToken: string): Promise<void> {
-  await supabase.functions.invoke('locks/release', {
-    body: {
-      lockToken,
-      reason: 'user_released',
-    }
+  await invokeSafe('locks/release', {
+    service: 'locks-release',
+    body: { lockToken, reason: 'user_released' },
   });
 }
 
@@ -192,11 +187,9 @@ export async function prepareBooking(
     lockToken?: string;
   }
 ): Promise<PrepareBookingResponse> {
-  const { data, error } = await supabase.functions.invoke('booking-submit', {
-    body: {
-      venueSlug,
-      ...payload,
-    }
+  const { data, error } = await invokeSafe('booking-submit', {
+    service: 'booking-submit',
+    body: { venueSlug, ...payload },
   });
 
   if (error) throw error;
@@ -210,11 +203,9 @@ export async function createPaymentIntent(
   bookingData: any,
   amountCents: number
 ): Promise<PaymentIntentResponse> {
-  const { data, error } = await supabase.functions.invoke('create-payment-intent', {
-    body: {
-      bookingData,
-      amountCents,
-    }
+  const { data, error } = await invokeSafe('create-payment-intent', {
+    service: 'create-payment-intent',
+    body: { bookingData, amountCents },
   });
 
   if (error) throw error;

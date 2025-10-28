@@ -5,6 +5,10 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { findAvailableTable, addMinutesToTime } from '../_shared/tableAllocation.ts';
 import { logger } from '../_shared/logger.ts';
+import { initSentry, withSentry } from '../_shared/sentry.ts';
+
+// Initialize Sentry
+initSentry();
 
 // ========== INPUT SCHEMA ==========
 const bookingSubmitSchema = z.object({
@@ -167,13 +171,12 @@ function computeAmountCents(service: any, partySize: number): number {
 }
 
 // ========== MAIN HANDLER ==========
-const handler = async (req: Request): Promise<Response> => {
+const handler = withSentry(async (req, transaction, reqId) => {
   const corsResponse = handleCors(req);
   if (corsResponse) return corsResponse;
   
   const corsH = getCorsHeaders(req);
 
-  const reqId = crypto.randomUUID().substring(0, 8);
   logger.info('Booking submission started', { reqId });
 
   let bookingId: number | null = null;
@@ -194,6 +197,12 @@ const handler = async (req: Request): Promise<Response> => {
       }, corsH);
     }
 
+    // Add Sentry tags
+    transaction.setTag('venueSlug', input.venueSlug);
+    transaction.setTag('serviceId', input.serviceId.substring(0, 8));
+    transaction.setTag('partySize', input.partySize);
+    transaction.setTag('hasLock', !!input.lockToken);
+
     logger.debug('Input validated', {
       reqId,
       venueSlug: input.venueSlug,
@@ -212,6 +221,11 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
     // Database-backed rate limiting (per IP + path)
+    const rateLimitSpan = transaction.startChild({
+      op: 'ratelimit.check',
+      description: 'Check rate limit',
+    });
+    
     const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0].trim() 
       || req.headers.get('x-real-ip') 
       || 'unknown';
@@ -224,6 +238,8 @@ const handler = async (req: Request): Promise<Response> => {
         p_max_hits: 10 // 10 requests per minute
       }
     );
+    
+    rateLimitSpan.finish();
 
     if (rateLimitError || !rateLimitOk) {
       logger.warn('Rate limit exceeded', { reqId, clientIp });
@@ -238,11 +254,18 @@ const handler = async (req: Request): Promise<Response> => {
     logger.debug('Rate limit check passed', { reqId });
 
     // STEP 1: Resolve venue
+    const venueSpan = transaction.startChild({
+      op: 'db.query',
+      description: 'Resolve venue',
+    });
+    
     const { data: venue, error: venueError } = await supabase
       .from('venues')
       .select('id, name, slug, approval_status')
       .eq('slug', input.venueSlug)
       .single();
+    
+    venueSpan.finish();
 
     if (venueError || !venue || venue.approval_status !== 'approved') {
       logger.error('Venue not found or not approved', { reqId, venueSlug: input.venueSlug, error: venueError?.message });
@@ -257,6 +280,11 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`✅ [${reqId}] Venue resolved: ${venue.name}`);
 
     // STEP 2: Get service and validate
+    const serviceSpan = transaction.startChild({
+      op: 'db.query',
+      description: 'Fetch service',
+    });
+    
     const { data: service, error: serviceError } = await supabase
       .from('services')
       .select(`
@@ -268,6 +296,8 @@ const handler = async (req: Request): Promise<Response> => {
       .eq('id', input.serviceId)
       .eq('venue_id', venue.id)
       .single();
+    
+    serviceSpan.finish();
 
     if (serviceError || !service) {
       console.error(`❌ [${reqId}] Service not found:`, input.serviceId);
@@ -306,6 +336,11 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`✅ [${reqId}] Service validated: ${service.title}`);
 
     // STEP 3: Verify lock (if provided)
+    const lockSpan = transaction.startChild({
+      op: 'lock.verify',
+      description: 'Verify and release lock',
+    });
+    
     const lockResult = await verifyAndReleaseLock(
       supabase,
       input.lockToken,
@@ -318,6 +353,8 @@ const handler = async (req: Request): Promise<Response> => {
       },
       'booking_attempt'
     );
+    
+    lockSpan.finish();
 
     if (!lockResult.valid) {
       return jsonResponse(400, {
@@ -332,6 +369,11 @@ const handler = async (req: Request): Promise<Response> => {
     const duration = getDurationForPartySize(service.duration_rules, input.partySize);
     console.log(`⏱️ [${reqId}] Duration calculated: ${duration} mins for party of ${input.partySize}`);
     
+    const allocationSpan = transaction.startChild({
+      op: 'table.allocate',
+      description: 'Find available table',
+    });
+    
     const allocation = await findAvailableTable(supabase, {
       venueId: venue.id,
       date: input.date,
@@ -339,6 +381,8 @@ const handler = async (req: Request): Promise<Response> => {
       partySize: input.partySize,
       duration: duration
     });
+    
+    allocationSpan.finish();
 
     if (!allocation.available || !allocation.tableId) {
       console.error(`❌ [${reqId}] No table available:`, allocation.reason);
@@ -365,6 +409,11 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`✅ [${reqId}] Table allocated: ${allocation.tableId}`);
 
     // STEP 5: Compute payment requirement (DB source of truth)
+    const paymentCheckSpan = transaction.startChild({
+      op: 'payment.check',
+      description: 'Check payment requirement',
+    });
+    
     const { data: requiresPaymentResult } = await supabase
       .rpc('requires_payment_for_booking', {
         p_service_id: service.id,
@@ -374,6 +423,10 @@ const handler = async (req: Request): Promise<Response> => {
     const requiresPayment = !!requiresPaymentResult;
     const amountCents = requiresPayment ? computeAmountCents(service, input.partySize) : 0;
     const endTime = addMinutesToTime(input.time, duration);
+    
+    paymentCheckSpan.finish();
+    
+    transaction.setTag('requiresPayment', requiresPayment);
 
     console.log(`💰 [${reqId}] Payment requirement:`, {
       requiresPayment,
@@ -415,6 +468,11 @@ const handler = async (req: Request): Promise<Response> => {
       }, corsH);
     } else {
       // No payment required - create confirmed booking immediately
+      const bookingSpan = transaction.startChild({
+        op: 'db.insert',
+        description: 'Create booking',
+      });
+      
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
         .insert({
@@ -437,6 +495,8 @@ const handler = async (req: Request): Promise<Response> => {
         })
         .select('id, booking_reference, status')
         .single();
+      
+      bookingSpan.finish();
 
       if (bookingError) {
         console.error(`❌ [${reqId}] Booking insert failed:`, bookingError);
@@ -461,6 +521,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       bookingId = booking.id;
+      transaction.setTag('bookingId', bookingId);
 
       console.log(`✅ [${reqId}] Booking created and confirmed:`, {
         id: booking.id,

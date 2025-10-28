@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { invokeSafe } from "@/lib/fetchSafe";
 
 export interface AvailabilityRequest {
   venueSlug: string;
@@ -32,8 +32,9 @@ export class AvailabilityApiClient {
     try {
       console.log('Checking availability via API:', request);
 
-      const { data, error } = await supabase.functions.invoke('check-availability', {
-        body: request
+      const { data, error } = await invokeSafe('check-availability', {
+        service: 'check-availability',
+        body: request,
       });
 
       if (error) {

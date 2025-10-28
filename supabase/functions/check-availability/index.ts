@@ -4,6 +4,10 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { getCorsHeaders, handleCors } from '../_shared/cors.ts';
 import { findAvailableTable, addMinutesToTime } from '../_shared/tableAllocation.ts';
 import { startOfMonth, endOfMonth, eachDayOfInterval, format as formatDate } from "https://esm.sh/date-fns@3.6.0";
+import { initSentry, withSentry } from '../_shared/sentry.ts';
+
+// Initialize Sentry
+initSentry();
 
 const checkAvailabilitySchema = z.object({
   venueSlug: z.string(),
@@ -45,7 +49,7 @@ function generateTimeSlots(startTime: string, endTime: string, intervalMinutes: 
   return slots;
 }
 
-const handler = async (req: Request): Promise<Response> => {
+const handler = withSentry(async (req, transaction, reqId) => {
   const corsResponse = handleCors(req);
   if (corsResponse) return corsResponse;
   
@@ -54,6 +58,18 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const body = await req.json();
     const input = checkAvailabilitySchema.parse(body);
+    
+    // Add Sentry tags
+    transaction.setTag('venueSlug', input.venueSlug);
+    transaction.setTag('serviceId', input.serviceId);
+    transaction.setTag('partySize', input.partySize);
+    transaction.setTag('mode', input.month ? 'calendar' : 'slots');
+
+    // Database span
+    const dbSpan = transaction.startChild({
+      op: 'db.query',
+      description: 'Fetch venue and service',
+    });
 
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -69,6 +85,7 @@ const handler = async (req: Request): Promise<Response> => {
       .single();
 
     if (!venue) {
+      dbSpan.finish();
       return new Response(JSON.stringify({
         ok: false,
         code: 'venue_not_found',
@@ -87,6 +104,7 @@ const handler = async (req: Request): Promise<Response> => {
       .single();
 
     if (!service) {
+      dbSpan.finish();
       return new Response(JSON.stringify({
         ok: false,
         code: 'service_not_found',
@@ -102,6 +120,8 @@ const handler = async (req: Request): Promise<Response> => {
       .select('*')
       .eq('service_id', service.id)
       .eq('venue_id', venue.id);
+
+    dbSpan.finish();
 
     if (!windows || windows.length === 0) {
       return new Response(JSON.stringify({
@@ -137,6 +157,12 @@ const handler = async (req: Request): Promise<Response> => {
         headers: { ...corsH, 'Content-Type': 'application/json' }
       });
     }
+
+    // Availability check span
+    const availSpan = transaction.startChild({
+      op: 'availability.check',
+      description: 'Check table availability',
+    });
 
     const availabilityMap: Record<string, string[]> = {};
 
@@ -195,6 +221,8 @@ const handler = async (req: Request): Promise<Response> => {
       availabilityMap[date] = availableSlots;
     }
 
+    availSpan.finish();
+
     return new Response(JSON.stringify({
       ok: true,
       availability: availabilityMap,
@@ -215,6 +243,6 @@ const handler = async (req: Request): Promise<Response> => {
       headers: { ...corsH, 'Content-Type': 'application/json' }
     });
   }
-};
+}, 'POST /check-availability');
 
 serve(handler);

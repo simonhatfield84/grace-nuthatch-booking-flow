@@ -8,6 +8,10 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.3";
 import { createErrorResponse, corsHeaders } from '../_shared/errorSanitizer.ts';
+import { initSentry, withSentry } from '../_shared/sentry.ts';
+
+// Initialize Sentry
+initSentry();
 
 const LOCK_HOLD_MINUTES = 5;
 
@@ -521,7 +525,7 @@ async function handleReleaseLock(supabase: any, req: Request): Promise<Response>
 }
 
 // Main handler
-serve(async (req: Request) => {
+const handler = withSentry(async (req, transaction, reqId) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -542,14 +546,32 @@ serve(async (req: Request) => {
 
     const url = new URL(req.url);
     const path = url.pathname;
+    
+    // Determine operation and add Sentry tags
+    let operation = 'unknown';
+    if (path.endsWith('/create')) operation = 'create';
+    else if (path.endsWith('/extend')) operation = 'extend';
+    else if (path.endsWith('/release')) operation = 'release';
+    
+    transaction.setTag('lockAction', operation);
+    transaction.setName(`POST /locks/${operation}`);
 
-    // Route to appropriate handler
+    // Route to appropriate handler with span
     if (path.endsWith('/create') && req.method === 'POST') {
-      return await handleCreateLock(supabase, req);
+      const span = transaction.startChild({ op: 'lock.create', description: 'Create lock' });
+      const result = await handleCreateLock(supabase, req);
+      span.finish();
+      return result;
     } else if (path.endsWith('/extend') && req.method === 'POST') {
-      return await handleExtendLock(supabase, req);
+      const span = transaction.startChild({ op: 'lock.extend', description: 'Extend lock' });
+      const result = await handleExtendLock(supabase, req);
+      span.finish();
+      return result;
     } else if (path.endsWith('/release') && req.method === 'POST') {
-      return await handleReleaseLock(supabase, req);
+      const span = transaction.startChild({ op: 'lock.release', description: 'Release lock' });
+      const result = await handleReleaseLock(supabase, req);
+      span.finish();
+      return result;
     } else {
       return new Response(JSON.stringify({
         ok: false,
@@ -571,4 +593,6 @@ serve(async (req: Request) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
-});
+}, 'POST /locks');
+
+serve(handler);
