@@ -604,6 +604,6 @@ const handler = withSentry(async (req, transaction, reqId) => {
       reqId
     }, corsH);
   }
-};
+}, 'POST /booking-submit');
 
 serve(handler);
