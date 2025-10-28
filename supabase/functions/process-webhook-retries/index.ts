@@ -230,17 +230,28 @@ async function handlePaymentSuccess(supabase: any, event: StripeEvent, venueId: 
         .single();
 
       if (booking) {
-        await supabase
-          .from('booking_payments')
-          .insert({
-            booking_id: parseInt(bookingId),
-            stripe_payment_intent_id: paymentIntentId,
-            amount_cents: event.data.object.amount,
-            status: 'succeeded',
-            payment_method_type: event.data.object.payment_method?.type || 'card',
-            processed_at: now,
-            venue_id: booking.venue_id
-          });
+        const { data: paymentResult, error: paymentError } = await supabase.rpc(
+          'priv.create_booking_payment',
+          {
+            p: {
+              booking_id: parseInt(bookingId),
+              venue_id: booking.venue_id,
+              stripe_payment_intent_id: paymentIntentId,
+              stripe_event_id: event.id, // Include for validation
+              amount_cents: event.data.object.amount,
+              status: 'succeeded',
+              payment_method_type: event.data.object.payment_method?.type || 'card',
+              processed_at: now,
+            }
+          }
+        );
+
+        if (paymentError) {
+          console.error('❌ Failed to create payment record in retry:', paymentError);
+          throw new Error(`Payment record creation failed: ${paymentError.message}`);
+        }
+
+        console.log('✅ Payment record created via retry:', paymentResult);
       }
     } else {
       throw new Error(`Failed to update payment: ${paymentError.message}`);

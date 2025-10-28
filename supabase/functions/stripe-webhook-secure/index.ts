@@ -581,18 +581,29 @@ async function handlePaymentSuccess(supabase: any, event: StripeEvent, venueId: 
 
     console.log('✅ Booking created:', booking.id, booking.booking_reference);
 
-    // Create payment record
-    await supabase.from('booking_payments').insert({
-      booking_id: booking.id,
-      venue_id: bookingData.venueId,
-      stripe_payment_intent_id: paymentIntent.id,
-      amount_cents: paymentIntent.amount,
-      status: 'succeeded',
-      payment_method_type: paymentIntent.payment_method?.type || 'card',
-      processed_at: new Date().toISOString(),
-    });
+    // Create payment record via secure RPC
+    const { data: paymentResult, error: paymentError } = await supabase.rpc(
+      'priv.create_booking_payment',
+      {
+        p: {
+          booking_id: booking.id,
+          venue_id: bookingData.venueId,
+          stripe_payment_intent_id: paymentIntent.id,
+          stripe_event_id: event.id, // Include for validation
+          amount_cents: paymentIntent.amount,
+          status: 'succeeded',
+          payment_method_type: paymentIntent.payment_method?.type || 'card',
+          processed_at: new Date().toISOString(),
+        }
+      }
+    );
 
-    console.log('✅ Payment record created');
+    if (paymentError) {
+      console.error('❌ Failed to create payment record:', paymentError);
+      throw new Error(`Payment record creation failed: ${paymentError.message}`);
+    }
+
+    console.log('✅ Payment record created:', paymentResult);
 
     // Release lock
     if (bookingData.lockToken) {
