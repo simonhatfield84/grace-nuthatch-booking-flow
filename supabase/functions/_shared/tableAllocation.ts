@@ -97,7 +97,8 @@ export async function findAvailableTable(
     time,
     duration,
     bookings || [],
-    blocks || []
+    blocks || [],
+    tables.map(t => t.id)
   );
 
   // Filter available tables
@@ -153,7 +154,8 @@ function getUnavailableTableIds(
   time: string,
   durationMinutes: number,
   bookings: Booking[],
-  blocks: Block[]
+  blocks: Block[],
+  allTableIds: number[]
 ): number[] {
   const slotStart = timeToMinutes(time);
   const slotEnd = slotStart + durationMinutes;
@@ -168,7 +170,7 @@ function getUnavailableTableIds(
     if (slotStart < blockEnd && slotEnd > blockStart) {
       if (!block.table_ids || block.table_ids.length === 0) {
         // Venue-wide block - all tables unavailable
-        return bookings.map(b => b.table_id).concat(unavailableIds);
+        return allTableIds;
       } else {
         // Specific table blocks
         unavailableIds.push(...block.table_ids);

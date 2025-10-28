@@ -33,7 +33,6 @@ interface GuestDetailsStepUIProps {
   lockToken: string;
   secondsRemaining: number;
   onSubmit: (details: any, requiresPayment: boolean) => Promise<void>;
-  requiresDeposit?: boolean;
 }
 
 export function GuestDetailsStepUI({ 
@@ -41,8 +40,7 @@ export function GuestDetailsStepUI({
   bookingData,
   lockToken,
   secondsRemaining,
-  onSubmit, 
-  requiresDeposit = false 
+  onSubmit
 }: GuestDetailsStepUIProps) {
   const [details, setDetails] = useState<GuestDetails>({
     name: '',
@@ -303,15 +301,6 @@ export function GuestDetailsStepUI({
         </CardContent>
       </Card>
 
-      {requiresDeposit && (
-        <Alert className="bg-blue-50 border-blue-200">
-          <Info className="h-4 w-4 text-blue-600" />
-          <AlertDescription className="text-blue-800">
-            This booking requires a deposit. You will be taken to payment after submitting your details.
-          </AlertDescription>
-        </Alert>
-      )}
-
       <Button 
         onClick={handlePrepare}
         disabled={isSubmitting}
@@ -324,7 +313,7 @@ export function GuestDetailsStepUI({
             Processing...
           </>
         ) : (
-          requiresDeposit ? 'Continue to Payment' : 'Complete Booking'
+          'Continue'
         )}
       </Button>
     </div>
