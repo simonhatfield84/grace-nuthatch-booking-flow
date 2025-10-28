@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { StripeProvider } from "@/components/providers/StripeProvider";
 import { StripeCardForm } from "@/components/payments/StripeCardForm";
+import { logger } from "@/lib/logger";
 
 interface PaymentStepProps {
   amount: number;
@@ -35,8 +36,8 @@ export function PaymentStep({ amount, paymentRequired, onSuccess, bookingId, des
       setError(null);
 
       try {
-        console.log('[PaymentStep] Creating payment intent for booking:', bookingId);
-        console.log('[PaymentStep] NOTE: Amount calculated server-side for security');
+        logger.info('Creating payment intent for booking', { bookingId });
+        logger.debug('Amount calculated server-side for security', { bookingId });
 
         // SECURITY: Only send bookingId - amount is calculated server-side
         const { data, error: paymentError } = await supabase.functions.invoke('create-payment-intent', {
@@ -47,7 +48,7 @@ export function PaymentStep({ amount, paymentRequired, onSuccess, bookingId, des
         });
 
         if (paymentError) {
-          console.error('[PaymentStep] Payment intent error:', paymentError);
+          logger.error('Payment intent error', { error: paymentError.message, bookingId });
           
           // Handle specific error codes
           if (paymentError.message?.includes('unauthorized')) {
@@ -60,19 +61,20 @@ export function PaymentStep({ amount, paymentRequired, onSuccess, bookingId, des
         }
 
         if (!data?.client_secret) {
-          console.error('[PaymentStep] No client secret returned:', data);
+          logger.error('No client secret returned', { data, bookingId });
           throw new Error('Payment system error. Please contact the venue.');
         }
 
-        console.log('[PaymentStep] Payment intent created:', {
-          id: data.payment_intent_id,
-          amount: data.amount_cents ? `£${data.amount_cents / 100}` : 'unknown'
+        logger.info('Payment intent created', {
+          paymentIntentId: data.payment_intent_id,
+          amount: data.amount_cents,
+          bookingId
         });
         
         setClientSecret(data.client_secret);
 
       } catch (err) {
-        console.error('Payment setup error:', err);
+        logger.error('Payment setup error', { error: err instanceof Error ? err.message : String(err), bookingId });
         const errorMessage = err instanceof Error ? err.message : 'Failed to initialize payment';
         setError(errorMessage);
         toast.error(errorMessage);
@@ -87,7 +89,7 @@ export function PaymentStep({ amount, paymentRequired, onSuccess, bookingId, des
   // Verify payment status after completion
   const verifyPaymentStatus = async () => {
     setIsVerifyingPayment(true);
-    console.log('🔍 Verifying payment status for booking:', bookingId);
+    logger.debug('Verifying payment status for booking', { bookingId });
 
     try {
       // Check payment status in our database
@@ -98,11 +100,11 @@ export function PaymentStep({ amount, paymentRequired, onSuccess, bookingId, des
         .single();
 
       if (paymentError) {
-        console.error('Error checking payment status:', paymentError);
+        logger.error('Error checking payment status', { error: paymentError.message, bookingId });
         throw new Error('Failed to verify payment status');
       }
 
-      console.log('💰 Payment status:', paymentData);
+      logger.debug('Payment status', { paymentData, bookingId });
 
       if (paymentData?.status === 'succeeded') {
         // Update booking status to confirmed
@@ -112,7 +114,7 @@ export function PaymentStep({ amount, paymentRequired, onSuccess, bookingId, des
           .eq('id', bookingId);
 
         if (bookingUpdateError) {
-          console.error('Error updating booking status:', bookingUpdateError);
+          logger.error('Error updating booking status', { error: bookingUpdateError.message, bookingId });
         }
 
         // Send confirmation email
@@ -135,7 +137,7 @@ export function PaymentStep({ amount, paymentRequired, onSuccess, bookingId, des
         }, 3000);
       }
     } catch (err) {
-      console.error('Payment verification error:', err);
+      logger.error('Payment verification error', { error: err instanceof Error ? err.message : String(err), bookingId });
       setError('Payment verification failed. Please contact the venue if payment was deducted.');
     } finally {
       setIsVerifyingPayment(false);
@@ -144,7 +146,7 @@ export function PaymentStep({ amount, paymentRequired, onSuccess, bookingId, des
 
   const sendConfirmationEmail = async () => {
     try {
-      console.log('📧 Sending confirmation email for booking:', bookingId);
+      logger.info('Sending confirmation email for booking', { bookingId });
       
       // Get booking details to get guest email
       const { data: booking, error: bookingError } = await supabase
@@ -154,7 +156,7 @@ export function PaymentStep({ amount, paymentRequired, onSuccess, bookingId, des
         .single();
 
       if (bookingError || !booking?.email) {
-        console.log('No email found for booking, skipping email send');
+        logger.warn('No email found for booking, skipping email send', { bookingId });
         return;
       }
 
@@ -168,17 +170,17 @@ export function PaymentStep({ amount, paymentRequired, onSuccess, bookingId, des
       });
 
       if (emailError) {
-        console.error('Email sending failed:', emailError);
+        logger.error('Email sending failed', { error: emailError.message, bookingId });
       } else {
-        console.log('✅ Confirmation email sent successfully');
+        logger.info('Confirmation email sent successfully', { bookingId });
       }
     } catch (error) {
-      console.error('Error sending confirmation email:', error);
+      logger.error('Error sending confirmation email', { error: error instanceof Error ? error.message : String(error), bookingId });
     }
   };
 
   const handlePaymentSuccess = () => {
-    console.log('💳 Payment successful, verifying status...');
+    logger.info('Payment successful, verifying status', { bookingId });
     verifyPaymentStatus();
   };
 

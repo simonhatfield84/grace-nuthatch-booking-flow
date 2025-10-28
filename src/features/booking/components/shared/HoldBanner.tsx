@@ -3,6 +3,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { LOCK_EXTEND_INTERVAL_SECONDS, LOCK_COUNTDOWN_WARNING_SECONDS } from '@/constants/lockConfig';
+import { logger } from "@/lib/logger";
 
 interface HoldBannerProps {
   lockToken: string;
@@ -42,12 +43,12 @@ export const HoldBanner = ({ lockToken, expiresAt, onExpiry }: HoldBannerProps) 
         });
 
         if (error || !data?.ok) {
-          console.error('❌ Failed to extend lock:', error || data);
+          logger.warn('Failed to extend lock', { error: error?.message, lockToken: lockToken.substring(0, 8) });
         } else {
-          console.log('✅ Lock extended until:', data.expiresAt);
+          logger.debug('Lock extended', { expiresAt: data.expiresAt, lockToken: lockToken.substring(0, 8) });
         }
       } catch (err) {
-        console.error('💥 Lock extension error:', err);
+        logger.error('Lock extension error', { error: err instanceof Error ? err.message : String(err), lockToken: lockToken.substring(0, 8) });
       }
     };
 

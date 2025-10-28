@@ -15,6 +15,7 @@ import { PaymentStep } from "./steps/PaymentStep";
 import { ConfirmationStep } from "./steps/ConfirmationStep";
 import { NuthatchHeader } from "./shared/NuthatchHeader";
 import { ProgressIndicator } from "./shared/ProgressIndicator";
+import { logger } from "@/lib/logger";
 
 export interface BookingData {
   partySize: number;
@@ -136,7 +137,7 @@ export function LegacyBookingWidget({ venueSlug }: LegacyBookingWidgetProps) {
         .single();
 
         if (error) {
-          console.error('Error loading venue:', error);
+          logger.error('Error loading venue', { error: error.message, venueSlug });
           
           // Check if it's a "not found" error
           if (error.code === 'PGRST116') {
@@ -153,7 +154,7 @@ export function LegacyBookingWidget({ venueSlug }: LegacyBookingWidgetProps) {
 
         setVenue(data);
       } catch (error) {
-        console.error('Error loading venue:', error);
+        logger.error('Error loading venue', { error: error instanceof Error ? error.message : String(error), venueSlug });
         toast({
           title: "Error",
           description: "Could not load venue information. Please try again.",
@@ -265,7 +266,7 @@ export function LegacyBookingWidget({ venueSlug }: LegacyBookingWidgetProps) {
               });
               // FIXED: Properly navigate to confirmation step after successful payment
               if (bookingId) {
-                console.log('🎉 Payment successful, navigating to confirmation step');
+                logger.info('Payment successful, navigating to confirmation step', { bookingId });
                 setCurrentStep(steps.length - 1);
               }
             }}

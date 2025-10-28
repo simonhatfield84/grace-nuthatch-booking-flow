@@ -9,6 +9,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.50.3";
 import { z } from "https://esm.sh/zod@3.23.8";
 import { createErrorResponse, corsHeaders } from '../_shared/errorSanitizer.ts';
+import { logger } from '../_shared/logger.ts';
 
 // Inline security utilities for edge function
 interface RateLimitConfig {
@@ -95,7 +96,7 @@ async function logSecurityEvent(
         venue_id: venueId,
       });
   } catch (error) {
-    console.error('Failed to log security event:', error);
+    logger.error('Failed to log security event', { error: error instanceof Error ? error.message : String(error) });
   }
 }
 
@@ -187,7 +188,7 @@ async function invalidateBookingCache(
     .eq('service_id', serviceId)
     .eq('date', bookingDate);
   
-  console.log('✅ Invalidated availability cache for:', { venueId, serviceId, bookingDate });
+  logger.info('Invalidated availability cache', { venueId, serviceId, bookingDate });
 }
 
 // Helper: Safe lock release (idempotent)
@@ -207,16 +208,15 @@ async function safeReleaseLock(
       .eq('lock_token', lockToken)
       .is('released_at', null);
     
-    console.log(`✅ Lock released: ${lockToken.substring(0, 8)}... (reason: ${reason})`);
+    logger.info('Lock released', { lockToken: lockToken.substring(0, 8), reason });
   } catch (error) {
-    console.error('⚠️ Failed to release lock (non-fatal):', error);
+    logger.warn('Failed to release lock (non-fatal)', { error: error instanceof Error ? error.message : String(error), lockToken: lockToken.substring(0, 8) });
   }
 }
 
 const handler = async (req: Request): Promise<Response> => {
   const reqId = crypto.randomUUID();
   const t0 = Date.now();
-  const log = (...args: any[]) => console.log(`[booking-create][${reqId}]`, ...args);
   
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -239,7 +239,7 @@ const handler = async (req: Request): Promise<Response> => {
   let lockToken: string | null = null;
 
   try {
-    log('🔒 Request received');
+    logger.info('Request received', { reqId });
 
     // Advanced rate limiting with threat detection
     const clientId = AdvancedRateLimiter.getClientIdentifier(req);

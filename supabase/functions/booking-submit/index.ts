@@ -4,6 +4,7 @@ import Stripe from "https://esm.sh/stripe@14.14.0?target=deno";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { findAvailableTable, addMinutesToTime } from '../_shared/tableAllocation.ts';
+import { logger } from '../_shared/logger.ts';
 
 // ========== INPUT SCHEMA ==========
 const bookingSubmitSchema = z.object({
@@ -69,7 +70,7 @@ async function verifyAndReleaseLock(
   reason: string
 ): Promise<{ valid: boolean; error?: string }> {
   if (!lockToken) {
-    console.log(`🔓 [LOCK] No lock token provided, skipping verification`);
+    logger.info('No lock token provided, skipping verification', { reqId });
     return { valid: true }; // No lock is ok
   }
 
@@ -89,11 +90,11 @@ async function verifyAndReleaseLock(
       .maybeSingle();
 
     if (lockError || !lock) {
-      console.error(`❌ [LOCK] Invalid or expired lock:`, lockError || 'not found');
+      logger.error('Invalid or expired lock', { lockError: lockError?.message, lockToken: lockToken.substring(0, 8), reqId });
       return { valid: false, error: 'Invalid or expired lock token' };
     }
 
-    console.log(`✅ [LOCK] Lock verified: ${lockToken.substring(0, 8)}...`);
+    logger.info('Lock verified', { lockToken: lockToken.substring(0, 8), reqId });
 
     // Release the lock
     const { error: releaseError } = await supabase
@@ -105,14 +106,14 @@ async function verifyAndReleaseLock(
       .eq('lock_token', lockToken);
 
     if (releaseError) {
-      console.error(`⚠️ [LOCK] Failed to release lock (non-fatal):`, releaseError);
+      logger.warn('Failed to release lock (non-fatal)', { error: releaseError.message, lockToken: lockToken.substring(0, 8), reqId });
     } else {
-      console.log(`🔓 [LOCK] Released with reason: ${reason}`);
+      logger.info('Lock released', { reason, lockToken: lockToken.substring(0, 8), reqId });
     }
 
     return { valid: true };
   } catch (error) {
-    console.error(`❌ [LOCK] Error verifying lock:`, error);
+    logger.error('Error verifying lock', { error: error instanceof Error ? error.message : String(error), lockToken: lockToken?.substring(0, 8), reqId });
     return { valid: false, error: 'Lock verification failed' };
   }
 }
@@ -173,7 +174,7 @@ const handler = async (req: Request): Promise<Response> => {
   const corsH = getCorsHeaders(req);
 
   const reqId = crypto.randomUUID().substring(0, 8);
-  console.log(`🎫 [${reqId}] Booking submission started`);
+  logger.info('Booking submission started', { reqId });
 
   let bookingId: number | null = null;
 
@@ -184,7 +185,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Bot detection: Honeypot check
     if (input.website && input.website.length > 0) {
-      console.warn(`🤖 [${reqId}] Bot detected: honeypot filled`);
+      logger.warn('Bot detected: honeypot filled', { reqId });
       // Return fake success to avoid alerting bot
       return jsonResponse(200, {
         ok: true,
@@ -193,9 +194,10 @@ const handler = async (req: Request): Promise<Response> => {
       }, corsH);
     }
 
-    console.log(`📋 [${reqId}] Input validated:`, {
+    logger.debug('Input validated', {
+      reqId,
       venueSlug: input.venueSlug,
-      serviceId: input.serviceId.substring(0, 8) + '...',
+      serviceId: input.serviceId.substring(0, 8),
       partySize: input.partySize,
       date: input.date,
       time: input.time,
@@ -224,7 +226,7 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
     if (rateLimitError || !rateLimitOk) {
-      console.warn(`🚫 [${reqId}] Rate limit exceeded for IP: ${clientIp}`);
+      logger.warn('Rate limit exceeded', { reqId, clientIp });
       return jsonResponse(429, { 
         ok: false, 
         code: 'rate_limit_exceeded',
@@ -233,7 +235,7 @@ const handler = async (req: Request): Promise<Response> => {
       }, corsH);
     }
 
-    console.log(`✅ [${reqId}] Rate limit check passed`);
+    logger.debug('Rate limit check passed', { reqId });
 
     // STEP 1: Resolve venue
     const { data: venue, error: venueError } = await supabase
@@ -243,7 +245,7 @@ const handler = async (req: Request): Promise<Response> => {
       .single();
 
     if (venueError || !venue || venue.approval_status !== 'approved') {
-      console.error(`❌ [${reqId}] Venue not found or not approved:`, input.venueSlug);
+      logger.error('Venue not found or not approved', { reqId, venueSlug: input.venueSlug, error: venueError?.message });
       return jsonResponse(404, {
         ok: false,
         code: 'venue_not_found',

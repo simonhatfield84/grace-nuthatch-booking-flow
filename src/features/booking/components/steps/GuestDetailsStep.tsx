@@ -17,6 +17,7 @@ import { StripeCardForm } from "@/components/payments/StripeCardForm";
 import { AppleGooglePayButton } from "@/components/payments/AppleGooglePayButton";
 import { HoldBanner } from "../shared/HoldBanner";
 import { useSlotLock } from "../../hooks/useSlotLock";
+import { logger } from "@/lib/logger";
 
 interface GuestDetailsStepProps {
   value: {
@@ -76,7 +77,7 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
 
       // Calculate payment
       if (service?.id && venue?.id) {
-        console.log('🔍 Calculating payment for:', {
+        logger.debug('Calculating payment', {
           serviceId: service.id,
           partySize,
           venueId: venue.id,
@@ -126,7 +127,7 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
     const reqId = crypto.randomUUID().substring(0, 8);
 
     try {
-      console.log(`🎫 [${reqId}] Submitting booking to unified endpoint`);
+      logger.info('Submitting booking to unified endpoint', { reqId });
 
       // Call the unified booking-submit endpoint (server decides everything)
       const { data: response, error } = await supabase.functions.invoke('booking-submit', {
@@ -147,7 +148,7 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
       });
 
       if (error || !response?.ok) {
-        console.error(`❌ [${reqId}] Booking submission failed:`, error || response);
+        logger.error('Booking submission failed', { reqId, error: error?.message || response?.error });
         
         const errorMsg = response?.error || error?.message || 'Failed to create booking';
         toast.error(errorMsg);
@@ -157,16 +158,16 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
       const booking = response.booking;
       setBookingId(booking.id);
 
-      console.log(`✅ [${reqId}] Server response:`, {
+      logger.info('Server response received', {
+        reqId,
         bookingId: booking.id,
         status: booking.status,
-        paymentRequired: response.payment?.required,
-        reqId
+        paymentRequired: response.payment?.required
       });
 
       // Handle response based on server's decision
       if (response.payment?.required) {
-        console.log(`💳 [${reqId}] Payment required - showing Stripe`);
+        logger.info('Payment required - showing Stripe', { reqId });
         
         // Server requires payment - show Stripe Elements
         setClientSecret(response.payment.client_secret);
@@ -179,14 +180,14 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
         toast.success(`Please complete your £${(response.payment.amount_cents / 100).toFixed(2)} payment to confirm your booking.`);
       } else {
         // No payment required - booking is confirmed
-        console.log(`✅ [${reqId}] No payment required - booking confirmed`);
+        logger.info('No payment required - booking confirmed', { reqId });
         
         toast.success("Booking confirmed successfully!");
         onChange(formData, false, 0, booking.id);
       }
 
     } catch (error) {
-      console.error(`❌ [${reqId}] Error:`, error);
+      logger.error('Booking error', { reqId, error: error instanceof Error ? error.message : String(error) });
       toast.error(error instanceof Error ? error.message : 'Failed to create booking');
     } finally {
       setIsCreatingBooking(false);
@@ -198,16 +199,16 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
   // Removed: initializePayment - handled by unified booking-submit endpoint
 
   const handlePaymentSuccess = async () => {
-    console.log('💳 Payment successful, processing confirmation...');
+    logger.info('Payment successful, processing confirmation', { bookingId });
     setIsProcessingPayment(true);
     
     try {
       // Extended wait time for webhook processing
-      console.log('⏱️ Waiting for webhook processing...');
+      logger.debug('Waiting for webhook processing', { bookingId });
       await new Promise(resolve => setTimeout(resolve, 5000)); // Increased to 5 seconds
 
       // Enhanced payment verification with multiple attempts
-      console.log('🔍 Checking payment status for booking:', bookingId);
+      logger.debug('Checking payment status for booking', { bookingId });
       
       let paymentVerified = false;
       let attempts = 0;
@@ -215,7 +216,7 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
       
       while (!paymentVerified && attempts < maxAttempts) {
         attempts++;
-        console.log(`🔄 Payment verification attempt ${attempts}/${maxAttempts}`);
+        logger.debug('Payment verification attempt', { attempt: attempts, maxAttempts, bookingId });
         
         // First, check if the booking payment record exists and is successful
         const { data: paymentData, error: paymentError } = await supabase
@@ -226,18 +227,18 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
           .limit(1);
 
         if (paymentError) {
-          console.error('❌ Error checking payment status:', paymentError);
+          logger.error('Error checking payment status', { error: paymentError.message, bookingId });
         } else {
-          console.log('📊 Payment data from database:', paymentData);
+          logger.debug('Payment data from database', { paymentData, bookingId });
           
           const latestPayment = paymentData?.[0];
           
           if (latestPayment?.status === 'succeeded') {
-            console.log('✅ Payment confirmed in database');
+            logger.info('Payment confirmed in database', { bookingId });
             paymentVerified = true;
             break;
           } else {
-            console.log(`⏳ Payment status: ${latestPayment?.status || 'not found'}, retrying...`);
+            logger.debug('Payment status pending, retrying', { status: latestPayment?.status || 'not found', bookingId });
           }
         }
         
@@ -251,7 +252,7 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
         // Release lock after successful payment
         if (lockData) {
           await releaseLock('paid');
-          console.log('✅ Lock released after successful payment');
+          logger.info('Lock released after successful payment', { bookingId });
         }
         
         // Verify booking status was also updated
@@ -262,17 +263,17 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
           .single();
           
         if (bookingError) {
-          console.error('❌ Error checking booking status:', bookingError);
+          logger.error('Error checking booking status', { error: bookingError.message, bookingId });
         } else {
-          console.log('📋 Current booking status:', bookingData?.status);
+          logger.debug('Current booking status', { status: bookingData?.status, bookingId });
         }
 
         toast.success('Payment completed and booking confirmed!');
         onChange(formData, true, paymentCalculation?.amount || 0, bookingId!);
       } else {
-        console.error('❌ Payment verification failed after all attempts');
+        logger.warn('Payment verification failed after all attempts', { bookingId });
         // Still proceed with success since webhook might be delayed
-        console.log('⚡ Proceeding with booking confirmation despite verification timeout');
+        logger.info('Proceeding with booking confirmation despite verification timeout', { bookingId });
         
         // Release lock even if verification timeout occurs
         if (lockData) {
@@ -283,7 +284,7 @@ export function GuestDetailsStep({ value, service, venue, partySize, date, time,
         onChange(formData, true, paymentCalculation?.amount || 0, bookingId!);
       }
     } catch (error) {
-      console.error('❌ Error in payment success handling:', error);
+      logger.error('Error in payment success handling', { error: error instanceof Error ? error.message : String(error), bookingId });
       toast.error(error instanceof Error ? error.message : 'Payment completed but there was an issue confirming your booking. Please check your email for confirmation or contact the venue.');
     } finally {
       setIsProcessingPayment(false);

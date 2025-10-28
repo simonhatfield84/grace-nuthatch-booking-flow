@@ -19,6 +19,7 @@ import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { logger } from "@/lib/logger";
 
 interface ConfirmationStepProps {
   bookingData: any;
@@ -40,12 +41,12 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
       
       try {
         if (!bookingData.bookingId) {
-          console.error('No booking ID provided to ConfirmationStep');
+          logger.error('No booking ID provided to ConfirmationStep');
           setIsLoading(false);
           return;
         }
 
-        console.log('Loading booking details for ID:', bookingData.bookingId);
+        logger.debug('Loading booking details', { bookingId: bookingData.bookingId });
         
         // Get the booking details
         const { data: booking, error: fetchError } = await supabase
@@ -55,11 +56,11 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
           .single();
 
         if (fetchError) {
-          console.error('Error fetching booking:', fetchError);
+          logger.error('Error fetching booking', { error: fetchError.message, bookingId: bookingData.bookingId });
           throw fetchError;
         }
 
-        console.log('Booking loaded:', booking);
+        logger.debug('Booking loaded', { booking, bookingId: bookingData.bookingId });
         setBookingReference(booking.booking_reference);
         setBookingStatus(booking.status);
 
@@ -73,10 +74,10 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
             .limit(1)
             .single();
 
-          if (payment) {
-            setPaymentStatus(payment.status);
-            console.log('Payment status:', payment.status);
-          }
+        if (payment) {
+          setPaymentStatus(payment.status);
+          logger.debug('Payment status', { status: payment.status, bookingId: bookingData.bookingId });
+        }
         }
 
         // Only show success toast if booking is actually confirmed and payment is complete
@@ -94,7 +95,7 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
         }
 
       } catch (error) {
-        console.error('Error loading booking details:', error);
+        logger.error('Error loading booking details', { error: error instanceof Error ? error.message : String(error), bookingId: bookingData.bookingId });
         toast({
           title: "Booking Error",
           description: "There was an issue loading your booking details.",
@@ -114,7 +115,7 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
     setIsVerifying(true);
     
     try {
-      console.log('🔍 Verifying payment status for booking:', bookingData.bookingId);
+      logger.debug('Verifying payment status for booking', { bookingId: bookingData.bookingId });
 
       // First, get the payment details to retrieve the stripe_payment_intent_id
       const { data: paymentData, error: paymentError } = await supabase
@@ -124,7 +125,7 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
         .single();
 
       if (paymentError) {
-        console.error('Error fetching payment data:', paymentError);
+        logger.error('Error fetching payment data', { error: paymentError.message, bookingId: bookingData.bookingId });
         toast({
           title: "Error",
           description: "Could not find payment record for this booking",
@@ -134,7 +135,7 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
       }
 
       if (!paymentData?.stripe_payment_intent_id) {
-        console.error('No payment intent ID found for booking');
+        logger.error('No payment intent ID found for booking', { bookingId: bookingData.bookingId });
         toast({
           title: "Error", 
           description: "No payment intent found for this booking",
@@ -143,7 +144,7 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
         return;
       }
 
-      console.log('💳 Found payment intent:', paymentData.stripe_payment_intent_id);
+      logger.debug('Found payment intent', { paymentIntentId: paymentData.stripe_payment_intent_id, bookingId: bookingData.bookingId });
 
       // Check both booking and payment status
       const { data: booking } = await supabase
@@ -161,7 +162,7 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
 
       // If payment is still pending, verify with Stripe
       if (paymentData.status === 'pending') {
-        console.log('💳 Payment pending, verifying with Stripe...');
+        logger.info('Payment pending, verifying with Stripe', { bookingId: bookingData.bookingId });
         
         const { data: verifyData, error: verifyError } = await supabase.functions.invoke('verify-payment-status', {
           body: {
@@ -171,7 +172,7 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
         });
 
         if (verifyError) {
-          console.error('Stripe verification error:', verifyError);
+          logger.error('Stripe verification error', { error: verifyError.message, bookingId: bookingData.bookingId });
           toast({
             title: "Error",
             description: `Failed to verify payment with Stripe: ${verifyError.message}`,
@@ -181,7 +182,7 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
         }
 
         if (verifyData?.payment_succeeded) {
-          console.log('✅ Stripe confirms payment succeeded!');
+          logger.info('Stripe confirms payment succeeded', { bookingId: bookingData.bookingId });
           toast({
             title: "Success",
             description: "Payment verified and booking confirmed!",
@@ -202,7 +203,7 @@ export function ConfirmationStep({ bookingData, venue, onBookingId }: Confirmati
       }
 
     } catch (error) {
-      console.error('Error verifying payment:', error);
+      logger.error('Error verifying payment', { error: error instanceof Error ? error.message : String(error), bookingId: bookingData.bookingId });
       toast({
         title: "Error",
         description: "Failed to verify payment status",
