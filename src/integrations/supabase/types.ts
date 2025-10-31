@@ -2367,6 +2367,51 @@ export type Database = {
           },
         ]
       }
+      square_order_line_items: {
+        Row: {
+          base_price_money: number | null
+          catalog_object_id: string | null
+          created_at: string
+          id: number
+          line_item_uid: string | null
+          modifiers: Json | null
+          name: string | null
+          note: string | null
+          order_id: string
+          quantity: number
+          total_money: number | null
+          variation_name: string | null
+        }
+        Insert: {
+          base_price_money?: number | null
+          catalog_object_id?: string | null
+          created_at?: string
+          id?: number
+          line_item_uid?: string | null
+          modifiers?: Json | null
+          name?: string | null
+          note?: string | null
+          order_id: string
+          quantity?: number
+          total_money?: number | null
+          variation_name?: string | null
+        }
+        Update: {
+          base_price_money?: number | null
+          catalog_object_id?: string | null
+          created_at?: string
+          id?: number
+          line_item_uid?: string | null
+          modifiers?: Json | null
+          name?: string | null
+          note?: string | null
+          order_id?: string
+          quantity?: number
+          total_money?: number | null
+          variation_name?: string | null
+        }
+        Relationships: []
+      }
       square_orders: {
         Row: {
           closed_at: string | null
@@ -2424,6 +2469,72 @@ export type Database = {
           total_money?: number | null
           updated_at?: string
           version?: number | null
+        }
+        Relationships: []
+      }
+      square_payments: {
+        Row: {
+          amount_money: number | null
+          approved_money: number | null
+          card_brand: string | null
+          card_last_4: string | null
+          created_at: string
+          customer_id: string | null
+          id: number
+          location_id: string | null
+          note: string | null
+          order_id: string | null
+          payment_id: string
+          processing_fee_money: number | null
+          raw: Json
+          receipt_url: string | null
+          refunded_money: number | null
+          status: string | null
+          tip_money: number | null
+          total_money: number | null
+          updated_at: string
+        }
+        Insert: {
+          amount_money?: number | null
+          approved_money?: number | null
+          card_brand?: string | null
+          card_last_4?: string | null
+          created_at?: string
+          customer_id?: string | null
+          id?: number
+          location_id?: string | null
+          note?: string | null
+          order_id?: string | null
+          payment_id: string
+          processing_fee_money?: number | null
+          raw?: Json
+          receipt_url?: string | null
+          refunded_money?: number | null
+          status?: string | null
+          tip_money?: number | null
+          total_money?: number | null
+          updated_at?: string
+        }
+        Update: {
+          amount_money?: number | null
+          approved_money?: number | null
+          card_brand?: string | null
+          card_last_4?: string | null
+          created_at?: string
+          customer_id?: string | null
+          id?: number
+          location_id?: string | null
+          note?: string | null
+          order_id?: string | null
+          payment_id?: string
+          processing_fee_money?: number | null
+          raw?: Json
+          receipt_url?: string | null
+          refunded_money?: number | null
+          status?: string | null
+          tip_money?: number | null
+          total_money?: number | null
+          updated_at?: string
         }
         Relationships: []
       }

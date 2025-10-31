@@ -55,9 +55,24 @@ Deno.serve(async (req) => {
     // Parse event payload
     const event = JSON.parse(rawBody);
     const eventId = event.event_id || crypto.randomUUID();
-    const eventType = event.type || 'unknown';
+    
+    // Normalize event type (handle both singular and plural)
+    const rawEventType = event.type || 'unknown';
+    const eventType = rawEventType.replace(/s\.(updated|created)$/, '.$1'); // orders.updated → order.updated
+    
     const locationId = event.location_id || null;
-    const resourceId = event.data?.id || null;
+    
+    // Extract resource ID from different payload shapes
+    const resourceId = event.data?.id 
+      || event.data?.object?.order_updated?.order_id
+      || event.data?.object?.order?.id
+      || event.data?.object?.payment?.id
+      || null;
+    
+    console.log(`📥 Webhook received: ${rawEventType} (normalized: ${eventType})`);
+    if (rawEventType !== eventType) {
+      console.log(`  ℹ️ Plural event type detected and normalized`);
+    }
 
     // Initialize Supabase client
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);

@@ -52,8 +52,12 @@ Deno.serve(async (req) => {
         }
 
         // Process based on event type
-        if (webhookEvent.event_type === 'order.updated') {
+        if (webhookEvent.event_type === 'order.updated' || webhookEvent.event_type === 'order.created') {
           await processOrderUpdated(supabase, webhookEvent);
+        } else if (webhookEvent.event_type === 'payment.updated' || webhookEvent.event_type === 'payment.created') {
+          await processPaymentUpdated(supabase, webhookEvent);
+        } else {
+          console.log(`⚠️ Unhandled event type: ${webhookEvent.event_type}`);
         }
 
         // Mark as processed
@@ -245,7 +249,79 @@ async function findOrCreateGuestBySquareCustomer(
   return newGuest.id;
 }
 
-// Helper: Fetch complete order data from Square API
+// Helper: Fetch payment from Square API using Production token
+async function fetchSquarePayment(
+  paymentId: string,
+  locationId?: string
+): Promise<any> {
+  const SQUARE_ACCESS_TOKEN = Deno.env.get('SQUARE_MERCHANT_ACCESS_TOKEN');
+  const SQUARE_VERSION = Deno.env.get('SQUARE_VERSION') || '2024-10-17';
+  
+  if (!SQUARE_ACCESS_TOKEN) {
+    throw new Error('SQUARE_MERCHANT_ACCESS_TOKEN not configured');
+  }
+  
+  const apiBase = 'https://connect.squareup.com/v2'; // Production only
+  
+  const url = locationId 
+    ? `${apiBase}/payments/${paymentId}?location_id=${locationId}`
+    : `${apiBase}/payments/${paymentId}`;
+  
+  const response = await fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${SQUARE_ACCESS_TOKEN}`,
+      'Square-Version': SQUARE_VERSION,
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Square API error: ${response.status} - ${errorText}`);
+  }
+  
+  const data = await response.json();
+  return data.payment;
+}
+
+// Helper: Fetch order using Production token (alternative to OAuth)
+async function fetchSquareOrder(
+  orderId: string,
+  locationId?: string
+): Promise<any> {
+  const SQUARE_ACCESS_TOKEN = Deno.env.get('SQUARE_MERCHANT_ACCESS_TOKEN');
+  const SQUARE_VERSION = Deno.env.get('SQUARE_VERSION') || '2024-10-17';
+  
+  if (!SQUARE_ACCESS_TOKEN) {
+    // Fall back to OAuth token fetch
+    console.log('⚠️ SQUARE_MERCHANT_ACCESS_TOKEN not set, using OAuth fallback');
+    return null; // Caller will use fetchOrderFromSquareAPI
+  }
+  
+  const apiBase = 'https://connect.squareup.com/v2';
+  
+  const url = locationId
+    ? `${apiBase}/orders/${orderId}?location_id=${locationId}`
+    : `${apiBase}/orders/${orderId}`;
+  
+  const response = await fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${SQUARE_ACCESS_TOKEN}`,
+      'Square-Version': SQUARE_VERSION,
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Square API error: ${response.status} - ${errorText}`);
+  }
+  
+  const data = await response.json();
+  return data.order;
+}
+
+// Helper: Fetch complete order data from Square API using OAuth tokens (fallback)
 async function fetchOrderFromSquareAPI(
   supabase: any,
   orderId: string,
@@ -311,7 +387,7 @@ async function fetchOrderFromSquareAPI(
   }
   
   const data = await response.json();
-  return data.order; // Returns full order object
+  return data.order;
 }
 
 async function processOrderUpdated(supabase: any, webhookEvent: any) {
@@ -329,15 +405,25 @@ async function processOrderUpdated(supabase: any, webhookEvent: any) {
   // Step 2: Fetch complete order data from Square API
   let orderData;
   try {
-    orderData = await fetchOrderFromSquareAPI(
-      supabase,
+    // Try Production token first (preferred for production)
+    orderData = await fetchSquareOrder(
       webhookOrderData.id,
       webhookOrderData.location_id
     );
+    
+    // Fallback to OAuth token if Production token not set
+    if (!orderData) {
+      orderData = await fetchOrderFromSquareAPI(
+        supabase,
+        webhookOrderData.id,
+        webhookOrderData.location_id
+      );
+    }
+    
     console.log(`✅ Fetched complete order data from Square API: ${orderData.line_items?.length || 0} line items`);
   } catch (apiError) {
     console.error('Failed to fetch order from Square API:', apiError);
-    // Fallback: use minimal webhook data (will have limited info)
+    // Fallback: use minimal webhook data
     orderData = {
       id: webhookOrderData.id,
       location_id: webhookOrderData.location_id,
@@ -360,7 +446,7 @@ async function processOrderUpdated(supabase: any, webhookEvent: any) {
       opened_at: orderData.created_at,
       closed_at: orderData.closed_at,
       total_money: orderData.total_money?.amount,
-      tip_money: orderData.total_tip_money?.amount,
+      tip_money: orderData.tip_money?.amount,
       discount_money: orderData.total_discount_money?.amount,
       service_charge_money: orderData.total_service_charge_money?.amount,
       taxes_money: orderData.total_tax_money?.amount,
@@ -377,108 +463,120 @@ async function processOrderUpdated(supabase: any, webhookEvent: any) {
     throw new Error(`Failed to upsert order: ${upsertError.message}`);
   }
 
-  // Attempt auto-linking
-  let linked = false;
-  let linkMethod = '';
-  let confidence = 0.0;
-  let visitData = null;
-
-  // Try linking by Square customer_id
-  if (orderData.customer_id) {
-    const { data, error } = await supabase
-      .rpc('grace_find_active_visit_by_square_customer', {
-        p_customer_id: orderData.customer_id
-      });
-
-    if (!error && data && data.length > 0) {
-      visitData = data[0];
-      linkMethod = 'square_customer_id';
-      confidence = 0.9;
-      linked = true;
+  console.log(`✅ Order ${orderData.id} upserted successfully`);
+  
+  // Upsert line items for bill display
+  if (orderData.line_items && orderData.line_items.length > 0) {
+    console.log(`💳 Upserting ${orderData.line_items.length} line items for order ${orderData.id}`);
+    
+    for (const item of orderData.line_items) {
+      await supabase
+        .from('square_order_line_items')
+        .upsert({
+          order_id: orderData.id,
+          line_item_uid: item.uid,
+          name: item.name,
+          catalog_object_id: item.catalog_object_id,
+          variation_name: item.variation_name,
+          quantity: item.quantity,
+          base_price_money: item.base_price_money?.amount,
+          total_money: item.total_money?.amount || item.gross_sales_money?.amount,
+          modifiers: item.modifiers || [],
+          note: item.note
+        }, {
+          onConflict: 'order_id,line_item_uid,name,total_money',
+          ignoreDuplicates: false // Update on conflict
+        });
     }
+    
+    console.log(`✅ Line items upserted for order ${orderData.id}`);
   }
 
-  // Try linking by booking code in note
-  if (!linked && orderData.note) {
-    const bookingCodeMatch = orderData.note.match(/BK-\d{4}-\d{6}/);
-    if (bookingCodeMatch) {
-      const { data, error } = await supabase
-        .rpc('grace_find_visit_by_booking_code', {
-          p_code: bookingCodeMatch[0]
-        });
+  // Step 3: Auto-link to existing visit
+  let linkedVisitId: string | null = null;
 
-      if (!error && data && data.length > 0) {
-        visitData = data[0];
-        linkMethod = 'booking_code';
-        confidence = 0.95;
-        linked = true;
+  // A. Try linking by Square customer_id
+  if (orderData.customer_id) {
+    const { data: visitByCustomer, error } = await supabase.rpc(
+      'grace_find_active_visit_by_square_customer',
+      { p_customer_id: orderData.customer_id }
+    );
+
+    if (!error && visitByCustomer && visitByCustomer.length > 0) {
+      const visit = visitByCustomer[0];
+      linkedVisitId = visit.visit_id || visit.reservation_id;
+      
+      if (linkedVisitId) {
+        await supabase.from('order_links').insert({
+          order_id: orderData.id,
+          visit_id: linkedVisitId,
+          reservation_id: visit.reservation_id,
+          guest_id: visit.guest_id,
+          link_method: 'square_customer_id',
+          confidence: 0.9
+        }).onConflict('order_id').ignore();
+        
+        console.log(`✅ Linked order ${orderData.id} to visit ${linkedVisitId} via customer_id`);
       }
     }
   }
 
-  if (linked && visitData) {
-    // Create order link
-    await supabase
-      .from('order_links')
-      .upsert({
-        order_id: orderData.id,
-        visit_id: visitData.visit_id,
-        reservation_id: visitData.reservation_id,
-        guest_id: visitData.guest_id,
-        link_method: linkMethod,
-        confidence: confidence
-      }, {
-        onConflict: 'order_id,visit_id'
-      });
+  // B. Try linking by booking code in order note
+  if (!linkedVisitId && orderData.note) {
+    const bookingCodeMatch = orderData.note.match(/BK-\d{4}-\d{6}/);
+    if (bookingCodeMatch) {
+      const bookingCode = bookingCodeMatch[0];
+      const { data: visitByCode, error } = await supabase.rpc(
+        'grace_find_visit_by_booking_code',
+        { p_code: bookingCode }
+      );
 
-    // Apply metrics (stub)
-    if (visitData.visit_id) {
-      await supabase.rpc('grace_apply_order_to_visit_metrics', {
-        p_order_id: orderData.id,
-        p_visit_id: visitData.visit_id
-      });
+      if (!error && visitByCode && visitByCode.length > 0) {
+        const visit = visitByCode[0];
+        linkedVisitId = visit.visit_id || visit.reservation_id;
+        
+        if (linkedVisitId) {
+          await supabase.from('order_links').insert({
+            order_id: orderData.id,
+            visit_id: linkedVisitId,
+            reservation_id: visit.reservation_id,
+            guest_id: visit.guest_id,
+            link_method: 'booking_code',
+            confidence: 0.95
+          }).onConflict('order_id').ignore();
+          
+          console.log(`✅ Linked order ${orderData.id} to visit ${linkedVisitId} via booking code`);
+        }
+      }
     }
+  }
 
-    console.log(`Auto-linked order ${orderData.id} via ${linkMethod}`);
-  } else {
-    // Auto-walk-in path
-    console.log(`No match found for order ${orderData.id}, attempting auto-walk-in...`);
-    
-    // Step 1: Resolve venue
+  // C. If still not linked, attempt walk-in creation
+  if (!linkedVisitId) {
     const venueId = await resolveVenue(supabase, orderData.location_id);
+    
     if (!venueId) {
-      console.log(`No venue mapping for location ${orderData.location_id}`);
-      // Create enriched review task
+      console.log(`⚠️ No venue mapping for location ${orderData.location_id}, creating review task`);
+      
+      // Create enriched review snapshot
       await supabase.from('order_link_reviews').insert({
         order_id: orderData.id,
         reason: 'no_venue_mapping',
         confidence: 0.0,
         snapshot: {
-          // Order identification
           order_id: orderData.id,
           location_id: orderData.location_id,
           state: orderData.state,
-          version: orderData.version,
-          
-          // Timing
           opened_at: orderData.created_at,
           updated_at: orderData.updated_at,
           closed_at: orderData.closed_at,
-          
-          // Customer & context
           customer_id: orderData.customer_id,
           note: orderData.note,
-          
-          // Source & device
           source_name: orderData.source?.name,
           device_id: orderData.source?.device_id,
-          
-          // Table names from fulfillments
           table_names: orderData.fulfillments
             ?.filter((f: any) => f.type === 'SHIPMENT' && f.shipment_details?.recipient?.display_name)
             .map((f: any) => f.shipment_details.recipient.display_name) || [],
-          
-          // Money breakdown
           money: {
             subtotal: orderData.net_amounts?.total_money?.amount || 0,
             discount: orderData.net_amounts?.discount_money?.amount || 0,
@@ -487,78 +585,118 @@ async function processOrderUpdated(supabase: any, webhookEvent: any) {
             tip: orderData.net_amounts?.tip_money?.amount || 0,
             total: orderData.total_money?.amount || 0
           },
-          
-          // Line items
-          line_items_count: orderData.line_items?.length || 0
+          line_items_count: orderData.line_items?.length || 0,
+          full_order: orderData
         },
         status: 'open'
       });
       return;
     }
-    
-    // Step 2: Handle guest if customer_id exists
-    let guestId: string | null = null;
-    if (orderData.customer_id) {
-      guestId = await findOrCreateGuestBySquareCustomer(
-        supabase, 
-        venueId, 
-        orderData.customer_id
-      );
-    }
-    
-    // Step 3: Resolve seating
-    const seating = await resolveSeating(
+
+    // Try to create walk-in
+    const { areaId, tableId } = await resolveSeating(
       supabase,
       venueId,
       orderData.location_id,
-      orderData.source?.device_id || null,
-      orderData.source?.name || null
+      orderData.source?.device_id,
+      orderData.source?.name
     );
-    
-    // Step 4: Create walk-in
-    const { data: visitIdData, error: walkInError } = await supabase
-      .rpc('grace_create_walk_in', {
-        p_venue_id: venueId,
-        p_area_id: seating.areaId,
-        p_table_id: seating.tableId,
-        p_guest_id: guestId,
-        p_source: 'Square POS',
-        p_opened_at: orderData.created_at
+
+    let guestId: string | null = null;
+    if (orderData.customer_id) {
+      guestId = await findOrCreateGuestBySquareCustomer(
+        supabase,
+        venueId,
+        orderData.customer_id
+      );
+    }
+
+    if (tableId) {
+      // Create walk-in
+      const { data: newVisitId, error: walkInError } = await supabase.rpc(
+        'grace_create_walk_in',
+        {
+          p_venue_id: venueId,
+          p_area_id: areaId,
+          p_table_id: tableId,
+          p_guest_id: guestId,
+          p_source: 'Square POS',
+          p_opened_at: orderData.created_at
+        }
+      );
+
+      if (walkInError) {
+        console.error('Failed to create walk-in:', walkInError);
+        
+        // Create review for failed walk-in
+        await supabase.from('order_link_reviews').insert({
+          order_id: orderData.id,
+          reason: 'walk_in_creation_failed',
+          confidence: 0.0,
+          snapshot: {
+            order_id: orderData.id,
+            location_id: orderData.location_id,
+            state: orderData.state,
+            opened_at: orderData.created_at,
+            updated_at: orderData.updated_at,
+            closed_at: orderData.closed_at,
+            customer_id: orderData.customer_id,
+            note: orderData.note,
+            source_name: orderData.source?.name,
+            device_id: orderData.source?.device_id,
+            table_names: orderData.fulfillments
+              ?.filter((f: any) => f.type === 'SHIPMENT' && f.shipment_details?.recipient?.display_name)
+              .map((f: any) => f.shipment_details.recipient.display_name) || [],
+            money: {
+              subtotal: orderData.net_amounts?.total_money?.amount || 0,
+              discount: orderData.net_amounts?.discount_money?.amount || 0,
+              service_charge: orderData.net_amounts?.service_charge_money?.amount || 0,
+              tax: orderData.net_amounts?.tax_money?.amount || 0,
+              tip: orderData.net_amounts?.tip_money?.amount || 0,
+              total: orderData.total_money?.amount || 0
+            },
+            line_items_count: orderData.line_items?.length || 0,
+            full_order: orderData,
+            error: walkInError.message
+          },
+          status: 'open'
+        });
+        return;
+      }
+
+      // Link order to walk-in
+      await supabase.from('order_links').insert({
+        order_id: orderData.id,
+        visit_id: newVisitId,
+        reservation_id: newVisitId,
+        guest_id: guestId,
+        link_method: 'auto_walk_in',
+        confidence: 0.7
       });
-    
-    if (walkInError) {
-      console.error('Failed to create walk-in:', walkInError);
-      // Fallback to enriched review task
+
+      console.log(`✅ Created walk-in visit ${newVisitId} and linked order ${orderData.id}`);
+    } else {
+      console.log(`⚠️ No table mapping available, creating review task`);
+      
+      // Create review for unassigned order
       await supabase.from('order_link_reviews').insert({
         order_id: orderData.id,
-        reason: 'walk_in_creation_failed',
+        reason: 'no_table_assignment',
         confidence: 0.0,
         snapshot: {
-          // Order identification
           order_id: orderData.id,
           location_id: orderData.location_id,
           state: orderData.state,
-          version: orderData.version,
-          
-          // Timing
           opened_at: orderData.created_at,
           updated_at: orderData.updated_at,
           closed_at: orderData.closed_at,
-          
-          // Customer & context
           customer_id: orderData.customer_id,
           note: orderData.note,
-          
-          // Source & device
           source_name: orderData.source?.name,
           device_id: orderData.source?.device_id,
-          
-          // Table names from fulfillments
           table_names: orderData.fulfillments
             ?.filter((f: any) => f.type === 'SHIPMENT' && f.shipment_details?.recipient?.display_name)
             .map((f: any) => f.shipment_details.recipient.display_name) || [],
-          
-          // Money breakdown
           money: {
             subtotal: orderData.net_amounts?.total_money?.amount || 0,
             discount: orderData.net_amounts?.discount_money?.amount || 0,
@@ -567,34 +705,102 @@ async function processOrderUpdated(supabase: any, webhookEvent: any) {
             tip: orderData.net_amounts?.tip_money?.amount || 0,
             total: orderData.total_money?.amount || 0
           },
-          
-          // Line items
           line_items_count: orderData.line_items?.length || 0,
-          
-          // Error details
-          error: String(walkInError)
+          full_order: orderData
         },
         status: 'open'
       });
-      return;
     }
+  }
+}
+
+async function processPaymentUpdated(supabase: any, webhookEvent: any) {
+  // Extract payment data from webhook
+  const webhookPaymentData = webhookEvent.payload?.data?.object?.payment
+    || webhookEvent.payload?.data?.object?.payment_updated;
+  
+  if (!webhookPaymentData) {
+    console.error('Webhook payload:', JSON.stringify(webhookEvent.payload, null, 2));
+    throw new Error('No payment data in webhook payload');
+  }
+  
+  console.log(`Processing ${webhookEvent.event_type} for payment ${webhookPaymentData.id}`);
+  
+  // Fetch complete payment data from Square API
+  let paymentData;
+  try {
+    paymentData = await fetchSquarePayment(
+      webhookPaymentData.id,
+      webhookPaymentData.location_id
+    );
+    console.log(`✅ Fetched payment data: ${paymentData.status} - ${paymentData.total_money?.amount || 0}`);
+  } catch (apiError) {
+    console.error('Failed to fetch payment from Square API:', apiError);
+    // Fallback: use minimal webhook data
+    paymentData = webhookPaymentData;
+    console.warn('⚠️ Using webhook payment data, may be incomplete');
+  }
+  
+  // Upsert into square_payments
+  const { error: upsertError } = await supabase
+    .from('square_payments')
+    .upsert({
+      payment_id: paymentData.id,
+      order_id: paymentData.order_id,
+      location_id: paymentData.location_id,
+      status: paymentData.status,
+      amount_money: paymentData.amount_money?.amount,
+      tip_money: paymentData.tip_money?.amount,
+      approved_money: paymentData.approved_money?.amount,
+      total_money: paymentData.total_money?.amount,
+      processing_fee_money: paymentData.processing_fee?.[0]?.amount_money?.amount,
+      refunded_money: paymentData.refunded_money?.amount,
+      card_brand: paymentData.card_details?.card?.card_brand,
+      card_last_4: paymentData.card_details?.card?.last_4,
+      customer_id: paymentData.customer_id,
+      note: paymentData.note,
+      receipt_url: paymentData.receipt_url,
+      raw: paymentData,
+      updated_at: new Date().toISOString()
+    }, {
+      onConflict: 'payment_id'
+    });
+  
+  if (upsertError) {
+    throw new Error(`Failed to upsert payment: ${upsertError.message}`);
+  }
+  
+  console.log(`✅ Payment ${paymentData.id} upserted successfully`);
+  
+  // If payment is COMPLETED, update linked visit status to 'finished'
+  if (paymentData.status === 'COMPLETED' && paymentData.order_id) {
+    console.log(`💰 Payment completed for order ${paymentData.order_id}, checking for linked visit...`);
     
-    const visitId = visitIdData;
-    
-    // Step 5: Create order link
-    await supabase
+    // Find linked visit via order_links
+    const { data: orderLinks } = await supabase
       .from('order_links')
-      .upsert({
-        order_id: orderData.id,
-        visit_id: visitId,
-        reservation_id: visitId,
-        guest_id: guestId,
-        link_method: 'auto_walk_in',
-        confidence: 0.8
-      }, {
-        onConflict: 'order_id,visit_id'
-      });
+      .select('visit_id, reservation_id')
+      .eq('order_id', paymentData.order_id)
+      .maybeSingle();
     
-    console.log(`✅ Auto-created walk-in for order ${orderData.id} at table ${seating.tableId || 'unassigned'}`);
+    if (orderLinks && orderLinks.visit_id) {
+      // Update booking status to 'finished' (using visit_id which is booking.id)
+      const { error: updateError } = await supabase
+        .from('bookings')
+        .update({
+          status: 'finished',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', orderLinks.visit_id)
+        .eq('status', 'seated'); // Only update if currently seated
+      
+      if (updateError) {
+        console.error('Failed to update visit status:', updateError);
+      } else {
+        console.log(`✅ Visit ${orderLinks.visit_id} marked as finished after payment`);
+      }
+    } else {
+      console.log(`ℹ️ No linked visit found for order ${paymentData.order_id}`);
+    }
   }
 }
