@@ -79,14 +79,18 @@ export function SquareSettings() {
         .from('venue_square_settings')
         .upsert({
           venue_id: profile.venue_id,
+          environment: environment,
+          updated_at: new Date().toISOString(),
           ...updateField
+        }, {
+          onConflict: 'venue_id'
         });
       
       if (error) throw error;
       
       toast.success('Application ID saved');
+      await loadSettings();
       setIsEditingAppId(false);
-      loadSettings();
       
     } catch (error) {
       console.error('Save error:', error);
@@ -185,13 +189,36 @@ export function SquareSettings() {
             <Label>Environment</Label>
             <Tabs value={environment} onValueChange={(v) => setEnvironment(v as any)}>
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="sandbox">Sandbox (Testing)</TabsTrigger>
-                <TabsTrigger value="production">Production (Live)</TabsTrigger>
+                <TabsTrigger 
+                  value="sandbox"
+                  className="data-[state=active]:bg-amber-500 data-[state=active]:text-white"
+                >
+                  🧪 Sandbox (Testing)
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="production"
+                  className="data-[state=active]:bg-green-600 data-[state=active]:text-white"
+                >
+                  🚀 Production (Live)
+                </TabsTrigger>
               </TabsList>
             </Tabs>
-            <p className="text-sm text-muted-foreground">
-              Use Sandbox for testing, Production for live transactions
-            </p>
+            <Alert className={environment === 'sandbox' ? 'border-amber-500 bg-amber-50' : 'border-green-600 bg-green-50'}>
+              <AlertDescription className="flex items-center gap-2">
+                <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold ${
+                  environment === 'sandbox' 
+                    ? 'bg-amber-100 text-amber-800' 
+                    : 'bg-green-100 text-green-800'
+                }`}>
+                  {environment === 'sandbox' ? '🧪 SANDBOX MODE' : '🚀 PRODUCTION MODE'}
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  {environment === 'sandbox' 
+                    ? 'Test configuration - no real transactions' 
+                    : 'Live configuration - affects real orders'}
+                </span>
+              </AlertDescription>
+            </Alert>
           </div>
           
           {/* Application ID Configuration */}
