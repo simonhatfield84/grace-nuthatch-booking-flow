@@ -1302,7 +1302,7 @@ export type Database = {
           order_id: string
           payment_id: string | null
           reservation_id: string | null
-          visit_id: string | null
+          visit_id: number | null
         }
         Insert: {
           confidence?: number
@@ -1313,7 +1313,7 @@ export type Database = {
           order_id: string
           payment_id?: string | null
           reservation_id?: string | null
-          visit_id?: string | null
+          visit_id?: number | null
         }
         Update: {
           confidence?: number
@@ -1324,9 +1324,31 @@ export type Database = {
           order_id?: string
           payment_id?: string | null
           reservation_id?: string | null
-          visit_id?: string | null
+          visit_id?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "order_links_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "booking_overlaps_review"
+            referencedColumns: ["booking_1_id"]
+          },
+          {
+            foreignKeyName: "order_links_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "booking_overlaps_review"
+            referencedColumns: ["booking_2_id"]
+          },
+          {
+            foreignKeyName: "order_links_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       payment_requests: {
         Row: {
