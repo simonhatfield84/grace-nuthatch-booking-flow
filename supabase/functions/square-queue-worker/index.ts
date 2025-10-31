@@ -245,10 +245,108 @@ async function findOrCreateGuestBySquareCustomer(
   return newGuest.id;
 }
 
+// Helper: Fetch complete order data from Square API
+async function fetchOrderFromSquareAPI(
+  supabase: any,
+  orderId: string,
+  locationId: string
+): Promise<any> {
+  // 1. Resolve venue from location
+  const { data: locationMap } = await supabase
+    .from('square_location_map')
+    .select('grace_venue_id')
+    .eq('square_location_id', locationId)
+    .maybeSingle();
+  
+  if (!locationMap?.grace_venue_id) {
+    throw new Error(`No venue mapping for location ${locationId}`);
+  }
+  
+  // 2. Get venue Square settings
+  const { data: settings } = await supabase
+    .from('venue_square_settings')
+    .select('*')
+    .eq('venue_id', locationMap.grace_venue_id)
+    .single();
+  
+  if (!settings) {
+    throw new Error('Square settings not found for venue');
+  }
+  
+  // 3. Determine environment and decrypt token
+  const environment = settings.environment || 'sandbox';
+  const encryptedTokenField = environment === 'sandbox'
+    ? settings.access_token_sandbox_encrypted
+    : settings.access_token_production_encrypted;
+  
+  if (!encryptedTokenField) {
+    throw new Error(`No access token for ${environment} environment`);
+  }
+  
+  // Import encryption utility
+  const { SquareTokenEncryption } = await import('../_shared/squareEncryption.ts');
+  
+  const accessToken = await SquareTokenEncryption.decryptToken(
+    JSON.parse(encryptedTokenField),
+    locationMap.grace_venue_id,
+    environment
+  );
+  
+  // 4. Call Square Orders API
+  const apiBase = environment === 'sandbox'
+    ? 'https://connect.squareupsandbox.com/v2'
+    : 'https://connect.squareup.com/v2';
+  
+  const response = await fetch(`${apiBase}/orders/${orderId}`, {
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Square-Version': '2024-10-17',
+      'Content-Type': 'application/json'
+    }
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Square API error: ${response.status} - ${errorText}`);
+  }
+  
+  const data = await response.json();
+  return data.order; // Returns full order object
+}
+
 async function processOrderUpdated(supabase: any, webhookEvent: any) {
-  const orderData = webhookEvent.payload?.data?.object?.order;
-  if (!orderData) {
-    throw new Error('No order data in payload');
+  // Step 1: Extract minimal order info from webhook
+  const webhookOrderData = webhookEvent.payload?.data?.object?.order_updated 
+    || webhookEvent.payload?.data?.object?.order_created;
+  
+  if (!webhookOrderData) {
+    console.error('Webhook payload:', JSON.stringify(webhookEvent.payload, null, 2));
+    throw new Error('No order data in webhook payload');
+  }
+  
+  console.log(`Processing ${webhookEvent.event_type} for order ${webhookOrderData.id}`);
+  
+  // Step 2: Fetch complete order data from Square API
+  let orderData;
+  try {
+    orderData = await fetchOrderFromSquareAPI(
+      supabase,
+      webhookOrderData.id,
+      webhookOrderData.location_id
+    );
+    console.log(`✅ Fetched complete order data from Square API: ${orderData.line_items?.length || 0} line items`);
+  } catch (apiError) {
+    console.error('Failed to fetch order from Square API:', apiError);
+    // Fallback: use minimal webhook data (will have limited info)
+    orderData = {
+      id: webhookOrderData.id,
+      location_id: webhookOrderData.location_id,
+      state: webhookOrderData.state,
+      version: webhookOrderData.version,
+      created_at: webhookOrderData.created_at,
+      updated_at: webhookOrderData.updated_at
+    };
+    console.warn('⚠️ Using minimal webhook data, bill display may be incomplete');
   }
 
   // Upsert into square_orders
