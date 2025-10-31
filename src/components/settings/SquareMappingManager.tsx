@@ -32,13 +32,13 @@ export function SquareMappingManager({ environment }: SquareMappingManagerProps)
       .select(`
         *,
         sections:sections(id, name),
-        tables:tables(id, name)
+        tables:tables(id, label)
       `);
     setDevices(devData || []);
     
     // Load sections and tables for dropdowns
     const { data: sectionsData } = await supabase.from('sections').select('id, name').order('name');
-    const { data: tablesData } = await supabase.from('tables').select('id, name').order('name');
+    const { data: tablesData } = await supabase.from('tables').select('id, label').order('label');
     setSections(sectionsData || []);
     setTables(tablesData || []);
   };
@@ -179,14 +179,14 @@ export function SquareMappingManager({ environment }: SquareMappingManagerProps)
                           <SelectItem value="none">Not assigned</SelectItem>
                           {tables.map((table) => (
                             <SelectItem key={table.id} value={table.id.toString()}>
-                              {table.name}
+                              {table.label}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     ) : (
                       <span className="text-muted-foreground">
-                        {device.tables?.name || 'Not assigned'}
+                        {device.tables?.label || 'Not assigned'}
                       </span>
                     )}
                   </TableCell>
