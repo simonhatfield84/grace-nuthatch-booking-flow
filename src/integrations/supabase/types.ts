@@ -1328,6 +1328,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "fk_order_links_square_orders"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "square_orders"
+            referencedColumns: ["order_id"]
+          },
+          {
             foreignKeyName: "order_links_visit_id_fkey"
             columns: ["visit_id"]
             isOneToOne: false
