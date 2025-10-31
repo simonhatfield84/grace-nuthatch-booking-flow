@@ -2212,6 +2212,48 @@ export type Database = {
         }
         Relationships: []
       }
+      square_device_map: {
+        Row: {
+          grace_area_id: number | null
+          grace_table_id: number | null
+          id: number
+          square_device_id: string | null
+          square_location_id: string
+          square_source_name: string | null
+        }
+        Insert: {
+          grace_area_id?: number | null
+          grace_table_id?: number | null
+          id?: number
+          square_device_id?: string | null
+          square_location_id: string
+          square_source_name?: string | null
+        }
+        Update: {
+          grace_area_id?: number | null
+          grace_table_id?: number | null
+          id?: number
+          square_device_id?: string | null
+          square_location_id?: string
+          square_source_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "square_device_map_grace_area_id_fkey"
+            columns: ["grace_area_id"]
+            isOneToOne: false
+            referencedRelation: "sections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "square_device_map_grace_table_id_fkey"
+            columns: ["grace_table_id"]
+            isOneToOne: false
+            referencedRelation: "tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       square_event_queue: {
         Row: {
           attempts: number
@@ -2243,6 +2285,36 @@ export type Database = {
             columns: ["webhook_event_id"]
             isOneToOne: false
             referencedRelation: "square_webhook_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      square_location_map: {
+        Row: {
+          grace_venue_id: string
+          square_location_id: string
+        }
+        Insert: {
+          grace_venue_id: string
+          square_location_id: string
+        }
+        Update: {
+          grace_venue_id?: string
+          square_location_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "square_location_map_grace_venue_id_fkey"
+            columns: ["grace_venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "square_location_map_grace_venue_id_fkey"
+            columns: ["grace_venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
             referencedColumns: ["id"]
           },
         ]
@@ -2306,6 +2378,62 @@ export type Database = {
           version?: number | null
         }
         Relationships: []
+      }
+      square_seating_policy: {
+        Row: {
+          created_at: string
+          default_area_id: number | null
+          default_table_id: number | null
+          grace_venue_id: string
+          policy: Database["public"]["Enums"]["seating_policy"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_area_id?: number | null
+          default_table_id?: number | null
+          grace_venue_id: string
+          policy?: Database["public"]["Enums"]["seating_policy"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_area_id?: number | null
+          default_table_id?: number | null
+          grace_venue_id?: string
+          policy?: Database["public"]["Enums"]["seating_policy"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "square_seating_policy_default_area_id_fkey"
+            columns: ["default_area_id"]
+            isOneToOne: false
+            referencedRelation: "sections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "square_seating_policy_default_table_id_fkey"
+            columns: ["default_table_id"]
+            isOneToOne: false
+            referencedRelation: "tables"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "square_seating_policy_grace_venue_id_fkey"
+            columns: ["grace_venue_id"]
+            isOneToOne: true
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "square_seating_policy_grace_venue_id_fkey"
+            columns: ["grace_venue_id"]
+            isOneToOne: true
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       square_webhook_events: {
         Row: {
@@ -3729,6 +3857,7 @@ export type Database = {
     }
     Enums: {
       app_role: "owner" | "manager" | "host" | "staff" | "super_admin"
+      seating_policy: "unassigned" | "default_table" | "least_loaded_in_area"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3857,6 +3986,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["owner", "manager", "host", "staff", "super_admin"],
+      seating_policy: ["unassigned", "default_table", "least_loaded_in_area"],
     },
   },
 } as const
