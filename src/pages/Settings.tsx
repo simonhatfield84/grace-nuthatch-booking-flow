@@ -8,11 +8,12 @@ import { TagManagement } from "@/components/settings/TagManagement";
 import { EmailSettingsPanel } from "@/components/settings/EmailSettingsPanel";
 import { EmailTemplatesList } from "@/components/settings/EmailTemplateEditor";
 import { BrandingSettingsTab } from "@/components/settings/BrandingSettingsTab";
-import { Settings as SettingsIcon, Clock, CreditCard, FileText, Tags, Mail, Palette, Link, MessageSquare } from "lucide-react";
+import { Settings as SettingsIcon, Clock, CreditCard, FileText, Tags, Mail, Palette, Link, MessageSquare, Square } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { WidgetLinkBuilderTab } from "@/components/settings/WidgetLinkBuilderTab";
 import { WidgetCopyTab } from "@/components/settings/WidgetCopyTab";
 import { WidgetDefaultVariantSetting } from "@/components/settings/WidgetDefaultVariantSetting";
+import { SquareSettings } from "@/components/settings/SquareSettings";
 
 const Settings = () => {
   const [searchParams] = useSearchParams();
@@ -26,7 +27,7 @@ const Settings = () => {
       </div>
 
       <Tabs defaultValue={defaultTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-8">
+        <TabsList className="grid w-full grid-cols-9">
           <TabsTrigger value="hours" className="flex items-center gap-2">
             <Clock className="h-4 w-4" />
             <span className="hidden sm:inline">Hours</span>
@@ -58,6 +59,10 @@ const Settings = () => {
           <TabsTrigger value="widget-copy" className="flex items-center gap-2">
             <MessageSquare className="h-4 w-4" />
             <span className="hidden sm:inline">Copy</span>
+          </TabsTrigger>
+          <TabsTrigger value="square" className="flex items-center gap-2">
+            <Square className="h-4 w-4" />
+            <span className="hidden sm:inline">Square</span>
           </TabsTrigger>
         </TabsList>
 
@@ -97,6 +102,10 @@ const Settings = () => {
 
         <TabsContent value="widget-copy">
           <WidgetCopyTab />
+        </TabsContent>
+
+        <TabsContent value="square">
+          <SquareSettings />
         </TabsContent>
       </Tabs>
     </div>

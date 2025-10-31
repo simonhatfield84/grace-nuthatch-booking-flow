@@ -2319,6 +2319,54 @@ export type Database = {
           },
         ]
       }
+      square_oauth_states: {
+        Row: {
+          created_at: string
+          environment: string
+          expires_at: string
+          id: string
+          redirect_uri: string
+          state_token: string
+          used_at: string | null
+          venue_id: string
+        }
+        Insert: {
+          created_at?: string
+          environment: string
+          expires_at?: string
+          id?: string
+          redirect_uri: string
+          state_token: string
+          used_at?: string | null
+          venue_id: string
+        }
+        Update: {
+          created_at?: string
+          environment?: string
+          expires_at?: string
+          id?: string
+          redirect_uri?: string
+          state_token?: string
+          used_at?: string | null
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "square_oauth_states_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "square_oauth_states_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       square_orders: {
         Row: {
           closed_at: string | null
@@ -2950,6 +2998,93 @@ export type Database = {
             foreignKeyName: "venue_settings_venue_id_fkey"
             columns: ["venue_id"]
             isOneToOne: false
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      venue_square_settings: {
+        Row: {
+          access_token_production_encrypted: string | null
+          access_token_sandbox_encrypted: string | null
+          application_id_production: string | null
+          application_id_sandbox: string | null
+          configuration_status: Json | null
+          created_at: string
+          environment: string
+          id: string
+          is_active: boolean
+          last_sync_at: string | null
+          merchant_id_production: string | null
+          merchant_id_sandbox: string | null
+          refresh_token_production_encrypted: string | null
+          refresh_token_sandbox_encrypted: string | null
+          scopes: string[] | null
+          token_expires_at_production: string | null
+          token_expires_at_sandbox: string | null
+          updated_at: string
+          venue_id: string
+          webhook_secret_production: string | null
+          webhook_secret_sandbox: string | null
+        }
+        Insert: {
+          access_token_production_encrypted?: string | null
+          access_token_sandbox_encrypted?: string | null
+          application_id_production?: string | null
+          application_id_sandbox?: string | null
+          configuration_status?: Json | null
+          created_at?: string
+          environment?: string
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          merchant_id_production?: string | null
+          merchant_id_sandbox?: string | null
+          refresh_token_production_encrypted?: string | null
+          refresh_token_sandbox_encrypted?: string | null
+          scopes?: string[] | null
+          token_expires_at_production?: string | null
+          token_expires_at_sandbox?: string | null
+          updated_at?: string
+          venue_id: string
+          webhook_secret_production?: string | null
+          webhook_secret_sandbox?: string | null
+        }
+        Update: {
+          access_token_production_encrypted?: string | null
+          access_token_sandbox_encrypted?: string | null
+          application_id_production?: string | null
+          application_id_sandbox?: string | null
+          configuration_status?: Json | null
+          created_at?: string
+          environment?: string
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          merchant_id_production?: string | null
+          merchant_id_sandbox?: string | null
+          refresh_token_production_encrypted?: string | null
+          refresh_token_sandbox_encrypted?: string | null
+          scopes?: string[] | null
+          token_expires_at_production?: string | null
+          token_expires_at_sandbox?: string | null
+          updated_at?: string
+          venue_id?: string
+          webhook_secret_production?: string | null
+          webhook_secret_sandbox?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_square_settings_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: true
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "venue_square_settings_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: true
             referencedRelation: "venues_public"
             referencedColumns: ["id"]
           },
@@ -3675,6 +3810,7 @@ export type Database = {
         Returns: Json
       }
       cleanup_availability_cache: { Args: never; Returns: undefined }
+      cleanup_expired_oauth_states: { Args: never; Returns: undefined }
       cleanup_old_rate_limits: { Args: never; Returns: undefined }
       compute_booking_time_range: {
         Args: { p_date: string; p_duration_minutes: number; p_time: string }
