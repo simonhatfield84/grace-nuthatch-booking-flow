@@ -66,8 +66,7 @@ const NewHostInterface = () => {
             total_money,
             raw
           )
-        `)
-        .eq('square_orders.state', 'OPEN');
+        `);
       
       if (error) throw error;
       return data || [];
