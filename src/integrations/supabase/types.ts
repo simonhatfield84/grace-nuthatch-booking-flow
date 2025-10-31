@@ -3726,6 +3726,17 @@ export type Database = {
         Args: { p_order_id: string; p_visit_id: string }
         Returns: undefined
       }
+      grace_create_walk_in: {
+        Args: {
+          p_area_id: number
+          p_guest_id: string
+          p_opened_at: string
+          p_source: string
+          p_table_id: number
+          p_venue_id: string
+        }
+        Returns: string
+      }
       grace_find_active_visit_by_square_customer: {
         Args: { p_customer_id: string }
         Returns: {

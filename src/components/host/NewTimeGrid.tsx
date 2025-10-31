@@ -5,7 +5,7 @@ import { format } from "date-fns";
 import { DragDropProvider } from "./DragDropProvider";
 import { DroppableTimeSlot } from "./DroppableTimeSlot";
 import { DraggableBooking } from "./DraggableBooking";
-import { Ban, Users, Clock, CheckCircle } from "lucide-react";
+import { Ban, Users, Clock, CheckCircle, Receipt } from "lucide-react";
 import { useBlocks, Block } from "@/hooks/useBlocks";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,6 +23,7 @@ interface TimeGridProps {
   remainingBookings: number;
   currentlySeated: number;
   finishedBookings: number;
+  visitOrderMap?: Record<string, any>;
 }
 
 export const NewTimeGrid = ({
@@ -37,7 +38,8 @@ export const NewTimeGrid = ({
   selectedDate,
   remainingBookings,
   currentlySeated,
-  finishedBookings
+  finishedBookings,
+  visitOrderMap = {}
 }: TimeGridProps) => {
   const [timeSlots, setTimeSlots] = useState<string[]>([]);
   const [keyHours, setKeyHours] = useState<string[]>([]);
@@ -330,18 +332,25 @@ export const NewTimeGrid = ({
                             rowHeight={rowHeight}
                           >
                             {booking && (
-                              <DraggableBooking
-                                key={booking.id}
-                                booking={booking}
-                                index={0}
-                                position={{ 
-                                  left: 0, 
-                                  width: getBookingSpan(booking) * SLOT_WIDTH - 4 
-                                }}
-                                onBookingClick={onBookingClick}
-                                getBookingStatusColor={getBookingStatusColor}
-                                rowHeight={rowHeight}
-                              />
+                              <>
+                                <DraggableBooking
+                                  key={booking.id}
+                                  booking={booking}
+                                  index={0}
+                                  position={{ 
+                                    left: 0, 
+                                    width: getBookingSpan(booking) * SLOT_WIDTH - 4 
+                                  }}
+                                  onBookingClick={onBookingClick}
+                                  getBookingStatusColor={getBookingStatusColor}
+                                  rowHeight={rowHeight}
+                                />
+                                {visitOrderMap[booking.id] && (
+                                  <div className="absolute top-1 right-1 z-30 pointer-events-none">
+                                    <Receipt className="h-3 w-3 text-[#F1C8D0]" />
+                                  </div>
+                                )}
+                              </>
                             )}
                           </DroppableTimeSlot>
                         );

@@ -137,6 +137,114 @@ Deno.serve(async (req) => {
   }
 });
 
+// Helper: Resolve venue from Square location
+async function resolveVenue(supabase: any, locationId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('square_location_map')
+    .select('grace_venue_id')
+    .eq('square_location_id', locationId)
+    .maybeSingle();
+  
+  if (error) {
+    console.error('Failed to resolve venue:', error);
+    return null;
+  }
+  
+  return data?.grace_venue_id || null;
+}
+
+// Helper: Resolve seating assignment
+async function resolveSeating(
+  supabase: any, 
+  venueId: string,
+  locationId: string, 
+  deviceId: string | null, 
+  sourceName: string | null
+): Promise<{ areaId: number | null; tableId: number | null }> {
+  // 1. Try device map lookup
+  const deviceQuery = supabase
+    .from('square_device_map')
+    .select('grace_area_id, grace_table_id')
+    .eq('square_location_id', locationId);
+  
+  if (deviceId) {
+    deviceQuery.eq('square_device_id', deviceId);
+  } else if (sourceName) {
+    deviceQuery.eq('square_source_name', sourceName);
+  } else {
+    return { areaId: null, tableId: null };
+  }
+  
+  const { data: deviceMap } = await deviceQuery.maybeSingle();
+  
+  if (deviceMap) {
+    return {
+      areaId: deviceMap.grace_area_id,
+      tableId: deviceMap.grace_table_id
+    };
+  }
+  
+  // 2. Fallback to seating policy
+  const { data: policy } = await supabase
+    .from('square_seating_policy')
+    .select('policy, default_area_id, default_table_id')
+    .eq('grace_venue_id', venueId)
+    .maybeSingle();
+  
+  if (!policy) {
+    return { areaId: null, tableId: null };
+  }
+  
+  switch (policy.policy) {
+    case 'default_table':
+      return { areaId: null, tableId: policy.default_table_id };
+    case 'least_loaded_in_area':
+      return { areaId: policy.default_area_id, tableId: null };
+    case 'unassigned':
+    default:
+      return { areaId: null, tableId: null };
+  }
+}
+
+// Helper: Find or create guest by Square customer ID
+async function findOrCreateGuestBySquareCustomer(
+  supabase: any,
+  venueId: string,
+  customerId: string
+): Promise<string | null> {
+  // Try to find existing guest
+  const { data: existingGuest } = await supabase
+    .from('guests')
+    .select('id')
+    .eq('venue_id', venueId)
+    .eq('square_customer_id', customerId)
+    .maybeSingle();
+  
+  if (existingGuest) {
+    return existingGuest.id;
+  }
+  
+  // Create new guest
+  const { data: newGuest, error } = await supabase
+    .from('guests')
+    .insert({
+      venue_id: venueId,
+      name: 'Square Customer',
+      square_customer_id: customerId,
+      square_customer_raw: null,
+      opt_in_marketing: false
+    })
+    .select('id')
+    .single();
+  
+  if (error) {
+    console.error('Failed to create guest:', error);
+    return null;
+  }
+  
+  return newGuest.id;
+}
+
 async function processOrderUpdated(supabase: any, webhookEvent: any) {
   const orderData = webhookEvent.payload?.data?.object?.order;
   if (!orderData) {
@@ -235,12 +343,17 @@ async function processOrderUpdated(supabase: any, webhookEvent: any) {
 
     console.log(`Auto-linked order ${orderData.id} via ${linkMethod}`);
   } else {
-    // Create review task
-    await supabase
-      .from('order_link_reviews')
-      .insert({
+    // Auto-walk-in path
+    console.log(`No match found for order ${orderData.id}, attempting auto-walk-in...`);
+    
+    // Step 1: Resolve venue
+    const venueId = await resolveVenue(supabase, orderData.location_id);
+    if (!venueId) {
+      console.log(`No venue mapping for location ${orderData.location_id}`);
+      // Create review task
+      await supabase.from('order_link_reviews').insert({
         order_id: orderData.id,
-        reason: 'no_auto_link',
+        reason: 'no_venue_mapping',
         confidence: 0.0,
         snapshot: {
           order_id: orderData.id,
@@ -251,7 +364,75 @@ async function processOrderUpdated(supabase: any, webhookEvent: any) {
         },
         status: 'open'
       });
-
-    console.log(`Created review task for order ${orderData.id}`);
+      return;
+    }
+    
+    // Step 2: Handle guest if customer_id exists
+    let guestId: string | null = null;
+    if (orderData.customer_id) {
+      guestId = await findOrCreateGuestBySquareCustomer(
+        supabase, 
+        venueId, 
+        orderData.customer_id
+      );
+    }
+    
+    // Step 3: Resolve seating
+    const seating = await resolveSeating(
+      supabase,
+      venueId,
+      orderData.location_id,
+      orderData.source?.device_id || null,
+      orderData.source?.name || null
+    );
+    
+    // Step 4: Create walk-in
+    const { data: visitIdData, error: walkInError } = await supabase
+      .rpc('grace_create_walk_in', {
+        p_venue_id: venueId,
+        p_area_id: seating.areaId,
+        p_table_id: seating.tableId,
+        p_guest_id: guestId,
+        p_source: 'Square POS',
+        p_opened_at: orderData.created_at
+      });
+    
+    if (walkInError) {
+      console.error('Failed to create walk-in:', walkInError);
+      // Fallback to review task
+      await supabase.from('order_link_reviews').insert({
+        order_id: orderData.id,
+        reason: 'walk_in_creation_failed',
+        confidence: 0.0,
+        snapshot: {
+          order_id: orderData.id,
+          total_money: orderData.total_money?.amount,
+          opened_at: orderData.created_at,
+          note: orderData.note,
+          customer_id: orderData.customer_id,
+          error: String(walkInError)
+        },
+        status: 'open'
+      });
+      return;
+    }
+    
+    const visitId = visitIdData;
+    
+    // Step 5: Create order link
+    await supabase
+      .from('order_links')
+      .upsert({
+        order_id: orderData.id,
+        visit_id: visitId,
+        reservation_id: visitId,
+        guest_id: guestId,
+        link_method: 'auto_walk_in',
+        confidence: 0.8
+      }, {
+        onConflict: 'order_id,visit_id'
+      });
+    
+    console.log(`✅ Auto-created walk-in for order ${orderData.id} at table ${seating.tableId || 'unassigned'}`);
   }
 }

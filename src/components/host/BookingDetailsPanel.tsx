@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { X, Users, Clock, Phone, Mail, MapPin, FileText, Calendar, Hash, Edit, Save, Plus, RefreshCw } from "lucide-react";
+import { X, Users, Clock, Phone, Mail, MapPin, FileText, Calendar, Hash, Edit, Save, Plus, RefreshCw, Receipt } from "lucide-react";
 import { format } from "date-fns";
 import { useState, useCallback } from "react";
 import { Booking } from "@/features/booking/types/booking";
@@ -27,13 +27,15 @@ interface BookingDetailsPanelProps {
   onClose: () => void;
   onStatusChange: (booking: Booking, newStatus: string) => void;
   onBookingUpdate: () => void;
+  linkedOrder?: any;
 }
 
 export const BookingDetailsPanel = ({ 
   booking, 
   onClose, 
   onStatusChange, 
-  onBookingUpdate 
+  onBookingUpdate,
+  linkedOrder
 }: BookingDetailsPanelProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Booking>>({});
@@ -584,6 +586,92 @@ export const BookingDetailsPanel = ({
             )}
 
             <Separator className="bg-[#676767]/20" />
+
+            {/* Square Bill Section */}
+            {linkedOrder && (
+              <>
+                <div>
+                  <h3 className="font-medium text-sm mb-3 flex items-center gap-2 text-white font-inter">
+                    <Receipt className="h-4 w-4 text-[#F1C8D0]" />
+                    Square Bill (OPEN)
+                  </h3>
+                  <div className="space-y-3 bg-[#111315] p-4 rounded-xl border border-[#676767]/20">
+                    {/* Line Items */}
+                    {linkedOrder.raw?.line_items?.map((item: any, idx: number) => (
+                      <div key={idx} className="flex justify-between text-sm">
+                        <span className="text-[#676767]">
+                          {item.quantity} × {item.name}
+                        </span>
+                        <span className="text-white font-medium">
+                          £{((item.total_money?.amount || 0) / 100).toFixed(2)}
+                        </span>
+                      </div>
+                    ))}
+                    
+                    <Separator className="bg-[#676767]/20 my-2" />
+                    
+                    {/* Totals */}
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-[#676767]">Subtotal:</span>
+                        <span className="text-white">
+                          £{(((linkedOrder.raw?.net_amounts?.subtotal_money?.amount || linkedOrder.total_money || 0) / 100).toFixed(2))}
+                        </span>
+                      </div>
+                      
+                      {linkedOrder.raw?.net_amounts?.discount_money?.amount > 0 && (
+                        <div className="flex justify-between text-green-400">
+                          <span>Discount:</span>
+                          <span>-£{(linkedOrder.raw.net_amounts.discount_money.amount / 100).toFixed(2)}</span>
+                        </div>
+                      )}
+                      
+                      {linkedOrder.raw?.net_amounts?.service_charge_money?.amount > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-[#676767]">Service:</span>
+                          <span className="text-white">
+                            £{(linkedOrder.raw.net_amounts.service_charge_money.amount / 100).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {linkedOrder.raw?.net_amounts?.tax_money?.amount > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-[#676767]">Tax:</span>
+                          <span className="text-white">
+                            £{(linkedOrder.raw.net_amounts.tax_money.amount / 100).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                      
+                      {linkedOrder.raw?.net_amounts?.tip_money?.amount > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-[#676767]">Tip:</span>
+                          <span className="text-white">
+                            £{(linkedOrder.raw.net_amounts.tip_money.amount / 100).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                      
+                      <Separator className="bg-[#676767]/20 my-2" />
+                      
+                      <div className="flex justify-between font-bold text-base">
+                        <span className="text-white">Total:</span>
+                        <span className="text-[#CCF0DB]">
+                          £{(((linkedOrder.raw?.net_amounts?.total_money?.amount || linkedOrder.total_money || 0) / 100).toFixed(2))}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="text-xs text-[#676767] mt-2 flex items-center gap-1">
+                      <RefreshCw className="h-3 w-3" />
+                      Auto-refreshes every 10s
+                    </div>
+                  </div>
+                </div>
+                <Separator className="bg-[#676767]/20" />
+              </>
+            )}
 
             {/* Audit Trail */}
             <BookingAuditTrail bookingId={booking.id} />

@@ -51,6 +51,36 @@ const NewHostInterface = () => {
   const { services } = useServices();
   const { bookings, createBooking, updateBooking } = useBookings(format(selectedDate, 'yyyy-MM-dd'));
 
+  // Query linked Square orders with OPEN state
+  const { data: linkedOrders = [] } = useQuery({
+    queryKey: ['linked-orders', format(selectedDate, 'yyyy-MM-dd')],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('order_links')
+        .select(`
+          visit_id,
+          order_id,
+          square_orders!inner(
+            order_id,
+            state,
+            total_money,
+            raw
+          )
+        `)
+        .eq('square_orders.state', 'OPEN');
+      
+      if (error) throw error;
+      return data || [];
+    },
+    refetchInterval: 10000
+  });
+
+  // Create map for quick lookup of orders by visit_id
+  const visitOrderMap = linkedOrders.reduce((acc, link) => {
+    acc[link.visit_id] = link.square_orders;
+    return acc;
+  }, {} as Record<string, any>);
+
   const { data: allBookings = [] } = useQuery({
     queryKey: ['all-bookings-dates'],
     queryFn: async () => {
@@ -398,6 +428,7 @@ const NewHostInterface = () => {
               remainingBookings={remainingCovers}
               currentlySeated={seatedCovers}
               finishedBookings={finishedCovers}
+              visitOrderMap={visitOrderMap}
             />
           ) : (
             <BookingListView
@@ -415,6 +446,7 @@ const NewHostInterface = () => {
               onClose={() => setSelectedBooking(null)}
               onStatusChange={handleStatusChange}
               onBookingUpdate={handleBookingUpdate}
+              linkedOrder={visitOrderMap[selectedBooking.id]}
             />
           </div>
         )}
