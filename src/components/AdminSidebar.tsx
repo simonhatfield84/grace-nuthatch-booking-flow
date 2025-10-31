@@ -24,7 +24,8 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
-  User
+  User,
+  Receipt
 } from 'lucide-react';
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -39,6 +40,7 @@ const navigation = [
   { name: 'Services', href: '/services', icon: ChefHat },
   { name: 'Guests', href: '/guests', icon: UserCheck },
   { name: 'Reports', href: '/reports', icon: BarChart3 },
+  { name: 'Orders Review', href: '/admin/orders/review', icon: Receipt },
   { name: 'Settings', href: '/settings', icon: Settings },
 ];
 
