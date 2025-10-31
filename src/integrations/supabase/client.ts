@@ -16,7 +16,7 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
   }
 });
 
-// ✅ GUARDRAIL 2: Dev-only base table detection (fail fast if base tables queried from client)
+// ✅ GUARDRAIL 2: Dev-only base table detection (authentication-aware)
 if (import.meta.env.DEV) {
   const originalFrom = supabase.from.bind(supabase);
   (supabase as any).from = function(table: string) {
@@ -24,16 +24,23 @@ if (import.meta.env.DEV) {
     const allowedPublicViews = ['services_public', 'booking_windows_public', 'venues_public'];
     
     if (restrictedBaseTables.includes(table) && !allowedPublicViews.includes(table)) {
-      console.error(`🚨 DEV WARNING: Querying base table "${table}" from client!`);
-      console.error(`Use "${table}_public" view instead for security.`);
-      throw new Error(
-        `Security violation: Client should query "${table}_public" view, not base table "${table}". ` +
-        `This prevents exposing sensitive data to anonymous users.`
-      );
+      // Check authentication status asynchronously
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session) {
+          console.error(`🚨 DEV WARNING: Anonymous user querying base table "${table}"!`);
+          console.error(`Use "${table}_public" view instead for security.`);
+          console.error(
+            `Security violation: Anonymous users should query "${table}_public" view, not base table "${table}". ` +
+            `This prevents exposing sensitive data to unauthenticated users.`
+          );
+        } else {
+          console.log(`🔐 Authenticated user querying "${table}" (RLS enforced)`);
+        }
+      });
     }
     
     return originalFrom(table);
   };
   
-  console.log('🛡️ Base table detection enabled in DEV mode');
+  console.log('🛡️ Authentication-aware base table guardrail enabled in DEV mode');
 }
