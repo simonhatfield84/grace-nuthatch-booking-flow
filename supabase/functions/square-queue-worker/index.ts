@@ -161,11 +161,33 @@ async function resolveVenue(supabase: any, locationId: string): Promise<string |
 async function resolveSeating(
   supabase: any, 
   venueId: string,
-  locationId: string, 
+  locationId: string,
+  tableName: string | null,
   deviceId: string | null, 
   sourceName: string | null
 ): Promise<{ areaId: number | null; tableId: number | null }> {
-  // 1. Try device map lookup
+  // 1. HIGHEST PRIORITY: Direct table label lookup
+  if (tableName) {
+    const { data: table } = await supabase
+      .from('tables')
+      .select('id, section_id')
+      .eq('venue_id', venueId)
+      .eq('label', tableName)
+      .eq('status', 'active')
+      .maybeSingle();
+    
+    if (table) {
+      console.log(`✅ Resolved ticket "${tableName}" → Grace table ${table.id}`);
+      return {
+        areaId: table.section_id,
+        tableId: table.id
+      };
+    } else {
+      console.log(`⚠️ No active table with label "${tableName}" found in venue ${venueId}`);
+    }
+  }
+  
+  // 2. FALLBACK: Try device map lookup
   const deviceQuery = supabase
     .from('square_device_map')
     .select('grace_area_id, grace_table_id')
@@ -182,13 +204,14 @@ async function resolveSeating(
   const { data: deviceMap } = await deviceQuery.maybeSingle();
   
   if (deviceMap) {
+    console.log(`✅ Resolved via device mapping → area ${deviceMap.grace_area_id}, table ${deviceMap.grace_table_id}`);
     return {
       areaId: deviceMap.grace_area_id,
       tableId: deviceMap.grace_table_id
     };
   }
   
-  // 2. Fallback to seating policy
+  // 3. Final fallback: seating policy
   const { data: policy } = await supabase
     .from('square_seating_policy')
     .select('policy, default_area_id, default_table_id')
@@ -228,14 +251,51 @@ async function findOrCreateGuestBySquareCustomer(
     return existingGuest.id;
   }
   
-  // Create new guest
+  // Fetch customer details from Square API
+  let customerData = null;
+  try {
+    const SQUARE_ACCESS_TOKEN = Deno.env.get('SQUARE_MERCHANT_ACCESS_TOKEN');
+    const SQUARE_VERSION = Deno.env.get('SQUARE_VERSION') || '2024-10-17';
+    
+    if (SQUARE_ACCESS_TOKEN) {
+      console.log(`🔍 Fetching customer ${customerId} from Square API...`);
+      const response = await fetch(
+        `https://connect.squareup.com/v2/customers/${customerId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${SQUARE_ACCESS_TOKEN}`,
+            'Square-Version': SQUARE_VERSION,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        customerData = data.customer;
+        console.log(`✅ Fetched customer: ${customerData.given_name} ${customerData.family_name}`);
+      } else {
+        console.warn(`⚠️ Failed to fetch customer from Square: ${response.status}`);
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching customer from Square:', error);
+  }
+  
+  // Create new guest with actual customer data
+  const guestName = customerData 
+    ? `${customerData.given_name || ''} ${customerData.family_name || ''}`.trim() || 'Square Customer'
+    : 'Square Customer';
+  
   const { data: newGuest, error } = await supabase
     .from('guests')
     .insert({
       venue_id: venueId,
-      name: 'Square Customer',
+      name: guestName,
+      email: customerData?.email_address || null,
+      phone: customerData?.phone_number || null,
       square_customer_id: customerId,
-      square_customer_raw: null,
+      square_customer_raw: customerData,
       opt_in_marketing: false
     })
     .select('id')
@@ -246,6 +306,7 @@ async function findOrCreateGuestBySquareCustomer(
     return null;
   }
   
+  console.log(`✅ Created guest: ${guestName} (${newGuest.id})`);
   return newGuest.id;
 }
 
@@ -605,10 +666,12 @@ async function processOrderUpdated(supabase: any, webhookEvent: any) {
     }
 
     // Try to create walk-in
+    const tableName = orderData.ticket_name || null;
     const { areaId, tableId } = await resolveSeating(
       supabase,
       venueId,
       orderData.location_id,
+      tableName,
       orderData.source?.device_id,
       orderData.source?.name
     );
