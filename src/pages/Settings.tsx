@@ -1,5 +1,7 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { VenueHoursSettings } from "@/components/settings/VenueHoursSettings";
 import { StripeSettings } from "@/components/settings/StripeSettings";
@@ -8,7 +10,7 @@ import { TagManagement } from "@/components/settings/TagManagement";
 import { EmailSettingsPanel } from "@/components/settings/EmailSettingsPanel";
 import { EmailTemplatesList } from "@/components/settings/EmailTemplateEditor";
 import { BrandingSettingsTab } from "@/components/settings/BrandingSettingsTab";
-import { Settings as SettingsIcon, Clock, CreditCard, FileText, Tags, Mail, Palette, Link, MessageSquare, Square } from "lucide-react";
+import { Settings as SettingsIcon, Clock, CreditCard, FileText, Tags, Mail, Palette, Link2, MessageSquare, Square } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { WidgetLinkBuilderTab } from "@/components/settings/WidgetLinkBuilderTab";
 import { WidgetCopyTab } from "@/components/settings/WidgetCopyTab";
@@ -53,7 +55,7 @@ const Settings = () => {
             <span className="hidden sm:inline">Brand</span>
           </TabsTrigger>
           <TabsTrigger value="widget" className="flex items-center gap-2">
-            <Link className="h-4 w-4" />
+            <Link2 className="h-4 w-4" />
             <span className="hidden sm:inline">Widget</span>
           </TabsTrigger>
           <TabsTrigger value="widget-copy" className="flex items-center gap-2">
@@ -105,7 +107,22 @@ const Settings = () => {
         </TabsContent>
 
         <TabsContent value="square">
-          <SquareSettings />
+          <div className="space-y-4">
+            <SquareSettings />
+            <Card>
+              <CardHeader>
+                <CardTitle>Advanced Square Configuration</CardTitle>
+                <CardDescription>Manual mapping and testing tools</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button asChild>
+                  <Link to="/admin/square-mapping">
+                    Open Square Mapping Manager
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
     </div>

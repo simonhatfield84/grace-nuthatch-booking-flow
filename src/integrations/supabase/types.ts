@@ -2594,6 +2594,41 @@ export type Database = {
           },
         ]
       }
+      square_table_map: {
+        Row: {
+          created_at: string | null
+          grace_table_id: number | null
+          id: number
+          square_location_id: string
+          square_table_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          grace_table_id?: number | null
+          id?: number
+          square_location_id: string
+          square_table_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          grace_table_id?: number | null
+          id?: number
+          square_location_id?: string
+          square_table_name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "square_table_map_grace_table_id_fkey"
+            columns: ["grace_table_id"]
+            isOneToOne: false
+            referencedRelation: "tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       square_webhook_events: {
         Row: {
           error: string | null

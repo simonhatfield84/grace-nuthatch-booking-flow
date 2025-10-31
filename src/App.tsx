@@ -43,6 +43,7 @@ import PlatformSupport from "./pages/PlatformSupport";
 import PlatformStyleExportPreview from "./pages/PlatformStyleExportPreview";
 import PlatformRefactorStatus from "./pages/PlatformRefactorStatus";
 import OrdersReview from "./pages/admin/OrdersReview";
+import SquareManualMapping from "./pages/admin/SquareManualMapping";
 
 const queryClient = new QueryClient();
 
@@ -162,6 +163,13 @@ function App() {
                       <ProtectedRoute>
                         <AdminLayout>
                           <OrdersReview />
+                        </AdminLayout>
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/admin/square-mapping" element={
+                      <ProtectedRoute>
+                        <AdminLayout>
+                          <SquareManualMapping />
                         </AdminLayout>
                       </ProtectedRoute>
                     } />
