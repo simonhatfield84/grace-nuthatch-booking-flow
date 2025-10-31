@@ -745,7 +745,7 @@ async function processOrderUpdated(supabase: any, webhookEvent: any) {
       await supabase.from('order_links').insert({
         order_id: orderData.id,
         visit_id: newVisitId,
-        reservation_id: newVisitId,
+        reservation_id: null, // Walk-ins have no advance reservation
         guest_id: guestId,
         link_method: 'auto_walk_in',
         confidence: 0.7
