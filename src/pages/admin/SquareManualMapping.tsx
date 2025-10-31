@@ -8,11 +8,13 @@ import { LocationMappingGrid } from "@/components/admin/square-mapping/LocationM
 import { DeviceMappingGrid } from "@/components/admin/square-mapping/DeviceMappingGrid";
 import { TableMappingGrid } from "@/components/admin/square-mapping/TableMappingGrid";
 import { MappingTester } from "@/components/admin/square-mapping/MappingTester";
+import { UnmappedLocationsPanel } from "@/components/admin/square-mapping/UnmappedLocationsPanel";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function SquareManualMapping() {
   const [isFetching, setIsFetching] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [fetchedLocations, setFetchedLocations] = useState<any[]>([]);
 
   const handleFetchFromSquare = async () => {
     setIsFetching(true);
@@ -37,20 +39,9 @@ export default function SquareManualMapping() {
 
       console.log('Fetched data:', { locations: locData?.locations?.length, devices: devData?.devices?.length });
 
-      // Upsert locations (don't overwrite grace_venue_id if already set)
+      // Store fetched locations in state (no automatic DB writes)
       if (locData?.locations) {
-        for (const loc of locData.locations) {
-          const { error } = await supabase
-            .from('square_location_map')
-            .upsert(
-              [{ square_location_id: loc.id, grace_venue_id: null }],
-              { onConflict: 'square_location_id', ignoreDuplicates: false }
-            );
-          
-          if (error) {
-            console.error('Error upserting location:', loc.id, error);
-          }
-        }
+        setFetchedLocations(locData.locations);
       }
 
       // Upsert devices (don't overwrite grace mappings if already set)
@@ -93,7 +84,7 @@ export default function SquareManualMapping() {
         }
       }
 
-      toast.success(`Fetched ${locData?.locations?.length || 0} locations and ${devData?.devices?.length || 0} devices from Square`);
+      toast.success(`Fetched ${locData?.locations?.length || 0} locations and ${devData?.devices?.length || 0} devices from Square. Review unmapped locations below.`);
       setRefreshTrigger(prev => prev + 1);
       
     } catch (error) {
@@ -151,6 +142,13 @@ export default function SquareManualMapping() {
           </Button>
         </CardContent>
       </Card>
+
+      {/* Unmapped Locations */}
+      <UnmappedLocationsPanel 
+        fetchedLocations={fetchedLocations} 
+        refreshTrigger={refreshTrigger}
+        onMappingAdded={() => setRefreshTrigger(prev => prev + 1)}
+      />
 
       {/* Location Mappings */}
       <LocationMappingGrid refreshTrigger={refreshTrigger} />

@@ -40,7 +40,23 @@ export function MappingTester() {
         .eq('square_location_id', locationId)
         .single();
 
-      if (venueError && venueError.code !== 'PGRST116') {
+      if (venueError && venueError.code === 'PGRST116') {
+        // No mapping found - show explicit warning
+        setResult({
+          venueId: null,
+          venueName: null,
+          areaId: null,
+          areaName: null,
+          tableId: null,
+          tableLabel: null,
+          method: 'location_not_mapped'
+        });
+        toast.warning('This location is not mapped to a Grace venue yet');
+        setIsTesting(false);
+        return;
+      }
+
+      if (venueError) {
         throw venueError;
       }
 
@@ -155,7 +171,23 @@ export function MappingTester() {
         {isTesting ? 'Testing...' : 'Test Mapping'}
       </Button>
 
-      {result && (
+      {result && result.method === 'location_not_mapped' && (
+        <Alert className="border-red-500 bg-red-50">
+          <AlertDescription>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 font-semibold text-red-800">
+                ⚠️ Location Not Mapped
+              </div>
+              <p className="text-sm text-red-700">
+                This Square location hasn't been mapped to a Grace venue yet.
+                Go to the <strong>"Unmapped Locations"</strong> section above to add a mapping.
+              </p>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {result && result.method !== 'location_not_mapped' && (
         <Alert className={result.method === 'no_mapping_found' ? 'border-amber-500 bg-amber-50' : 'border-green-600 bg-green-50'}>
           <AlertDescription className="space-y-2">
             <div className="flex items-center gap-2 font-semibold">

@@ -102,15 +102,23 @@ export function DeviceMappingGrid({ refreshTrigger }: DeviceMappingGridProps) {
     if (!editValues || !validateMapping(editValues)) return;
 
     try {
+      const updatePayload: any = {
+        square_location_id: editValues.square_location_id,
+        square_device_id: editValues.square_device_id,
+        square_source_name: editValues.square_source_name,
+      };
+      
+      // Only include Grace fields if they're set (prevent overwriting with null)
+      if (editValues.grace_area_id !== null) {
+        updatePayload.grace_area_id = editValues.grace_area_id;
+      }
+      if (editValues.grace_table_id !== null) {
+        updatePayload.grace_table_id = editValues.grace_table_id;
+      }
+
       const { error } = await supabase
         .from('square_device_map')
-        .update({
-          square_location_id: editValues.square_location_id,
-          square_device_id: editValues.square_device_id,
-          square_source_name: editValues.square_source_name,
-          grace_area_id: editValues.grace_area_id,
-          grace_table_id: editValues.grace_table_id
-        })
+        .update(updatePayload)
         .eq('id', editValues.id);
 
       if (error) throw error;
