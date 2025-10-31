@@ -435,6 +435,7 @@ const NewHostInterface = () => {
               bookings={bookings}
               tables={tables}
               onBookingClick={handleBookingClick}
+              visitOrderMap={visitOrderMap}
             />
           )}
         </div>

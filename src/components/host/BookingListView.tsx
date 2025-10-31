@@ -4,12 +4,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { Clock, Users, MapPin, DollarSign, AlertTriangle, Banknote } from "lucide-react";
+import { Clock, Users, MapPin, DollarSign, AlertTriangle, Banknote, Receipt } from "lucide-react";
 
 interface BookingListViewProps {
   bookings: any[];
   tables: any[];
   onBookingClick: (booking: any) => void;
+  visitOrderMap?: Record<string, any>;
 }
 
 interface BookingWithPayment {
@@ -28,7 +29,7 @@ interface BookingWithPayment {
   accurate_payment_amount?: number;
 }
 
-export const BookingListView = ({ bookings, tables, onBookingClick }: BookingListViewProps) => {
+export const BookingListView = ({ bookings, tables, onBookingClick, visitOrderMap = {} }: BookingListViewProps) => {
   // Fetch payment data for bookings with service information for accurate calculation
   const { data: paymentData = [] } = useQuery({
     queryKey: ['booking-payments', bookings.map(b => b.id)],
@@ -224,6 +225,11 @@ export const BookingListView = ({ bookings, tables, onBookingClick }: BookingLis
                       {booking.requires_payment && !booking.payment_status && (
                         <div title="Payment Required">
                           <DollarSign className="h-3 w-3 text-[#CCF0DB] opacity-80" />
+                        </div>
+                      )}
+                      {visitOrderMap[booking.id] && (
+                        <div title="Square Order Active">
+                          <Receipt className="h-3 w-3 text-[#F1C8D0]" />
                         </div>
                       )}
                     </div>

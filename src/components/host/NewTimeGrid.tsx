@@ -344,12 +344,8 @@ export const NewTimeGrid = ({
                                   onBookingClick={onBookingClick}
                                   getBookingStatusColor={getBookingStatusColor}
                                   rowHeight={rowHeight}
+                                  hasLinkedOrder={!!visitOrderMap[booking.id]}
                                 />
-                                {visitOrderMap[booking.id] && (
-                                  <div className="absolute top-1 right-1 z-30 pointer-events-none">
-                                    <Receipt className="h-3 w-3 text-[#F1C8D0]" />
-                                  </div>
-                                )}
                               </>
                             )}
                           </DroppableTimeSlot>

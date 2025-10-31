@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Draggable } from '@hello-pangea/dnd';
-import { DollarSign } from 'lucide-react';
+import { DollarSign, Receipt } from 'lucide-react';
 
 interface DraggableBookingProps {
   booking: any;
@@ -10,6 +10,7 @@ interface DraggableBookingProps {
   onBookingClick: (booking: any) => void;
   getBookingStatusColor: (status: string) => string;
   rowHeight: number;
+  hasLinkedOrder?: boolean;
 }
 
 export const DraggableBooking = ({ 
@@ -18,7 +19,8 @@ export const DraggableBooking = ({
   position, 
   onBookingClick, 
   getBookingStatusColor,
-  rowHeight
+  rowHeight,
+  hasLinkedOrder = false
 }: DraggableBookingProps) => {
   const draggableId = `booking-${booking.id}`;
   
@@ -51,6 +53,9 @@ export const DraggableBooking = ({
                 <span className="font-normal font-inter">({booking.party_size})</span>
                 {booking.deposit_per_guest > 0 && (
                   <DollarSign className="h-3 w-3 opacity-80" />
+                )}
+                {hasLinkedOrder && (
+                  <Receipt className="h-3 w-3 opacity-80" />
                 )}
               </div>
             </div>
