@@ -448,17 +448,48 @@ async function processOrderUpdated(supabase: any, webhookEvent: any) {
     const venueId = await resolveVenue(supabase, orderData.location_id);
     if (!venueId) {
       console.log(`No venue mapping for location ${orderData.location_id}`);
-      // Create review task
+      // Create enriched review task
       await supabase.from('order_link_reviews').insert({
         order_id: orderData.id,
         reason: 'no_venue_mapping',
         confidence: 0.0,
         snapshot: {
+          // Order identification
           order_id: orderData.id,
-          total_money: orderData.total_money?.amount,
+          location_id: orderData.location_id,
+          state: orderData.state,
+          version: orderData.version,
+          
+          // Timing
           opened_at: orderData.created_at,
+          updated_at: orderData.updated_at,
+          closed_at: orderData.closed_at,
+          
+          // Customer & context
+          customer_id: orderData.customer_id,
           note: orderData.note,
-          customer_id: orderData.customer_id
+          
+          // Source & device
+          source_name: orderData.source?.name,
+          device_id: orderData.source?.device_id,
+          
+          // Table names from fulfillments
+          table_names: orderData.fulfillments
+            ?.filter((f: any) => f.type === 'SHIPMENT' && f.shipment_details?.recipient?.display_name)
+            .map((f: any) => f.shipment_details.recipient.display_name) || [],
+          
+          // Money breakdown
+          money: {
+            subtotal: orderData.net_amounts?.total_money?.amount || 0,
+            discount: orderData.net_amounts?.discount_money?.amount || 0,
+            service_charge: orderData.net_amounts?.service_charge_money?.amount || 0,
+            tax: orderData.net_amounts?.tax_money?.amount || 0,
+            tip: orderData.net_amounts?.tip_money?.amount || 0,
+            total: orderData.total_money?.amount || 0
+          },
+          
+          // Line items
+          line_items_count: orderData.line_items?.length || 0
         },
         status: 'open'
       });
@@ -497,17 +528,50 @@ async function processOrderUpdated(supabase: any, webhookEvent: any) {
     
     if (walkInError) {
       console.error('Failed to create walk-in:', walkInError);
-      // Fallback to review task
+      // Fallback to enriched review task
       await supabase.from('order_link_reviews').insert({
         order_id: orderData.id,
         reason: 'walk_in_creation_failed',
         confidence: 0.0,
         snapshot: {
+          // Order identification
           order_id: orderData.id,
-          total_money: orderData.total_money?.amount,
+          location_id: orderData.location_id,
+          state: orderData.state,
+          version: orderData.version,
+          
+          // Timing
           opened_at: orderData.created_at,
-          note: orderData.note,
+          updated_at: orderData.updated_at,
+          closed_at: orderData.closed_at,
+          
+          // Customer & context
           customer_id: orderData.customer_id,
+          note: orderData.note,
+          
+          // Source & device
+          source_name: orderData.source?.name,
+          device_id: orderData.source?.device_id,
+          
+          // Table names from fulfillments
+          table_names: orderData.fulfillments
+            ?.filter((f: any) => f.type === 'SHIPMENT' && f.shipment_details?.recipient?.display_name)
+            .map((f: any) => f.shipment_details.recipient.display_name) || [],
+          
+          // Money breakdown
+          money: {
+            subtotal: orderData.net_amounts?.total_money?.amount || 0,
+            discount: orderData.net_amounts?.discount_money?.amount || 0,
+            service_charge: orderData.net_amounts?.service_charge_money?.amount || 0,
+            tax: orderData.net_amounts?.tax_money?.amount || 0,
+            tip: orderData.net_amounts?.tip_money?.amount || 0,
+            total: orderData.total_money?.amount || 0
+          },
+          
+          // Line items
+          line_items_count: orderData.line_items?.length || 0,
+          
+          // Error details
           error: String(walkInError)
         },
         status: 'open'

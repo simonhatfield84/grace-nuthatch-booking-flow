@@ -81,42 +81,45 @@ export function OrderLinkReviewTable({ reviews, isLoading, onRefresh }: OrderLin
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>Created</TableHead>
-            <TableHead>Order ID</TableHead>
-            <TableHead>Opened At</TableHead>
+            <TableHead>Time</TableHead>
             <TableHead>Total</TableHead>
-            <TableHead>Customer ID</TableHead>
-            <TableHead>Note</TableHead>
-            <TableHead>Confidence</TableHead>
+            <TableHead>Device/Source</TableHead>
+            <TableHead>Table</TableHead>
+            <TableHead>Customer</TableHead>
+            <TableHead>Reason</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {reviews.map((review) => {
             const snapshot = review.snapshot || {};
+            const deviceSource = snapshot.source_name || (snapshot.device_id ? `Device ${snapshot.device_id.slice(0, 8)}` : null);
+            const tableNames = snapshot.table_names?.length > 0 ? snapshot.table_names.join(', ') : null;
+            
             return (
               <TableRow key={review.id}>
-                <TableCell className="text-sm text-muted-foreground">
-                  {format(new Date(review.created_at), 'MMM d, HH:mm')}
-                </TableCell>
-                <TableCell className="font-mono text-sm">
-                  {review.order_id || snapshot.order_id || '-'}
-                </TableCell>
                 <TableCell className="text-sm">
                   {snapshot.opened_at
                     ? format(new Date(snapshot.opened_at), 'MMM d, HH:mm')
-                    : '-'}
+                    : format(new Date(review.created_at), 'MMM d, HH:mm')}
                 </TableCell>
                 <TableCell className="font-medium">
-                  {formatCurrency(snapshot.total_money)}
+                  {snapshot.money?.total ? formatCurrency(snapshot.money.total) : '-'}
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {deviceSource || '-'}
+                </TableCell>
+                <TableCell className="text-sm">
+                  {tableNames || '-'}
                 </TableCell>
                 <TableCell className="font-mono text-xs text-muted-foreground">
-                  {snapshot.customer_id ? `${snapshot.customer_id.slice(0, 12)}...` : '-'}
+                  {snapshot.customer_id ? `${snapshot.customer_id.slice(0, 8)}...` : '-'}
                 </TableCell>
-                <TableCell className="max-w-[200px] truncate text-sm">
-                  {snapshot.note || '-'}
+                <TableCell>
+                  <Badge variant={review.reason === 'no_venue_mapping' ? 'destructive' : 'outline'}>
+                    {review.reason.replace(/_/g, ' ')}
+                  </Badge>
                 </TableCell>
-                <TableCell>{getConfidenceBadge(review.confidence)}</TableCell>
                 <TableCell className="text-right space-x-2">
                   <Button
                     size="sm"

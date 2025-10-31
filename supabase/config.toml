@@ -95,6 +95,9 @@ verify_jwt = false
 [functions.square-queue-worker]
 verify_jwt = false
 
+[functions.trigger-square-worker]
+verify_jwt = true
+
 [edge_runtime]
 enabled = true
 policy = "per_request"
