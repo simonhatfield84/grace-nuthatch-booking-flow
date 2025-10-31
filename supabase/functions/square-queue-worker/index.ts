@@ -257,7 +257,9 @@ async function findOrCreateGuestBySquareCustomer(
     const SQUARE_ACCESS_TOKEN = Deno.env.get('SQUARE_MERCHANT_ACCESS_TOKEN');
     const SQUARE_VERSION = Deno.env.get('SQUARE_VERSION') || '2024-10-17';
     
-    if (SQUARE_ACCESS_TOKEN) {
+    if (!SQUARE_ACCESS_TOKEN) {
+      console.warn(`⚠️ SQUARE_MERCHANT_ACCESS_TOKEN not found - cannot fetch customer ${customerId}`);
+    } else {
       console.log(`🔍 Fetching customer ${customerId} from Square API...`);
       const response = await fetch(
         `https://connect.squareup.com/v2/customers/${customerId}`,
@@ -275,11 +277,12 @@ async function findOrCreateGuestBySquareCustomer(
         customerData = data.customer;
         console.log(`✅ Fetched customer: ${customerData.given_name} ${customerData.family_name}`);
       } else {
-        console.warn(`⚠️ Failed to fetch customer from Square: ${response.status}`);
+        const errorText = await response.text();
+        console.error(`❌ Failed to fetch customer from Square: ${response.status} - ${errorText}`);
       }
     }
   } catch (error) {
-    console.error('Error fetching customer from Square:', error);
+    console.error('❌ Error fetching customer from Square:', error);
   }
   
   // Create new guest with actual customer data
@@ -694,7 +697,7 @@ async function processOrderUpdated(supabase: any, webhookEvent: any) {
           p_area_id: areaId,
           p_table_id: tableId,
           p_guest_id: guestId,
-          p_source: 'Square POS',
+          p_source: 'other',
           p_opened_at: orderData.created_at
         }
       );
