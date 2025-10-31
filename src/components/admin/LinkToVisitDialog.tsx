@@ -142,7 +142,7 @@ export function LinkToVisitDialog({ review, open, onClose, onSuccess }: LinkToVi
   const handleCreateWalkIn = async (table: any) => {
     setLinking(true);
     try {
-      // Step 1: Create walk-in booking
+      // Step 1: Create walk-in booking (returns booking INTEGER id)
       const { data: visitId, error: walkInError } = await supabase.rpc('grace_create_walk_in', {
         p_venue_id: venueId,
         p_area_id: table.section_id,
@@ -154,12 +154,12 @@ export function LinkToVisitDialog({ review, open, onClose, onSuccess }: LinkToVi
 
       if (walkInError) throw walkInError;
 
-      // Step 2: Link order to new walk-in
+      // Step 2: Link order to new walk-in (convert booking id to string)
       const { error: linkError } = await supabase.rpc('resolve_order_review', {
         p_review_id: review.id,
         p_action: 'link_to_visit',
-        p_visit_id: visitId,
-        p_reservation_id: visitId,
+        p_visit_id: visitId?.toString() || null,
+        p_reservation_id: visitId?.toString() || null,
         p_guest_id: null
       });
 

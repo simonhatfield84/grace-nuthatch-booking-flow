@@ -4017,7 +4017,7 @@ export type Database = {
           p_table_id: number
           p_venue_id: string
         }
-        Returns: string
+        Returns: number
       }
       grace_find_active_visit_by_square_customer: {
         Args: { p_customer_id: string }
