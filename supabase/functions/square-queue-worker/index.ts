@@ -393,46 +393,57 @@ async function fetchOrderFromSquareAPI(
 async function processOrderUpdated(supabase: any, webhookEvent: any) {
   // Step 1: Extract minimal order info from webhook
   const webhookOrderData = webhookEvent.payload?.data?.object?.order_updated 
-    || webhookEvent.payload?.data?.object?.order_created;
+    || webhookEvent.payload?.data?.object?.order_created
+    || webhookEvent.payload?.data?.object?.order;
   
   if (!webhookOrderData) {
     console.error('Webhook payload:', JSON.stringify(webhookEvent.payload, null, 2));
     throw new Error('No order data in webhook payload');
   }
   
-  console.log(`Processing ${webhookEvent.event_type} for order ${webhookOrderData.id}`);
+  // CRITICAL FIX: Webhook uses 'order_id' field, not 'id'
+  const orderId = webhookOrderData.order_id || webhookOrderData.id;
+  const locationId = webhookOrderData.location_id;
+  
+  if (!orderId) {
+    throw new Error('No order ID in webhook data');
+  }
+  
+  console.log(`Processing ${webhookEvent.event_type} for order ${orderId}`);
   
   // Step 2: Fetch complete order data from Square API
   let orderData;
   try {
     // Try Production token first (preferred for production)
-    orderData = await fetchSquareOrder(
-      webhookOrderData.id,
-      webhookOrderData.location_id
-    );
+    console.log(`🔍 Fetching order ${orderId} from Square API (Production token)...`);
+    orderData = await fetchSquareOrder(orderId, locationId);
     
     // Fallback to OAuth token if Production token not set
     if (!orderData) {
-      orderData = await fetchOrderFromSquareAPI(
-        supabase,
-        webhookOrderData.id,
-        webhookOrderData.location_id
-      );
+      console.log(`🔍 Fetching order ${orderId} from Square API (OAuth fallback)...`);
+      orderData = await fetchOrderFromSquareAPI(supabase, orderId, locationId);
     }
     
-    console.log(`✅ Fetched complete order data from Square API: ${orderData.line_items?.length || 0} line items`);
+    console.log(`✅ Fetched complete order data from Square API: ${orderData?.line_items?.length || 0} line items`);
   } catch (apiError) {
     console.error('Failed to fetch order from Square API:', apiError);
+    console.error('API Error details:', apiError.message);
+    
     // Fallback: use minimal webhook data
     orderData = {
-      id: webhookOrderData.id,
-      location_id: webhookOrderData.location_id,
+      id: orderId, // FIX: Use extracted orderId
+      location_id: locationId,
       state: webhookOrderData.state,
       version: webhookOrderData.version,
       created_at: webhookOrderData.created_at,
       updated_at: webhookOrderData.updated_at
     };
     console.warn('⚠️ Using minimal webhook data, bill display may be incomplete');
+  }
+  
+  // Ensure order data has ID (defensive)
+  if (!orderData || !orderData.id) {
+    throw new Error(`Order data missing ID after fetch (orderId: ${orderId})`);
   }
 
   // Upsert into square_orders
@@ -717,28 +728,49 @@ async function processOrderUpdated(supabase: any, webhookEvent: any) {
 async function processPaymentUpdated(supabase: any, webhookEvent: any) {
   // Extract payment data from webhook
   const webhookPaymentData = webhookEvent.payload?.data?.object?.payment
-    || webhookEvent.payload?.data?.object?.payment_updated;
+    || webhookEvent.payload?.data?.object?.payment_updated
+    || webhookEvent.payload?.data?.object?.payment_created;
   
   if (!webhookPaymentData) {
     console.error('Webhook payload:', JSON.stringify(webhookEvent.payload, null, 2));
     throw new Error('No payment data in webhook payload');
   }
   
-  console.log(`Processing ${webhookEvent.event_type} for payment ${webhookPaymentData.id}`);
+  // CRITICAL FIX: Webhook uses 'payment_id' field, not 'id'
+  const paymentId = webhookPaymentData.payment_id || webhookPaymentData.id;
+  const locationId = webhookPaymentData.location_id;
+  
+  if (!paymentId) {
+    throw new Error('No payment ID in webhook data');
+  }
+  
+  console.log(`Processing ${webhookEvent.event_type} for payment ${paymentId}`);
   
   // Fetch complete payment data from Square API
   let paymentData;
   try {
-    paymentData = await fetchSquarePayment(
-      webhookPaymentData.id,
-      webhookPaymentData.location_id
-    );
+    console.log(`🔍 Fetching payment ${paymentId} from Square API...`);
+    paymentData = await fetchSquarePayment(paymentId, locationId);
     console.log(`✅ Fetched payment data: ${paymentData.status} - ${paymentData.total_money?.amount || 0}`);
   } catch (apiError) {
     console.error('Failed to fetch payment from Square API:', apiError);
+    console.error('API Error details:', apiError.message);
+    
     // Fallback: use minimal webhook data
-    paymentData = webhookPaymentData;
+    paymentData = {
+      id: paymentId, // FIX: Use extracted paymentId
+      order_id: webhookPaymentData.order_id,
+      location_id: locationId,
+      status: webhookPaymentData.status,
+      amount_money: webhookPaymentData.amount_money,
+      total_money: webhookPaymentData.total_money
+    };
     console.warn('⚠️ Using webhook payment data, may be incomplete');
+  }
+  
+  // Ensure payment data has ID (defensive)
+  if (!paymentData || !paymentData.id) {
+    throw new Error(`Payment data missing ID after fetch (paymentId: ${paymentId})`);
   }
   
   // Upsert into square_payments
@@ -792,7 +824,7 @@ async function processPaymentUpdated(supabase: any, webhookEvent: any) {
           updated_at: new Date().toISOString()
         })
         .eq('id', orderLinks.visit_id)
-        .eq('status', 'seated'); // Only update if currently seated
+        .in('status', ['seated', 'confirmed']); // Update if seated or confirmed
       
       if (updateError) {
         console.error('Failed to update visit status:', updateError);

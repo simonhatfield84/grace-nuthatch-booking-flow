@@ -65,7 +65,10 @@ Deno.serve(async (req) => {
     // Extract resource ID from different payload shapes
     const resourceId = event.data?.id 
       || event.data?.object?.order_updated?.order_id
+      || event.data?.object?.order_created?.order_id
       || event.data?.object?.order?.id
+      || event.data?.object?.payment_updated?.payment_id
+      || event.data?.object?.payment_created?.payment_id
       || event.data?.object?.payment?.id
       || null;
     
