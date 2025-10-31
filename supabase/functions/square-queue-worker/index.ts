@@ -1,0 +1,257 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { getCorsHeaders, handleCors } from '../_shared/cors.ts';
+import { createErrorResponse } from '../_shared/errorSanitizer.ts';
+
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+// Exponential backoff schedule (seconds)
+const BACKOFF_SCHEDULE = [10, 30, 60, 120, 300, 600, 1200, 3600];
+
+Deno.serve(async (req) => {
+  const corsResponse = handleCors(req);
+  if (corsResponse) return corsResponse;
+
+  const corsHeaders = getCorsHeaders(req);
+  const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+  try {
+    // Dequeue items due for processing
+    const { data: queueItems, error: dequeueError } = await supabase
+      .from('square_event_queue')
+      .select('*')
+      .lte('next_attempt_at', new Date().toISOString())
+      .lt('attempts', 8)
+      .order('next_attempt_at', { ascending: true })
+      .limit(10);
+
+    if (dequeueError) throw dequeueError;
+
+    if (!queueItems || queueItems.length === 0) {
+      return new Response(
+        JSON.stringify({ ok: true, processed: 0 }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    let processed = 0;
+    let failed = 0;
+
+    for (const queueItem of queueItems) {
+      try {
+        // Fetch webhook event
+        const { data: webhookEvent, error: fetchError } = await supabase
+          .from('square_webhook_events')
+          .select('*')
+          .eq('id', queueItem.webhook_event_id)
+          .single();
+
+        if (fetchError || !webhookEvent) {
+          console.error('Failed to fetch webhook event:', fetchError);
+          continue;
+        }
+
+        // Process based on event type
+        if (webhookEvent.event_type === 'order.updated') {
+          await processOrderUpdated(supabase, webhookEvent);
+        }
+
+        // Mark as processed
+        await supabase
+          .from('square_webhook_events')
+          .update({
+            status: 'processed',
+            processed_at: new Date().toISOString()
+          })
+          .eq('id', webhookEvent.id);
+
+        // Remove from queue
+        await supabase
+          .from('square_event_queue')
+          .delete()
+          .eq('id', queueItem.id);
+
+        processed++;
+
+      } catch (error) {
+        console.error(`Failed to process queue item ${queueItem.id}:`, error);
+        failed++;
+
+        // Update retry backoff
+        const nextAttempt = queueItem.attempts + 1;
+        const backoffSeconds = BACKOFF_SCHEDULE[Math.min(nextAttempt - 1, BACKOFF_SCHEDULE.length - 1)];
+        const nextAttemptAt = new Date(Date.now() + backoffSeconds * 1000).toISOString();
+
+        if (nextAttempt >= 8) {
+          // Max retries reached
+          await supabase
+            .from('square_webhook_events')
+            .update({ status: 'failed', error: String(error) })
+            .eq('id', queueItem.webhook_event_id);
+
+          await supabase
+            .from('square_event_queue')
+            .delete()
+            .eq('id', queueItem.id);
+
+          // Create review for failed event
+          const { data: webhookEvent } = await supabase
+            .from('square_webhook_events')
+            .select('*')
+            .eq('id', queueItem.webhook_event_id)
+            .single();
+
+          if (webhookEvent) {
+            await supabase
+              .from('order_link_reviews')
+              .insert({
+                order_id: webhookEvent.resource_id,
+                reason: 'processing_failed',
+                confidence: 0.0,
+                snapshot: webhookEvent.payload,
+                status: 'open'
+              });
+          }
+        } else {
+          // Schedule retry
+          await supabase
+            .from('square_event_queue')
+            .update({
+              attempts: nextAttempt,
+              next_attempt_at: nextAttemptAt,
+              last_error: String(error)
+            })
+            .eq('id', queueItem.id);
+        }
+      }
+    }
+
+    return new Response(
+      JSON.stringify({ ok: true, processed, failed }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
+  } catch (error) {
+    console.error('Queue worker error:', error);
+    return createErrorResponse(error, 500);
+  }
+});
+
+async function processOrderUpdated(supabase: any, webhookEvent: any) {
+  const orderData = webhookEvent.payload?.data?.object?.order;
+  if (!orderData) {
+    throw new Error('No order data in payload');
+  }
+
+  // Upsert into square_orders
+  const { error: upsertError } = await supabase
+    .from('square_orders')
+    .upsert({
+      order_id: orderData.id,
+      location_id: orderData.location_id,
+      state: orderData.state,
+      source: orderData.source?.name,
+      opened_at: orderData.created_at,
+      closed_at: orderData.closed_at,
+      total_money: orderData.total_money?.amount,
+      tip_money: orderData.total_tip_money?.amount,
+      discount_money: orderData.total_discount_money?.amount,
+      service_charge_money: orderData.total_service_charge_money?.amount,
+      taxes_money: orderData.total_tax_money?.amount,
+      version: orderData.version,
+      customer_id: orderData.customer_id,
+      note: orderData.note,
+      raw: orderData,
+      updated_at: new Date().toISOString()
+    }, {
+      onConflict: 'order_id'
+    });
+
+  if (upsertError) {
+    throw new Error(`Failed to upsert order: ${upsertError.message}`);
+  }
+
+  // Attempt auto-linking
+  let linked = false;
+  let linkMethod = '';
+  let confidence = 0.0;
+  let visitData = null;
+
+  // Try linking by Square customer_id
+  if (orderData.customer_id) {
+    const { data, error } = await supabase
+      .rpc('grace_find_active_visit_by_square_customer', {
+        p_customer_id: orderData.customer_id
+      });
+
+    if (!error && data && data.length > 0) {
+      visitData = data[0];
+      linkMethod = 'square_customer_id';
+      confidence = 0.9;
+      linked = true;
+    }
+  }
+
+  // Try linking by booking code in note
+  if (!linked && orderData.note) {
+    const bookingCodeMatch = orderData.note.match(/BK-\d{4}-\d{6}/);
+    if (bookingCodeMatch) {
+      const { data, error } = await supabase
+        .rpc('grace_find_visit_by_booking_code', {
+          p_code: bookingCodeMatch[0]
+        });
+
+      if (!error && data && data.length > 0) {
+        visitData = data[0];
+        linkMethod = 'booking_code';
+        confidence = 0.95;
+        linked = true;
+      }
+    }
+  }
+
+  if (linked && visitData) {
+    // Create order link
+    await supabase
+      .from('order_links')
+      .upsert({
+        order_id: orderData.id,
+        visit_id: visitData.visit_id,
+        reservation_id: visitData.reservation_id,
+        guest_id: visitData.guest_id,
+        link_method: linkMethod,
+        confidence: confidence
+      }, {
+        onConflict: 'order_id,visit_id'
+      });
+
+    // Apply metrics (stub)
+    if (visitData.visit_id) {
+      await supabase.rpc('grace_apply_order_to_visit_metrics', {
+        p_order_id: orderData.id,
+        p_visit_id: visitData.visit_id
+      });
+    }
+
+    console.log(`Auto-linked order ${orderData.id} via ${linkMethod}`);
+  } else {
+    // Create review task
+    await supabase
+      .from('order_link_reviews')
+      .insert({
+        order_id: orderData.id,
+        reason: 'no_auto_link',
+        confidence: 0.0,
+        snapshot: {
+          order_id: orderData.id,
+          total_money: orderData.total_money?.amount,
+          opened_at: orderData.created_at,
+          note: orderData.note,
+          customer_id: orderData.customer_id
+        },
+        status: 'open'
+      });
+
+    console.log(`Created review task for order ${orderData.id}`);
+  }
+}

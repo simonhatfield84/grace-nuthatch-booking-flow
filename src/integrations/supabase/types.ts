@@ -1099,6 +1099,9 @@ export type Database = {
           notes: string | null
           opt_in_marketing: boolean | null
           phone: string | null
+          square_customer_id: string | null
+          square_customer_raw: Json | null
+          square_reference_id: string | null
           updated_at: string | null
           venue_id: string
         }
@@ -1112,6 +1115,9 @@ export type Database = {
           notes?: string | null
           opt_in_marketing?: boolean | null
           phone?: string | null
+          square_customer_id?: string | null
+          square_customer_raw?: Json | null
+          square_reference_id?: string | null
           updated_at?: string | null
           venue_id: string
         }
@@ -1125,6 +1131,9 @@ export type Database = {
           notes?: string | null
           opt_in_marketing?: boolean | null
           phone?: string | null
+          square_customer_id?: string | null
+          square_customer_raw?: Json | null
+          square_reference_id?: string | null
           updated_at?: string | null
           venue_id?: string
         }
@@ -1234,6 +1243,90 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      order_link_reviews: {
+        Row: {
+          confidence: number
+          created_at: string
+          id: number
+          order_id: string | null
+          payment_id: string | null
+          proposed_guest_id: string | null
+          proposed_reservation_id: string | null
+          proposed_visit_id: string | null
+          reason: string
+          resolved_at: string | null
+          snapshot: Json
+          status: string
+          suggested_actions: Json | null
+        }
+        Insert: {
+          confidence?: number
+          created_at?: string
+          id?: number
+          order_id?: string | null
+          payment_id?: string | null
+          proposed_guest_id?: string | null
+          proposed_reservation_id?: string | null
+          proposed_visit_id?: string | null
+          reason: string
+          resolved_at?: string | null
+          snapshot: Json
+          status?: string
+          suggested_actions?: Json | null
+        }
+        Update: {
+          confidence?: number
+          created_at?: string
+          id?: number
+          order_id?: string | null
+          payment_id?: string | null
+          proposed_guest_id?: string | null
+          proposed_reservation_id?: string | null
+          proposed_visit_id?: string | null
+          reason?: string
+          resolved_at?: string | null
+          snapshot?: Json
+          status?: string
+          suggested_actions?: Json | null
+        }
+        Relationships: []
+      }
+      order_links: {
+        Row: {
+          confidence: number
+          created_at: string
+          guest_id: string | null
+          id: number
+          link_method: string
+          order_id: string
+          payment_id: string | null
+          reservation_id: string | null
+          visit_id: string | null
+        }
+        Insert: {
+          confidence?: number
+          created_at?: string
+          guest_id?: string | null
+          id?: number
+          link_method: string
+          order_id: string
+          payment_id?: string | null
+          reservation_id?: string | null
+          visit_id?: string | null
+        }
+        Update: {
+          confidence?: number
+          created_at?: string
+          guest_id?: string | null
+          id?: number
+          link_method?: string
+          order_id?: string
+          payment_id?: string | null
+          reservation_id?: string | null
+          visit_id?: string | null
+        }
+        Relationships: []
       }
       payment_requests: {
         Row: {
@@ -2116,6 +2209,143 @@ export type Database = {
           title?: string | null
           updated_at?: string | null
           venue_id?: string | null
+        }
+        Relationships: []
+      }
+      square_event_queue: {
+        Row: {
+          attempts: number
+          id: number
+          last_error: string | null
+          max_attempts: number
+          next_attempt_at: string
+          webhook_event_id: number
+        }
+        Insert: {
+          attempts?: number
+          id?: number
+          last_error?: string | null
+          max_attempts?: number
+          next_attempt_at?: string
+          webhook_event_id: number
+        }
+        Update: {
+          attempts?: number
+          id?: number
+          last_error?: string | null
+          max_attempts?: number
+          next_attempt_at?: string
+          webhook_event_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "square_event_queue_webhook_event_id_fkey"
+            columns: ["webhook_event_id"]
+            isOneToOne: false
+            referencedRelation: "square_webhook_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      square_orders: {
+        Row: {
+          closed_at: string | null
+          customer_id: string | null
+          discount_money: number | null
+          id: number
+          location_id: string | null
+          note: string | null
+          opened_at: string | null
+          order_id: string
+          raw: Json
+          service_charge_money: number | null
+          source: string | null
+          state: string | null
+          taxes_money: number | null
+          tip_money: number | null
+          total_money: number | null
+          updated_at: string
+          version: number | null
+        }
+        Insert: {
+          closed_at?: string | null
+          customer_id?: string | null
+          discount_money?: number | null
+          id?: number
+          location_id?: string | null
+          note?: string | null
+          opened_at?: string | null
+          order_id: string
+          raw: Json
+          service_charge_money?: number | null
+          source?: string | null
+          state?: string | null
+          taxes_money?: number | null
+          tip_money?: number | null
+          total_money?: number | null
+          updated_at?: string
+          version?: number | null
+        }
+        Update: {
+          closed_at?: string | null
+          customer_id?: string | null
+          discount_money?: number | null
+          id?: number
+          location_id?: string | null
+          note?: string | null
+          opened_at?: string | null
+          order_id?: string
+          raw?: Json
+          service_charge_money?: number | null
+          source?: string | null
+          state?: string | null
+          taxes_money?: number | null
+          tip_money?: number | null
+          total_money?: number | null
+          updated_at?: string
+          version?: number | null
+        }
+        Relationships: []
+      }
+      square_webhook_events: {
+        Row: {
+          error: string | null
+          event_id: string
+          event_type: string
+          id: number
+          location_id: string | null
+          payload: Json
+          processed_at: string | null
+          received_at: string
+          resource_id: string | null
+          signature_valid: boolean
+          status: string
+        }
+        Insert: {
+          error?: string | null
+          event_id: string
+          event_type: string
+          id?: number
+          location_id?: string | null
+          payload: Json
+          processed_at?: string | null
+          received_at?: string
+          resource_id?: string | null
+          signature_valid?: boolean
+          status?: string
+        }
+        Update: {
+          error?: string | null
+          event_id?: string
+          event_type?: string
+          id?: number
+          location_id?: string | null
+          payload?: Json
+          processed_at?: string | null
+          received_at?: string
+          resource_id?: string | null
+          signature_valid?: boolean
+          status?: string
         }
         Relationships: []
       }
@@ -3364,6 +3594,26 @@ export type Database = {
         Returns: string[]
       }
       get_user_venue: { Args: { _user_id: string }; Returns: string }
+      grace_apply_order_to_visit_metrics: {
+        Args: { p_order_id: string; p_visit_id: string }
+        Returns: undefined
+      }
+      grace_find_active_visit_by_square_customer: {
+        Args: { p_customer_id: string }
+        Returns: {
+          guest_id: string
+          reservation_id: string
+          visit_id: string
+        }[]
+      }
+      grace_find_visit_by_booking_code: {
+        Args: { p_code: string }
+        Returns: {
+          guest_id: string
+          reservation_id: string
+          visit_id: string
+        }[]
+      }
       guests_search: {
         Args: { _limit?: number; _q: string; _venue: string }
         Returns: {
@@ -3376,6 +3626,9 @@ export type Database = {
           notes: string | null
           opt_in_marketing: boolean | null
           phone: string | null
+          square_customer_id: string | null
+          square_customer_raw: Json | null
+          square_reference_id: string | null
           updated_at: string | null
           venue_id: string
         }[]
@@ -3427,6 +3680,16 @@ export type Database = {
       requires_payment_for_booking: {
         Args: { p_party_size: number; p_service_id: string }
         Returns: boolean
+      }
+      resolve_order_review: {
+        Args: {
+          p_action: string
+          p_guest_id?: string
+          p_reservation_id?: string
+          p_review_id: number
+          p_visit_id?: string
+        }
+        Returns: undefined
       }
       setup_complete: { Args: never; Returns: boolean }
       setup_venue_atomic: {

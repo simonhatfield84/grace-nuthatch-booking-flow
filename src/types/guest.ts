@@ -13,6 +13,9 @@ export interface Guest {
   tags?: Tag[];
   visit_count?: number;
   last_visit_date?: string;
+  square_customer_id?: string | null;
+  square_reference_id?: string | null;
+  square_customer_raw?: any;
 }
 
 export interface Tag {

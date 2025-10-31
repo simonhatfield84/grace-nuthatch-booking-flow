@@ -42,6 +42,7 @@ import PlatformSubscriptions from "./pages/PlatformSubscriptions";
 import PlatformSupport from "./pages/PlatformSupport";
 import PlatformStyleExportPreview from "./pages/PlatformStyleExportPreview";
 import PlatformRefactorStatus from "./pages/PlatformRefactorStatus";
+import OrdersReview from "./pages/admin/OrdersReview";
 
 const queryClient = new QueryClient();
 
@@ -154,6 +155,13 @@ function App() {
                       <ProtectedRoute>
                         <AdminLayout>
                           <Reports />
+                        </AdminLayout>
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/admin/orders/review" element={
+                      <ProtectedRoute>
+                        <AdminLayout>
+                          <OrdersReview />
                         </AdminLayout>
                       </ProtectedRoute>
                     } />
