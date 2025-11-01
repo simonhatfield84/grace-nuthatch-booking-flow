@@ -738,30 +738,43 @@ async function processOrderUpdated(supabase: any, webhookEvent: any) {
     }
 
     if (tableId) {
-      // SMART LINKING: Check for existing bookings on this table within ±30 minutes
+      // ✅ ENHANCED SMART LINKING: Conservative 30-min auto-link + 60-min name-match review
       const orderTime = new Date(orderData.created_at);
-      const timeWindowStart = new Date(orderTime.getTime() - 30 * 60 * 1000);
-      const timeWindowEnd = new Date(orderTime.getTime() + 30 * 60 * 1000);
       const orderDate = orderTime.toISOString().split('T')[0];
       const orderTimeStr = orderTime.toTimeString().slice(0, 8);
-      const windowEndStr = timeWindowEnd.toTimeString().slice(0, 8);
+      
+      // Conservative 30-minute window for auto-linking
+      const autoLinkWindowStart = new Date(orderTime.getTime() - 30 * 60 * 1000);
+      const autoLinkWindowEnd = new Date(orderTime.getTime() + 30 * 60 * 1000);
+      
+      // Extended 60-minute window for name-match review tasks
+      const extendedWindowStart = new Date(orderTime.getTime() - 60 * 60 * 1000);
+      const extendedWindowEnd = new Date(orderTime.getTime() + 60 * 60 * 1000);
       
       console.log(`🔍 Checking for existing bookings on table ${tableId} around ${orderTime.toISOString()}`);
       
-      const { data: existingBookings } = await supabase
+      // Fetch all bookings on this table within ±60 minutes (wider search for smart matching)
+      const { data: allBookings } = await supabase
         .from('bookings')
-        .select('id, booking_reference, guest_name, booking_time, status')
+        .select('id, booking_reference, guest_name, email, phone, booking_time, status')
         .eq('venue_id', venueId)
         .eq('table_id', tableId)
         .eq('booking_date', orderDate)
-        .gte('booking_time', orderTimeStr)
-        .lte('booking_time', windowEndStr)
+        .gte('booking_time', extendedWindowStart.toTimeString().slice(0, 8))
+        .lte('booking_time', extendedWindowEnd.toTimeString().slice(0, 8))
         .in('status', ['confirmed', 'seated'])
         .order('booking_time', { ascending: true });
       
-      // Check if any existing booking doesn't have an order
-      if (existingBookings && existingBookings.length > 0) {
-        for (const booking of existingBookings) {
+      if (allBookings && allBookings.length > 0) {
+        // Step 1: Check bookings within 30-min window WITHOUT orders (auto-link)
+        const autoLinkCandidates = [];
+        for (const booking of allBookings) {
+          const bookingTime = new Date(`${orderDate}T${booking.booking_time}`);
+          const withinAutoWindow = bookingTime >= autoLinkWindowStart && bookingTime <= autoLinkWindowEnd;
+          
+          if (!withinAutoWindow) continue;
+          
+          // Check if booking already has an order
           const { data: existingLink } = await supabase
             .from('order_links')
             .select('id')
@@ -769,75 +782,154 @@ async function processOrderUpdated(supabase: any, webhookEvent: any) {
             .maybeSingle();
           
           if (!existingLink) {
-            // Found a booking without an order - link to it
-            console.log(`✅ Found existing booking ${booking.booking_reference} without order, linking...`);
-            
-            await supabase.from('order_links').insert({
-              order_id: orderData.id,
-              visit_id: booking.id,
-              reservation_id: booking.id,
-              guest_id: guestId,
-              link_method: 'smart_table_match',
-              confidence: 0.8
-            });
-            
-            console.log(`✅ Linked order ${orderData.id} to existing booking ${booking.id}`);
-            
-            // Sync order status to booking if order is completed
-            if (orderData.state === 'COMPLETED') {
-              await supabase
-                .from('bookings')
-                .update({
-                  status: 'finished',
-                  updated_at: new Date().toISOString()
-                })
-                .eq('id', booking.id)
-                .in('status', ['seated', 'confirmed']);
-              console.log(`✅ Booking ${booking.id} marked as finished`);
-              
-              // Update guest metrics
-              if (guestId) {
-                console.log(`📊 Updating metrics for guest ${guestId}`);
-                const { error: metricsError } = await supabase.rpc('update_guest_metrics', { 
-                  p_guest_id: guestId 
-                });
-
-                if (metricsError) {
-                  console.error('Failed to update guest metrics:', metricsError);
-                } else {
-                  console.log(`✅ Updated guest metrics for ${guestId}`);
-                }
-              }
-            }
-            
-            return; // Successfully linked, exit
+            autoLinkCandidates.push(booking);
           }
         }
         
-        // All bookings on this table already have orders
-        console.log(`⚠️ Table ${tableId} occupied with other orders, creating review task`);
-        
-        await supabase.from('order_link_reviews').insert({
-          order_id: orderData.id,
-          reason: 'table_occupied_with_orders',
-          confidence: 0.0,
-          snapshot: {
+        // If found booking without order in 30-min window → AUTO-LINK
+        if (autoLinkCandidates.length > 0) {
+          const closestBooking = autoLinkCandidates.sort((a, b) => {
+            const distA = Math.abs(new Date(`${orderDate}T${a.booking_time}`).getTime() - orderTime.getTime());
+            const distB = Math.abs(new Date(`${orderDate}T${b.booking_time}`).getTime() - orderTime.getTime());
+            return distA - distB;
+          })[0];
+          
+          console.log(`✅ Auto-linking to booking ${closestBooking.booking_reference} (within 30-min window)`);
+          
+          await supabase.from('order_links').insert({
             order_id: orderData.id,
-            location_id: orderData.location_id,
-            state: orderData.state,
-            opened_at: orderData.created_at,
-            table_id: tableId,
-            conflicting_bookings: existingBookings.map((b: any) => ({
-              id: b.id,
-              reference: b.booking_reference,
-              guest: b.guest_name,
-              time: b.booking_time
-            })),
-            full_order: orderData
-          },
-          status: 'open'
-        });
-        return;
+            visit_id: closestBooking.id,
+            reservation_id: closestBooking.id,
+            guest_id: guestId,
+            link_method: 'smart_table_match',
+            confidence: 0.9
+          });
+          
+          // Update booking status if order completed
+          if (orderData.state === 'COMPLETED') {
+            await supabase.from('bookings')
+              .update({ status: 'finished', updated_at: new Date().toISOString() })
+              .eq('id', closestBooking.id)
+              .in('status', ['seated', 'confirmed']);
+            
+            if (guestId) {
+              await supabase.rpc('update_guest_metrics', { p_guest_id: guestId });
+            }
+          }
+          
+          return; // Successfully linked
+        }
+        
+        // Step 2: Check 30-60 min window for NAME MATCH → CREATE REVIEW for manual confirmation
+        if (orderData.customer_id || guestId) {
+          // Get guest name for matching
+          let guestName = null;
+          if (guestId) {
+            const { data: guestData } = await supabase
+              .from('guests')
+              .select('name, email, phone')
+              .eq('id', guestId)
+              .single();
+            if (guestData) guestName = guestData.name;
+          }
+          
+          const extendedCandidates = [];
+          for (const booking of allBookings) {
+            const bookingTime = new Date(`${orderDate}T${booking.booking_time}`);
+            const inExtendedWindow = (bookingTime < autoLinkWindowStart || bookingTime > autoLinkWindowEnd) &&
+                                     (bookingTime >= extendedWindowStart && bookingTime <= extendedWindowEnd);
+            
+            if (!inExtendedWindow) continue;
+            
+            // Check for name match
+            const nameMatch = guestName && booking.guest_name && 
+                             booking.guest_name.toLowerCase().includes(guestName.toLowerCase().split(' ')[0].toLowerCase());
+            
+            if (nameMatch) {
+              // Check if booking already has order
+              const { data: existingLink } = await supabase
+                .from('order_links')
+                .select('id')
+                .eq('visit_id', booking.id)
+                .maybeSingle();
+              
+              if (!existingLink) {
+                extendedCandidates.push(booking);
+              }
+            }
+          }
+          
+          // If found name match in extended window → CREATE REVIEW TASK
+          if (extendedCandidates.length > 0) {
+            const suggestedBooking = extendedCandidates[0];
+            const timeDelayMinutes = Math.round(Math.abs(new Date(`${orderDate}T${suggestedBooking.booking_time}`).getTime() - orderTime.getTime()) / 60000);
+            
+            console.log(`🔔 Creating review task for potential match: ${suggestedBooking.booking_reference}`);
+            
+            await supabase.from('order_link_reviews').insert({
+              order_id: orderData.id,
+              proposed_visit_id: suggestedBooking.id.toString(),
+              proposed_reservation_id: suggestedBooking.id.toString(),
+              proposed_guest_id: guestId,
+              reason: 'name_match_extended_window',
+              confidence: 0.6,
+              suggested_actions: {
+                action: 'manual_review',
+                message: `Order arrived ${timeDelayMinutes} minutes from booking time. Guest name match found. Please confirm.`
+              },
+              snapshot: {
+                order_id: orderData.id,
+                order_time: orderData.created_at,
+                time_delay_minutes: timeDelayMinutes,
+                suggested_booking: {
+                  id: suggestedBooking.id,
+                  reference: suggestedBooking.booking_reference,
+                  guest: suggestedBooking.guest_name,
+                  time: suggestedBooking.booking_time
+                },
+                full_order: orderData
+              },
+              status: 'open'
+            });
+            
+            return; // Review task created
+          }
+        }
+        
+        // Step 3: Check if ALL bookings have orders → CREATE "table_occupied" REVIEW
+        const allHaveOrders = await Promise.all(
+          allBookings.map(async (booking) => {
+            const { data: existingLink } = await supabase
+              .from('order_links')
+              .select('id')
+              .eq('visit_id', booking.id)
+              .maybeSingle();
+            return !!existingLink;
+          })
+        );
+        
+        if (allHaveOrders.every(hasOrder => hasOrder)) {
+          console.log(`⚠️ All bookings on table ${tableId} have orders, creating review`);
+          
+          await supabase.from('order_link_reviews').insert({
+            order_id: orderData.id,
+            reason: 'table_occupied_with_orders',
+            confidence: 0.0,
+            snapshot: {
+              order_id: orderData.id,
+              table_id: tableId,
+              conflicting_bookings: allBookings.map((b: any) => ({
+                id: b.id,
+                reference: b.booking_reference,
+                guest: b.guest_name,
+                time: b.booking_time
+              })),
+              full_order: orderData
+            },
+            status: 'open'
+          });
+          return;
+        }
       }
       
       // No existing bookings - safe to create walk-in
