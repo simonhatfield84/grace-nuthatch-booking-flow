@@ -174,6 +174,45 @@ export const GuestDialog = ({ isOpen, onOpenChange, guest, onSave }: GuestDialog
               />
             </div>
 
+            {/* Guest Metrics - Only for existing guests */}
+            {guest && (guest.actual_visit_count || guest.total_spend_cents) && (
+              <div className="bg-muted/30 p-4 rounded-lg">
+                <Label className="text-base mb-3 block">Guest Metrics</Label>
+                <div className="grid grid-cols-2 gap-4">
+                  {guest.actual_visit_count !== undefined && guest.actual_visit_count > 0 && (
+                    <div>
+                      <div className="text-sm text-muted-foreground">Total Visits</div>
+                      <div className="text-lg font-semibold">{guest.actual_visit_count}</div>
+                    </div>
+                  )}
+                  {guest.total_spend_cents !== undefined && guest.total_spend_cents > 0 && (
+                    <div>
+                      <div className="text-sm text-muted-foreground">Total Spend</div>
+                      <div className="text-lg font-semibold">£{(guest.total_spend_cents / 100).toFixed(2)}</div>
+                    </div>
+                  )}
+                  {guest.average_spend_per_visit_cents !== undefined && guest.average_spend_per_visit_cents > 0 && (
+                    <div>
+                      <div className="text-sm text-muted-foreground">Avg per Visit</div>
+                      <div className="text-lg font-semibold">£{(guest.average_spend_per_visit_cents / 100).toFixed(2)}</div>
+                    </div>
+                  )}
+                  {guest.average_spend_per_cover_cents !== undefined && guest.average_spend_per_cover_cents > 0 && (
+                    <div>
+                      <div className="text-sm text-muted-foreground">Avg per Cover</div>
+                      <div className="text-lg font-semibold">£{(guest.average_spend_per_cover_cents / 100).toFixed(2)}</div>
+                    </div>
+                  )}
+                  {guest.last_actual_visit_date && (
+                    <div className="col-span-2">
+                      <div className="text-sm text-muted-foreground">Last Visit</div>
+                      <div className="text-lg font-semibold">{new Date(guest.last_actual_visit_date).toLocaleDateString()}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Tags Section - Only for existing guests */}
             {guest && (
               <div>

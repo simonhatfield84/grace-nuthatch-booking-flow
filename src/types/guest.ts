@@ -16,6 +16,11 @@ export interface Guest {
   square_customer_id?: string | null;
   square_reference_id?: string | null;
   square_customer_raw?: any;
+  actual_visit_count?: number;
+  total_spend_cents?: number;
+  average_spend_per_visit_cents?: number;
+  average_spend_per_cover_cents?: number;
+  last_actual_visit_date?: string;
 }
 
 export interface Tag {

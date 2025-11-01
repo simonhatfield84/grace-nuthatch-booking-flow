@@ -643,6 +643,35 @@ async function processOrderUpdated(supabase: any, webhookEvent: any) {
       console.error('Failed to update booking status:', statusUpdateError);
     } else {
       console.log(`✅ Booking ${linkedVisitId} marked as finished`);
+      
+      // Update guest metrics when order is completed
+      const { data: bookingData } = await supabase
+        .from('bookings')
+        .select('email, phone, venue_id')
+        .eq('id', linkedVisitId)
+        .single();
+      
+      if (bookingData && (bookingData.email || bookingData.phone)) {
+        const { data: guestData } = await supabase
+          .from('guests')
+          .select('id')
+          .eq('venue_id', bookingData.venue_id)
+          .or(`email.eq.${bookingData.email || ''},phone.eq.${bookingData.phone || ''}`)
+          .maybeSingle();
+
+        if (guestData) {
+          console.log(`📊 Updating metrics for guest ${guestData.id}`);
+          const { error: metricsError } = await supabase.rpc('update_guest_metrics', { 
+            p_guest_id: guestData.id 
+          });
+
+          if (metricsError) {
+            console.error('Failed to update guest metrics:', metricsError);
+          } else {
+            console.log(`✅ Updated guest metrics for ${guestData.id}`);
+          }
+        }
+      }
     }
   }
 
@@ -765,6 +794,20 @@ async function processOrderUpdated(supabase: any, webhookEvent: any) {
                 .eq('id', booking.id)
                 .in('status', ['seated', 'confirmed']);
               console.log(`✅ Booking ${booking.id} marked as finished`);
+              
+              // Update guest metrics
+              if (guestId) {
+                console.log(`📊 Updating metrics for guest ${guestId}`);
+                const { error: metricsError } = await supabase.rpc('update_guest_metrics', { 
+                  p_guest_id: guestId 
+                });
+
+                if (metricsError) {
+                  console.error('Failed to update guest metrics:', metricsError);
+                } else {
+                  console.log(`✅ Updated guest metrics for ${guestId}`);
+                }
+              }
             }
             
             return; // Successfully linked, exit
@@ -995,7 +1038,7 @@ async function processPaymentUpdated(supabase: any, webhookEvent: any) {
     // Find linked visit via order_links
     const { data: orderLinks } = await supabase
       .from('order_links')
-      .select('visit_id, reservation_id')
+      .select('visit_id, reservation_id, guest_id')
       .eq('order_id', paymentData.order_id)
       .maybeSingle();
     
@@ -1014,6 +1057,20 @@ async function processPaymentUpdated(supabase: any, webhookEvent: any) {
         console.error('Failed to update visit status:', updateError);
       } else {
         console.log(`✅ Visit ${orderLinks.visit_id} marked as finished after payment`);
+        
+        // Update guest metrics
+        if (orderLinks.guest_id) {
+          console.log(`📊 Updating metrics for guest ${orderLinks.guest_id}`);
+          const { error: metricsError } = await supabase.rpc('update_guest_metrics', { 
+            p_guest_id: orderLinks.guest_id 
+          });
+
+          if (metricsError) {
+            console.error('Failed to update guest metrics:', metricsError);
+          } else {
+            console.log(`✅ Updated guest metrics for ${orderLinks.guest_id}`);
+          }
+        }
       }
     } else {
       console.log(`ℹ️ No linked visit found for order ${paymentData.order_id}`);

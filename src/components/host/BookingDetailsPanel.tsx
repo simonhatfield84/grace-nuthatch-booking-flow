@@ -593,7 +593,16 @@ export const BookingDetailsPanel = ({
                 <div>
                   <h3 className="font-medium text-sm mb-3 flex items-center gap-2 text-white font-inter">
                     <Receipt className="h-4 w-4 text-[#F1C8D0]" />
-                    Square Bill (OPEN)
+                    Square Bill
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      linkedOrder.state === 'COMPLETED' 
+                        ? 'bg-green-500/10 text-green-400' 
+                        : linkedOrder.state === 'CANCELED'
+                        ? 'bg-red-500/10 text-red-400'
+                        : 'bg-yellow-500/10 text-yellow-400'
+                    }`}>
+                      {linkedOrder.state === 'COMPLETED' ? 'PAID' : linkedOrder.state || 'OPEN'}
+                    </span>
                   </h3>
                   <div className="space-y-3 bg-[#111315] p-4 rounded-xl border border-[#676767]/20">
                     {/* Line Items */}

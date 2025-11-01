@@ -1090,11 +1090,15 @@ export type Database = {
       }
       guests: {
         Row: {
+          actual_visit_count: number | null
+          average_spend_per_cover_cents: number | null
+          average_spend_per_visit_cents: number | null
           created_at: string | null
           email: string | null
           id: string
           import_last_visit_date: string | null
           import_visit_count: number | null
+          last_actual_visit_date: string | null
           name: string
           notes: string | null
           opt_in_marketing: boolean | null
@@ -1102,15 +1106,20 @@ export type Database = {
           square_customer_id: string | null
           square_customer_raw: Json | null
           square_reference_id: string | null
+          total_spend_cents: number | null
           updated_at: string | null
           venue_id: string
         }
         Insert: {
+          actual_visit_count?: number | null
+          average_spend_per_cover_cents?: number | null
+          average_spend_per_visit_cents?: number | null
           created_at?: string | null
           email?: string | null
           id?: string
           import_last_visit_date?: string | null
           import_visit_count?: number | null
+          last_actual_visit_date?: string | null
           name: string
           notes?: string | null
           opt_in_marketing?: boolean | null
@@ -1118,15 +1127,20 @@ export type Database = {
           square_customer_id?: string | null
           square_customer_raw?: Json | null
           square_reference_id?: string | null
+          total_spend_cents?: number | null
           updated_at?: string | null
           venue_id: string
         }
         Update: {
+          actual_visit_count?: number | null
+          average_spend_per_cover_cents?: number | null
+          average_spend_per_visit_cents?: number | null
           created_at?: string | null
           email?: string | null
           id?: string
           import_last_visit_date?: string | null
           import_visit_count?: number | null
+          last_actual_visit_date?: string | null
           name?: string
           notes?: string | null
           opt_in_marketing?: boolean | null
@@ -1134,6 +1148,7 @@ export type Database = {
           square_customer_id?: string | null
           square_customer_raw?: Json | null
           square_reference_id?: string | null
+          total_spend_cents?: number | null
           updated_at?: string | null
           venue_id?: string
         }
@@ -4067,11 +4082,15 @@ export type Database = {
       guests_search: {
         Args: { _limit?: number; _q: string; _venue: string }
         Returns: {
+          actual_visit_count: number | null
+          average_spend_per_cover_cents: number | null
+          average_spend_per_visit_cents: number | null
           created_at: string | null
           email: string | null
           id: string
           import_last_visit_date: string | null
           import_visit_count: number | null
+          last_actual_visit_date: string | null
           name: string
           notes: string | null
           opt_in_marketing: boolean | null
@@ -4079,6 +4098,7 @@ export type Database = {
           square_customer_id: string | null
           square_customer_raw: Json | null
           square_reference_id: string | null
+          total_spend_cents: number | null
           updated_at: string | null
           venue_id: string
         }[]
@@ -4156,6 +4176,7 @@ export type Database = {
         }
         Returns: Json
       }
+      update_guest_metrics: { Args: { p_guest_id: string }; Returns: undefined }
       update_user_role: {
         Args: {
           new_role: Database["public"]["Enums"]["app_role"]
