@@ -3957,6 +3957,7 @@ export type Database = {
         Args: { guest_id_param: string }
         Returns: undefined
       }
+      backfill_booking_contacts_and_metrics: { Args: never; Returns: Json }
       calculate_guest_stats: {
         Args: { guest_email: string; guest_phone: string }
         Returns: {
