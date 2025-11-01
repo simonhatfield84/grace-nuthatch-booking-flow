@@ -4059,6 +4059,10 @@ export type Database = {
         Returns: undefined
       }
       backfill_booking_contacts_and_metrics: { Args: never; Returns: Json }
+      calculate_churn_risk: {
+        Args: { guest_id_param: string }
+        Returns: number
+      }
       calculate_guest_stats: {
         Args: { guest_email: string; guest_phone: string }
         Returns: {
@@ -4070,6 +4074,7 @@ export type Database = {
           visit_count: number
         }[]
       }
+      calculate_ltv: { Args: { guest_id_param: string }; Returns: number }
       check_advanced_rate_limit: {
         Args: {
           identifier: string
@@ -4283,7 +4288,12 @@ export type Database = {
         }
         Returns: Json
       }
+      update_churn_risk: {
+        Args: { guest_id_param: string }
+        Returns: undefined
+      }
       update_guest_metrics: { Args: { p_guest_id: string }; Returns: undefined }
+      update_ltv: { Args: { guest_id_param: string }; Returns: undefined }
       update_user_role: {
         Args: {
           new_role: Database["public"]["Enums"]["app_role"]
