@@ -626,7 +626,27 @@ async function processOrderUpdated(supabase: any, webhookEvent: any) {
     }
   }
 
-  // C. If still not linked, attempt walk-in creation
+  // C. Sync order status to booking status
+  if (linkedVisitId && orderData.state === 'COMPLETED') {
+    console.log(`📋 Order ${orderData.id} is COMPLETED, updating booking ${linkedVisitId} to finished`);
+    
+    const { error: statusUpdateError } = await supabase
+      .from('bookings')
+      .update({
+        status: 'finished',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', linkedVisitId)
+      .in('status', ['seated', 'confirmed']);
+    
+    if (statusUpdateError) {
+      console.error('Failed to update booking status:', statusUpdateError);
+    } else {
+      console.log(`✅ Booking ${linkedVisitId} marked as finished`);
+    }
+  }
+
+  // D. If still not linked, attempt smart walk-in creation
   if (!linkedVisitId) {
     const venueId = await resolveVenue(supabase, orderData.location_id);
     
@@ -668,7 +688,7 @@ async function processOrderUpdated(supabase: any, webhookEvent: any) {
       return;
     }
 
-    // Try to create walk-in
+    // Try to resolve seating
     const tableName = orderData.ticket_name || null;
     const { areaId, tableId } = await resolveSeating(
       supabase,
@@ -689,7 +709,97 @@ async function processOrderUpdated(supabase: any, webhookEvent: any) {
     }
 
     if (tableId) {
-      // Create walk-in
+      // SMART LINKING: Check for existing bookings on this table within ±30 minutes
+      const orderTime = new Date(orderData.created_at);
+      const timeWindowStart = new Date(orderTime.getTime() - 30 * 60 * 1000);
+      const timeWindowEnd = new Date(orderTime.getTime() + 30 * 60 * 1000);
+      const orderDate = orderTime.toISOString().split('T')[0];
+      const orderTimeStr = orderTime.toTimeString().slice(0, 8);
+      const windowEndStr = timeWindowEnd.toTimeString().slice(0, 8);
+      
+      console.log(`🔍 Checking for existing bookings on table ${tableId} around ${orderTime.toISOString()}`);
+      
+      const { data: existingBookings } = await supabase
+        .from('bookings')
+        .select('id, booking_reference, guest_name, booking_time, status')
+        .eq('venue_id', venueId)
+        .eq('table_id', tableId)
+        .eq('booking_date', orderDate)
+        .gte('booking_time', orderTimeStr)
+        .lte('booking_time', windowEndStr)
+        .in('status', ['confirmed', 'seated'])
+        .order('booking_time', { ascending: true });
+      
+      // Check if any existing booking doesn't have an order
+      if (existingBookings && existingBookings.length > 0) {
+        for (const booking of existingBookings) {
+          const { data: existingLink } = await supabase
+            .from('order_links')
+            .select('id')
+            .eq('visit_id', booking.id)
+            .maybeSingle();
+          
+          if (!existingLink) {
+            // Found a booking without an order - link to it
+            console.log(`✅ Found existing booking ${booking.booking_reference} without order, linking...`);
+            
+            await supabase.from('order_links').insert({
+              order_id: orderData.id,
+              visit_id: booking.id,
+              reservation_id: booking.id,
+              guest_id: guestId,
+              link_method: 'smart_table_match',
+              confidence: 0.8
+            });
+            
+            console.log(`✅ Linked order ${orderData.id} to existing booking ${booking.id}`);
+            
+            // Sync order status to booking if order is completed
+            if (orderData.state === 'COMPLETED') {
+              await supabase
+                .from('bookings')
+                .update({
+                  status: 'finished',
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', booking.id)
+                .in('status', ['seated', 'confirmed']);
+              console.log(`✅ Booking ${booking.id} marked as finished`);
+            }
+            
+            return; // Successfully linked, exit
+          }
+        }
+        
+        // All bookings on this table already have orders
+        console.log(`⚠️ Table ${tableId} occupied with other orders, creating review task`);
+        
+        await supabase.from('order_link_reviews').insert({
+          order_id: orderData.id,
+          reason: 'table_occupied_with_orders',
+          confidence: 0.0,
+          snapshot: {
+            order_id: orderData.id,
+            location_id: orderData.location_id,
+            state: orderData.state,
+            opened_at: orderData.created_at,
+            table_id: tableId,
+            conflicting_bookings: existingBookings.map((b: any) => ({
+              id: b.id,
+              reference: b.booking_reference,
+              guest: b.guest_name,
+              time: b.booking_time
+            })),
+            full_order: orderData
+          },
+          status: 'open'
+        });
+        return;
+      }
+      
+      // No existing bookings - safe to create walk-in
+      console.log(`✅ No conflicting bookings, creating walk-in on table ${tableId}`);
+      
       const { data: newVisitId, error: walkInError } = await supabase.rpc(
         'grace_create_walk_in',
         {
@@ -705,39 +815,47 @@ async function processOrderUpdated(supabase: any, webhookEvent: any) {
       if (walkInError) {
         console.error('Failed to create walk-in:', walkInError);
         
-        // Create review for failed walk-in
-        await supabase.from('order_link_reviews').insert({
-          order_id: orderData.id,
-          reason: 'walk_in_creation_failed',
-          confidence: 0.0,
-          snapshot: {
+        // Create review for failed walk-in (but don't create duplicates)
+        const { data: existingReviews } = await supabase
+          .from('order_link_reviews')
+          .select('id')
+          .eq('order_id', orderData.id)
+          .eq('reason', 'walk_in_creation_failed');
+        
+        if (!existingReviews || existingReviews.length === 0) {
+          await supabase.from('order_link_reviews').insert({
             order_id: orderData.id,
-            location_id: orderData.location_id,
-            state: orderData.state,
-            opened_at: orderData.created_at,
-            updated_at: orderData.updated_at,
-            closed_at: orderData.closed_at,
-            customer_id: orderData.customer_id,
-            note: orderData.note,
-            source_name: orderData.source?.name,
-            device_id: orderData.source?.device_id,
-            table_names: orderData.fulfillments
-              ?.filter((f: any) => f.type === 'SHIPMENT' && f.shipment_details?.recipient?.display_name)
-              .map((f: any) => f.shipment_details.recipient.display_name) || [],
-            money: {
-              subtotal: orderData.net_amounts?.total_money?.amount || 0,
-              discount: orderData.net_amounts?.discount_money?.amount || 0,
-              service_charge: orderData.net_amounts?.service_charge_money?.amount || 0,
-              tax: orderData.net_amounts?.tax_money?.amount || 0,
-              tip: orderData.net_amounts?.tip_money?.amount || 0,
-              total: orderData.total_money?.amount || 0
+            reason: 'walk_in_creation_failed',
+            confidence: 0.0,
+            snapshot: {
+              order_id: orderData.id,
+              location_id: orderData.location_id,
+              state: orderData.state,
+              opened_at: orderData.created_at,
+              updated_at: orderData.updated_at,
+              closed_at: orderData.closed_at,
+              customer_id: orderData.customer_id,
+              note: orderData.note,
+              source_name: orderData.source?.name,
+              device_id: orderData.source?.device_id,
+              table_names: orderData.fulfillments
+                ?.filter((f: any) => f.type === 'SHIPMENT' && f.shipment_details?.recipient?.display_name)
+                .map((f: any) => f.shipment_details.recipient.display_name) || [],
+              money: {
+                subtotal: orderData.net_amounts?.total_money?.amount || 0,
+                discount: orderData.net_amounts?.discount_money?.amount || 0,
+                service_charge: orderData.net_amounts?.service_charge_money?.amount || 0,
+                tax: orderData.net_amounts?.tax_money?.amount || 0,
+                tip: orderData.net_amounts?.tip_money?.amount || 0,
+                total: orderData.total_money?.amount || 0
+              },
+              line_items_count: orderData.line_items?.length || 0,
+              full_order: orderData,
+              error: walkInError.message
             },
-            line_items_count: orderData.line_items?.length || 0,
-            full_order: orderData,
-            error: walkInError.message
-          },
-          status: 'open'
-        });
+            status: 'open'
+          });
+        }
         return;
       }
 
