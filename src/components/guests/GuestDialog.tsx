@@ -13,6 +13,10 @@ import { useTags } from "@/hooks/useTags";
 import { useGuestTags } from "@/hooks/useGuestTags";
 import { useGuests } from "@/hooks/useGuests";
 import { DeleteConfirmDialog } from "./DeleteConfirmDialog";
+import { GuestBookingHistory } from "./GuestBookingHistory";
+import { GuestNotes } from "./GuestNotes";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface GuestDialogProps {
   isOpen: boolean;
@@ -36,6 +40,23 @@ export const GuestDialog = ({ isOpen, onOpenChange, guest, onSave }: GuestDialog
   const { tags } = useTags();
   const { assignTag, removeTag } = useGuestTags();
   const { deleteGuest } = useGuests();
+
+  // Fetch venue_id for guest notes
+  const { data: venueData } = useQuery({
+    queryKey: ['user-venue'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      
+      const { data } = await supabase
+        .from('profiles')
+        .select('venue_id')
+        .eq('id', user.id)
+        .single();
+      
+      return data;
+    }
+  });
 
   useEffect(() => {
     if (guest) {
@@ -120,7 +141,66 @@ export const GuestDialog = ({ isOpen, onOpenChange, guest, onSave }: GuestDialog
           </DialogHeader>
           
           <div className="space-y-6">
-            {/* Basic Information */}
+            {/* Guest Metrics Card - Top of dialog for existing guests */}
+            {guest && (guest.actual_visit_count || guest.total_spend_cents) && (
+              <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-4 rounded-lg border border-primary/20">
+                <div className="text-base font-semibold mb-3">Guest Metrics</div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div>
+                    <div className="text-sm text-muted-foreground">Total Visits</div>
+                    <div className="text-2xl font-bold">{guest.actual_visit_count || 0}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground">Total Spend</div>
+                    <div className="text-2xl font-bold">
+                      £{((guest.total_spend_cents || 0) / 100).toFixed(2)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground">Avg per Visit</div>
+                    <div className="text-2xl font-bold">
+                      £{((guest.average_spend_per_visit_cents || 0) / 100).toFixed(2)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-muted-foreground">Avg per Cover</div>
+                    <div className="text-2xl font-bold">
+                      £{((guest.average_spend_per_cover_cents || 0) / 100).toFixed(2)}
+                    </div>
+                  </div>
+                </div>
+                {guest.last_actual_visit_date && (
+                  <div className="mt-3 pt-3 border-t border-primary/20">
+                    <div className="text-sm text-muted-foreground">Last Visit</div>
+                    <div className="text-base font-semibold">
+                      {new Date(guest.last_actual_visit_date).toLocaleDateString('en-GB', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </div>
+                  </div>
+                )}
+                {/* Missing Data Warnings */}
+                {(!guest.email || !guest.phone || guest.opt_in_marketing === null) && (
+                  <div className="mt-3 pt-3 border-t border-orange-500/20 space-y-1">
+                    {!guest.email && (
+                      <div className="text-xs text-orange-600 flex items-center gap-1">
+                        ⚠️ No email address (can't send confirmations)
+                      </div>
+                    )}
+                    {!guest.phone && (
+                      <div className="text-xs text-orange-600 flex items-center gap-1">
+                        ⚠️ No phone number (can't send SMS)
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Basic Information Form */}
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="name">Name *</Label>
@@ -174,42 +254,21 @@ export const GuestDialog = ({ isOpen, onOpenChange, guest, onSave }: GuestDialog
               />
             </div>
 
-            {/* Guest Metrics - Only for existing guests */}
-            {guest && (guest.actual_visit_count || guest.total_spend_cents) && (
-              <div className="bg-muted/30 p-4 rounded-lg">
-                <Label className="text-base mb-3 block">Guest Metrics</Label>
-                <div className="grid grid-cols-2 gap-4">
-                  {guest.actual_visit_count !== undefined && guest.actual_visit_count > 0 && (
-                    <div>
-                      <div className="text-sm text-muted-foreground">Total Visits</div>
-                      <div className="text-lg font-semibold">{guest.actual_visit_count}</div>
-                    </div>
-                  )}
-                  {guest.total_spend_cents !== undefined && guest.total_spend_cents > 0 && (
-                    <div>
-                      <div className="text-sm text-muted-foreground">Total Spend</div>
-                      <div className="text-lg font-semibold">£{(guest.total_spend_cents / 100).toFixed(2)}</div>
-                    </div>
-                  )}
-                  {guest.average_spend_per_visit_cents !== undefined && guest.average_spend_per_visit_cents > 0 && (
-                    <div>
-                      <div className="text-sm text-muted-foreground">Avg per Visit</div>
-                      <div className="text-lg font-semibold">£{(guest.average_spend_per_visit_cents / 100).toFixed(2)}</div>
-                    </div>
-                  )}
-                  {guest.average_spend_per_cover_cents !== undefined && guest.average_spend_per_cover_cents > 0 && (
-                    <div>
-                      <div className="text-sm text-muted-foreground">Avg per Cover</div>
-                      <div className="text-lg font-semibold">£{(guest.average_spend_per_cover_cents / 100).toFixed(2)}</div>
-                    </div>
-                  )}
-                  {guest.last_actual_visit_date && (
-                    <div className="col-span-2">
-                      <div className="text-sm text-muted-foreground">Last Visit</div>
-                      <div className="text-lg font-semibold">{new Date(guest.last_actual_visit_date).toLocaleDateString()}</div>
-                    </div>
-                  )}
-                </div>
+            {/* Booking History - Only for existing guests */}
+            {guest && (
+              <div className="border-t pt-4">
+                <GuestBookingHistory
+                  guestId={guest.id}
+                  guestEmail={guest.email || undefined}
+                  guestPhone={guest.phone || undefined}
+                />
+              </div>
+            )}
+
+            {/* Notes Timeline - Only for existing guests */}
+            {guest && venueData?.venue_id && (
+              <div className="border-t pt-4">
+                <GuestNotes guestId={guest.id} venueId={venueData.venue_id} />
               </div>
             )}
 
@@ -271,29 +330,8 @@ export const GuestDialog = ({ isOpen, onOpenChange, guest, onSave }: GuestDialog
               </div>
             )}
 
-            {/* Guest Statistics - Only for existing guests */}
-            {guest && (
-              <div className="bg-muted/20 p-4 rounded-lg">
-                <div className="text-sm font-medium mb-2">Guest Statistics</div>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Total Visits:</span>
-                    <span className="ml-2 font-medium">{guest.visit_count || 0}</span>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Last Visit:</span>
-                    <span className="ml-2 font-medium">
-                      {guest.last_visit_date 
-                        ? new Date(guest.last_visit_date).toLocaleDateString()
-                        : "Never"
-                      }
-                    </span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-end gap-2">
+            {/* Action Buttons - Bottom with Save at top too */}
+            <div className="flex justify-end gap-2 pt-4 border-t">
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>

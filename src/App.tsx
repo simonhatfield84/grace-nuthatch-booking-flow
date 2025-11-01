@@ -19,6 +19,7 @@ import NewHostInterface from "./pages/NewHostInterface";
 import Services from "./pages/Services";
 import Tables from "./pages/Tables";
 import Guests from "./pages/Guests";
+import GuestDuplicates from "./pages/GuestDuplicates";
 import Settings from "./pages/Settings";
 import Reports from "./pages/Reports";
 import BookingWidget from "./pages/BookingWidget";
@@ -142,6 +143,13 @@ function App() {
                       <ProtectedRoute>
                         <AdminLayout>
                           <Guests />
+                        </AdminLayout>
+                      </ProtectedRoute>
+                    } />
+                    <Route path="/guests/duplicates" element={
+                      <ProtectedRoute>
+                        <AdminLayout>
+                          <GuestDuplicates />
                         </AdminLayout>
                       </ProtectedRoute>
                     } />

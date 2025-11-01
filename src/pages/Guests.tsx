@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Download, Upload, UserPlus, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Download, Upload, UserPlus, Trash2, ChevronLeft, ChevronRight, Users2 } from "lucide-react";
 import { useGuests } from "@/hooks/useGuests";
 import { Guest } from "@/types/guest";
+import { useNavigate } from "react-router-dom";
 import { GuestsTable } from "@/components/guests/GuestsTable";
 import { GuestFilters, GuestFilters as GuestFiltersType } from "@/components/guests/GuestFilters";
 import { GuestDialog } from "@/components/guests/GuestDialog";
@@ -23,6 +24,7 @@ import {
 
 const Guests = () => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -269,6 +271,10 @@ const Guests = () => {
           <Button variant="outline" onClick={handleCSVExport} disabled={filteredGuests.length === 0}>
             <Download className="h-4 w-4 mr-2" />
             Export CSV
+          </Button>
+          <Button variant="outline" onClick={() => navigate('/guests/duplicates')}>
+            <Users2 className="h-4 w-4 mr-2" />
+            Find Duplicates
           </Button>
           <Button onClick={handleAddGuest}>
             <UserPlus className="h-4 w-4 mr-2" />

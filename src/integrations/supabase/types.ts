@@ -1032,6 +1032,92 @@ export type Database = {
         }
         Relationships: []
       }
+      guest_notes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          guest_id: string
+          id: string
+          is_pinned: boolean | null
+          note_text: string
+          note_type: string | null
+          related_booking_id: number | null
+          venue_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          guest_id: string
+          id?: string
+          is_pinned?: boolean | null
+          note_text: string
+          note_type?: string | null
+          related_booking_id?: number | null
+          venue_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          guest_id?: string
+          id?: string
+          is_pinned?: boolean | null
+          note_text?: string
+          note_type?: string | null
+          related_booking_id?: number | null
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_notes_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_notes_guest_id_fkey"
+            columns: ["guest_id"]
+            isOneToOne: false
+            referencedRelation: "guests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_notes_related_booking_id_fkey"
+            columns: ["related_booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_overlaps_review"
+            referencedColumns: ["booking_1_id"]
+          },
+          {
+            foreignKeyName: "guest_notes_related_booking_id_fkey"
+            columns: ["related_booking_id"]
+            isOneToOne: false
+            referencedRelation: "booking_overlaps_review"
+            referencedColumns: ["booking_2_id"]
+          },
+          {
+            foreignKeyName: "guest_notes_related_booking_id_fkey"
+            columns: ["related_booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_notes_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "guest_notes_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues_public"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       guest_tags: {
         Row: {
           assigned_at: string | null
@@ -1093,16 +1179,21 @@ export type Database = {
           actual_visit_count: number | null
           average_spend_per_cover_cents: number | null
           average_spend_per_visit_cents: number | null
+          behavior_metrics: Json | null
+          churn_risk_score: number | null
           created_at: string | null
           email: string | null
+          email_marketing_data: Json | null
           id: string
           import_last_visit_date: string | null
           import_visit_count: number | null
           last_actual_visit_date: string | null
+          ltv_segment: string | null
           name: string
           notes: string | null
           opt_in_marketing: boolean | null
           phone: string | null
+          predicted_ltv_cents: number | null
           square_customer_id: string | null
           square_customer_raw: Json | null
           square_reference_id: string | null
@@ -1114,16 +1205,21 @@ export type Database = {
           actual_visit_count?: number | null
           average_spend_per_cover_cents?: number | null
           average_spend_per_visit_cents?: number | null
+          behavior_metrics?: Json | null
+          churn_risk_score?: number | null
           created_at?: string | null
           email?: string | null
+          email_marketing_data?: Json | null
           id?: string
           import_last_visit_date?: string | null
           import_visit_count?: number | null
           last_actual_visit_date?: string | null
+          ltv_segment?: string | null
           name: string
           notes?: string | null
           opt_in_marketing?: boolean | null
           phone?: string | null
+          predicted_ltv_cents?: number | null
           square_customer_id?: string | null
           square_customer_raw?: Json | null
           square_reference_id?: string | null
@@ -1135,16 +1231,21 @@ export type Database = {
           actual_visit_count?: number | null
           average_spend_per_cover_cents?: number | null
           average_spend_per_visit_cents?: number | null
+          behavior_metrics?: Json | null
+          churn_risk_score?: number | null
           created_at?: string | null
           email?: string | null
+          email_marketing_data?: Json | null
           id?: string
           import_last_visit_date?: string | null
           import_visit_count?: number | null
           last_actual_visit_date?: string | null
+          ltv_segment?: string | null
           name?: string
           notes?: string | null
           opt_in_marketing?: boolean | null
           phone?: string | null
+          predicted_ltv_cents?: number | null
           square_customer_id?: string | null
           square_customer_raw?: Json | null
           square_reference_id?: string | null
@@ -4086,16 +4187,21 @@ export type Database = {
           actual_visit_count: number | null
           average_spend_per_cover_cents: number | null
           average_spend_per_visit_cents: number | null
+          behavior_metrics: Json | null
+          churn_risk_score: number | null
           created_at: string | null
           email: string | null
+          email_marketing_data: Json | null
           id: string
           import_last_visit_date: string | null
           import_visit_count: number | null
           last_actual_visit_date: string | null
+          ltv_segment: string | null
           name: string
           notes: string | null
           opt_in_marketing: boolean | null
           phone: string | null
+          predicted_ltv_cents: number | null
           square_customer_id: string | null
           square_customer_raw: Json | null
           square_reference_id: string | null

@@ -34,6 +34,38 @@ export const guestService = {
       query = query.or(`name.ilike.${searchTerm},email.ilike.${searchTerm},phone.like.${options.search}%`);
     }
 
+    // Apply tag filter - filter by guests that have ANY of the selected tags
+    if (options?.tags && options.tags.length > 0) {
+      const { data: guestsWithTags } = await supabase
+        .from('guest_tags')
+        .select('guest_id')
+        .in('tag_id', options.tags);
+      
+      const guestIds = guestsWithTags?.map(gt => gt.guest_id) || [];
+      if (guestIds.length > 0) {
+        query = query.in('id', guestIds);
+      } else {
+        // No guests found with these tags, return empty
+        return { guests: [], totalCount: 0 };
+      }
+    }
+
+    // Apply marketing opt-in filter
+    if (options?.marketingOptIn === 'opted_in') {
+      query = query.eq('opt_in_marketing', true);
+    } else if (options?.marketingOptIn === 'opted_out') {
+      query = query.eq('opt_in_marketing', false);
+    }
+
+    // Apply visit count filter (using actual_visit_count)
+    if (options?.visitCount === 'first_time') {
+      query = query.lte('actual_visit_count', 1);
+    } else if (options?.visitCount === 'repeat') {
+      query = query.gte('actual_visit_count', 2).lte('actual_visit_count', 4);
+    } else if (options?.visitCount === 'frequent') {
+      query = query.gte('actual_visit_count', 5);
+    }
+
     // Apply pagination
     if (options?.limit) {
       query = query.range(options.offset || 0, (options.offset || 0) + options.limit - 1);
