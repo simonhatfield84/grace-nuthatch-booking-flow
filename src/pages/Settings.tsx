@@ -10,7 +10,8 @@ import { TagManagement } from "@/components/settings/TagManagement";
 import { EmailSettingsPanel } from "@/components/settings/EmailSettingsPanel";
 import { EmailTemplatesList } from "@/components/settings/EmailTemplateEditor";
 import { BrandingSettingsTab } from "@/components/settings/BrandingSettingsTab";
-import { Settings as SettingsIcon, Clock, CreditCard, FileText, Tags, Mail, Palette, Link2, MessageSquare, Square } from "lucide-react";
+import { GuestInsightsDocumentation } from "@/components/settings/GuestInsightsDocumentation";
+import { Settings as SettingsIcon, Clock, CreditCard, FileText, Tags, Mail, Palette, Link2, MessageSquare, Square, Info } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import { WidgetLinkBuilderTab } from "@/components/settings/WidgetLinkBuilderTab";
 import { WidgetCopyTab } from "@/components/settings/WidgetCopyTab";
@@ -29,7 +30,7 @@ const Settings = () => {
       </div>
 
       <Tabs defaultValue={defaultTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-9">
+        <TabsList className="grid w-full grid-cols-10">
           <TabsTrigger value="hours" className="flex items-center gap-2">
             <Clock className="h-4 w-4" />
             <span className="hidden sm:inline">Hours</span>
@@ -65,6 +66,10 @@ const Settings = () => {
           <TabsTrigger value="square" className="flex items-center gap-2">
             <Square className="h-4 w-4" />
             <span className="hidden sm:inline">Square</span>
+          </TabsTrigger>
+          <TabsTrigger value="guest-insights" className="flex items-center gap-2">
+            <Info className="h-4 w-4" />
+            <span className="hidden sm:inline">Insights</span>
           </TabsTrigger>
         </TabsList>
 
@@ -123,6 +128,10 @@ const Settings = () => {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="guest-insights">
+          <GuestInsightsDocumentation />
         </TabsContent>
       </Tabs>
     </div>

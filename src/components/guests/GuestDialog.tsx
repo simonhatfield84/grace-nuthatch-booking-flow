@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { X, Trash2 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import { X, Trash2, HelpCircle, AlertCircle } from "lucide-react";
 import { Guest } from "@/types/guest";
 import { useTags } from "@/hooks/useTags";
 import { useGuestTags } from "@/hooks/useGuestTags";
@@ -143,61 +144,173 @@ export const GuestDialog = ({ isOpen, onOpenChange, guest, onSave }: GuestDialog
           <div className="space-y-6">
             {/* Guest Metrics Card - Top of dialog for existing guests */}
             {guest && (guest.actual_visit_count || guest.total_spend_cents) && (
-              <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-4 rounded-lg border border-primary/20">
-                <div className="text-base font-semibold mb-3">Guest Metrics</div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div>
-                    <div className="text-sm text-muted-foreground">Total Visits</div>
-                    <div className="text-2xl font-bold">{guest.actual_visit_count || 0}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">Total Spend</div>
-                    <div className="text-2xl font-bold">
-                      £{((guest.total_spend_cents || 0) / 100).toFixed(2)}
+              <TooltipProvider>
+                <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-4 rounded-lg border border-primary/20">
+                  <div className="text-base font-semibold mb-3">Guest Metrics</div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div>
+                      <div className="text-sm text-muted-foreground">Total Visits</div>
+                      <div className="text-2xl font-bold">{guest.actual_visit_count || 0}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-muted-foreground">Total Spend</div>
+                      <div className="text-2xl font-bold">
+                        £{((guest.total_spend_cents || 0) / 100).toFixed(2)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-muted-foreground">Avg per Visit</div>
+                      <div className="text-2xl font-bold">
+                        £{((guest.average_spend_per_visit_cents || 0) / 100).toFixed(2)}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-muted-foreground">Avg per Cover</div>
+                      <div className="text-2xl font-bold">
+                        £{((guest.average_spend_per_cover_cents || 0) / 100).toFixed(2)}
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">Avg per Visit</div>
-                    <div className="text-2xl font-bold">
-                      £{((guest.average_spend_per_visit_cents || 0) / 100).toFixed(2)}
+
+                  {/* Advanced Insights Row */}
+                  {(guest.predicted_ltv_cents || guest.churn_risk_score !== null) && (
+                    <div className="mt-3 pt-3 border-t border-primary/20">
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Lifetime Value */}
+                        {guest.predicted_ltv_cents && guest.predicted_ltv_cents > 0 && (
+                          <div>
+                            <div className="text-sm text-muted-foreground flex items-center gap-1">
+                              Predicted LTV
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <HelpCircle className="h-3 w-3" />
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs">
+                                  Estimated lifetime value based on spending trends and visit frequency. 
+                                  Calculated over 12-month projection.
+                                </TooltipContent>
+                              </Tooltip>
+                            </div>
+                            <div className="text-xl font-bold flex items-center gap-2">
+                              £{((guest.predicted_ltv_cents || 0) / 100).toFixed(2)}
+                              {guest.ltv_segment && (
+                                <Badge variant="outline" className={
+                                  guest.ltv_segment === 'platinum' ? 'bg-purple-100 text-purple-800 border-purple-300' :
+                                  guest.ltv_segment === 'gold' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
+                                  guest.ltv_segment === 'silver' ? 'bg-gray-100 text-gray-800 border-gray-300' :
+                                  'bg-orange-100 text-orange-800 border-orange-300'
+                                }>
+                                  {guest.ltv_segment.toUpperCase()}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Churn Risk */}
+                        {guest.churn_risk_score !== null && guest.churn_risk_score !== undefined && (
+                          <div>
+                            <div className="text-sm text-muted-foreground flex items-center gap-1">
+                              Churn Risk
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <HelpCircle className="h-3 w-3" />
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs">
+                                  Likelihood of this guest not returning. Based on visit patterns, 
+                                  spending trends, and time since last visit.
+                                </TooltipContent>
+                              </Tooltip>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="text-xl font-bold">
+                                {(guest.churn_risk_score * 100).toFixed(0)}%
+                              </div>
+                              <Badge variant="outline" className={
+                                guest.churn_risk_score < 0.3 ? 'bg-green-100 text-green-800 border-green-300' :
+                                guest.churn_risk_score < 0.5 ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
+                                guest.churn_risk_score < 0.7 ? 'bg-orange-100 text-orange-800 border-orange-300' :
+                                'bg-red-100 text-red-800 border-red-300'
+                              }>
+                                {guest.churn_risk_score < 0.3 ? 'Low' :
+                                 guest.churn_risk_score < 0.5 ? 'Medium' :
+                                 guest.churn_risk_score < 0.7 ? 'Elevated' : 'High'}
+                              </Badge>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">Avg per Cover</div>
-                    <div className="text-2xl font-bold">
-                      £{((guest.average_spend_per_cover_cents || 0) / 100).toFixed(2)}
+                  )}
+
+                  {guest.last_actual_visit_date && (
+                    <div className="mt-3 pt-3 border-t border-primary/20">
+                      <div className="text-sm text-muted-foreground">Last Visit</div>
+                      <div className="text-base font-semibold">
+                        {new Date(guest.last_actual_visit_date).toLocaleDateString('en-GB', {
+                          weekday: 'long',
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* Tags Display - Below metrics */}
+                  {guest.tags && guest.tags.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-primary/20">
+                      <div className="text-sm text-muted-foreground mb-2">Tags:</div>
+                      <div className="flex flex-wrap gap-2">
+                        {guest.tags.map((tag) => (
+                          <Badge
+                            key={tag.id}
+                            variant="outline"
+                            style={{ 
+                              backgroundColor: tag.color + '20', 
+                              borderColor: tag.color, 
+                              color: tag.color 
+                            }}
+                            className="flex items-center gap-1"
+                          >
+                            {tag.name}
+                            {tag.is_automatic && (
+                              <span className="text-xs opacity-70">(auto)</span>
+                            )}
+                            {/* Only show remove button for manual tags */}
+                            {!tag.is_automatic && (
+                              <button
+                                onClick={() => handleRemoveTag(tag.id)}
+                                className="ml-1 hover:bg-red-100 rounded-full"
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            )}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Missing Data Warnings */}
+                  {(!guest.email || !guest.phone) && (
+                    <div className="mt-3 pt-3 border-t border-primary/20 space-y-2">
+                      {!guest.email && (
+                        <div className="flex items-center gap-2 text-sm text-orange-600">
+                          <AlertCircle className="h-4 w-4" />
+                          <span>No email address - cannot send confirmations</span>
+                        </div>
+                      )}
+                      {!guest.phone && (
+                        <div className="flex items-center gap-2 text-sm text-orange-600">
+                          <AlertCircle className="h-4 w-4" />
+                          <span>No phone number - cannot send SMS</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-                {guest.last_actual_visit_date && (
-                  <div className="mt-3 pt-3 border-t border-primary/20">
-                    <div className="text-sm text-muted-foreground">Last Visit</div>
-                    <div className="text-base font-semibold">
-                      {new Date(guest.last_actual_visit_date).toLocaleDateString('en-GB', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
-                    </div>
-                  </div>
-                )}
-                {/* Missing Data Warnings */}
-                {(!guest.email || !guest.phone || guest.opt_in_marketing === null) && (
-                  <div className="mt-3 pt-3 border-t border-orange-500/20 space-y-1">
-                    {!guest.email && (
-                      <div className="text-xs text-orange-600 flex items-center gap-1">
-                        ⚠️ No email address (can't send confirmations)
-                      </div>
-                    )}
-                    {!guest.phone && (
-                      <div className="text-xs text-orange-600 flex items-center gap-1">
-                        ⚠️ No phone number (can't send SMS)
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+              </TooltipProvider>
             )}
 
             {/* Basic Information Form */}
@@ -272,60 +385,30 @@ export const GuestDialog = ({ isOpen, onOpenChange, guest, onSave }: GuestDialog
               </div>
             )}
 
-            {/* Tags Section - Only for existing guests */}
+            {/* Manual Tag Assignment - Only for existing guests */}
             {guest && (
-              <div>
-                <Label>Tags</Label>
-                
-                {/* Current Tags */}
-                <div className="mt-2 mb-4">
-                  <div className="text-sm text-muted-foreground mb-2">Current Tags:</div>
-                  <div className="flex flex-wrap gap-2">
-                    {guest.tags?.map((tag) => (
+              <div className="border-t pt-4">
+                <Label>Add Manual Tags</Label>
+                <div className="text-sm text-muted-foreground mb-2">
+                  Click to add a manual tag. Automatic tags are assigned based on guest behavior.
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {manualTags
+                    .filter(tag => !guestTagIds.includes(tag.id))
+                    .map((tag) => (
                       <Badge
                         key={tag.id}
                         variant="outline"
-                        style={{ backgroundColor: tag.color + '20', borderColor: tag.color, color: tag.color }}
-                        className="flex items-center gap-1"
+                        className="cursor-pointer hover:opacity-80"
+                        style={{ borderColor: tag.color, color: tag.color }}
+                        onClick={() => handleAssignTag(tag.id)}
                       >
-                        {tag.name}
-                        {tag.is_automatic && (
-                          <span className="text-xs opacity-70">(auto)</span>
-                        )}
-                        {!tag.is_automatic && (
-                          <button
-                            onClick={() => handleRemoveTag(tag.id)}
-                            className="ml-1 hover:bg-red-100 rounded-full"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        )}
+                        + {tag.name}
                       </Badge>
                     ))}
-                    {guest.tags?.length === 0 && (
-                      <span className="text-sm text-muted-foreground">No tags assigned</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Available Manual Tags */}
-                <div>
-                  <div className="text-sm text-muted-foreground mb-2">Add Manual Tags:</div>
-                  <div className="flex flex-wrap gap-2">
-                    {manualTags
-                      .filter(tag => !guestTagIds.includes(tag.id))
-                      .map((tag) => (
-                        <Badge
-                          key={tag.id}
-                          variant="outline"
-                          className="cursor-pointer hover:opacity-80"
-                          style={{ borderColor: tag.color, color: tag.color }}
-                          onClick={() => handleAssignTag(tag.id)}
-                        >
-                          + {tag.name}
-                        </Badge>
-                      ))}
-                  </div>
+                  {manualTags.filter(tag => !guestTagIds.includes(tag.id)).length === 0 && (
+                    <span className="text-sm text-muted-foreground">All manual tags assigned</span>
+                  )}
                 </div>
               </div>
             )}

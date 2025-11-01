@@ -21,6 +21,9 @@ export interface Guest {
   average_spend_per_visit_cents?: number;
   average_spend_per_cover_cents?: number;
   last_actual_visit_date?: string;
+  predicted_ltv_cents?: number | null;
+  ltv_segment?: string | null;
+  churn_risk_score?: number | null;
 }
 
 export interface Tag {

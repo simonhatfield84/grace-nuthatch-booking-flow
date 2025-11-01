@@ -9,7 +9,22 @@ export const useGuestTags = () => {
 
   const assignTagMutation = useMutation({
     mutationFn: async ({ guestId, tagId }: { guestId: string, tagId: string }) => {
-      // Fetch guest's venue_id first
+      // Verify tag is not automatic
+      const { data: tagData, error: tagError } = await supabase
+        .from('tags')
+        .select('is_automatic')
+        .eq('id', tagId)
+        .single();
+      
+      if (tagError) {
+        throw new Error('Tag not found');
+      }
+      
+      if (tagData?.is_automatic) {
+        throw new Error('Cannot manually assign automatic tags. These are assigned based on guest behavior.');
+      }
+
+      // Fetch guest's venue_id
       const { data: guestData, error: guestError } = await supabase
         .from('guests')
         .select('venue_id')
