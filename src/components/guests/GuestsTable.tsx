@@ -31,9 +31,9 @@ export const GuestsTable = ({
     return new Date(dateString).toLocaleDateString();
   };
 
-  const getGuestTier = (visitCount: number) => {
-    if (visitCount >= 10) return { label: "VIP", color: "bg-yellow-100 text-yellow-800" };
-    if (visitCount >= 5) return { label: "Regular", color: "bg-blue-100 text-blue-800" };
+  const getGuestTier = (visitCount: number, totalSpendCents: number) => {
+    if (visitCount >= 10 || totalSpendCents >= 100000) return { label: "VIP", color: "bg-yellow-100 text-yellow-800" };
+    if (visitCount >= 5 || totalSpendCents >= 50000) return { label: "Regular", color: "bg-blue-100 text-blue-800" };
     if (visitCount > 1) return { label: "Returning", color: "bg-green-100 text-green-800" };
     return { label: "New", color: "bg-gray-100 text-gray-800" };
   };
@@ -60,6 +60,8 @@ export const GuestsTable = ({
             <TableHead>Name</TableHead>
             <TableHead>Contact</TableHead>
             <TableHead className="w-20">Visits</TableHead>
+            <TableHead className="w-28">Total Spend</TableHead>
+            <TableHead className="w-24">Avg/Visit</TableHead>
             <TableHead>Last Visit</TableHead>
             <TableHead className="w-24">Tags</TableHead>
             <TableHead className="w-24">Marketing</TableHead>
@@ -68,8 +70,8 @@ export const GuestsTable = ({
           </TableRow>
         </TableHeader>
         <TableBody>
-          {guests.map((guest) => {
-            const tier = getGuestTier(guest.visit_count || 0);
+        {guests.map((guest) => {
+            const tier = getGuestTier(guest.actual_visit_count || 0, guest.total_spend_cents || 0);
             const isSelected = selectedGuests.includes(guest.id);
             
             return (
@@ -105,11 +107,21 @@ export const GuestsTable = ({
                   </div>
                 </TableCell>
                 <TableCell className="text-center">
-                  <div className="font-bold">{guest.visit_count || 0}</div>
+                  <div className="font-bold">{guest.actual_visit_count || 0}</div>
+                </TableCell>
+                <TableCell>
+                  <div className="font-medium text-sm">
+                    £{((guest.total_spend_cents || 0) / 100).toFixed(2)}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="text-sm text-muted-foreground">
+                    £{((guest.average_spend_per_visit_cents || 0) / 100).toFixed(2)}
+                  </div>
                 </TableCell>
                 <TableCell>
                   <span className="text-sm">
-                    {formatDate(guest.last_visit_date)}
+                    {formatDate(guest.last_actual_visit_date)}
                   </span>
                 </TableCell>
                 <TableCell>

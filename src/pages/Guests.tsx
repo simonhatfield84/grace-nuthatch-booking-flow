@@ -83,8 +83,10 @@ const Guests = () => {
   }, [guests, filters]);
 
   // Calculate statistics from current page only
-  const returningGuests = filteredGuests.filter(g => (g.visit_count || 0) > 1).length;
+  const returningGuests = filteredGuests.filter(g => (g.actual_visit_count || 0) > 1).length;
   const marketingOptIns = filteredGuests.filter(g => g.opt_in_marketing).length;
+  const totalRevenue = filteredGuests.reduce((sum, g) => sum + (g.total_spend_cents || 0), 0);
+  const avgGuestValue = filteredGuests.length > 0 ? totalRevenue / filteredGuests.length : 0;
 
   const handleSelectGuest = (guestId: string) => {
     setSelectedGuests(prev => 
@@ -138,9 +140,12 @@ const Guests = () => {
       Name: guest.name,
       Email: guest.email || '',
       Phone: guest.phone || '',
+      'Visit Count': guest.actual_visit_count || 0,
+      'Total Spend': ((guest.total_spend_cents || 0) / 100).toFixed(2),
+      'Avg Per Visit': ((guest.average_spend_per_visit_cents || 0) / 100).toFixed(2),
+      'Avg Per Cover': ((guest.average_spend_per_cover_cents || 0) / 100).toFixed(2),
+      'Last Visit': guest.last_actual_visit_date || '',
       'Marketing Opt-in': guest.opt_in_marketing ? 'Yes' : 'No',
-      'Visit Count': guest.visit_count || 0,
-      'Last Visit': guest.last_visit_date || '',
       Tags: guest.tags?.map(tag => tag.name).join(', ') || '',
       Notes: guest.notes || ''
     }));
@@ -273,7 +278,7 @@ const Guests = () => {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-lg">Total Guests</CardTitle>
@@ -281,7 +286,7 @@ const Guests = () => {
           <CardContent>
             <div className="text-2xl font-bold">{totalCount}</div>
             <p className="text-xs text-muted-foreground">
-              Showing {startItem}-{endItem} of {totalCount}
+              Showing {startItem}-{endItem}
             </p>
           </CardContent>
         </Card>
@@ -304,6 +309,28 @@ const Guests = () => {
             <div className="text-2xl font-bold">{marketingOptIns}</div>
             <p className="text-xs text-muted-foreground">
               On current page
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">Total Revenue</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">£{(totalRevenue / 100).toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground">
+              From tracked orders
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">Avg Guest Value</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">£{(avgGuestValue / 100).toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground">
+              Per guest lifetime
             </p>
           </CardContent>
         </Card>
